@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Backend: install + smoke check ──────────────────────────────────────────
+  server-check:
+    name: Server — install & syntax check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Syntax check (node --check)
+        run: node --check server.js
+
+  # ── Frontend: install + production build ────────────────────────────────────
+  client-build:
+    name: Client — build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Vite)
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.moveleads.cloud
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist
+          retention-days: 1
+
+  # ── E2E tests (optional — only runs if servers are available) ───────────────
+  # Uncomment after adding MONGO_URI + JWT_SECRET to repo secrets.
+  #
+  # e2e:
+  #   name: E2E — Playwright
+  #   runs-on: ubuntu-latest
+  #   needs: [server-check, client-build]
+  #   services:
+  #     mongodb:
+  #       image: mongo:7
+  #       ports: ['27017:27017']
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: '20' }
+  #     - run: npm ci
+  #       working-directory: server
+  #     - run: npm ci
+  #       working-directory: client
+  #     - name: Start server
+  #       working-directory: server
+  #       run: node server.js &
+  #       env:
+  #         MONGODB_URI: mongodb://localhost:27017/moveleads_test
+  #         JWT_SECRET: ${{ secrets.JWT_SECRET }}
+  #         PORT: 5005
+  #         CLIENT_ORIGIN: http://localhost:5173
+  #     - name: Start client
+  #       working-directory: client
+  #       run: npm run dev &
+  #       env:
+  #         VITE_API_URL: http://localhost:5005
+  #     - name: Install Playwright browsers
+  #       run: npx playwright install chromium --with-deps
+  #     - name: Run E2E tests
+  #       run: npx playwright test

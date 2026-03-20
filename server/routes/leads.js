@@ -1,0 +1,245 @@
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
+const authMiddleware = require('../middleware/auth');
+const { auth, admin } = authMiddleware;
+const Lead = require('../models/Lead');
+const User = require('../models/User');
+const PurchasedLead = require('../models/PurchasedLead');
+const { deductLeadBalance, runAutoRecharge } = require('../services/billingService');
+const { sendSpeedToLeadSMS } = require('../services/twilioService');
+const PlatformSettings = require('../models/PlatformSettings');
+const { validateLeadPayload } = require('../validators/leadIngest');
+const { verifyLeadPhone } = require('../services/twilioService');
+
+const { calculateLeadPrice } = require('../utils/pricingEngine');
+
+// ── Rate limiter: lead ingestion ──────────────────────────────────────────────
+// 5 quote submissions per IP per 10 minutes — prevents form spam and DDoS
+const ingestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many quote requests. Please wait a few minutes before trying again.' },
+});
+
+// @route   POST /api/leads/ingest
+// @desc    Receive and validate a quote request from the marketing site
+// @access  Public (no auth — this is a public-facing form submission)
+router.post('/ingest', ingestLimiter, async (req, res) => {
+  // 1. Validate with Zod
+  const validation = validateLeadPayload(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      success: false,
+      message: validation.message,
+      errors: validation.errors
+    });
+  }
+
+  const data = validation.data;
+
+  try {
+    // 2. Compute route string and distance category
+    const route = `${data.originCity} → ${data.destinationCity}`;
+    // Simple heuristic: if origin and destination zips share the first 3 digits → Local
+    const isLocal = data.originZip.substring(0, 3) === data.destinationZip.substring(0, 3);
+    const distance = isLocal ? 'Local' : 'Long Distance';
+
+    // 3. Get lead price from dynamic pricing engine
+    const leadPrice = await calculateLeadPrice({
+      homeSize: data.homeSize,
+      distance: distance
+    });
+
+    // 4. Save lead with Pending Verification status
+    const lead = new Lead({
+      route,
+      originCity: data.originCity,
+      destinationCity: data.destinationCity,
+      originZip: data.originZip,
+      destinationZip: data.destinationZip,
+      homeSize: data.homeSize,
+      moveDate: new Date(data.moveDate),
+      distance,
+      price: leadPrice,
+      status: 'Pending Verification',
+      isVerified: false,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      customerEmail: data.customerEmail,
+      specialInstructions: data.specialInstructions || '',
+      estimatedWeight: data.estimatedWeight || '',
+      numberOfRooms: data.numberOfRooms || 0,
+      customerStatus: 'New',
+      statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }]
+    });
+
+    await lead.save();
+
+    // 5. Trigger Twilio Verification in the background (NON-BLOCKING)
+    verifyLeadPhone(lead._id).catch(err => {
+      console.error('[Twilio Background Trace] Verification failed:', err.message);
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Quote request received successfully. Your lead is pending verification.',
+      lead: {
+        id: lead._id,
+        route: lead.route,
+        moveDate: lead.moveDate,
+        homeSize: lead.homeSize,
+        status: lead.status
+      }
+    });
+  } catch (err) {
+    console.error('LEAD INGEST ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Server error. Please try again later.' });
+  }
+});
+
+// @route   GET /api/leads
+// @desc    Get all leads
+// @access  Private
+router.get('/', auth, async (req, res) => {
+  try {
+    let query = {};
+
+    // If user is not admin, only show Available leads OR leads they have purchased
+    if (req.user.role !== 'admin') {
+      query = {
+        $or: [
+          { status: 'Available' },
+          { status: 'READY_FOR_DISTRIBUTION' },
+          { 'buyers.company': req.user.id }
+        ]
+      };
+    }
+
+    const leads = await Lead.find(query).sort({ createdAt: -1 });
+    res.json(leads);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /api/leads
+// @desc    Admin: Create new lead
+// @access  Private (Admin)
+router.post('/', [auth, admin], async (req, res) => {
+  try {
+    const newLead = new Lead(req.body);
+    const lead = await newLead.save();
+    res.json(lead);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT /api/leads/:id
+// @desc    Admin: Update lead
+// @access  Private (Admin)
+router.put('/:id', [auth, admin], async (req, res) => {
+  try {
+    let lead = await Lead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ msg: 'Lead not found' });
+
+    lead = await Lead.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true });
+    res.json(lead);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /api/leads/:id/claim
+// @desc    Claim/Buy a lead with concurrency control
+// @access  Private
+router.post('/:id/claim', auth, async (req, res) => {
+  // 1. Validate ObjectId before touching the DB
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({ msg: 'Invalid lead ID' });
+  }
+
+  try {
+    // 2. Atomically claim the lead slot.
+    //    findOneAndUpdate with $push is a single atomic document operation —
+    //    no multi-document transaction required (works on standalone MongoDB).
+    const lead = await Lead.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        $expr: { $lt: [{ $size: '$buyers' }, '$maxBuyers'] },
+        'buyers.company': { $ne: new mongoose.Types.ObjectId(req.user.id) }
+      },
+      { $push: { buyers: { company: req.user.id } } },
+      { new: true }
+    );
+
+    if (!lead) {
+      // Distinguish between not-found, already-owned, and sold-out.
+      const existing = await Lead.findById(req.params.id);
+      if (!existing) return res.status(404).json({ msg: 'Lead not found' });
+      if (existing.buyers.some(b => b.company.toString() === req.user.id)) {
+        return res.status(400).json({ msg: 'You already purchased this lead' });
+      }
+      return res.status(409).json({ msg: 'Sorry, another mover grabbed this lead first!' });
+    }
+
+    // 3. Mark as Purchased once all slots are filled.
+    if (lead.buyers.length >= lead.maxBuyers) {
+      lead.status = 'Purchased';
+      await lead.save();
+    }
+
+    // 4. Deduct balance atomically (single-document op, no session needed).
+    const billing = await deductLeadBalance(req.user.id, lead.price);
+    const newBalance = billing.balance;
+
+    // 5. Increment user metrics.
+    await User.findByIdAndUpdate(req.user.id, { $inc: { leadsPurchased: 1 } });
+
+    // 6. Audit record.
+    await new PurchasedLead({
+      company: req.user.id,
+      lead: lead._id,
+      pricePaid: lead.price
+    }).save();
+
+    res.json({
+      success: true,
+      message: 'Lead claimed successfully',
+      lead,
+      balance: newBalance
+    });
+
+    // 7. Post-purchase side effects (non-blocking).
+    runAutoRecharge(req.user.id).catch(err => {
+      console.error('[Auto-Recharge Background Error]', err.message);
+    });
+
+    User.findById(req.user.id).then(company => {
+      if (company) {
+        sendSpeedToLeadSMS(lead, company).catch(err => {
+          console.error('[Background SMS Trace] Automation error:', err.message);
+        });
+      }
+    }).catch(() => {});
+
+  } catch (err) {
+    console.error(`[Claim Error] ${req.user.id} -> ${req.params.id}:`, err.message);
+
+    if (err.message === 'Insufficient balance to purchase lead') {
+      return res.status(400).json({ msg: err.message });
+    }
+
+    res.status(500).json({ msg: 'Internal server error during lead claim' });
+  }
+});
+
+module.exports = router;

@@ -1,0 +1,198 @@
+/* ════════════════════════════
+   ThankYou page styles
+   ════════════════════════════ */
+
+.ty-page {
+  min-height: 100vh;
+  background: linear-gradient(155deg, #070e1b 0%, #0d1f38 50%, #0b1628 100%);
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+}
+
+.ty-nav {
+  padding: 20px 40px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.ty-logo {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  text-decoration: none;
+}
+.ty-logo span { color: #f97316; }
+
+.ty-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 60px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Hero ── */
+.ty-hero { text-align: center; }
+
+.ty-check-ring {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: rgba(34,197,94,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  animation: tyPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+.ty-check-inner {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(34,197,94,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@keyframes tyPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.ty-heading {
+  font-size: 36px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 14px;
+  letter-spacing: -0.5px;
+}
+.ty-sub {
+  font-size: 16px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 500px;
+  margin: 0 auto;
+}
+.ty-sub strong { color: #fff; }
+
+/* ── What happens next card ── */
+.ty-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px 32px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.25);
+}
+@media (max-width: 480px) { .ty-card { padding: 22px 20px; } }
+
+.ty-card-heading {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 22px;
+}
+
+.ty-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ty-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ty-step-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ty-step-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 3px;
+}
+.ty-step-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Tips card ── */
+.ty-tips-card {
+  background: rgba(249,115,22,0.07);
+  border: 1px solid rgba(249,115,22,0.2);
+  border-radius: 16px;
+  padding: 20px 24px;
+}
+
+.ty-tips-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fb923c;
+  margin-bottom: 14px;
+}
+
+.ty-tips-list {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ty-tips-list li {
+  font-size: 13px;
+  color: rgba(255,255,255,0.72);
+  line-height: 1.5;
+}
+
+/* ── CTA row ── */
+.ty-cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ty-btn-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 13px 26px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  font-family: inherit;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(249,115,22,0.35);
+  transition: all 0.2s;
+}
+.ty-btn-home:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(249,115,22,0.45); }
+
+.ty-btn-another {
+  display: inline-flex;
+  align-items: center;
+  padding: 13px 26px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.85);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.ty-btn-another:hover { background: rgba(255,255,255,0.13); }

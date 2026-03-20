@@ -1,0 +1,330 @@
+/* ============================================
+   PREMIUM PHONE MOCKUP — white-screen style
+   ============================================ */
+
+.phone-mockup-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 268px;
+  margin: 0 auto;
+  transform: perspective(1100px) rotateY(-6deg) rotateX(2deg);
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: phoneFloat 5s ease-in-out infinite;
+}
+.phone-mockup-wrapper:hover {
+  transform: perspective(1100px) rotateY(-2deg) rotateX(1deg);
+}
+@keyframes phoneFloat {
+  0%, 100% { transform: perspective(1100px) rotateY(-6deg) rotateX(2deg) translateY(0); }
+  50%       { transform: perspective(1100px) rotateY(-6deg) rotateX(2deg) translateY(-10px); }
+}
+
+/* ── Phone outer frame — dark navy, like image ── */
+.phone-frame {
+  position: relative;
+  width: 268px;
+  height: 550px;
+  border-radius: 44px;
+  /* dark navy frame matching the reference image */
+  background: linear-gradient(160deg, #1a2744 0%, #0f1b35 50%, #111e38 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06),
+    inset 0 0 0 1.5px rgba(255,255,255,0.08),
+    0 6px 16px rgba(0,0,0,0.3),
+    0 24px 48px rgba(0,0,0,0.45),
+    0 48px 80px rgba(0,0,0,0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* inner screen = pure white */
+.phone-frame::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 38px;
+  background: #ffffff;
+  z-index: 0;
+}
+
+/* subtle right-edge gloss on frame */
+.phone-frame::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 15%; width: 2px; height: 70%;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.05) 70%, transparent);
+  border-radius: 2px 0 0 2px;
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* screen glare — very subtle on white */
+.phone-glare {
+  position: absolute;
+  inset: 6px;
+  border-radius: 38px;
+  background: linear-gradient(140deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.1) 20%, transparent 50%);
+  z-index: 22;
+  pointer-events: none;
+}
+
+/* ── Dynamic Island ── */
+.phone-dynamic-island {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 110px;
+  height: 30px;
+  background: #0b1628;
+  border-radius: 16px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 2px 8px rgba(0,0,0,0.5);
+}
+.island-camera {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.9);
+}
+.island-sensor {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #0d0d0d;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+/* ── Status bar — dark text on white screen ── */
+.phone-status-bar {
+  position: relative; z-index: 10;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 50px 22px 0;
+  font-size: 12px; font-weight: 700;
+  color: #0f172a; /* dark on white */
+  flex-shrink: 0;
+  font-family: -apple-system, 'SF Pro Display', sans-serif;
+}
+.status-time { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; color: #0f172a; }
+.status-right { display: flex; align-items: center; gap: 5px; color: #0f172a; }
+.battery-icon {
+  width: 22px; height: 11px;
+  border: 1.5px solid rgba(15,23,42,0.5);
+  border-radius: 3px; position: relative;
+  display: flex; align-items: center; padding: 1.5px;
+}
+.battery-fill { width: 68%; height: 100%; background: #22c55e; border-radius: 1.5px; }
+.battery-tip {
+  position: absolute; right: -4px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 5px; background: rgba(15,23,42,0.45); border-radius: 0 1.5px 1.5px 0;
+}
+
+/* ── Phone content — white screen, dark text ── */
+.phone-content {
+  flex: 1; position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 18px 14px; text-align: center; overflow: hidden;
+}
+
+/* ── AI active badge ── */
+.ai-call-badge {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 12px; border-radius: 100px;
+  background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
+  margin-bottom: 14px; font-size: 11px; font-weight: 600; color: #16a34a;
+  font-family: -apple-system, sans-serif; letter-spacing: 0.2px;
+}
+.ai-badge-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+  animation: pulseDot 1.5s infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.45); opacity: 0.5; }
+}
+
+/* ── Caller avatar — simple flat circle, no rings ── */
+.caller-avatar-ring {
+  position: relative; width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+}
+/* no ::before / ::after rings — clean flat look as in reference */
+.caller-avatar {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: #1e3a8a; /* flat dark navy, matching reference */
+  color: #fff; font-size: 26px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  font-family: -apple-system, sans-serif;
+  box-shadow: none; /* no glow — clean flat */
+  position: relative; z-index: 1;
+}
+
+/* ── Names — dark on white ── */
+.caller-name {
+  font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 4px;
+  letter-spacing: -0.3px; font-family: -apple-system, 'SF Pro Display', sans-serif;
+}
+.caller-route {
+  font-size: 13px; color: #64748b; margin: 0 0 14px;
+  font-family: -apple-system, sans-serif;
+}
+
+/* ── Waveform — blue bars, white bg ── */
+.audio-waveform {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; height: 50px; margin-bottom: 12px; width: 100%;
+}
+.audio-waveform .bar {
+  width: 4px; height: var(--bh, 20px);
+  background: #2563eb;
+  border-radius: 3px;
+  animation: waveEq 1.2s ease-in-out infinite alternate;
+}
+@keyframes waveEq {
+  0%   { transform: scaleY(0.25); opacity: 0.7; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+/* ── Timer — light green pill, matching reference ── */
+.call-timer {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 18px;
+  background: #dcfce7; /* light green pill */
+  border-radius: 100px;
+  font-size: 14px; font-weight: 700; color: #16a34a;
+  margin-bottom: 14px;
+  font-family: -apple-system, 'SF Mono', monospace;
+  letter-spacing: 0.5px;
+}
+.rec-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+  animation: recBlink 1.4s infinite; flex-shrink: 0;
+}
+@keyframes recBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
+
+/* ── AI chat bubble — white card, dark text, blue icon ── */
+.call-bubble {
+  display: flex; gap: 10px; text-align: left;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px 16px 16px 4px; padding: 12px 14px;
+  width: 100%; margin-bottom: 0;
+}
+.bubble-ai-icon {
+  width: 30px; height: 30px; border-radius: 9px;
+  background: #1e40af; /* dark blue square */
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.call-bubble p {
+  font-size: 12px; color: #334155; margin: 0;
+  line-height: 1.6; font-family: -apple-system, sans-serif;
+}
+
+/* ── Physical buttons — match navy frame ── */
+.phone-btn-right {
+  position: absolute; right: -3px; top: 28%;
+  width: 3px; height: 54px;
+  background: linear-gradient(180deg, #1a2744, #0f1b35);
+  border-radius: 0 2px 2px 0; box-shadow: 2px 0 5px rgba(0,0,0,0.35);
+}
+.phone-btn-vol-up {
+  position: absolute; left: -3px; top: 22%;
+  width: 3px; height: 30px;
+  background: linear-gradient(180deg, #1a2744, #0f1b35);
+  border-radius: 2px 0 0 2px; box-shadow: -2px 0 5px rgba(0,0,0,0.35);
+}
+.phone-btn-vol-dn {
+  position: absolute; left: -3px; top: calc(22% + 38px);
+  width: 3px; height: 30px;
+  background: linear-gradient(180deg, #1a2744, #0f1b35);
+  border-radius: 2px 0 0 2px; box-shadow: -2px 0 5px rgba(0,0,0,0.35);
+}
+.phone-home-bar {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 110px; height: 5px; border-radius: 3px;
+  background: rgba(15,23,42,0.18); z-index: 15;
+}
+
+/* ── Floating stat cards ── */
+.floating-stat {
+  position: absolute; background: #fff;
+  border-radius: 14px; padding: 13px 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.05);
+  z-index: 20; border: 1px solid rgba(15,23,42,0.07);
+  animation: floatCard 4.5s ease-in-out infinite;
+}
+@keyframes floatCard {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Revenue card — flat dark navy, no gradient, as in reference */
+.float-revenue {
+  top: 100px; left: -90px;
+  background: #0f1e38; /* solid dark navy */
+  color: #fff;
+  animation-delay: 0.3s;
+  min-width: 128px;
+}
+.float-revenue .sc-label {
+  font-size: 9px; font-weight: 700; color: #94a3b8;
+  letter-spacing: 1.4px; display: block; margin-bottom: 5px; text-transform: uppercase;
+}
+.float-revenue .sc-val {
+  font-size: 22px; font-weight: 800; display: block; margin-bottom: 2px;
+  letter-spacing: -0.5px; font-family: 'Plus Jakarta Sans', sans-serif; color: #fff;
+}
+.float-revenue .sc-sub { font-size: 11px; color: #64748b; font-weight: 500; }
+
+/* Booking confirmed card — white, top right */
+.float-booking {
+  top: -48px; right: -104px;
+  display: flex; align-items: center; gap: 11px; text-align: left;
+  animation-delay: 0.7s;
+  min-width: 168px;
+  padding: 12px 16px;
+}
+.bg-green-light {
+  width: 36px; height: 36px; background: #dcfce7;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.text-green { color: #16a34a; }
+.float-booking .sc-title { font-size: 13px; font-weight: 700; color: #0f172a; display: block; line-height: 1.3; }
+.float-booking .sc-time  { font-size: 11.5px; color: #64748b; font-weight: 500; }
+
+/* Calls card — white, bottom left */
+.float-calls {
+  bottom: 56px; left: -80px; text-align: left; animation-delay: 1.1s; min-width: 120px;
+}
+.float-calls .sc-label {
+  font-size: 9px; font-weight: 700; color: #64748b;
+  letter-spacing: 1.4px; display: block; margin-bottom: 6px; text-transform: uppercase;
+}
+.sc-val-row { display: flex; align-items: center; gap: 8px; }
+.float-calls .sc-val {
+  font-size: 26px; font-weight: 800; color: #0f172a; line-height: 1;
+  font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.5px;
+}
+.sc-trend { font-size: 13px; font-weight: 700; }
+.text-green { color: #16a34a; }
+
+/* ── Mobile ── */
+@media (max-width: 900px) {
+  .phone-mockup-wrapper { max-width: 224px; transform: perspective(900px) rotateY(-3deg) rotateX(1deg); }
+  .phone-frame { width: 224px; height: 460px; border-radius: 37px; }
+  .phone-frame::before { inset: 5px; border-radius: 32px; }
+  .phone-glare { inset: 5px; border-radius: 32px; }
+  .float-revenue { left: -4px; top: 80px; transform: scale(0.8); transform-origin: top left; }
+  .float-booking { right: -16px; top: -25px; transform: scale(0.8); transform-origin: top right; }
+  .float-calls   { left: -4px; bottom: 30px; transform: scale(0.8); transform-origin: bottom left; }
+  @keyframes phoneFloat {
+    0%, 100% { transform: perspective(900px) rotateY(-3deg) rotateX(1deg) translateY(0); }
+    50%       { transform: perspective(900px) rotateY(-3deg) rotateX(1deg) translateY(-8px); }
+  }
+}

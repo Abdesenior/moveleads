@@ -1,0 +1,73 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Drop this file at the repo root, then go to Render Dashboard → New → Blueprint
+# and point it at your GitHub repo. Render will auto-create the service below.
+
+services:
+  - type: web
+    name: moveleads-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /
+    autoDeploy: true        # redeploy whenever main branch is pushed
+
+    # Scale: Free tier to start. Upgrade to Standard for always-on + more RAM.
+    plan: free              # change to 'standard' for production scale
+
+    envVars:
+      # ── Server ────────────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 10000          # Render always injects $PORT; this is just the fallback
+
+      # ── Origins ───────────────────────────────────────────────────────────
+      # Comma-separated list of allowed frontend origins for CORS.
+      - key: CLIENT_ORIGIN
+        value: https://moveleads.cloud,https://www.moveleads.cloud
+
+      # Used by Stripe Checkout success_url / cancel_url redirects.
+      - key: CLIENT_URL
+        value: https://moveleads.cloud
+
+      # ── Secrets (set manually in Render Dashboard → Environment) ──────────
+      - key: MONGODB_URI
+        sync: false           # Production Atlas URI — set in Render dashboard
+
+      - key: JWT_SECRET
+        sync: false
+
+      - key: STRIPE_SECRET_KEY
+        sync: false
+
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+
+      - key: SMTP_HOST
+        sync: false
+
+      - key: SMTP_PORT
+        sync: false
+
+      - key: SMTP_SECURE
+        sync: false
+
+      - key: SMTP_USER
+        sync: false
+
+      - key: SMTP_PASS
+        sync: false
+
+      - key: EMAIL_FROM
+        sync: false
