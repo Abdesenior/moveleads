@@ -103,13 +103,25 @@ router.post('/register', registerLimiter, async (req, res) => {
 router.post('/login', loginLimiter, async (req, res) => {
   const password = req.body.password;
   const email = req.body.email?.toLowerCase().trim();
+
+  if (!password || !email) {
+    console.log(`[Login Failed] Missing email or password in request. Email: ${email}`);
+    return res.status(400).json({ msg: 'Invalid Credentials' });
+  }
+
   try {
+    console.log(`[Login Attempt] Email: ${email}`);
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
+    if (!user) {
+      console.log(`[Login Failed] No user found in DB for email: ${email}`);
+      return res.status(400).json({ msg: 'Invalid Credentials' });
+    }
 
     if (user.isSuspended) return res.status(403).json({ msg: 'Account suspended' });
 
-    if (!await bcrypt.compare(password, user.password)) {
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log(`[Login Failed] Password mismatch for email: ${email}`);
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
 
