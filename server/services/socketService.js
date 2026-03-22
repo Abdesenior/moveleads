@@ -10,9 +10,13 @@ let io;
  * @param {http.Server} server - The HTTP server instance
  */
 const init = (server) => {
+  // CLIENT_ORIGIN may be a comma-separated string — socket.io needs an array
+  const origins = (process.env.CLIENT_ORIGIN || '')
+    .split(',').map(o => o.trim()).filter(Boolean);
+
   io = socketIo(server, {
     cors: {
-      origin: process.env.CLIENT_ORIGIN,
+      origin: origins.length === 1 ? origins[0] : origins,
       methods: ['GET', 'POST'],
       credentials: true
     }

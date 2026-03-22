@@ -19,12 +19,14 @@ const EXCLUDED_STATUSES = new Set([
 
 const isDistributable = (lead) => !EXCLUDED_STATUSES.has(lead.status);
 
+// socketStatus: 'connecting' | 'connected' | 'reconnecting'
+
 export default function LeadFeed() {
   const { API_URL, token, user, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [socketConnected, setSocketConnected] = useState(false);
+  const [socketStatus, setSocketStatus] = useState('connecting');
 
   // Purchase flow state
   const [confirmLead, setConfirmLead] = useState(null);
@@ -33,9 +35,8 @@ export default function LeadFeed() {
 
   // Audio for notifications
   const audioRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
+  const pollRef = useRef(null);
 
-  // Declare fetchInitialLeads before useEffect so the reference is stable
-  // when the effect captures it on first mount.
   const fetchInitialLeads = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/leads`, {
@@ -43,7 +44,6 @@ export default function LeadFeed() {
       });
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Only show leads that are ready for distribution
         setLeads(data.filter(l => l.status === 'READY_FOR_DISTRIBUTION'));
       }
     } catch (err) {
@@ -53,18 +53,36 @@ export default function LeadFeed() {
     }
   }, [API_URL, token]);
 
+  // Start REST polling every 30 s while socket is down (Render free tier spin-up)
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(fetchInitialLeads, 30_000);
+  }, [fetchInitialLeads]);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
   useEffect(() => {
     fetchInitialLeads();
 
-    // Setup Socket Connection
     const socket = io(API_URL.replace('/api', ''), {
       auth: { token },
-      transports: ['websocket']
+      // polling first — lets the connection succeed while Render is still waking up,
+      // then upgrades to WebSocket once the server is fully ready.
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 2000,       // start at 2 s
+      reconnectionDelayMax: 30_000,  // cap at 30 s (Render spin-up time)
+      timeout: 20_000,
     });
 
     socket.on('connect', () => {
-      console.log('[Socket] Connected to server');
-      setSocketConnected(true);
+      console.log('[Socket] Connected');
+      setSocketStatus('connected');
+      stopPolling();
+      fetchInitialLeads(); // refresh list on every (re)connect
     });
 
     socket.on('connection_established', (data) => {
@@ -72,27 +90,30 @@ export default function LeadFeed() {
     });
 
     socket.on('NEW_LEAD_AVAILABLE', (newLead) => {
-      // Guard: only process leads that are actually distributable.
-      // Rejects REJECTED_FAKE, PENDING_MANUAL_REVIEW, Pending Verification.
       if (!isDistributable(newLead)) {
         console.warn('[Socket] Ignoring non-distributable lead:', newLead.status);
         return;
       }
-
-      console.log('[Socket] New lead received:', newLead);
       audioRef.current.play().catch(e => console.warn('Audio play blocked:', e));
       setLeads(prev => [newLead, ...prev]);
     });
 
     socket.on('disconnect', () => {
-      console.log('[Socket] Disconnected');
-      setSocketConnected(false);
+      console.log('[Socket] Disconnected — falling back to REST polling');
+      setSocketStatus('reconnecting');
+      startPolling();
+    });
+
+    socket.on('connect_error', () => {
+      setSocketStatus('reconnecting');
+      startPolling();
     });
 
     return () => {
+      stopPolling();
       socket.disconnect();
     };
-  }, [API_URL, token, fetchInitialLeads]);
+  }, [API_URL, token, fetchInitialLeads, startPolling, stopPolling]);
 
   const purchaseLead = async (lead) => {
     setPurchasing(true);
@@ -132,9 +153,12 @@ export default function LeadFeed() {
             <h1 className="feed-title">Live Lead Feed</h1>
             <p className="feed-subtitle">Instant notifications for leads in your coverage area</p>
           </div>
-          <div className={`connection-badge ${socketConnected ? 'online' : 'offline'}`}>
+          <div className={`connection-badge ${socketStatus === 'connected' ? 'online' : socketStatus === 'reconnecting' ? 'reconnecting' : 'offline'}`}>
             <div className="pulse-dot"></div>
-            <span>{socketConnected ? 'Live Connection' : 'Reconnecting...'}</span>
+            <span>
+              {socketStatus === 'connected' ? 'Live' :
+               socketStatus === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'}
+            </span>
           </div>
         </header>
 
