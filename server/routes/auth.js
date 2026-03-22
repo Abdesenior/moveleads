@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const PlatformSettings = require('../models/PlatformSettings');
+const { sendVerificationEmail } = require('../services/emailService');
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
-// Login: 10 attempts per IP per 15 minutes — slows brute-force attacks
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -17,7 +18,6 @@ const loginLimiter = rateLimit({
   message: { msg: 'Too many login attempts. Please try again in 15 minutes.' },
 });
 
-// Register: 5 accounts per IP per hour — prevents mass account creation
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
@@ -26,38 +26,70 @@ const registerLimiter = rateLimit({
   message: { msg: 'Too many accounts created from this IP. Please try again later.' },
 });
 
+const resendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { msg: 'Too many resend requests. Please wait 15 minutes.' },
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function generateVerificationToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function issueJWT(user, res) {
+  const payload = { user: { id: user.id, role: user.role } };
+  jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' }, (err, token) => {
+    if (err) throw err;
+    res.json({
+      token,
+      user: { id: user.id, email: user.email, role: user.role, companyName: user.companyName }
+    });
+  });
+}
+
 // @route   POST /api/auth/register
-// @desc    Register user returning JWT token
+// @desc    Register user and send verification email
 // @access  Public
 router.post('/register', registerLimiter, async (req, res) => {
   const { companyName, dotNumber, mcNumber, phone, email, password } = req.body;
   try {
     const settings = await PlatformSettings.findOne({});
-    const acceptNewUserSignups = settings ? settings.acceptNewUserSignups : true;
-    if (!acceptNewUserSignups) {
+    if (settings && !settings.acceptNewUserSignups) {
       return res.status(403).json({ msg: 'Registrations are currently closed' });
     }
 
-    let user = await User.findOne({ email });
-    if (user) {
+    if (await User.findOne({ email })) {
       return res.status(400).json({ msg: 'User already exists' });
     }
 
-    user = new User({
-      companyName, dotNumber, mcNumber, phone, email, password,
-      role: email.includes('admin') ? 'admin' : 'customer',
-      balance: 0
+    const isAdmin = email.includes('admin');
+    const verificationToken = generateVerificationToken();
+
+    const user = new User({
+      companyName, dotNumber, mcNumber, phone, email,
+      password: await bcrypt.hash(password, 10),
+      role: isAdmin ? 'admin' : 'customer',
+      balance: 0,
+      // Admins are auto-verified; customers must confirm their email
+      isEmailVerified: isAdmin,
+      emailVerificationToken: isAdmin ? undefined : verificationToken,
+      emailVerificationExpires: isAdmin ? undefined : new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
     await user.save();
 
-    const payload = { user: { id: user.id, role: user.role } };
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' }, (err, token) => {
-      if (err) throw err;
-      res.json({ token, user: { id: user.id, email: user.email, role: user.role, companyName } });
-    });
+    if (isAdmin) {
+      // Admins are auto-verified — issue JWT immediately
+      issueJWT(user, res);
+    } else {
+      // Customers must verify email first — send link, return 201 (no token)
+      sendVerificationEmail({ toEmail: email, companyName, token: verificationToken })
+        .catch(err => console.error('[VerifyEmail] Failed to send:', err.message));
+      return res.status(201).json({ msg: 'Account created. Please check your email to verify before logging in.' });
+    }
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -70,25 +102,86 @@ router.post('/register', registerLimiter, async (req, res) => {
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   try {
-    let user = await User.findOne({ email });
-    if (!user) {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
+
+    if (user.isSuspended) return res.status(403).json({ msg: 'Account suspended' });
+
+    if (!await bcrypt.compare(password, user.password)) {
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
 
-    if (user.isSuspended) {
-      return res.status(403).json({ msg: 'Account suspended' });
+    // Block unverified customer accounts
+    if (user.isEmailVerified === false && user.role === 'customer') {
+      return res.status(403).json({
+        msg: 'Please verify your email to log in. Check your inbox or request a new link.',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Invalid Credentials' });
-    }
+    issueJWT(user, res);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
 
-    const payload = { user: { id: user.id, role: user.role } };
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' }, (err, token) => {
-      if (err) throw err;
-      res.json({ token, user: { id: user.id, email: user.email, role: user.role, companyName: user.companyName } });
+// @route   GET /api/auth/verify-email?token=XYZ
+// @desc    Verify a user's email address via token link
+// @access  Public
+router.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ msg: 'Verification token is required.' });
+
+  try {
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: new Date() },
     });
+
+    if (!user) {
+      return res.status(400).json({
+        msg: 'This verification link is invalid or has expired. Please request a new one.',
+        code: 'TOKEN_INVALID',
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    res.json({ msg: 'Email verified successfully. You can now log in.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /api/auth/resend-verification
+// @desc    Re-send the verification email (e.g. if it expired)
+// @access  Public
+router.post('/resend-verification', resendLimiter, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ msg: 'Email is required.' });
+
+  try {
+    const user = await User.findOne({ email });
+
+    // Always return 200 to avoid user enumeration
+    if (!user || user.isEmailVerified) {
+      return res.json({ msg: 'If that email exists and is unverified, a new link has been sent.' });
+    }
+
+    const token = generateVerificationToken();
+    user.emailVerificationToken = token;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    sendVerificationEmail({ toEmail: email, companyName: user.companyName, token })
+      .catch(err => console.error('[ResendVerify] Failed to send:', err.message));
+
+    res.json({ msg: 'If that email exists and is unverified, a new link has been sent.' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

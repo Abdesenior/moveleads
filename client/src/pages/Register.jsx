@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { CheckCircle2, Zap, Shield, Clock, ArrowRight, Lock, ShieldCheck, CreditCard } from 'lucide-react';
+import { CheckCircle2, Zap, Shield, Clock, ArrowRight, Lock, ShieldCheck, CreditCard, Mail } from 'lucide-react';
 import '../auth.css';
 
 export default function Register() {
@@ -9,6 +9,7 @@ export default function Register() {
   const [formData, setFormData] = useState({ companyName: '', dotNumber: '', mcNumber: '', phone: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   const navigate = useNavigate();
   const { login, API_URL } = useContext(AuthContext);
@@ -34,8 +35,15 @@ export default function Register() {
       
       if (!res.ok) throw new Error(data.msg || 'Registration failed');
       
-      login(data.token, data.user);
-      navigate(data.user.role === 'admin' ? '/admin' : '/dashboard');
+      // Admin accounts are auto-verified — log them in immediately
+      if (data.user && data.user.role === 'admin') {
+        login(data.token, data.user);
+        navigate('/admin');
+        return;
+      }
+
+      // Customer accounts need email verification — show success panel
+      setRegistrationSuccess(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -103,6 +111,26 @@ export default function Register() {
       {/* Form Panel */}
       <div className="auth-right">
         <div style={{ maxWidth: 480, width: '100%', margin: '0 auto' }}>
+          {registrationSuccess ? (
+            <div className="verification-success-panel">
+              <div className="verification-icon-circle success">
+                <Mail size={32} />
+              </div>
+              <h1 style={{ fontSize: 26, marginBottom: 12, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+                Account Created!
+              </h1>
+              <p style={{ color: '#475569', fontSize: 16, lineHeight: 1.7, marginBottom: 8, maxWidth: 380 }}>
+                Please check your email to verify your account before logging in.
+              </p>
+              <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 32 }}>
+                We sent a verification link to <strong style={{ color: '#0f172a' }}>{formData.email}</strong>
+              </p>
+              <Link to="/login" className="auth-btn" style={{ display: 'inline-flex', textDecoration: 'none', maxWidth: 280 }}>
+                Go to Login <ArrowRight size={18} />
+              </Link>
+            </div>
+          ) : (
+            <>
           <h1 style={{ fontSize: 28, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>Create your account</h1>
           <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 32 }}>Get started with qualified moving leads</p>
 
@@ -185,6 +213,8 @@ export default function Register() {
           <p style={{ marginTop: 32, textAlign: 'center', fontSize: 14, color: '#94a3b8' }}>
             Already have an account? <Link to="/login" style={{ color: 'var(--bg-navy)', fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
           </p>
+          </>
+          )}
         </div>
       </div>
     </div>

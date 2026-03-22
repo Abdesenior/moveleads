@@ -11,10 +11,12 @@ import Privacy from './pages/Privacy';
 import GetQuote from './pages/GetQuote';
 import ThankYou from './pages/ThankYou';
 import ForMovers from './pages/ForMovers';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Customer Dashboard
 import Dashboard from './pages/Dashboard';
 import LeadFeed from './pages/dashboard/LeadFeed';
+import MyLeads from './pages/dashboard/MyLeads';
 import Customers from './pages/dashboard/Customers';
 import Billing from './pages/dashboard/Billing';
 import Profile from './pages/dashboard/Profile';
@@ -43,10 +45,12 @@ function App() {
           <Route path="/get-quote" element={<GetQuote />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/for-movers" element={<ForMovers />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Customer Dashboard Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/dashboard/leads" element={<ProtectedRoute><LeadFeed /></ProtectedRoute>} />
+          <Route path="/dashboard/my-leads" element={<ProtectedRoute><MyLeads /></ProtectedRoute>} />
           <Route path="/dashboard/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
           <Route path="/dashboard/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

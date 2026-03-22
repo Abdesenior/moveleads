@@ -242,4 +242,38 @@ router.post('/:id/claim', auth, async (req, res) => {
   }
 });
 
+// @route   PATCH /api/leads/:id/crm-status
+// @desc    Update the CRM status and/or notes for a lead this company purchased
+// @access  Private
+router.patch('/:id/crm-status', auth, async (req, res) => {
+  const { crmStatus, crmNotes } = req.body;
+  const PurchasedLead = require('../models/PurchasedLead');
+  const VALID = PurchasedLead.CRM_STATUSES;
+
+  if (crmStatus !== undefined && !VALID.includes(crmStatus)) {
+    return res.status(400).json({ msg: `Invalid status. Must be one of: ${VALID.join(', ')}` });
+  }
+
+  try {
+    const update = {};
+    if (crmStatus !== undefined) update.crmStatus = crmStatus;
+    if (crmNotes  !== undefined) update.crmNotes  = crmNotes;
+
+    const record = await PurchasedLead.findOneAndUpdate(
+      { lead: req.params.id, company: req.user.id },
+      { $set: update },
+      { new: true }
+    );
+
+    if (!record) {
+      return res.status(404).json({ msg: 'No purchase record found for this lead.' });
+    }
+
+    res.json(record);
+  } catch (err) {
+    console.error('[CRM status]', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

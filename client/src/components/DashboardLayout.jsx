@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, User, Settings, Menu, X, LogOut, Package } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, User, Settings, Menu, X, LogOut, Package, Briefcase } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
 import '../dashboard.css';
@@ -66,6 +66,9 @@ export default function DashboardLayout({ children }) {
           </NavLink>
           <NavLink to="/dashboard/leads" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <Package /> Leads
+          </NavLink>
+          <NavLink to="/dashboard/my-leads" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Briefcase /> My Leads
           </NavLink>
           <NavLink to="/dashboard/customers" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <Users /> Customers

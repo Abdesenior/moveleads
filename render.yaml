@@ -54,20 +54,8 @@ services:
       - key: TWILIO_PHONE_NUMBER
         sync: false
 
-      - key: SMTP_HOST
-        sync: false
-
-      - key: SMTP_PORT
-        sync: false
-
-      - key: SMTP_SECURE
-        sync: false
-
-      - key: SMTP_USER
-        sync: false
-
-      - key: SMTP_PASS
-        sync: false
-
-      - key: EMAIL_FROM
+      # ── Resend (transactional email) ───────────────────────────────────────
+      # Domain moveleads.cloud must be verified in Resend dashboard.
+      # Emails are sent from no-reply@moveleads.cloud.
+      - key: RESEND_API_KEY
         sync: false

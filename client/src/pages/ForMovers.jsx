@@ -1,5 +1,5 @@
 import { useState, useContext, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   ShieldCheck, Zap, CreditCard, ArrowRight, CheckCircle,
   Clock, BarChart3, Lock, ChevronDown, ChevronUp, Truck
@@ -73,13 +73,13 @@ function FaqItem({ q, a }) {
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 export default function ForMovers() {
-  const { login, API_URL } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const { API_URL } = useContext(AuthContext);
   const formRef = useRef(null);
 
   const [form, setForm] = useState({ contactName: '', companyName: '', phone: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isRegistered, setIsRegistered] = useState(false);
 
   const set = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -102,8 +102,7 @@ export default function ForMovers() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || 'Registration failed');
-      login(data.token, data.user);
-      navigate('/dashboard');
+      setIsRegistered(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -117,7 +116,7 @@ export default function ForMovers() {
     <div className="fm-page">
       {/* ══ Navbar ══ */}
       <nav className="fm-nav">
-        <Link to="/" className="fm-logo">MoveLeads<span>.io</span></Link>
+        <Link to="/" className="fm-logo">MoveLeads<span>.cloud</span></Link>
         <div className="fm-nav-links">
           <a href="#features" className="fm-nav-link">Features</a>
           <a href="#pricing" className="fm-nav-link">Pricing</a>
@@ -155,13 +154,13 @@ export default function ForMovers() {
 
             <div className="fm-hero-social">
               <div className="fm-avatars">
-                {['M','D','T','J','A'].map((l,i) => (
-                  <div key={i} className="fm-avatar" style={{ background: ['#f97316','#22c55e','#3b82f6','#8b5cf6','#ec4899'][i] }}>{l}</div>
+                {['M', 'D', 'T', 'J', 'A'].map((l, i) => (
+                  <div key={i} className="fm-avatar" style={{ background: ['#f97316', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'][i] }}>{l}</div>
                 ))}
               </div>
               <div>
                 <div className="fm-social-stars">{'★'.repeat(5)}</div>
-                <p className="fm-social-label">500+ movers trust MoveLeads.io</p>
+                <p className="fm-social-label">500+ movers trust MoveLeads.cloud</p>
               </div>
             </div>
           </div>
@@ -169,55 +168,72 @@ export default function ForMovers() {
           {/* Right — registration card */}
           <div className="fm-hero-form-wrap" ref={formRef}>
             <div className="fm-form-card">
-              <div className="fm-form-card-header">
-                <Truck size={20} />
-                <span>Create Your Mover Account</span>
-              </div>
-              <p className="fm-form-card-sub">Free to join. First lead as low as $10.</p>
+              {isRegistered ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginBottom: 24 }}>
+                    <CheckCircle size={32} />
+                  </div>
+                  <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16, color: 'var(--bg-navy)' }}>Account created!</h2>
+                  <p style={{ color: '#475569', fontSize: 16, lineHeight: 1.6, marginBottom: 32 }}>
+                    Please check your email (<strong>{form.email}</strong>) to verify your account before logging in.
+                  </p>
+                  <Link to="/login" className="fm-submit-btn" style={{ display: 'inline-flex', justifyContent: 'center', textDecoration: 'none' }}>
+                    Go to Login <ArrowRight size={16} />
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="fm-form-card-header">
+                    <Truck size={20} />
+                    <span>Create Your Mover Account</span>
+                  </div>
+                  <p className="fm-form-card-sub">Free to join. First lead as low as $10.</p>
 
-              {error && <div className="fm-form-error">{error}</div>}
+                  {error && <div className="fm-form-error">{error}</div>}
 
-              <form onSubmit={handleSubmit} noValidate>
-                <div className="fm-field">
-                  <label className="fm-label">Your name</label>
-                  <input name="contactName" value={form.contactName} onChange={set} type="text"
-                    className="fm-input" placeholder="Jane Smith" required autoComplete="name" />
-                </div>
-                <div className="fm-field">
-                  <label className="fm-label">Company name</label>
-                  <input name="companyName" value={form.companyName} onChange={set} type="text"
-                    className="fm-input" placeholder="ACME Moving Co." required autoComplete="organization" />
-                </div>
-                <div className="fm-field">
-                  <label className="fm-label">Phone number</label>
-                  <input name="phone" value={form.phone} onChange={set} type="tel"
-                    className="fm-input" placeholder="(555) 123-4567" autoComplete="tel" />
-                </div>
-                <div className="fm-field">
-                  <label className="fm-label">Email address</label>
-                  <input name="email" value={form.email} onChange={set} type="email"
-                    className="fm-input" placeholder="you@company.com" required autoComplete="email" />
-                </div>
-                <div className="fm-field">
-                  <label className="fm-label">Password</label>
-                  <input name="password" value={form.password} onChange={set} type="password"
-                    className="fm-input" placeholder="Min 6 characters" required autoComplete="new-password" />
-                </div>
+                  <form onSubmit={handleSubmit} noValidate>
+                    <div className="fm-field">
+                      <label className="fm-label">Your name</label>
+                      <input name="contactName" value={form.contactName} onChange={set} type="text"
+                        className="fm-input" placeholder="Jane Smith" required autoComplete="name" />
+                    </div>
+                    <div className="fm-field">
+                      <label className="fm-label">Company name</label>
+                      <input name="companyName" value={form.companyName} onChange={set} type="text"
+                        className="fm-input" placeholder="ACME Moving Co." required autoComplete="organization" />
+                    </div>
+                    <div className="fm-field">
+                      <label className="fm-label">Phone number</label>
+                      <input name="phone" value={form.phone} onChange={set} type="tel"
+                        className="fm-input" placeholder="(555) 123-4567" autoComplete="tel" />
+                    </div>
+                    <div className="fm-field">
+                      <label className="fm-label">Email address</label>
+                      <input name="email" value={form.email} onChange={set} type="email"
+                        className="fm-input" placeholder="you@company.com" required autoComplete="email" />
+                    </div>
+                    <div className="fm-field">
+                      <label className="fm-label">Password</label>
+                      <input name="password" value={form.password} onChange={set} type="password"
+                        className="fm-input" placeholder="Min 6 characters" required autoComplete="new-password" />
+                    </div>
 
-                <button type="submit" className="fm-submit-btn" disabled={loading}>
-                  {loading
-                    ? <span className="fm-spinner" />
-                    : <><span>Create Account & Start Getting Leads</span><ArrowRight size={16} /></>
-                  }
-                </button>
-              </form>
+                    <button type="submit" className="fm-submit-btn" disabled={loading}>
+                      {loading
+                        ? <span className="fm-spinner" />
+                        : <><span>Create Account & Start Getting Leads</span><ArrowRight size={16} /></>
+                      }
+                    </button>
+                  </form>
 
-              <div className="fm-form-trust">
-                <Lock size={12} /> SSL Secured &nbsp;·&nbsp; <ShieldCheck size={12} /> No spam &nbsp;·&nbsp; <CreditCard size={12} /> Powered by Stripe
-              </div>
-              <p className="fm-form-signin">
-                Already have an account? <Link to="/login">Sign in</Link>
-              </p>
+                  <div className="fm-form-trust">
+                    <Lock size={12} /> SSL Secured &nbsp;·&nbsp; <ShieldCheck size={12} /> No spam &nbsp;·&nbsp; <CreditCard size={12} /> Powered by Stripe
+                  </div>
+                  <p className="fm-form-signin">
+                    Already have an account? <Link to="/login">Sign in</Link>
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -241,7 +257,7 @@ export default function ForMovers() {
       {/* ══ 3 Pillars ══ */}
       <section id="features" className="fm-section fm-section--light">
         <div className="fm-section-inner">
-          <p className="fm-section-eyebrow">Why MoveLeads.io</p>
+          <p className="fm-section-eyebrow">Why MoveLeads.cloud</p>
           <h2 className="fm-section-h2">The infrastructure behind every verified lead</h2>
           <p className="fm-section-desc">We built the tech stack from scratch so you don't have to gamble on lead quality.</p>
 
@@ -385,7 +401,7 @@ export default function ForMovers() {
       {/* ══ Footer ══ */}
       <footer className="fm-footer">
         <div className="fm-footer-inner">
-          <div className="fm-footer-logo">MoveLeads<span>.io</span></div>
+          <div className="fm-footer-logo">MoveLeads<span>.cloud</span></div>
           <div className="fm-footer-links">
             <Link to="/">Home</Link>
             <Link to="/get-quote">Get a Quote</Link>
@@ -394,7 +410,7 @@ export default function ForMovers() {
             <Link to="/privacy">Privacy</Link>
             <Link to="/login">Sign In</Link>
           </div>
-          <p className="fm-footer-copy">© {new Date().getFullYear()} MoveLeads.io — All rights reserved.</p>
+          <p className="fm-footer-copy">© {new Date().getFullYear()} MoveLeads.cloud — All rights reserved.</p>
         </div>
       </footer>
     </div>

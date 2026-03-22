@@ -20,7 +20,11 @@ const UserSchema = new mongoose.Schema({
   maxDistance: { type: String },
   emailNotif: { type: Boolean, default: true },
   smsNotif: { type: Boolean, default: false },
-  isSuspended: { type: Boolean, default: false }
+  isSuspended: { type: Boolean, default: false },
+  // ── Email verification ───────────────────────────────────────────────────
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  emailVerificationExpires: { type: Date }
 });
 
 module.exports = mongoose.model('user', UserSchema);

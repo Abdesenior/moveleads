@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Zap, CheckCircle, Lock, Mail } from 'lucide-react';
+import { Shield, Zap, CheckCircle, Lock, Mail, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import '../auth.css';
 
@@ -9,6 +9,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   
   const navigate = useNavigate();
   const { login, API_URL } = useContext(AuthContext);
@@ -17,6 +20,8 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setUnverified(false);
+    setResendSuccess(false);
     
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
@@ -26,7 +31,14 @@ export default function Login() {
       });
       const data = await res.json();
       
-      if (!res.ok) throw new Error(data.msg || 'Login failed');
+      if (!res.ok) {
+        if (data.code === 'EMAIL_NOT_VERIFIED') {
+          setUnverified(true);
+          setError(data.msg);
+          return;
+        }
+        throw new Error(data.msg || 'Login failed');
+      }
       
       login(data.token, data.user);
       navigate(data.user.role === 'admin' ? '/admin' : '/dashboard');
@@ -34,6 +46,24 @@ export default function Login() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) {
+        setResendSuccess(true);
+      }
+    } catch {
+      // Silently fail — the UI already shows a generic message
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -92,7 +122,37 @@ export default function Login() {
           <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '8px', color: 'var(--bg-navy)', fontFamily: 'Poppins' }}>Welcome back</h2>
           <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 32 }}>Sign in to access your dashboard</p>
           
-          {error && (
+          {/* Unverified email warning */}
+          {unverified && (
+            <div className="verification-warning">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Mail size={18} />
+                <strong>Email Not Verified</strong>
+              </div>
+              <p style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.6 }}>
+                {error}
+              </p>
+              {resendSuccess ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#15803d', fontWeight: 600, fontSize: 14 }}>
+                  <CheckCircle size={16} />
+                  A new verification link has been sent to your email.
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                  className="resend-btn"
+                >
+                  <RefreshCw size={16} className={resendLoading ? 'spin-animation' : ''} />
+                  {resendLoading ? 'Sending…' : 'Resend Verification Email'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Generic error */}
+          {error && !unverified && (
             <div style={{
               background: '#fee2e2', color: '#dc2626',
               padding: '14px 18px', borderRadius: '12px',
@@ -131,3 +191,4 @@ export default function Login() {
     </div>
   );
 }
+

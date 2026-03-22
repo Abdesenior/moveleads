@@ -3,7 +3,6 @@ const router = express.Router();
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
-const Transaction = require('../models/Transaction');
 const PurchasedLead = require('../models/PurchasedLead');
 const { chargeMoverForLead } = require('../services/billingService');
 
@@ -53,12 +52,14 @@ router.post('/:lead_id', auth, async (req, res) => {
 });
 
 // @route   GET /api/purchases
-// @desc    Get all leads purchased by the current user
+// @desc    Get all leads purchased by the current user, with per-buyer CRM data
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const leads = await Lead.find({ 'buyers.company': req.user.id }).sort({ createdAt: -1 });
-    res.json(leads);
+    const purchases = await PurchasedLead.find({ company: req.user.id })
+      .populate('lead')
+      .sort({ purchasedAt: -1 });
+    res.json(purchases);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
