@@ -15,6 +15,169 @@ const FEED_STATUSES = new Set(['Available', 'READY_FOR_DISTRIBUTION']);
 
 const isDistributable = (lead) => FEED_STATUSES.has(lead.status);
 
+// ─── Slide-to-confirm purchase modal ────────────────────────────────────────
+function PurchaseModal({ lead, balance, purchasing, onConfirm, onClose, onTopUp, formatDate }) {
+  const price = lead.price || 25;
+  const hasFunds = balance >= price;
+  const trackRef = useRef(null);
+  const [dragX, setDragX] = useState(0);
+  const [confirmed, setConfirmed] = useState(false);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+
+  const THUMB = 56;
+
+  const getTrackWidth = () => (trackRef.current ? trackRef.current.clientWidth : 300);
+
+  const onPointerDown = (e) => {
+    if (!hasFunds || purchasing || confirmed) return;
+    dragging.current = true;
+    startX.current = e.clientX - dragX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (!dragging.current) return;
+    const max = getTrackWidth() - THUMB;
+    const next = Math.max(0, Math.min(e.clientX - startX.current, max));
+    setDragX(next);
+  };
+
+  const onPointerUp = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    const max = getTrackWidth() - THUMB;
+    if (dragX >= max * 0.88) {
+      setConfirmed(true);
+      onConfirm();
+    } else {
+      setDragX(0); // snap back
+    }
+  };
+
+  const fillPct = Math.round((dragX / Math.max(1, getTrackWidth() - THUMB)) * 100);
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content purchase-modal">
+        <div className="modal-header">
+          <h3>Confirm Purchase</h3>
+          <button onClick={onClose} className="close-btn"><X size={20} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="purchase-summary">
+            <div className="summary-route">
+              <strong>{lead.originCity} → {lead.destinationCity}</strong>
+              <span>{lead.homeSize} • {formatDate(lead.moveDate)}</span>
+            </div>
+            <div className="price-info">
+              <div className="price-row">
+                <span>Lead Cost</span>
+                <span className="amount">${price}</span>
+              </div>
+              <div className="price-row">
+                <span>Current Balance</span>
+                <span className="balance">${balance.toFixed(2)}</span>
+              </div>
+              <div className="price-row total">
+                <span>Remaining</span>
+                <span className={`balance-after ${!hasFunds ? 'insufficient' : ''}`}>
+                  ${(balance - price).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {hasFunds ? (
+            <div style={{ marginTop: 24 }}>
+              {/* Slide-to-confirm track */}
+              <div
+                ref={trackRef}
+                style={{
+                  position: 'relative', height: THUMB, borderRadius: THUMB,
+                  background: confirmed ? '#dcfce7' : '#f1f5f9',
+                  overflow: 'hidden', userSelect: 'none', cursor: purchasing ? 'wait' : 'default',
+                  border: '2px solid ' + (confirmed ? '#22c55e' : '#e2e8f0'),
+                  transition: 'border-color 0.3s',
+                }}
+              >
+                {/* Fill bar */}
+                <div style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${fillPct}%`,
+                  background: 'linear-gradient(90deg, #22c55e22, #22c55e44)',
+                  transition: dragging.current ? 'none' : 'width 0.3s',
+                  borderRadius: THUMB,
+                }} />
+                {/* Track label */}
+                <div style={{
+                  position: 'absolute', inset: 0, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: 700, color: '#94a3b8',
+                  pointerEvents: 'none', letterSpacing: 0.5,
+                  opacity: confirmed ? 0 : 1, transition: 'opacity 0.3s',
+                }}>
+                  {purchasing ? 'Processing…' : '← slide to confirm →'}
+                </div>
+                {/* Confirmed label */}
+                {confirmed && (
+                  <div style={{
+                    position: 'absolute', inset: 0, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 700, color: '#16a34a',
+                    pointerEvents: 'none',
+                  }}>
+                    <CheckCircle size={16} style={{ marginRight: 6 }} /> Confirmed!
+                  </div>
+                )}
+                {/* Thumb */}
+                {!confirmed && (
+                  <div
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    onPointerLeave={onPointerUp}
+                    style={{
+                      position: 'absolute', top: 0, left: dragX,
+                      width: THUMB, height: THUMB, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #0a192f 0%, #1e3a5f 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'grab', boxShadow: '0 4px 16px rgba(10,25,47,0.25)',
+                      transition: dragging.current ? 'none' : 'left 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+                      zIndex: 2,
+                    }}
+                  >
+                    <ShoppingBag size={20} color="#fff" />
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign: 'center', marginTop: 10, fontSize: 12, color: '#cbd5e1' }}>
+                Drag the handle all the way to purchase
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 20 }}>
+              <div className="alert-box error" style={{ marginBottom: 16 }}>
+                Insufficient balance — add at least ${(price - balance).toFixed(2)} to purchase this lead.
+              </div>
+              <div className="modal-actions">
+                <button className="cancel-btn" onClick={onClose}>Cancel</button>
+                <button
+                  className="confirm-btn"
+                  onClick={onTopUp}
+                  style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+                >
+                  Add Credits
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // socketStatus: 'connecting' | 'connected' | 'reconnecting'
 
 export default function LeadFeed() {
@@ -232,60 +395,15 @@ export default function LeadFeed() {
 
       {/* ═══ Purchase Confirmation Modal ═══ */}
       {confirmLead && (
-        <div className="modal-overlay">
-          <div className="modal-content purchase-modal">
-            <div className="modal-header">
-              <h3>Confirm Purchase</h3>
-              <button onClick={() => setConfirmLead(null)} className="close-btn"><X size={20} /></button>
-            </div>
-            <div className="modal-body">
-              <div className="purchase-summary">
-                <div className="summary-route">
-                  <strong>{confirmLead.originCity} → {confirmLead.destinationCity}</strong>
-                  <span>{confirmLead.homeSize} • {formatDate(confirmLead.moveDate)}</span>
-                </div>
-                <div className="price-info">
-                  <div className="price-row">
-                    <span>Lead Cost</span>
-                    <span className="amount">${confirmLead.price || 25}</span>
-                  </div>
-                  <div className="price-row">
-                    <span>Current Balance</span>
-                    <span className="balance">${(user?.balance || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="price-row total">
-                    <span>Remaining</span>
-                    <span className={`balance-after ${((user?.balance || 0) < (confirmLead.price || 25)) ? 'insufficient' : ''}`}>
-                      ${((user?.balance || 0) - (confirmLead.price || 25)).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {(user?.balance || 0) < (confirmLead.price || 25) && (
-                <div className="alert-box error">
-                  Insufficient balance. Please top up in the billing section.
-                </div>
-              )}
-
-              <div className="modal-actions">
-                <button 
-                  className="cancel-btn"
-                  onClick={() => setConfirmLead(null)}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="confirm-btn"
-                  disabled={purchasing || (user?.balance || 0) < (confirmLead.price || 25)}
-                  onClick={() => purchaseLead(confirmLead)}
-                >
-                  {purchasing ? 'Processing...' : `Confirm & Pay $${confirmLead.price || 25}`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PurchaseModal
+          lead={confirmLead}
+          balance={user?.balance || 0}
+          purchasing={purchasing}
+          onConfirm={() => purchaseLead(confirmLead)}
+          onClose={() => setConfirmLead(null)}
+          onTopUp={() => { setConfirmLead(null); navigate('/dashboard/billing'); }}
+          formatDate={formatDate}
+        />
       )}
 
       {/* ═══ Success Modal ═══ */}
