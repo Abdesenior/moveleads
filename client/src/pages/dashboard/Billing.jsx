@@ -139,6 +139,7 @@ export default function Billing() {
   const paged = sorted.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
 
   const creditPacks = [
+    { amount: 10, label: '$10', popular: false },
     { amount: 50, label: '$50', popular: false },
     { amount: 100, label: '$100', popular: true },
     { amount: 200, label: '$200', popular: false },
@@ -191,7 +192,7 @@ export default function Billing() {
       </div>
 
       {/* Quick Credit Packages */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 28 }}>
         {creditPacks.map(pkg => (
           <button key={pkg.amount} onClick={() => setConfirmAmount(pkg.amount)} style={{
             padding: '22px 20px', borderRadius: 16,

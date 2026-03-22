@@ -24,7 +24,7 @@ router.get('/balance', auth, async (req, res) => {
 // @access  Private
 router.post('/create-checkout-session', auth, async (req, res) => {
   const { amount } = req.body;
-  if (![50, 100, 200, 500].includes(amount)) {
+  if (![10, 50, 100, 200, 500].includes(amount)) {
     return res.status(400).json({ msg: 'Invalid amount selected' });
   }
 
@@ -133,26 +133,32 @@ router.post('/webhook', async (req, res) => {
     const { userId, credits } = session.metadata;
 
     try {
+      // Idempotency: skip if this session was already processed
+      const alreadyProcessed = await Transaction.findOne({
+        description: new RegExp(session.id)
+      });
+      if (alreadyProcessed) {
+        console.log(`[Webhook] Session ${session.id} already processed — skipping`);
+        return res.json({ received: true });
+      }
+
       const user = await User.findById(userId);
       if (user) {
         user.balance += Number(credits);
         await user.save();
 
-        const transaction = new Transaction({
+        await new Transaction({
           user: userId,
           type: 'Credit Deposit',
           amount: Number(credits),
-          description: `Credit Top Up +$${credits}`,
+          description: `Credit Top Up +$${credits} (Session: ${session.id})`,
           status: 'Completed'
-        });
-        await transaction.save();
-        
-        // Also update the lead if we have a way to find it (usually we'd have the leadId in metadata, but here we are in /billing/webhook)
-        // Note: The previous session metadata logic already handled the credit addition.
-        console.log(`Successfully added ${credits} credits to user ${userId}`);
+        }).save();
+
+        console.log(`[Webhook] Added ${credits} credits to user ${userId}`);
       }
     } catch (dbErr) {
-      console.error(`Database error during webhook: ${dbErr.message}`);
+      console.error(`[Webhook] Database error: ${dbErr.message}`);
     }
   }
 
