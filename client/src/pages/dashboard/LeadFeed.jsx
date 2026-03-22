@@ -10,19 +10,15 @@ import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './LeadFeed.css';
 
-// Statuses that should never appear in the live feed
-const EXCLUDED_STATUSES = new Set([
-  'REJECTED_FAKE',
-  'PENDING_MANUAL_REVIEW',
-  'Pending Verification',
-]);
+// Statuses that are purchasable and should appear in the live feed
+const FEED_STATUSES = new Set(['Available', 'READY_FOR_DISTRIBUTION']);
 
-const isDistributable = (lead) => !EXCLUDED_STATUSES.has(lead.status);
+const isDistributable = (lead) => FEED_STATUSES.has(lead.status);
 
 // socketStatus: 'connecting' | 'connected' | 'reconnecting'
 
 export default function LeadFeed() {
-  const { API_URL, token, user, refreshUser } = useContext(AuthContext);
+  const { API_URL, SOCKET_URL, token, user, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +40,7 @@ export default function LeadFeed() {
       });
       const data = await res.json();
       if (Array.isArray(data)) {
-        setLeads(data.filter(l => l.status === 'READY_FOR_DISTRIBUTION'));
+        setLeads(data.filter(isDistributable));
       }
     } catch (err) {
       console.error('Error fetching leads:', err);
@@ -66,7 +62,7 @@ export default function LeadFeed() {
   useEffect(() => {
     fetchInitialLeads();
 
-    const socket = io(API_URL.replace(/\/api$/, ''), {
+    const socket = io(SOCKET_URL, {
       auth: { token },
       // polling first — lets the connection succeed while Render is still waking up,
       // then upgrades to WebSocket once the server is fully ready.
@@ -113,7 +109,7 @@ export default function LeadFeed() {
       stopPolling();
       socket.disconnect();
     };
-  }, [API_URL, token, fetchInitialLeads, startPolling, stopPolling]);
+  }, [SOCKET_URL, token, fetchInitialLeads, startPolling, stopPolling]);
 
   const purchaseLead = async (lead) => {
     setPurchasing(true);

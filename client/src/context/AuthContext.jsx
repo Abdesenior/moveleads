@@ -9,6 +9,8 @@ export const AuthProvider = ({ children }) => {
 
   const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
+  // SOCKET_URL is always the bare origin — no /api suffix, no string surgery on API_URL
+  const SOCKET_URL = API_URL.replace(/\/api$/, '');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -81,7 +83,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       user, token, loading, login, logout, impersonate, stopImpersonating,
-      isImpersonating, API_URL, refreshUser
+      isImpersonating, API_URL, SOCKET_URL, refreshUser
     }}>
       {children}
     </AuthContext.Provider>
