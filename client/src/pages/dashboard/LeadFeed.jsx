@@ -39,11 +39,17 @@ export default function LeadFeed() {
         headers: { 'x-auth-token': token }
       });
       const data = await res.json();
+      console.log('[LeadFeed] raw response:', data);
       if (Array.isArray(data)) {
-        setLeads(data.filter(isDistributable));
+        const visible = data.filter(isDistributable);
+        console.log('[LeadFeed] after filter:', visible.length, '/', data.length,
+          'statuses:', data.map(l => l.status));
+        setLeads(visible);
+      } else {
+        console.warn('[LeadFeed] response is not an array:', data);
       }
     } catch (err) {
-      console.error('Error fetching leads:', err);
+      console.error('[LeadFeed] fetch error:', err);
     } finally {
       setLoading(false);
     }
