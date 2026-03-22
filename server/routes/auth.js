@@ -54,7 +54,8 @@ function issueJWT(user, res) {
 // @desc    Register user and send verification email
 // @access  Public
 router.post('/register', registerLimiter, async (req, res) => {
-  const { companyName, dotNumber, mcNumber, phone, email, password } = req.body;
+  const { companyName, dotNumber, mcNumber, phone, password } = req.body;
+  const email = req.body.email?.toLowerCase().trim();
   try {
     const settings = await PlatformSettings.findOne({});
     if (settings && !settings.acceptNewUserSignups) {
@@ -100,7 +101,8 @@ router.post('/register', registerLimiter, async (req, res) => {
 // @desc    Authenticate user returning JWT token
 // @access  Public
 router.post('/login', loginLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const password = req.body.password;
+  const email = req.body.email?.toLowerCase().trim();
   try {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
@@ -162,7 +164,7 @@ router.get('/verify-email', async (req, res) => {
 // @desc    Re-send the verification email (e.g. if it expired)
 // @access  Public
 router.post('/resend-verification', resendLimiter, async (req, res) => {
-  const { email } = req.body;
+  const email = req.body.email?.toLowerCase().trim();
   if (!email) return res.status(400).json({ msg: 'Email is required.' });
 
   try {
@@ -194,6 +196,7 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(401).json({ msg: 'User not found' });
     res.json(user);
   } catch (err) {
     console.error(err.message);

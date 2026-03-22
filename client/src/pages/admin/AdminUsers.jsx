@@ -33,7 +33,12 @@ export default function AdminUsers() {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
+      const res = await fetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.msg || 'Failed to delete user');
+        return;
+      }
       fetchUsers();
     } catch (err) { alert(err.message); }
   };
