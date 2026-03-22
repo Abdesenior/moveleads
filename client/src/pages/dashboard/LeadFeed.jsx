@@ -66,7 +66,7 @@ export default function LeadFeed() {
   useEffect(() => {
     fetchInitialLeads();
 
-    const socket = io(API_URL.replace('/api', ''), {
+    const socket = io(API_URL.replace(/\/api$/, ''), {
       auth: { token },
       // polling first — lets the connection succeed while Render is still waking up,
       // then upgrades to WebSocket once the server is fully ready.
