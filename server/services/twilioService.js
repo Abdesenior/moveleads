@@ -65,12 +65,13 @@ async function verifyLeadPhone(leadId) {
     const lineType = lookup.lineTypeIntelligence?.type;
     console.log(`[Twilio] Lookup result for ${lead.customerPhone}: type=${lineType}`);
 
-    if (lineType === 'mobile' || lineType === 'landline' || lineType === 'voip') {
+    if (lineType === 'mobile' || lineType === 'landline') {
       lead.isVerified = true;
       lead.status = 'READY_FOR_DISTRIBUTION';
       console.log(`[Twilio] Verification PASSED (Type: ${lineType})`);
       socketService.emitNewLead(lead);
     } else {
+      // voip, toll_free, invalid, unknown → reject
       lead.isVerified = false;
       lead.status = 'REJECTED_FAKE';
       console.log(`[Twilio] Verification FAILED (Type: ${lineType || 'unknown'})`);
@@ -163,4 +164,67 @@ async function sendSpeedToLeadSMS(lead, company) {
   }
 }
 
-module.exports = { verifyLeadPhone, sendSpeedToLeadSMS };
+/**
+ * Standalone phone validation using Twilio Lookup V2.
+ * Returns { valid: true, e164: '+1...' } or { valid: false, reason: '...' }.
+ * Rejects voip, toll_free, and invalid/unknown line types.
+ *
+ * @param {string} phone - Raw phone number in any format
+ */
+async function verifyPhoneNumber(phone) {
+  if (!twilioClient) {
+    console.warn('[Twilio] verifyPhoneNumber: no credentials, returning mock pass');
+    return { valid: true, e164: phone };
+  }
+
+  try {
+    const lookup = await twilioClient.lookups.v2
+      .phoneNumbers(phone)
+      .fetch({ fields: 'line_type_intelligence' });
+
+    const lineType = lookup.lineTypeIntelligence?.type;
+    const e164 = lookup.phoneNumber; // e.g. +12145551234
+
+    console.log(`[Twilio] verifyPhoneNumber ${phone} → type=${lineType} e164=${e164}`);
+
+    if (lineType === 'mobile' || lineType === 'landline') {
+      return { valid: true, e164 };
+    }
+
+    return { valid: false, reason: `Rejected line type: ${lineType || 'unknown'}` };
+  } catch (err) {
+    console.error(`[Twilio] verifyPhoneNumber error for ${phone}:`, err.message);
+    return { valid: false, reason: err.message };
+  }
+}
+
+/**
+ * Send an SMS alert to a mover when a matching lead is available.
+ *
+ * @param {string} toPhone    - Mover's phone in E.164 format
+ * @param {Object} leadDetails - { homeSize, originZip, destinationZip }
+ */
+async function sendMoverSms(toPhone, leadDetails) {
+  const { homeSize, originZip, destinationZip } = leadDetails;
+  const body = `🚨 MoveLeads: New Lead! ${homeSize} moving from ${originZip} to ${destinationZip}. Claim it here: https://moveleads.cloud/login`;
+
+  console.log(`[Twilio] sendMoverSms → ${toPhone}`);
+
+  if (!twilioClient) {
+    console.warn('[Twilio] sendMoverSms: no credentials, mock send');
+    return;
+  }
+
+  try {
+    const msg = await twilioClient.messages.create({
+      body,
+      from: fromPhone,
+      to: toPhone,
+    });
+    console.log(`[Twilio] Mover SMS sent. SID: ${msg.sid}`);
+  } catch (err) {
+    console.error(`[Twilio] sendMoverSms failed for ${toPhone}:`, err.message);
+  }
+}
+
+module.exports = { verifyLeadPhone, sendSpeedToLeadSMS, verifyPhoneNumber, sendMoverSms };
