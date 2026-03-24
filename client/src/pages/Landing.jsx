@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import {
   CheckCircle, Zap, Shield, ArrowRight, Star,
   MapPin, Clock, Users, TrendingUp,
-  ChevronDown, Lock, BarChart2, Bell
+  ChevronDown, Lock, BarChart2, Bell,
+  Home, Warehouse
 } from 'lucide-react';
 import '../phone-mockup.css';
 
@@ -401,6 +402,131 @@ export default function Landing() {
               </Reveal>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* CAPTURE MORE LEADS (WIDGET SHOWCASE) */}
+      <section style={{ padding: '100px 0', background: '#fff', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 70% 50%, rgba(249,115,22,0.03), transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 60, alignItems: 'center', position: 'relative' }}>
+          <div>
+            <Reveal>
+              <h2 style={{ fontFamily: F, fontSize: 44, fontWeight: 800, letterSpacing: '-0.025em', color: NAVY, marginBottom: 8 }}>
+                Capture More Leads.
+              </h2>
+              <p style={{ fontSize: 32, color: '#94a3b8', fontWeight: 600, lineHeight: 1.15, marginBottom: 44, letterSpacing: '-0.015em' }}>
+                Respond Instantly, Follow Up<br />Automatically & Boost Conversions.
+              </p>
+            </Reveal>
+            <Reveal delay={0.1}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 26, marginBottom: 48 }}>
+                {[
+                  { t: 'CRM Auto-Sync', d: 'Real-time quotes based on your actual tariffs' },
+                  { t: 'Fully Branded For Your Company', d: 'Service Area & Pricing Integration' },
+                  { t: 'Custom Rates & Routes', d: 'Upload your rates and routes so customers can reserve online' },
+                  { t: 'Accept Online Payments', d: 'PCI-compliant payment processing' },
+                ].map((f, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                      <CheckCircle size={15} color="#22c55e" strokeWidth={3} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: 17, fontWeight: 700, color: NAVY, marginBottom: 3, fontFamily: F }}>{f.t}</h4>
+                      <p style={{ fontSize: 14, color: '#64748b', margin: 0, lineHeight: 1.5 }}>{f.d}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+            <Reveal delay={0.2}>
+              <Link to="/widget-page" style={{ fontSize: 16, fontWeight: 700, color: NAVY, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, paddingBottom: 4, borderBottom: `2px solid transparent`, transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.color = ORANGE; e.currentTarget.style.borderBottomColor = ORANGE; }}
+                onMouseLeave={e => { e.currentTarget.style.color = NAVY; e.currentTarget.style.borderBottomColor = 'transparent'; }}
+              >
+                See the widget in action <ArrowRight size={18} />
+              </Link>
+            </Reveal>
+          </div>
+
+          {/* Right side - 3D Stacked Widget Mockups */}
+          <Reveal delay={0.15}>
+            <div style={{ position: 'relative', height: 540, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* Back Mockups (faded) */}
+              <div style={{ 
+                position: 'absolute', transform: 'translateX(-80px) translateY(20px) rotate(-8deg)', 
+                width: 260, height: 500, background: '#fff', borderRadius: 32, 
+                boxShadow: '0 20px 40px rgba(0,0,0,0.06)', zIndex: 1, opacity: 0.4, border: '1px solid #f1f5f9' 
+              }} />
+              <div style={{ 
+                position: 'absolute', transform: 'translateX(80px) translateY(-20px) rotate(8deg)', 
+                width: 260, height: 500, background: '#fff', borderRadius: 32, 
+                boxShadow: '0 20px 40px rgba(0,0,0,0.06)', zIndex: 1, opacity: 0.4, border: '1px solid #f1f5f9' 
+              }} />
+
+              {/* Main Phone Frame */}
+              <div style={{
+                position: 'relative', width: 290, height: 560, background: '#fff', borderRadius: 40,
+                padding: 10, boxShadow: '0 40px 80px rgba(15,23,42,0.15), 0 0 0 1px rgba(15,23,42,0.05)',
+                zIndex: 10,
+              }}>
+                <div style={{ height: '100%', background: '#fff', borderRadius: 32, overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid #f1f5f9' }}>
+                  {/* Widget Header Area */}
+                  <div style={{ background: NAVY, padding: '32px 24px 20px', color: '#fff', position: 'relative' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: ORANGE, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                      <Home size={18} color="#fff" />
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, fontFamily: F, letterSpacing: '-0.01em' }}>Get a Moving Quote</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>Free · Instant · No commitment</div>
+                  </div>
+                  
+                  {/* Widget Content Area */}
+                  <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: NAVY }} />
+                      <div style={{ fontSize: 12, fontWeight: 700, color: NAVY }}>Step 1 of 5</div>
+                      <div style={{ flex: 1, height: 4, borderRadius: 2, background: '#f1f5f9' }}>
+                        <div style={{ width: '20%', height: '100%', background: NAVY, borderRadius: 2 }} />
+                      </div>
+                    </div>
+                    
+                    <h5 style={{ fontSize: 18, fontWeight: 800, color: NAVY, marginBottom: 20, fontFamily: F }}>Select Your Move Size</h5>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                      {[
+                        { l: 'Studio', i: <Home size={18}/>, active: false },
+                        { l: '1 Bedroom', i: <Home size={20}/>, active: true },
+                        { l: '2 Bedroom', i: <Home size={22}/>, active: false },
+                        { l: '3 Bedroom', i: <Home size={24}/>, active: false },
+                        { l: '4 Bedroom', i: <Warehouse size={22}/>, active: false },
+                        { l: '5 Bedroom', i: <Warehouse size={24}/>, active: false },
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ 
+                          height: 76, padding: 12, borderRadius: 12, background: '#fff',
+                          border: `1.5px solid ${item.active ? NAVY : '#f1f5f9'}`,
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          boxShadow: item.active ? '0 4px 12px rgba(15,23,42,0.08)' : 'none',
+                          position: 'relative'
+                        }}>
+                          {item.active && <div style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: NAVY }} />}
+                          <div style={{ color: item.active ? NAVY : '#94a3b8' }}>{item.i}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: item.active ? NAVY : '#475569' }}>{item.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div style={{ 
+                      marginTop: 'auto', background: ORANGE, height: 48, borderRadius: 12, 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                      color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(249,115,22,0.35)'
+                    }}>
+                      Next Step <ArrowRight size={16} style={{ marginLeft: 6 }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
