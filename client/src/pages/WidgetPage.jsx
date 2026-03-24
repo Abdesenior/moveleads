@@ -641,6 +641,10 @@ export function DemoWidget({ companyId }) {
    MAIN PAGE
    ══════════════════════════════════════════════════════════ */
 export default function WidgetPage({ user, insideDashboard = false }) {
+    useEffect(() => {
+        if (!insideDashboard) window.scrollTo(0, 0);
+    }, [insideDashboard]);
+
     const [copied, setCopied] = useState(false);
     const embedRef = useRef(null);
     const companyId = user?._id || 'YOUR-COMPANY-ID';
