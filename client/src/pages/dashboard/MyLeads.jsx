@@ -1,5 +1,8 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
-import { MapPin, Phone, Mail, Calendar, Home, DollarSign, StickyNote, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ArrowRight, Truck, Calendar, Phone, Mail, StickyNote,
+  Briefcase, ChevronDown, ChevronUp, DollarSign, Search
+} from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -13,18 +16,54 @@ const STATUS_META = {
   Lost:      { color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
 };
 
-function LeadCard({ purchase, onUpdate }) {
-  const [expanded, setExpanded]   = useState(false);
-  const [notes, setNotes]         = useState(purchase.crmNotes || '');
-  const [status, setStatus]       = useState(purchase.crmStatus || 'New');
-  const [saving, setSaving]       = useState(false);
-  const [saved, setSaved]         = useState(false);
-  const { API_URL, token }        = useContext(AuthContext);
+function RouteCell({ originZip, originCity, destZip, destCity }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', lineHeight: 1.2 }}>{originZip}</div>
+        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.2 }}>{originCity}</div>
+      </div>
+      <ArrowRight size={14} color="#cbd5e1" style={{ flexShrink: 0 }} />
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', lineHeight: 1.2 }}>{destZip}</div>
+        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.2 }}>{destCity}</div>
+      </div>
+    </div>
+  );
+}
 
+function Pill({ icon, label, bg = '#f1f5f9', color = '#64748b' }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 10px', borderRadius: 9999,
+      background: bg, color, fontSize: 11, fontWeight: 600,
+    }}>
+      {icon}{label}
+    </span>
+  );
+}
+
+function StatusPill({ status }) {
+  const m = STATUS_META[status] || STATUS_META.New;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
+      background: m.bg, color: m.color, border: `1px solid ${m.border}`,
+    }}>
+      {status}
+    </span>
+  );
+}
+
+function ExpandedPanel({ purchase, onUpdate, onClose }) {
+  const [notes, setNotes]   = useState(purchase.crmNotes || '');
+  const [status, setStatus] = useState(purchase.crmStatus || 'New');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved]   = useState(false);
+  const { API_URL, token }  = useContext(AuthContext);
   const lead = purchase.lead;
-  if (!lead) return null;
-
-  const meta = STATUS_META[status];
 
   const handleSave = async () => {
     setSaving(true);
@@ -46,141 +85,164 @@ function LeadCard({ purchase, onUpdate }) {
   };
 
   return (
-    <div style={{
-      background: '#fff',
-      border: `1.5px solid ${expanded ? meta.border : '#e2e8f0'}`,
-      borderRadius: 14,
-      marginBottom: 10,
-      overflow: 'hidden',
-      transition: 'border-color 0.2s',
-      boxShadow: expanded ? '0 4px 16px rgba(0,0,0,0.07)' : '0 1px 3px rgba(0,0,0,0.04)',
-    }}>
-      {/* Card header — always visible */}
-      <button
-        type="button"
-        onClick={() => setExpanded(e => !e)}
-        style={{
-          width: '100%', textAlign: 'left', background: 'none', border: 'none',
-          padding: '14px 16px', cursor: 'pointer', display: 'flex',
-          alignItems: 'center', gap: 12,
-        }}
-      >
-        {/* Route icon */}
-        <div style={{
-          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-          background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <MapPin size={16} color={meta.color} />
-        </div>
+    <tr>
+      <td colSpan={6} style={{ padding: 0, background: '#fafbfc', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {lead.originCity} → {lead.destinationCity}
-          </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-            {lead.homeSize} · {new Date(lead.moveDate).toLocaleDateString()}
-          </div>
-        </div>
-
-        {/* Status pill */}
-        <span style={{
-          fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-          background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`,
-          whiteSpace: 'nowrap', flexShrink: 0,
-        }}>
-          {status}
-        </span>
-
-        {expanded ? <ChevronUp size={16} color="#94a3b8" /> : <ChevronDown size={16} color="#94a3b8" />}
-      </button>
-
-      {/* Expanded detail */}
-      {expanded && (
-        <div style={{ padding: '0 16px 16px', borderTop: '1px solid #f1f5f9' }}>
-
-          {/* Contact info */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '14px 0' }}>
-            {[
-              { icon: <Phone size={13} />, label: lead.customerName, sub: lead.customerPhone },
-              { icon: <Mail size={13} />,  label: lead.customerEmail, sub: `$${purchase.pricePaid?.toFixed(2)} paid` },
-            ].map((row, i) => (
-              <div key={i} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ color: '#94a3b8', marginTop: 2, flexShrink: 0 }}>{row.icon}</span>
+          {/* Left: contact info */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+              Contact Info
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                <Phone size={13} color="#94a3b8" />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{row.label}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{row.sub}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{lead?.customerName}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>{lead?.customerPhone}</div>
                 </div>
               </div>
-            ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                <Mail size={13} color="#94a3b8" />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{lead?.customerEmail}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>${purchase.pricePaid?.toFixed(2)} paid</div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Status selector */}
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-            Status
-          </label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-            {STATUSES.map(s => {
-              const m = STATUS_META[s];
-              const active = status === s;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatus(s)}
-                  style={{
-                    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-                    cursor: 'pointer', transition: 'all 0.15s',
-                    background: active ? m.color : '#f1f5f9',
-                    color: active ? '#fff' : '#64748b',
-                    border: `1.5px solid ${active ? m.color : '#e2e8f0'}`,
-                  }}
-                >
-                  {s}
-                </button>
-              );
-            })}
-          </div>
+          {/* Right: CRM panel */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+              CRM Status
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+              {STATUSES.map(s => {
+                const m = STATUS_META[s];
+                const active = status === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatus(s)}
+                    style={{
+                      padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      background: active ? m.color : '#f1f5f9',
+                      color: active ? '#fff' : '#64748b',
+                      border: `1.5px solid ${active ? m.color : '#e2e8f0'}`,
+                    }}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Notes */}
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-            <StickyNote size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-            Internal Notes
-          </label>
-          <textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="e.g. Called, left voicemail. Quoted $1,500 for 3-bed."
-            rows={3}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
-              fontSize: 13, fontFamily: 'inherit', resize: 'vertical',
-              outline: 'none', color: '#0f172a', lineHeight: 1.5,
-            }}
-            onFocus={e => (e.target.style.borderColor = '#3b82f6')}
-            onBlur={e => (e.target.style.borderColor = '#e2e8f0')}
-          />
-
-          {/* Save */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <StickyNote size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              Internal Notes
+            </div>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="e.g. Called, left voicemail. Quoted $1,500 for 3-bed."
+              rows={2}
               style={{
-                padding: '9px 22px', borderRadius: 10, border: 'none', fontSize: 13, fontWeight: 700,
-                cursor: saving ? 'not-allowed' : 'pointer',
-                background: saved ? '#16a34a' : 'linear-gradient(135deg,#f59e0b,#d97706)',
-                color: '#fff', transition: 'background 0.3s',
-                opacity: saving ? 0.7 : 1,
+                width: '100%', boxSizing: 'border-box',
+                padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0',
+                fontSize: 12, fontFamily: 'inherit', resize: 'vertical',
+                outline: 'none', color: '#0f172a', lineHeight: 1.5,
               }}
-            >
-              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
-            </button>
+              onFocus={e => (e.target.style.borderColor = '#3b82f6')}
+              onBlur={e => (e.target.style.borderColor = '#e2e8f0')}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                style={{
+                  padding: '7px 18px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  background: saved ? '#16a34a' : 'linear-gradient(135deg,#f59e0b,#d97706)',
+                  color: '#fff', transition: 'background 0.3s',
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
+      </td>
+    </tr>
+  );
+}
+
+function LeadRow({ purchase, onUpdate }) {
+  const [expanded, setExpanded] = useState(false);
+  const lead = purchase.lead;
+  if (!lead) return null;
+
+  const status = purchase.crmStatus || 'New';
+  const moveDate = lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+  return (
+    <>
+      <tr
+        onClick={() => setExpanded(e => !e)}
+        style={{
+          cursor: 'pointer',
+          background: expanded ? '#f0f9ff' : 'transparent',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = '#f8fafc'; }}
+        onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent'; }}
+      >
+        <td style={{ padding: '14px 20px' }}>
+          <RouteCell
+            originZip={lead.originZip}
+            originCity={lead.originCity}
+            destZip={lead.destinationZip}
+            destCity={lead.destinationCity}
+          />
+        </td>
+        <td style={{ padding: '14px 12px' }}>
+          <Pill
+            icon={<Truck size={11} />}
+            label={lead.homeSize}
+          />
+        </td>
+        <td style={{ padding: '14px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
+            <Calendar size={12} color="#94a3b8" />
+            {moveDate}
+          </div>
+        </td>
+        <td style={{ padding: '14px 12px' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'Poppins, sans-serif' }}>
+            ${purchase.pricePaid?.toFixed(2)}
+          </span>
+        </td>
+        <td style={{ padding: '14px 12px' }}>
+          <StatusPill status={status} />
+        </td>
+        <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+          <span style={{ color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
+        </td>
+      </tr>
+      {expanded && (
+        <ExpandedPanel
+          purchase={purchase}
+          onUpdate={onUpdate}
+          onClose={() => setExpanded(false)}
+        />
       )}
-    </div>
+    </>
   );
 }
 
@@ -189,6 +251,7 @@ export default function MyLeads() {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
     fetch(`${API_URL}/purchases`, { headers: { 'x-auth-token': token } })
@@ -204,140 +267,172 @@ export default function MyLeads() {
     ));
   }, []);
 
-  // Filter by search across route / customer name
   const filtered = purchases.filter(p => {
-    if (!search) return true;
     const l = p.lead;
     if (!l) return false;
-    const q = search.toLowerCase();
-    return (
-      l.originCity?.toLowerCase().includes(q) ||
-      l.destinationCity?.toLowerCase().includes(q) ||
-      l.customerName?.toLowerCase().includes(q)
-    );
+    if (statusFilter !== 'All' && (p.crmStatus || 'New') !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        l.originCity?.toLowerCase().includes(q) ||
+        l.destinationCity?.toLowerCase().includes(q) ||
+        l.customerName?.toLowerCase().includes(q) ||
+        l.originZip?.includes(q) ||
+        l.destinationZip?.includes(q)
+      );
+    }
+    return true;
   });
 
-  // Group by status
-  const columns = STATUSES.map(s => ({
-    status: s,
-    cards: filtered.filter(p => (p.crmStatus || 'New') === s),
-  }));
-
-  const totalLeads = purchases.length;
+  const statusCounts = STATUSES.reduce((acc, s) => {
+    acc[s] = purchases.filter(p => (p.crmStatus || 'New') === s).length;
+    return acc;
+  }, {});
 
   return (
     <DashboardLayout>
-      <header className="dashboard-header">
-        <h1 style={{ fontFamily: 'Poppins' }}>My Leads</h1>
-        <p>Track and manage leads you've purchased</p>
-      </header>
-
-      {/* Summary row */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        {STATUSES.map(s => {
-          const count = purchases.filter(p => (p.crmStatus || 'New') === s).length;
-          const m = STATUS_META[s];
-          return (
-            <div key={s} style={{
-              flex: '1 1 120px', padding: '12px 16px', borderRadius: 12,
-              background: m.bg, border: `1px solid ${m.border}`,
-              display: 'flex', flexDirection: 'column', gap: 2,
-            }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: m.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s}</span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'Poppins' }}>{count}</span>
-            </div>
-          );
-        })}
-        <div style={{
-          flex: '1 1 120px', padding: '12px 16px', borderRadius: 12,
-          background: '#f8fafc', border: '1px solid #e2e8f0',
-          display: 'flex', flexDirection: 'column', gap: 2,
-        }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total</span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'Poppins' }}>{totalLeads}</span>
+      {/* Page header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <Briefcase size={22} color="#ea580c" />
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'Poppins, sans-serif' }}>
+            My Leads
+          </h1>
+          <span style={{
+            background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa',
+            borderRadius: 9999, fontSize: 12, fontWeight: 700,
+            padding: '2px 10px', marginLeft: 4,
+          }}>
+            {purchases.length} total
+          </span>
         </div>
+        <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+          Track and manage every lead you've purchased
+        </p>
       </div>
 
-      {/* Search */}
-      <input
-        type="text"
-        placeholder="Search by city or customer name…"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{
-          width: '100%', boxSizing: 'border-box', marginBottom: 20,
-          padding: '12px 16px', borderRadius: 12, border: '1.5px solid #e2e8f0',
-          fontSize: 14, outline: 'none',
-        }}
-        onFocus={e => (e.target.style.borderColor = '#3b82f6')}
-        onBlur={e => (e.target.style.borderColor = '#e2e8f0')}
-      />
+      {/* Status summary pills */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => setStatusFilter('All')}
+          style={{
+            padding: '6px 14px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+            cursor: 'pointer', border: '1.5px solid',
+            background: statusFilter === 'All' ? '#0f172a' : '#f1f5f9',
+            color: statusFilter === 'All' ? '#fff' : '#64748b',
+            borderColor: statusFilter === 'All' ? '#0f172a' : '#e2e8f0',
+          }}
+        >
+          All ({purchases.length})
+        </button>
+        {STATUSES.map(s => {
+          const m = STATUS_META[s];
+          const active = statusFilter === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              style={{
+                padding: '6px 14px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', border: '1.5px solid',
+                background: active ? m.color : m.bg,
+                color: active ? '#fff' : m.color,
+                borderColor: active ? m.color : m.border,
+              }}
+            >
+              {s} ({statusCounts[s]})
+            </button>
+          );
+        })}
+      </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>Loading your leads…</div>
-      ) : totalLeads === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-          <DollarSign size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-          <p>You haven't purchased any leads yet.</p>
-        </div>
-      ) : (
-        /* Kanban columns */
+      {/* White card container */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 16,
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+        overflow: 'hidden',
+      }}>
+        {/* Search toolbar */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: 12,
-          alignItems: 'start',
+          padding: '16px 20px',
+          borderBottom: '1px solid #f1f5f9',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
         }}>
-          {columns.map(({ status, cards }) => {
-            const m = STATUS_META[status];
-            return (
-              <div key={status}>
-                {/* Column header */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', borderRadius: '12px 12px 0 0',
-                  background: m.bg, border: `1.5px solid ${m.border}`,
-                  borderBottom: 'none', marginBottom: 0,
-                }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: m.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>{status}</span>
-                  <span style={{
-                    minWidth: 22, height: 22, borderRadius: 11, background: m.color,
-                    color: '#fff', fontSize: 11, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{cards.length}</span>
-                </div>
-
-                {/* Cards */}
-                <div style={{
-                  minHeight: 80, padding: '10px 0 4px',
-                  borderLeft: `1.5px solid ${m.border}`,
-                  borderRight: `1.5px solid ${m.border}`,
-                  borderBottom: `1.5px solid ${m.border}`,
-                  borderRadius: '0 0 12px 12px',
-                  paddingLeft: 8, paddingRight: 8,
-                }}>
-                  {cards.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '20px 0', color: '#cbd5e1', fontSize: 12 }}>
-                      No leads
-                    </div>
-                  ) : (
-                    cards.map(p => (
-                      <LeadCard key={p._id} purchase={p} onUpdate={handleUpdate} />
-                    ))
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          <Search size={15} color="#94a3b8" style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder="Search by city, ZIP, or customer name…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              flex: 1, border: 'none', outline: 'none',
+              fontSize: 13, color: '#0f172a', background: 'transparent',
+            }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 13 }}
+            >
+              ✕
+            </button>
+          )}
         </div>
-      )}
 
-      {/* Responsive: collapse to list on small screens */}
-      <style>{`
-        @media (max-width: 1024px) {
-          .myleads-kanban { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8', fontSize: 14 }}>
+            Loading your leads…
+          </div>
+        ) : purchases.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
+            <DollarSign size={40} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
+            <p style={{ margin: 0, fontSize: 14 }}>You haven't purchased any leads yet.</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8', fontSize: 14 }}>
+            No leads match your search.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  {['Route', 'Size', 'Move Date', 'Paid', 'Status', ''].map((h, i) => (
+                    <th
+                      key={i}
+                      style={{
+                        padding: i === 0 ? '11px 20px' : i === 5 ? '11px 20px' : '11px 12px',
+                        textAlign: i === 5 ? 'right' : 'left',
+                        fontSize: 10, fontWeight: 700, color: '#94a3b8',
+                        textTransform: 'uppercase', letterSpacing: 0.5,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((purchase, idx) => (
+                  <LeadRow
+                    key={purchase._id}
+                    purchase={purchase}
+                    onUpdate={handleUpdate}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }

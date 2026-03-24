@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { DollarSign, Clock, ArrowUpCircle, ShoppingBag, CreditCard, Plus, Search, ArrowDownCircle, Wallet, X, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useContext, useRef } from 'react';
+import {
+  Clock, ArrowUpCircle, ShoppingBag, CreditCard,
+  Plus, Search, Wallet, X, CheckCircle, Zap
+} from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -11,22 +14,29 @@ const cleanDescription = (desc) => {
   return desc.replace(/\s*\(Session:.*?\)/gi, '').trim();
 };
 
+const CREDIT_PACKS = [
+  { amount: 10,  label: '$10'  },
+  { amount: 50,  label: '$50'  },
+  { amount: 100, label: '$100', popular: true },
+  { amount: 200, label: '$200' },
+  { amount: 500, label: '$500' },
+];
+
 export default function Billing() {
   const { user, token, API_URL } = useContext(AuthContext);
   const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [balance, setBalance] = useState(user?.balance ?? 0);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [balance, setBalance]           = useState(user?.balance ?? 0);
+  const [showSuccess, setShowSuccess]   = useState(false);
   const [balancePulse, setBalancePulse] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [sortKey, setSortKey] = useState('date');
-  const [sortDir, setSortDir] = useState('desc');
-
-  // Credit confirmation modal
+  const [searchTerm, setSearchTerm]     = useState('');
+  const [page, setPage]                 = useState(1);
+  const [pageSize, setPageSize]         = useState(10);
+  const [sortKey, setSortKey]           = useState('date');
+  const [sortDir, setSortDir]           = useState('desc');
   const [confirmAmount, setConfirmAmount] = useState(null);
-  const [redirecting, setRedirecting] = useState(false);
+  const [redirecting, setRedirecting]   = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState(100);
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -34,31 +44,25 @@ export default function Billing() {
 
   useEffect(() => {
     fetchBilling();
-
-    // Handle Stripe return — only process once
     const sid = searchParams.get('session_id');
     const success = searchParams.get('success');
     if (sid && success === 'true' && !processedRef.current) {
       processedRef.current = true;
       confirmPayment(sid);
-      // Clear query params to prevent re-triggering on refresh
       navigate('/dashboard/billing', { replace: true });
     } else if (success === 'true' && !sid) {
-      // success=true but no session_id, just clear params
       navigate('/dashboard/billing', { replace: true });
     }
-  }, []);
+  }, []); // eslint-disable-line
 
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [searchTerm, sortKey, sortDir]);
 
   const fetchBilling = async () => {
     try {
       const headers = { 'x-auth-token': token };
       const [txRes, balRes] = await Promise.all([
         fetch(`${API_URL}/billing/transactions`, { headers }),
-        fetch(`${API_URL}/billing/balance`, { headers })
+        fetch(`${API_URL}/billing/balance`, { headers }),
       ]);
       const txData = await txRes.json();
       const balData = await balRes.json();
@@ -72,18 +76,15 @@ export default function Billing() {
       const res = await fetch(`${API_URL}/billing/confirm-payment`, {
         method: 'POST',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId })
+        body: JSON.stringify({ session_id: sessionId }),
       });
       const data = await res.json();
-
-      // Only show success toast if actually processed (not a duplicate)
       if (!data.alreadyProcessed && (data.balance !== undefined || data.msg?.includes('confirmed'))) {
         setShowSuccess(true);
         setBalancePulse(true);
         setTimeout(() => setShowSuccess(false), 5000);
         setTimeout(() => setBalancePulse(false), 3000);
       }
-      // Always refresh billing data
       fetchBilling();
     } catch (err) { console.error(err); }
   };
@@ -94,7 +95,7 @@ export default function Billing() {
       const res = await fetch(`${API_URL}/billing/create-checkout-session`, {
         method: 'POST',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount })
+        body: JSON.stringify({ amount }),
       });
       const data = await res.json();
       if (data.url) {
@@ -111,10 +112,7 @@ export default function Billing() {
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-    else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
+    else { setSortKey(key); setSortDir('asc'); }
     setPage(1);
   };
 
@@ -138,242 +136,311 @@ export default function Billing() {
   const pageSafe = Math.min(page, totalPages);
   const paged = sorted.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
 
-  const creditPacks = [
-    { amount: 10, label: '$10', popular: false },
-    { amount: 50, label: '$50', popular: false },
-    { amount: 100, label: '$100', popular: true },
-    { amount: 200, label: '$200', popular: false },
-    { amount: 500, label: '$500', popular: false }
-  ];
+  const SortBtn = ({ k, label }) => (
+    <button type="button" onClick={() => toggleSort(k)} style={{
+      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+      fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase',
+      letterSpacing: '0.05em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
+    }}>
+      {label}
+      {sortKey === k && <span style={{ color: '#ea580c' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+    </button>
+  );
 
   return (
     <DashboardLayout>
+
+      {/* Success toast */}
       {showSuccess && (
         <div style={{
           position: 'fixed', top: 24, right: 24, zIndex: 20000,
-          padding: '16px 24px', borderRadius: 16,
-          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+          padding: '14px 22px', borderRadius: 14,
+          background: 'linear-gradient(135deg,#22c55e,#16a34a)',
           color: '#fff', fontWeight: 700, fontSize: 14,
           boxShadow: '0 10px 30px rgba(22,197,94,0.35)',
-          animation: 'slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          display: 'flex', alignItems: 'center', gap: 10
+          animation: 'blSlideIn 0.4s cubic-bezier(0.16,1,0.3,1)',
+          display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          <ArrowUpCircle size={18} /> Credits added to your account!
+          <CheckCircle size={18} /> Credits added to your account!
         </div>
       )}
 
-      <header className="dashboard-header">
-        <h1 style={{ fontFamily: 'Poppins' }}>Billing & Credits</h1>
-        <p>Manage your balance and view transaction history</p>
-      </header>
+      {/* Page header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+          Billing & Credits
+        </h1>
+        <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Manage your balance and view transaction history</p>
+      </div>
 
-      {/* Balance Card */}
-      <div className="balance-card">
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px 0' }}>Available Balance</p>
-          <div className="balance-amount" style={{ animation: balancePulse ? 'pulse 0.5s' : 'none' }}>
-            ${balance.toFixed(2)}
+      {/* ══════════════════════════════════════════════
+          PREMIUM BALANCE CARD — balance + top-up inline
+          ══════════════════════════════════════════════ */}
+      <div style={{
+        background: 'linear-gradient(135deg,#0a192f 0%,#112240 60%,#0d2240 100%)',
+        borderRadius: 20, padding: '32px 36px', marginBottom: 28,
+        boxShadow: '0 12px 36px rgba(10,25,47,0.28)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Decorative glows */}
+        <div style={{ position: 'absolute', top: '-30%', right: '-8%', width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle,rgba(249,115,22,0.14),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-30%', left: '8%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(59,130,246,0.08),transparent 70%)', pointerEvents: 'none' }} />
+
+        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto', gap: 32, alignItems: 'start' }}>
+
+          {/* Left: balance */}
+          <div>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>
+              Available Balance
+            </p>
+            <div style={{
+              fontSize: 52, fontWeight: 800, color: '#fff', fontFamily: "'Poppins',sans-serif",
+              lineHeight: 1, letterSpacing: -1, marginBottom: 8,
+              animation: balancePulse ? 'blPulse 0.5s ease' : 'none',
+            }}>
+              ${balance.toFixed(2)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
+              <Wallet size={12} /> MoveLeads Credits
+            </div>
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, margin: '8px 0 0' }}>
-            <Wallet size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            MoveLeads Credits
-          </p>
+
+          {/* Right: quick top-up */}
+          <div style={{ minWidth: 280 }}>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>
+              Quick Top Up
+            </p>
+
+            {/* Amount selector pills */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+              {CREDIT_PACKS.map(pkg => {
+                const active = selectedAmount === pkg.amount;
+                return (
+                  <button
+                    key={pkg.amount}
+                    type="button"
+                    onClick={() => setSelectedAmount(pkg.amount)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+                      cursor: 'pointer', border: '1.5px solid',
+                      background: active ? '#f59e0b' : 'rgba(255,255,255,0.08)',
+                      color: active ? '#fff' : 'rgba(255,255,255,0.65)',
+                      borderColor: active ? '#f59e0b' : 'rgba(255,255,255,0.15)',
+                      transition: 'all 0.15s',
+                      position: 'relative',
+                    }}
+                  >
+                    {pkg.label}
+                    {pkg.popular && !active && (
+                      <span style={{ position: 'absolute', top: -6, right: -4, background: '#f59e0b', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 4 }}>★</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Checkout button */}
+            <button
+              onClick={() => setConfirmAmount(selectedAmount)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                color: '#fff', border: 'none', borderRadius: 12, padding: '13px 20px',
+                fontSize: 14, fontWeight: 700, fontFamily: "'Poppins',sans-serif",
+                cursor: 'pointer', boxShadow: '0 6px 20px rgba(245,158,11,0.35)',
+                transition: 'all 0.25s',
+              }}
+            >
+              <Plus size={16} /> Add ${selectedAmount} Credits
+            </button>
+          </div>
         </div>
-        <button onClick={() => setConfirmAmount(100)} style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-          color: '#fff', border: 'none', borderRadius: 14, padding: '14px 28px',
-          fontSize: 15, fontWeight: 700, fontFamily: "'Poppins', sans-serif",
-          cursor: 'pointer', boxShadow: '0 6px 20px rgba(245,158,11,0.35)',
-          transition: 'all 0.25s', position: 'relative', zIndex: 1
-        }}>
-          <Plus size={18} /> Add Credits
-        </button>
       </div>
 
-      {/* Quick Credit Packages */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 28 }}>
-        {creditPacks.map(pkg => (
-          <button key={pkg.amount} onClick={() => setConfirmAmount(pkg.amount)} style={{
-            padding: '22px 20px', borderRadius: 16,
-            background: pkg.popular ? 'linear-gradient(135deg, #0a192f 0%, #112240 100%)' : '#fff',
-            color: pkg.popular ? '#fff' : '#0f172a',
-            border: pkg.popular ? 'none' : '1px solid #e2e8f0',
-            cursor: 'pointer', transition: 'all 0.25s',
-            fontFamily: "'Poppins', sans-serif",
-            position: 'relative', overflow: 'hidden',
-            boxShadow: pkg.popular ? '0 8px 24px rgba(10,25,47,0.2)' : '0 1px 3px rgba(0,0,0,0.04)'
-          }}>
-            {pkg.popular && (
-              <span style={{
-                position: 'absolute', top: 8, right: 8,
-                fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 6,
-                background: '#f59e0b', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5
-              }}>Popular</span>
-            )}
-            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{pkg.label}</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: pkg.popular ? 'rgba(255,255,255,0.5)' : '#94a3b8' }}>Add credits</div>
-          </button>
-        ))}
-      </div>
+      {/* ── Transaction History ── */}
+      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(15,23,42,0.06)', overflow: 'hidden' }}>
 
-      {/* Transaction History */}
-      <div className="panel" style={{ padding: 0, overflow: 'hidden', borderRadius: 18 }}>
-        <div style={{ padding: '24px 24px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        {/* Table header */}
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Clock size={16} color="#3b82f6" />
+              <Clock size={15} color="#3b82f6" />
             </div>
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--bg-navy)', margin: 0, fontFamily: "'Poppins', sans-serif" }}>Transaction History</h2>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>Transaction History</span>
           </div>
           <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input type="text" placeholder="Search transactions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ padding: '10px 10px 10px 36px', borderRadius: 12, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, width: 240 }} />
+            <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+            <input
+              type="text" placeholder="Search transactions…" value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{ padding: '9px 9px 9px 34px', borderRadius: 10, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, width: 220, fontFamily: 'inherit' }}
+              onFocus={e => (e.target.style.borderColor = '#ea580c')}
+              onBlur={e  => (e.target.style.borderColor = '#e2e8f0')}
+            />
           </div>
         </div>
-        <table className="leads-table">
+
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr>
-              <th style={{ paddingLeft: 24 }}>
-                <button type="button" onClick={() => toggleSort('date')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 900, color: sortKey === 'date' ? 'var(--bg-navy)' : 'var(--text-muted)' }}>
-                  Date {sortKey === 'date' && <span style={{ color: 'var(--accent-orange)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
-                </button>
+            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ padding: '11px 12px 11px 20px', textAlign: 'left' }}><SortBtn k="date" label="Date" /></th>
+              <th style={{ padding: '11px 12px', textAlign: 'left' }}><SortBtn k="type" label="Type" /></th>
+              <th style={{ padding: '11px 12px', textAlign: 'left' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</span>
               </th>
-              <th>
-                <button type="button" onClick={() => toggleSort('type')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 900, color: sortKey === 'type' ? 'var(--bg-navy)' : 'var(--text-muted)' }}>
-                  Type {sortKey === 'type' && <span style={{ color: 'var(--accent-orange)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
-                </button>
+              <th style={{ padding: '11px 12px', textAlign: 'left' }}><SortBtn k="amount" label="Amount" /></th>
+              <th style={{ padding: '11px 20px 11px 12px', textAlign: 'left' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</span>
               </th>
-              <th>Description</th>
-              <th>
-                <button type="button" onClick={() => toggleSort('amount')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 900, color: sortKey === 'amount' ? 'var(--bg-navy)' : 'var(--text-muted)' }}>
-                  Amount {sortKey === 'amount' && <span style={{ color: 'var(--accent-orange)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
-                </button>
-              </th>
-              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <TableSkeleton rowCount={pageSize} colCount={5} />
             ) : paged.length === 0 ? (
-              <tr><td colSpan="5" className="table-empty">No transactions found.</td></tr>
+              <tr>
+                <td colSpan={5}>
+                  <div style={{ padding: '52px 24px', textAlign: 'center' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                      <Zap size={22} color="#cbd5e1" />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>No transactions yet</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Add credits to get started</div>
+                  </div>
+                </td>
+              </tr>
             ) : (
               paged.map(tx => (
-                <tr key={tx._id}>
-                  <td style={{ paddingLeft: 24, color: '#64748b', fontSize: 13 }}>{new Date(tx.date).toLocaleDateString()}</td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-                        background: tx.type === 'Credit Deposit' ? '#f0fdf4' : '#eff6ff',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        {tx.type === 'Credit Deposit' ?
-                          <ArrowUpCircle size={14} color="#16a34a" /> :
-                          <ShoppingBag size={14} color="#3b82f6" />
-                        }
+                <tr
+                  key={tx._id}
+                  style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '14px 12px 14px 20px', fontSize: 12, color: '#64748b' }}>
+                    {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </td>
+                  <td style={{ padding: '14px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: tx.type === 'Credit Deposit' ? '#f0fdf4' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {tx.type === 'Credit Deposit'
+                          ? <ArrowUpCircle size={13} color="#16a34a" />
+                          : <ShoppingBag size={13} color="#3b82f6" />}
                       </div>
-                      <strong style={{ fontSize: 13 }}>{tx.type}</strong>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{tx.type}</span>
                     </div>
                   </td>
-                  <td style={{ color: '#475569', fontSize: 13 }}>{cleanDescription(tx.description)}</td>
-                  <td>
+                  <td style={{ padding: '14px 12px', fontSize: 12, color: '#64748b' }}>
+                    {cleanDescription(tx.description)}
+                  </td>
+                  <td style={{ padding: '14px 12px' }}>
                     <span style={{
                       fontWeight: 700, fontSize: 13,
                       color: tx.amount > 0 ? '#16a34a' : '#0f172a',
                       background: tx.amount > 0 ? '#f0fdf4' : '#f8fafc',
-                      padding: '4px 10px', borderRadius: 8
+                      padding: '3px 10px', borderRadius: 8,
                     }}>
-                      {tx.amount > 0 ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
+                      {Number(tx.amount) > 0 ? '+' : '-'}${Math.abs(Number(tx.amount) || 0).toFixed(2)}
                     </span>
                   </td>
-                  <td><span className={`badge ${tx.status === 'Completed' ? 'purchased' : 'expired'}`}>{tx.status}</span></td>
+                  <td style={{ padding: '14px 20px 14px 12px' }}>
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
+                      background: tx.status === 'Completed' ? '#dcfce7' : '#fee2e2',
+                      color: tx.status === 'Completed' ? '#16a34a' : '#dc2626',
+                    }}>
+                      {tx.status}
+                    </span>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
+
         {!loading && totalPages > 1 && (
-          <div style={{ padding: '0 24px 24px' }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9' }}>
             <TablePagination
-              page={pageSafe}
-              totalPages={totalPages}
-              pageSize={pageSize}
+              page={pageSafe} totalPages={totalPages} pageSize={pageSize}
               onPageChange={setPage}
-              onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+              onPageSizeChange={n => { setPageSize(n); setPage(1); }}
             />
           </div>
         )}
       </div>
 
-      {/* ═══ Credit Confirmation Modal ═══ */}
+      {/* ── Confirm Purchase Modal ── */}
       {confirmAmount !== null && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(10,25,47,0.7)', backdropFilter: 'blur(12px)',
           zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-          animation: 'cmFadeIn 0.25s ease'
+          animation: 'blFadeIn 0.25s ease',
         }}>
           <div style={{
             background: 'white', borderRadius: 24, width: '100%', maxWidth: 460,
             overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.25)',
-            animation: 'cmScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+            animation: 'blScaleIn 0.3s cubic-bezier(0.16,1,0.3,1)',
           }}>
-            {/* Header */}
             <div style={{
-              background: 'linear-gradient(135deg, #0a192f 0%, #112240 100%)',
-              padding: '28px 32px', position: 'relative', overflow: 'hidden'
+              background: 'linear-gradient(135deg,#0a192f,#112240)',
+              padding: '26px 30px', position: 'relative', overflow: 'hidden',
             }}>
-              <div style={{ position: 'absolute', top: '-30%', right: '-10%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', top: '-30%', right: '-10%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle,rgba(249,115,22,0.15),transparent 70%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 800, margin: '0 0 4px', fontFamily: "'Poppins', sans-serif" }}>Confirm Purchase</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: 0 }}>You are about to add credits to your account</p>
+                  <h2 style={{ color: '#fff', fontSize: 19, fontWeight: 800, margin: '0 0 4px', fontFamily: "'Poppins',sans-serif" }}>Confirm Top Up</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>You're adding credits to your account</p>
                 </div>
-                <button onClick={() => { setConfirmAmount(null); setRedirecting(false); }} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={18} />
+                <button
+                  onClick={() => { setConfirmAmount(null); setRedirecting(false); }}
+                  style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <X size={16} />
                 </button>
               </div>
             </div>
 
-            {/* Body */}
-            <div style={{ padding: '28px 32px' }}>
+            <div style={{ padding: '26px 30px' }}>
               {/* Amount display */}
-              <div style={{ textAlign: 'center', marginBottom: 24, padding: '20px', background: '#f8fafc', borderRadius: 16 }}>
-                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Adding to your account</div>
-                <div style={{ fontSize: 48, fontWeight: 800, color: '#0a192f', fontFamily: "'Poppins', sans-serif", letterSpacing: -1 }}>${confirmAmount}</div>
-                <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>credits</div>
+              <div style={{ textAlign: 'center', padding: '20px', background: '#f8fafc', borderRadius: 16, marginBottom: 22 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Adding to your account</div>
+                <div style={{ fontSize: 48, fontWeight: 800, color: '#0a192f', fontFamily: "'Poppins',sans-serif", letterSpacing: -1 }}>${confirmAmount}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>credits</div>
               </div>
 
               {/* Balance breakdown */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #f1f5f9' }}>
-                <span style={{ fontSize: 14, color: '#64748b' }}>Current Balance</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>${balance.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', marginBottom: 28 }}>
-                <span style={{ fontSize: 14, color: '#64748b', fontWeight: 600 }}>New Balance</span>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#16a34a', fontFamily: "'Poppins', sans-serif" }}>${(balance + confirmAmount).toFixed(2)}</span>
-              </div>
+              {[
+                { label: 'Current Balance', value: `$${balance.toFixed(2)}`, color: '#0f172a' },
+                { label: 'New Balance',     value: `$${(balance + confirmAmount).toFixed(2)}`, color: '#16a34a', bold: true },
+              ].map(r => (
+                <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: 13, color: '#64748b' }}>{r.label}</span>
+                  <span style={{ fontSize: r.bold ? 16 : 13, fontWeight: r.bold ? 800 : 600, color: r.color, fontFamily: r.bold ? "'Poppins',sans-serif" : 'inherit' }}>{r.value}</span>
+                </div>
+              ))}
 
-              {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => { setConfirmAmount(null); setRedirecting(false); }} className="secondary-btn" style={{ flex: 1, padding: 14, justifyContent: 'center' }}>Cancel</button>
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 12, marginTop: 22 }}>
+                <button
+                  onClick={() => { setConfirmAmount(null); setRedirecting(false); }}
+                  className="secondary-btn"
+                  style={{ flex: 1, padding: 13, justifyContent: 'center' }}
+                >
+                  Cancel
+                </button>
                 <button
                   onClick={() => addCredits(confirmAmount)}
                   disabled={redirecting}
                   style={{
-                    flex: 2, padding: 14,
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                    color: '#fff', border: 'none', borderRadius: 14,
-                    fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                    fontFamily: "'Poppins', sans-serif",
-                    boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
-                    opacity: redirecting ? 0.6 : 1,
-                    transition: 'all 0.25s',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-                  }}>
-                  <CreditCard size={16} /> {redirecting ? 'Redirecting to Stripe...' : 'Proceed to Payment'}
+                    flex: 2, padding: 13, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14,
+                    cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+                    background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                    color: '#fff', boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
+                    opacity: redirecting ? 0.6 : 1, transition: 'all 0.25s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  <CreditCard size={16} /> {redirecting ? 'Redirecting…' : 'Proceed to Payment'}
                 </button>
               </div>
             </div>
@@ -382,10 +449,10 @@ export default function Billing() {
       )}
 
       <style>{`
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-        @keyframes cmFadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes cmScaleIn { from { opacity: 0; transform: scale(0.9) translateY(20px) } to { opacity: 1; transform: scale(1) translateY(0) } }
+        @keyframes blSlideIn  { from { opacity:0; transform:translateX(40px) } to { opacity:1; transform:translateX(0) } }
+        @keyframes blPulse    { 0%,100% { transform:scale(1) } 50% { transform:scale(1.04) } }
+        @keyframes blFadeIn   { from { opacity:0 } to { opacity:1 } }
+        @keyframes blScaleIn  { from { opacity:0; transform:scale(0.9) translateY(20px) } to { opacity:1; transform:scale(1) translateY(0) } }
       `}</style>
     </DashboardLayout>
   );
