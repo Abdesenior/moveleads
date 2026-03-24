@@ -88,7 +88,15 @@ const LeadIngestSchema = z.object({
     .min(0, 'Number of rooms cannot be negative')
     .max(50, 'Number of rooms seems too high')
     .optional()
-    .default(0)
+    .default(0),
+  miles: z
+    .number()
+    .min(0)
+    .optional()
+    .default(0),
+  sourceCompany: z
+    .string()
+    .optional()
 });
 
 /**

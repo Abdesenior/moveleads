@@ -25,6 +25,7 @@ import Widget from './pages/dashboard/Widget';
 
 // Public pages
 import WidgetPage from './pages/WidgetPage';
+import WidgetEmbedPage from './pages/WidgetEmbedPage';
 
 // Admin Dashboard
 import Admin from './pages/Admin';
@@ -51,6 +52,8 @@ function App() {
           <Route path="/for-movers" element={<ForMovers />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/widget-page" element={<WidgetPage />} />
+          <Route path="/embed/widget/:companyId" element={<WidgetEmbedPage />} />
+          <Route path="/embed/widget" element={<WidgetEmbedPage />} />
 
           {/* Customer Dashboard Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

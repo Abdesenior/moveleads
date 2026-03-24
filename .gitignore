@@ -1,4 +1,8 @@
+node_modules/
+.env
+.env.local
+.env.production
+dist/
 .vercel
 server/.env
-server/.env
-server/.env.example
+server/.env.local

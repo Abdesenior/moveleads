@@ -192,84 +192,111 @@ function MapArc({ origin, destination, fixedCoords, onRouteLoaded }) {
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     setLoading(true);
 
+    // Safety timeout: don't let the spinner stay forever if Mapbox fails (e.g. bad token)
+    const timer = setTimeout(() => setLoading(false), 6000);
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/light-v11',
-      center: [(origin.lon + destination.lon) / 2, (origin.lat + destination.lat) / 2],
-      zoom: 4, interactive: false, attributionControl: false, logoPosition: 'bottom-right',
+      center: [-98.5795, 39.8283], // Center on US for the start
+      zoom: 2.5, // Start zoomed out for the "fly in"
+      interactive: false,
+      attributionControl: false,
+      logoPosition: 'bottom-right',
     });
     mapRef.current = map;
 
+    const stopLoading = () => { setLoading(false); clearTimeout(timer); };
+
+    map.on('error', (e) => {
+      console.error('[Mapbox Error]', e.error?.message || e.message);
+      stopLoading();
+    });
+
     map.on('load', async () => {
-      const bounds = new mapboxgl.LngLatBounds();
-      bounds.extend([origin.lon, origin.lat]);
-      bounds.extend([destination.lon, destination.lat]);
-      map.fitBounds(bounds, { padding: 72, duration: 400 });
-
-      let coords = fixedCoords;
-
-      if (!coords) {
-        // Try Directions API for actual road route
-        try {
-          const res = await fetch(
-            `https://api.mapbox.com/directions/v5/mapbox/driving/${origin.lon},${origin.lat};${destination.lon},${destination.lat}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`
-          );
-          const data = await res.json();
-          if (data.routes?.[0]) {
-            coords = data.routes[0].geometry.coordinates;
-            onRouteLoaded?.({
-              miles: Math.round(data.routes[0].distance / 1609.34),
-              hours: data.routes[0].duration / 3600,
-              coords,
-            });
-          } else throw new Error('no route');
-        } catch {
-          // Fallback: great-circle arc
-          try {
-            const arc = greatCircle(point([origin.lon, origin.lat]), point([destination.lon, destination.lat]), { npoints: 80 });
-            coords = arc.geometry ? arc.geometry.coordinates : arc.features[0].geometry.coordinates;
-          } catch {
-            coords = [[origin.lon, origin.lat], [destination.lon, destination.lat]];
-          }
-        }
-      }
+      // Create a smooth curved arc for any move to make it look "premium"
+      const arcSource = greatCircle(point([origin.lon, origin.lat]), point([destination.lon, destination.lat]), { npoints: 100 });
+      const fullCoords = arcSource.geometry.coordinates;
 
       setLoading(false);
+      clearTimeout(timer);
 
+      // Add Sources
       map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } });
-      map.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#3B8BD4', 'line-width': 2.5, 'line-opacity': 0.9 } });
+      map.addSource('point', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'Point', coordinates: origin } } });
 
-      const DURATION = 1200, startTime = performance.now();
-      let markersAdded = false;
-
-      const animate = (now) => {
-        if (!mapRef.current) return;
-        const progress = Math.min((now - startTime) / DURATION, 1);
-        const n = Math.max(Math.ceil(progress * coords.length), 1);
-        try {
-          map.getSource('route').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords.slice(0, n) } });
-        } catch { return; }
-
-        if (progress >= 0.8 && !markersAdded) {
-          markersAdded = true;
-          const mkEl = (color, glow) => {
-            const el = document.createElement('div');
-            el.style.cssText = `width:13px;height:13px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 0 0 7px ${glow};`;
-            return el;
-          };
-          new mapboxgl.Marker({ element: mkEl('#3B8BD4', 'rgba(59,139,212,0.15)') }).setLngLat([origin.lon, origin.lat]).addTo(map);
-          new mapboxgl.Marker({ element: mkEl('#1D9E75', 'rgba(29,158,117,0.15)') }).setLngLat([destination.lon, destination.lat]).addTo(map);
+      // Layer 1: Solid Brand Orange Path
+      map.addLayer({
+        id: 'route-main',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#ea580c',
+          'line-width': 4.5,
+          'line-opacity': 0.95
         }
-        if (progress < 1) requestAnimationFrame(animate);
+      });
+
+      // Premium Markers
+
+
+      // Fit bounds with animation
+      // Fit bounds with 3D Cinematic Perspective
+      const coordinates = arcSource.geometry.coordinates;
+      const bds = coordinates.reduce((b, c) => b.extend(c), new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+      map.fitBounds(bds, { padding: 60, duration: 3000, pitch: 30, essential: true });
+
+      // Premium Markers
+      // Premium Markers (Luxury Theme)
+      // Minimalist Professional Markers
+      const createMarkerEl = (color) => {
+        const el = document.createElement('div');
+        el.style.cssText = `
+          width: 16px; height: 16px; background: #fff; border-radius: 50%;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 3px solid ${color};
+        `;
+        return el;
+      };
+
+      new mapboxgl.Marker({ element: createMarkerEl('#3b82f6') }).setLngLat([origin.lon, origin.lat]).addTo(map);
+      new mapboxgl.Marker({ element: createMarkerEl('#10b981') }).setLngLat([destination.lon, destination.lat]).addTo(map);
+
+      // Animation Loop
+      let step = 0;
+      let dashOffset = 0;
+
+      const animate = (t) => {
+        if (!mapRef.current) return;
+
+        // Smooth Line Drawing Animation
+        if (step < fullCoords.length) {
+          step += 1.5; // Slightly slower for elegance
+          const currentPath = fullCoords.slice(0, Math.min(Math.floor(step), fullCoords.length));
+          map.getSource('route').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: currentPath } });
+          requestAnimationFrame(animate);
+        }
       };
       requestAnimationFrame(animate);
     });
 
-    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
+    return () => {
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      clearTimeout(timer);
+    };
   }, [origin?.lat, origin?.lon, destination?.lat, destination?.lon]); // eslint-disable-line
 
   return (
-    <div style={{ position: 'relative', height: 190, borderRadius: 12, overflow: 'hidden', border: '0.5px solid #e0e0e0', marginBottom: 10 }}>
+    <div style={{
+      position: 'relative',
+      height: 380,
+      background: '#f8fafc',
+      borderRadius: 24,
+      border: '1px solid #e2e8f0',
+      overflow: 'hidden',
+      marginBottom: 24,
+      boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.1)'
+    }}>
       <div ref={containerRef} style={{ height: '100%' }} />
       {loading && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,250,252,0.85)' }}>
@@ -298,7 +325,7 @@ function DistancePill({ miles, hours, origin, destination }) {
 /* ══════════════════════════════════════════════════════════
    DEMO WIDGET
    ══════════════════════════════════════════════════════════ */
-function DemoWidget() {
+export function DemoWidget({ companyId }) {
   const [step, setStep] = useState(1);
   const [size, setSize] = useState('');
   const [originZip, setOriginZip] = useState('');
@@ -314,6 +341,13 @@ function DemoWidget() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Send height to parent iframe for auto-resizing
+  useEffect(() => {
+    const height = document.body.scrollHeight;
+    window.parent.postMessage({ type: 'resize', height }, '*');
+  }, [step]);
 
   const effectiveMiles = routeMiles || miles;
   const effectiveHours = routeHours || miles / 55;
@@ -340,6 +374,38 @@ function DemoWidget() {
 
   const handleRouteLoaded = ({ miles: rm, hours: rh, coords: rc }) => {
     setRouteMiles(rm); setRouteHours(rh); setRouteCoords(rc);
+  };
+
+  const handleSubmit = async () => {
+    if (!name || !phone) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/leads/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: name,
+          customerPhone: phone,
+          customerEmail: email || `guest_${Date.now()}@example.com`, // Email is required in schema, providing fallback if empty
+          originCity: originCoords?.city || '',
+          destinationCity: destCoords?.city || '',
+          originZip,
+          destinationZip: destZip,
+          homeSize: size === '4+ Bedroom' ? '4+ Bedroom' : size, // Adjust to match schema enum if needed
+          moveDate: new Date(moveDate).toISOString(),
+          distance: effectiveMiles > 50 ? 'Long Distance' : 'Local',
+          miles: effectiveMiles,
+          sourceCompany: companyId || null
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Submission failed');
+      setStep(5);
+    } catch (err) {
+      alert(`Error submitting lead: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '10px 13px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, fontFamily: 'inherit', outline: 'none', color: '#0f172a' };
@@ -535,7 +601,7 @@ function DemoWidget() {
             ))}
             <div style={{ display: 'flex', gap: 10 }}>
               {backBtn(() => setStep(3))}
-              {nextBtn('Send Details', () => (name && phone) && setStep(5), !name || !phone)}
+              {nextBtn(submitting ? 'Sending...' : 'Send Details', handleSubmit, !name || !phone || submitting)}
             </div>
           </div>
         )}
@@ -708,7 +774,7 @@ export default function WidgetPage({ user, insideDashboard = false }) {
                 </div>
               ))}
               <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 460 }}>
-                <DemoWidget />
+                <DemoWidget companyId={companyId} />
               </div>
             </div>
           </div>

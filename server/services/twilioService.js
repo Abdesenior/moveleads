@@ -1,7 +1,9 @@
 const twilio = require('twilio');
 const Lead = require('../models/Lead');
 const Communication = require('../models/Communication');
+const PurchasedLead = require('../models/PurchasedLead'); 
 const socketService = require('./socketService');
+const { calculateLeadScore } = require('./scoringService');
 
 // Singleton Twilio client — instantiated once at module load, not per call.
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -68,7 +70,25 @@ async function verifyLeadPhone(leadId) {
     if (lineType === 'mobile' || lineType === 'landline') {
       lead.isVerified = true;
       lead.status = 'READY_FOR_DISTRIBUTION';
-      console.log(`[Twilio] Verification PASSED (Type: ${lineType})`);
+      
+      // Calculate score and grade once lineType is known
+      const scoring = calculateLeadScore(lead, lead.miles, lineType, lead.moveDate);
+      lead.score = scoring.score;
+      lead.grade = scoring.grade;
+      lead.scoreFactors = scoring.scoreFactors;
+
+      // EXCLUSIVE ROUTING: If lead came from a specific company's widget
+      if (lead.sourceCompany) {
+        lead.status = 'Purchased';
+        await new PurchasedLead({
+          company: lead.sourceCompany,
+          lead: lead._id,
+          pricePaid: 0 // Widget leads are free/pre-paid in this model
+        }).save();
+        console.log(`[Twilio] Exclusive assignment to ${lead.sourceCompany}`);
+      }
+
+      console.log(`[Twilio] Verification PASSED (Type: ${lineType}) - Grade: ${scoring.grade}`);
       socketService.emitNewLead(lead);
     } else {
       // voip, toll_free, invalid, unknown → reject

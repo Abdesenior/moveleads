@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
   ArrowRight, Truck, Clock, Search, ShoppingBag,
   X, CheckCircle, User, Phone as PhoneIcon, MapPin,
-  Zap, Filter, MessageSquare, Calendar, Lock, ChevronRight
+  Zap, Filter, MessageSquare, Calendar, Lock, ChevronRight,
+  Star
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -494,6 +495,17 @@ export default function Leads() {
                         color={lead.distance === 'Local' ? '#16a34a' : '#ea580c'}
                       />
                       {badge && <Pill label={badge.label} bg={badge.bg} color={badge.color} />}
+                      {lead.grade === 'A' && (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '4px 10px', borderRadius: 9999,
+                          background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                          color: '#fff', fontSize: 11, fontWeight: 800,
+                          boxShadow: '0 2px 6px rgba(234, 88, 12, 0.2)'
+                        }}>
+                          <Star size={11} fill="currentColor" /> Premium Lead
+                        </div>
+                      )}
                     </div>
                   </td>
 

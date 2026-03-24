@@ -14,6 +14,7 @@ const { validateLeadPayload } = require('../validators/leadIngest');
 const { verifyLeadPhone } = require('../services/twilioService');
 
 const { calculateLeadPrice } = require('../utils/pricingEngine');
+const { calculateLeadScore } = require('../services/scoringService');
 
 // ── Rate limiter: lead ingestion ──────────────────────────────────────────────
 // 5 quote submissions per IP per 10 minutes — prevents form spam and DDoS
@@ -66,6 +67,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       moveDate: new Date(data.moveDate),
       distance,
       price: leadPrice,
+      miles: data.miles || 0,
       status: 'Pending Verification',
       isVerified: false,
       customerName: data.customerName,
@@ -75,6 +77,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       estimatedWeight: data.estimatedWeight || '',
       numberOfRooms: data.numberOfRooms || 0,
       customerStatus: 'New',
+      sourceCompany: data.sourceCompany || null,
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }]
     });
 

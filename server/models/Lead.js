@@ -11,7 +11,11 @@ const LeadSchema = new mongoose.Schema({
   moveDate: { type: Date, required: true },
   distance: { type: String, enum: ['Local', 'Long Distance'], required: true },
   price: { type: Number, required: true },
+  miles: { type: Number, default: 0 },
   status: { type: String, enum: ['Available', 'Purchased', 'Expired', 'Pending Verification', 'READY_FOR_DISTRIBUTION', 'REJECTED_FAKE', 'PENDING_MANUAL_REVIEW'], default: 'Available' },
+  score: { type: Number, default: 0 },
+  grade: { type: String, enum: ['A', 'B', 'C', 'D'] },
+  scoreFactors: [String],
   customerName: { type: String, required: true },
   customerPhone: { type: String, required: true },
   customerEmail: { type: String, required: true },
@@ -37,6 +41,7 @@ const LeadSchema = new mongoose.Schema({
     }
   ],
   maxBuyers: { type: Number, default: 1 },
+  sourceCompany: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
   createdAt: { type: Date, default: Date.now }
 });
 
