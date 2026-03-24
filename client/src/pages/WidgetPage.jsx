@@ -1,23 +1,50 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { greatCircle } from '@turf/great-circle';
+import { point } from '@turf/helpers';
+import zipcodes from 'zipcodes';
 import {
   Zap, ShieldCheck, Code, CheckCircle, Copy,
-  Mail, ChevronRight, Home, MapPin, DollarSign,
-  Phone, User, ArrowRight
+  Mail, ChevronRight, Home, Phone, User
 } from 'lucide-react';
 
-/* ── Quote lookup ─────────────────────────────────────── */
-const QUOTES = {
-  'Studio':     { low: 199, high: 349 },
-  '1 Bedroom':  { low: 299, high: 499 },
-  '2 Bedroom':  { low: 549, high: 799 },
-  '3 Bedroom':  { low: 749, high: 1099 },
-  '4 Bedroom':  { low: 999, high: 1499 },
-  '5 Bedroom':  { low: 1299, high: 1899 },
-};
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
+/* ── Constants ──────────────────────────────────────────── */
 const HOME_SIZES = ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom', '5 Bedroom'];
 
-/* ── House SVG icon (line-art, scales with size prop) ── */
+const BASE_PRICES = {
+  'Studio': 299, '1 Bedroom': 449, '2 Bedroom': 649,
+  '3 Bedroom': 899, '4 Bedroom': 1199, '5 Bedroom': 1599,
+};
+
+/* ── Haversine distance (miles) ─────────────────────────── */
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 3959;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+/* ── Quote calculator ───────────────────────────────────── */
+function calcQuote(size, miles) {
+  const base = BASE_PRICES[size] || 649;
+  const distFee = Math.min(Math.round(miles * 0.35), 800);
+  return { base, distFee, total: base + distFee };
+}
+
+/* ── ZIP geocoder — bundled data, zero API calls ────────── */
+function geocodeZip(zip) {
+  const r = zipcodes.lookup(zip);
+  if (!r) return null;
+  return { lat: r.latitude, lon: r.longitude, city: r.city, state: r.state };
+}
+
+/* ── House SVG icon ─────────────────────────────────────── */
 function HouseIcon({ size = 36, selected = false }) {
   const c = selected ? '#1e3a8a' : '#94a3b8';
   return (
@@ -27,7 +54,7 @@ function HouseIcon({ size = 36, selected = false }) {
   );
 }
 
-/* ── 5-step progress bar ─────────────────────────────── */
+/* ── 5-step progress bar ────────────────────────────────── */
 function StepProgress({ current, total = 5 }) {
   return (
     <div>
@@ -62,19 +89,178 @@ function StepHeading({ children }) {
   );
 }
 
-/* ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════════
+   MAP ARC COMPONENT
+   ══════════════════════════════════════════════════════════ */
+function MapArc({ origin, destination }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    if (!origin || !destination || !containerRef.current) return;
+
+    // Clean up previous instance
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: [(origin.lon + destination.lon) / 2, (origin.lat + destination.lat) / 2],
+      zoom: 4,
+      interactive: false,
+      attributionControl: false,
+      logoPosition: 'bottom-right',
+    });
+
+    mapRef.current = map;
+
+    map.on('load', () => {
+      // Fit to show both points
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend([origin.lon, origin.lat]);
+      bounds.extend([destination.lon, destination.lat]);
+      map.fitBounds(bounds, { padding: 80, duration: 500 });
+
+      // Build great-circle arc coordinates
+      let coords;
+      try {
+        const arcFeature = greatCircle(
+          point([origin.lon, origin.lat]),
+          point([destination.lon, destination.lat]),
+          { npoints: 100 }
+        );
+        coords = arcFeature.geometry
+          ? arcFeature.geometry.coordinates
+          : arcFeature.features[0].geometry.coordinates;
+      } catch {
+        // Fallback: straight line if turf fails
+        coords = [[origin.lon, origin.lat], [destination.lon, destination.lat]];
+      }
+
+      // Empty source — we'll animate by adding coords
+      map.addSource('route', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } },
+      });
+
+      map.addLayer({
+        id: 'route',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#3B8BD4', 'line-width': 2.5, 'line-opacity': 0.9 },
+      });
+
+      // Animate arc over 1200ms
+      const DURATION = 1200;
+      const startTime = performance.now();
+      let markersAdded = false;
+
+      function animate(now) {
+        if (!mapRef.current) return;
+        const progress = Math.min((now - startTime) / DURATION, 1);
+        const visibleCount = Math.max(Math.ceil(progress * coords.length), 1);
+
+        try {
+          map.getSource('route').setData({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: coords.slice(0, visibleCount) },
+          });
+        } catch { return; }
+
+        // Add pins when arc is 80% drawn
+        if (progress >= 0.8 && !markersAdded) {
+          markersAdded = true;
+
+          const mkEl = (color, glow) => {
+            const el = document.createElement('div');
+            el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 0 0 7px ${glow};cursor:default;`;
+            return el;
+          };
+
+          new mapboxgl.Marker({ element: mkEl('#3B8BD4', 'rgba(59,139,212,0.15)') })
+            .setLngLat([origin.lon, origin.lat]).addTo(map);
+
+          new mapboxgl.Marker({ element: mkEl('#1D9E75', 'rgba(29,158,117,0.15)') })
+            .setLngLat([destination.lon, destination.lat]).addTo(map);
+        }
+
+        if (progress < 1) requestAnimationFrame(animate);
+      }
+
+      requestAnimationFrame(animate);
+    });
+
+    return () => {
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+    };
+  }, [origin?.lat, origin?.lon, destination?.lat, destination?.lon]); // eslint-disable-line
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ height: 200, borderRadius: 12, overflow: 'hidden', border: '0.5px solid #e0e0e0', marginBottom: 10 }}
+    />
+  );
+}
+
+/* ── Distance info pill ─────────────────────────────────── */
+function DistancePill({ miles, origin, destination }) {
+  if (!miles || !origin || !destination) return null;
+  const hrs = Math.round(miles / 55);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#E6F1FB', borderRadius: 20, padding: '7px 14px', marginBottom: 16 }}>
+      <span style={{ color: '#185FA5', fontSize: 12, fontWeight: 700 }}>
+        {miles.toLocaleString()} miles — ~{hrs} hrs drive
+      </span>
+      <span style={{ color: '#185FA5', fontSize: 11, opacity: 0.7 }}>
+        {origin.city}, {origin.state} → {destination.city}, {destination.state}
+      </span>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
    THE INTERACTIVE DEMO WIDGET
-   ══════════════════════════════════════ */
+   ══════════════════════════════════════════════════════════ */
 function DemoWidget() {
   const [step, setStep] = useState(1);
   const [size, setSize] = useState('');
   const [originZip, setOriginZip] = useState('');
   const [destZip, setDestZip] = useState('');
+  const [originCoords, setOriginCoords] = useState(null);
+  const [destCoords, setDestCoords] = useState(null);
+  const [miles, setMiles] = useState(0);
+  const [zipError, setZipError] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
 
-  const quote = QUOTES[size] || { low: 299, high: 499 };
+  // Auto-geocode when both zips are 5 digits — instant, no API call
+  useEffect(() => {
+    if (originZip.length === 5 && destZip.length === 5) {
+      const oc = geocodeZip(originZip);
+      const dc = geocodeZip(destZip);
+      if (!oc) { setZipError(`Couldn't find "${originZip}". Please check and try again.`); setOriginCoords(null); setDestCoords(null); return; }
+      if (!dc) { setZipError(`Couldn't find "${destZip}". Please check and try again.`); setDestCoords(null); return; }
+      setZipError('');
+      setOriginCoords(oc);
+      setDestCoords(dc);
+      setMiles(haversine(oc.lat, oc.lon, dc.lat, dc.lon));
+    } else {
+      setOriginCoords(null);
+      setDestCoords(null);
+      setMiles(0);
+      setZipError('');
+    }
+  }, [originZip, destZip]);
+
+  const { base, distFee, total } = calcQuote(size, miles);
+  const mapReady = !!(originCoords && destCoords);
+  const canProceedStep2 = mapReady && !zipError;
 
   const inputStyle = {
     width: '100%', boxSizing: 'border-box',
@@ -83,15 +269,42 @@ function DemoWidget() {
     fontFamily: 'inherit', outline: 'none', color: '#0f172a',
     marginBottom: 10,
   };
-
   const focusStyle = { borderColor: '#ea580c', boxShadow: '0 0 0 3px rgba(234,88,12,0.1)' };
+
+  const nextBtn = (label, onClick, disabled) => (
+    <button
+      type="button" onClick={onClick} disabled={disabled}
+      style={{
+        flex: 1, padding: '13px', borderRadius: 12, border: 'none',
+        background: !disabled ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0',
+        color: !disabled ? '#fff' : '#94a3b8', fontSize: 14, fontWeight: 700,
+        cursor: !disabled ? 'pointer' : 'not-allowed',
+        fontFamily: "'Poppins',sans-serif",
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        transition: 'all 0.2s',
+      }}
+    >
+      {label} <ChevronRight size={16} />
+    </button>
+  );
+
+  const backBtn = (onClick) => (
+    <button type="button" onClick={onClick} style={{ padding: '13px 20px', borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+      Back
+    </button>
+  );
+
+  const handleReset = () => {
+    setStep(1); setSize(''); setOriginZip(''); setDestZip('');
+    setOriginCoords(null); setDestCoords(null); setMiles(0);
+    setZipError(''); setName(''); setPhone(''); setEmail('');
+  };
 
   return (
     <div style={{
       background: '#fff', borderRadius: 20,
       boxShadow: '0 24px 64px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.08)',
-      width: '100%', maxWidth: 540,
-      overflow: 'hidden',
+      width: '100%', maxWidth: 540, overflow: 'hidden',
     }}>
       {/* Widget header */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -117,9 +330,7 @@ function DemoWidget() {
                 const selected = size === s;
                 return (
                   <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSize(s)}
+                    key={s} type="button" onClick={() => setSize(s)}
                     style={{
                       padding: '16px 12px', borderRadius: 12, cursor: 'pointer',
                       border: `1.5px solid ${selected ? '#1e3a8a' : '#e2e8f0'}`,
@@ -138,9 +349,7 @@ function DemoWidget() {
               })}
             </div>
             <button
-              type="button"
-              onClick={() => size && setStep(2)}
-              disabled={!size}
+              type="button" onClick={() => size && setStep(2)} disabled={!size}
               style={{
                 width: '100%', padding: '14px', borderRadius: 12, border: 'none',
                 background: size ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0',
@@ -156,73 +365,107 @@ function DemoWidget() {
           </div>
         )}
 
-        {/* ── Step 2: Zip codes ── */}
+        {/* ── Step 2: Zip codes + map ── */}
         {step === 2 && (
           <div style={{ animation: 'wgFadeIn 0.3s ease' }}>
             <StepHeading>Where Are You Moving?</StepHeading>
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, display: 'block', marginBottom: 6 }}>
-              Moving From (ZIP Code)
-            </label>
-            <input
-              type="text" placeholder="e.g. 90210" maxLength={10}
-              value={originZip} onChange={e => setOriginZip(e.target.value)}
-              style={inputStyle}
-              onFocus={e => Object.assign(e.target.style, focusStyle)}
-              onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
-            />
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, display: 'block', marginBottom: 6 }}>
-              Moving To (ZIP Code)
-            </label>
-            <input
-              type="text" placeholder="e.g. 10001" maxLength={10}
-              value={destZip} onChange={e => setDestZip(e.target.value)}
-              style={{ ...inputStyle, marginBottom: 20 }}
-              onFocus={e => Object.assign(e.target.style, focusStyle)}
-              onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
-            />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={() => setStep(1)} style={{ padding: '13px 20px', borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => (originZip && destZip) && setStep(3)}
-                disabled={!originZip || !destZip}
-                style={{ flex: 1, padding: '13px', borderRadius: 12, border: 'none', background: (originZip && destZip) ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0', color: (originZip && destZip) ? '#fff' : '#94a3b8', fontSize: 14, fontWeight: 700, cursor: (originZip && destZip) ? 'pointer' : 'not-allowed', fontFamily: "'Poppins',sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                Calculate Quote <ChevronRight size={16} />
-              </button>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#3B8BD4', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 5 }}>
+                  From ZIP
+                </label>
+                <input
+                  type="text" placeholder="e.g. 90210" maxLength={5}
+                  value={originZip} onChange={e => setOriginZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  style={{ ...inputStyle, marginBottom: 0, borderColor: originCoords ? '#3B8BD4' : '#e2e8f0' }}
+                  onFocus={e => Object.assign(e.target.style, focusStyle)}
+                  onBlur={e => { e.target.style.borderColor = originCoords ? '#3B8BD4' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                />
+                {originCoords && (
+                  <div style={{ fontSize: 11, color: '#3B8BD4', fontWeight: 600, marginTop: 4 }}>
+                    {originCoords.city}, {originCoords.state}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#1D9E75', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 5 }}>
+                  To ZIP
+                </label>
+                <input
+                  type="text" placeholder="e.g. 10001" maxLength={5}
+                  value={destZip} onChange={e => setDestZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  style={{ ...inputStyle, marginBottom: 0, borderColor: destCoords ? '#1D9E75' : '#e2e8f0' }}
+                  onFocus={e => Object.assign(e.target.style, focusStyle)}
+                  onBlur={e => { e.target.style.borderColor = destCoords ? '#1D9E75' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                />
+                {destCoords && (
+                  <div style={{ fontSize: 11, color: '#1D9E75', fontWeight: 600, marginTop: 4 }}>
+                    {destCoords.city}, {destCoords.state}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Error state */}
+            {zipError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 14 }}>
+                {zipError}
+              </div>
+            )}
+
+            {/* Map + distance pill */}
+            {mapReady && (
+              <>
+                <MapArc origin={originCoords} destination={destCoords} />
+                <DistancePill miles={miles} origin={originCoords} destination={destCoords} />
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              {backBtn(() => setStep(1))}
+              {nextBtn(
+                mapReady ? 'See My Quote' : 'Enter ZIP Codes',
+                () => canProceedStep2 && setStep(3),
+                !canProceedStep2
+              )}
             </div>
           </div>
         )}
 
-        {/* ── Step 3: Quote reveal ── */}
+        {/* ── Step 3: Quote with map ── */}
         {step === 3 && (
           <div style={{ animation: 'wgFadeIn 0.3s ease' }}>
             <StepHeading>Your Instant Quote</StepHeading>
-            <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderRadius: 16, padding: '24px', textAlign: 'center', marginBottom: 16, border: '1px solid #bbf7d0' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Estimated Price</div>
-              <div style={{ fontSize: 38, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif", letterSpacing: -1 }}>
-                ${quote.low} – ${quote.high}
+
+            {/* Map (already loaded, replays from same coords) */}
+            {mapReady && <MapArc origin={originCoords} destination={destCoords} />}
+            {mapReady && <DistancePill miles={miles} origin={originCoords} destination={destCoords} />}
+
+            {/* Quote breakdown */}
+            <div style={{ background: '#f8fafc', borderRadius: 14, padding: '16px', marginBottom: 16, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#475569', marginBottom: 8 }}>
+                <span>{size} move</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>${base.toLocaleString()}</span>
               </div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>for a {size} move</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#475569', marginBottom: 12, paddingBottom: 12, borderBottom: '1px dashed #e2e8f0' }}>
+                <span>Distance ({miles.toLocaleString()} mi)</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>+${distFee.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
+                <span>Estimated total</span>
+                <span style={{ color: '#ea580c' }}>${total.toLocaleString()}</span>
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
-              {[
-                { icon: <MapPin size={13} />, label: 'From', value: originZip },
-                { icon: <ArrowRight size={13} />, label: 'To', value: destZip },
-              ].map(r => (
-                <div key={r.label} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#94a3b8' }}>{r.icon}</span>
-                  <div>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>{r.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{r.value}</div>
-                  </div>
-                </div>
-              ))}
+
+            <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginBottom: 16 }}>
+              Final price confirmed by your mover. No obligation.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              {backBtn(() => setStep(2))}
+              {nextBtn('Claim This Quote', () => setStep(4), false)}
             </div>
-            <button type="button" onClick={() => setStep(4)} style={{ width: '100%', padding: '14px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: "'Poppins',sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              Claim This Quote <ChevronRight size={16} />
-            </button>
           </div>
         )}
 
@@ -230,8 +473,8 @@ function DemoWidget() {
         {step === 4 && (
           <div style={{ animation: 'wgFadeIn 0.3s ease' }}>
             <StepHeading>Your Contact Details</StepHeading>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <User size={14} color="#94a3b8" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <User size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
               <input
                 type="text" placeholder="Full Name" value={name}
                 onChange={e => setName(e.target.value)}
@@ -240,8 +483,8 @@ function DemoWidget() {
                 onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <Phone size={14} color="#94a3b8" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Phone size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
               <input
                 type="tel" placeholder="Phone Number" value={phone}
                 onChange={e => setPhone(e.target.value)}
@@ -250,64 +493,63 @@ function DemoWidget() {
                 onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <Mail size={14} color="#94a3b8" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <Mail size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
               <input
                 type="email" placeholder="Email Address" value={email}
                 onChange={e => setEmail(e.target.value)}
-                style={inputStyle}
+                style={{ ...inputStyle, marginBottom: 0 }}
                 onFocus={e => Object.assign(e.target.style, focusStyle)}
                 onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={() => setStep(3)} style={{ padding: '13px 20px', borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => (name && phone) && setStep(5)}
-                disabled={!name || !phone}
-                style={{ flex: 1, padding: '13px', borderRadius: 12, border: 'none', background: (name && phone) ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0', color: (name && phone) ? '#fff' : '#94a3b8', fontSize: 14, fontWeight: 700, cursor: (name && phone) ? 'pointer' : 'not-allowed', fontFamily: "'Poppins',sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                Send Details <ChevronRight size={16} />
-              </button>
+              {backBtn(() => setStep(3))}
+              {nextBtn('Send Details', () => (name && phone) && setStep(5), !name || !phone)}
             </div>
           </div>
         )}
 
-        {/* ── Step 5: Confirmation ── */}
+        {/* ── Step 5: Confirmation with map ── */}
         {step === 5 && (
-          <div style={{ animation: 'wgFadeIn 0.3s ease', textAlign: 'center', padding: '20px 0 8px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-              <CheckCircle size={36} color="#16a34a" />
+          <div style={{ animation: 'wgFadeIn 0.3s ease' }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <CheckCircle size={28} color="#16a34a" />
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Quote Confirmed!</h3>
+              <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, margin: '0 0 4px' }}>
+                Thanks, <strong>{name}</strong>! Your quote has been sent to <strong>{phone}</strong>.<br />
+                A local mover will contact you shortly.
+              </p>
             </div>
-            <h3 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 8, fontFamily: "'Poppins',sans-serif" }}>Quote Confirmed!</h3>
-            <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>
-              Thanks, <strong>{name}</strong>! Your quote has been sent to <strong>{phone}</strong>.<br />
-              A local mover will contact you shortly.
-            </p>
-            <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '12px 16px', marginBottom: 24, display: 'inline-block' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
-                ${quote.low} – ${quote.high} for your {size} move
-              </span>
+
+            {mapReady && <MapArc origin={originCoords} destination={destCoords} />}
+
+            <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '12px 16px', textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
+                ${total.toLocaleString()} estimated — {size} move, {miles.toLocaleString()} mi
+              </div>
             </div>
-            <br />
-            <button type="button" onClick={() => {
-              setStep(1); setSize(''); setOriginZip(''); setDestZip('');
-              setName(''); setPhone(''); setEmail('');
-            }} style={{ background: 'none', border: 'none', color: '#ea580c', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+
+            <button type="button" onClick={handleReset}
+              style={{ display: 'block', width: '100%', background: 'none', border: 'none', color: '#ea580c', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
               ↺ Restart Demo
             </button>
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes wgFadeIn { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
+      `}</style>
     </div>
   );
 }
 
-/* ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════════
    MAIN PAGE
-   ══════════════════════════════════════ */
+   ══════════════════════════════════════════════════════════ */
 export default function WidgetPage({ user, insideDashboard = false }) {
   const [copied, setCopied] = useState(false);
   const embedRef = useRef(null);
@@ -337,7 +579,6 @@ export default function WidgetPage({ user, insideDashboard = false }) {
         borderBottom: '1px solid #e2e8f0',
         position: 'relative', overflow: 'hidden',
       }}>
-        {/* Subtle bg circles */}
         <div style={{ position: 'absolute', top: -80, right: '10%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle,rgba(234,88,12,0.06),transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: -60, left: '5%', width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle,rgba(59,130,246,0.05),transparent 70%)', pointerEvents: 'none' }} />
 
@@ -385,7 +626,7 @@ export default function WidgetPage({ user, insideDashboard = false }) {
             },
           ].map((f, i) => (
             <div key={i} style={{
-              background: '#fff', padding: '28px 28px', borderRadius: 18,
+              background: '#fff', padding: '28px', borderRadius: 18,
               border: '1px solid #e2e8f0',
               boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)',
               transition: 'transform 0.2s, box-shadow 0.2s',
@@ -404,20 +645,18 @@ export default function WidgetPage({ user, insideDashboard = false }) {
       </div>
 
       {/* ══════════════════════════════════
-          3. LIVE DEMO (browser frame)
+          3. LIVE DEMO
           ══════════════════════════════════ */}
       <div id="demo-section" style={{
         background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 40%, #fdf4ff 70%, #fff7ed 100%)',
         padding: '80px 24px',
         position: 'relative', overflow: 'hidden',
       }}>
-        {/* Colorful corner blobs */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, width: 220, height: 160, background: 'rgba(134,239,172,0.5)', filter: 'blur(40px)', borderRadius: '0 80% 0 0', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 220, height: 160, background: 'rgba(251,146,60,0.35)', filter: 'blur(40px)', borderRadius: '80% 0 0 0', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: 0, right: '10%', width: 160, height: 120, background: 'rgba(167,139,250,0.2)', filter: 'blur(30px)', borderRadius: '0 0 80% 80%', pointerEvents: 'none' }} />
 
         <div style={{ maxWidth: 1140, margin: '0 auto' }}>
-          {/* Section header */}
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#fff', color: '#64748b', padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, marginBottom: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
               LIVE DEMO
@@ -426,14 +665,13 @@ export default function WidgetPage({ user, insideDashboard = false }) {
               Test drive the widget
             </h2>
             <p style={{ fontSize: 16, color: '#64748b', maxWidth: 500, margin: '0 auto' }}>
-              Click through the interactive demo to experience exactly what your customers will see.
+              Type two real ZIP codes — watch the map animate live.
             </p>
           </div>
 
-          {/* Browser frame + widget side by side */}
+          {/* Left: embed code / Right: live demo */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'center' }}>
 
-            {/* Left: description + embed code */}
             <div>
               <h3 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
                 Your embed snippet
@@ -444,7 +682,6 @@ export default function WidgetPage({ user, insideDashboard = false }) {
                   : "Sign up free to get your personalized embed snippet with your company ID pre-filled."}
               </p>
 
-              {/* Steps list */}
               <div style={{ marginBottom: 32 }}>
                 {[
                   { num: 1, text: 'Copy your embed snippet below' },
@@ -458,7 +695,6 @@ export default function WidgetPage({ user, insideDashboard = false }) {
                 ))}
               </div>
 
-              {/* Embed code block */}
               <div ref={embedRef} style={{ background: '#1e293b', borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 32px rgba(15,23,42,0.2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 18px', background: '#0f172a', borderBottom: '1px solid #334155' }}>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -490,7 +726,7 @@ export default function WidgetPage({ user, insideDashboard = false }) {
 
             {/* Right: stacked widget demo */}
             <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 560 }}>
-              {/* Background stacked card — left tilt */}
+              {/* Ghost cards */}
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-7deg) translateX(-18px) translateY(12px)', opacity: 0.28, pointerEvents: 'none', width: '85%', filter: 'grayscale(0.3)' }}>
                 <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.1)', padding: 20, border: '1px solid #e2e8f0' }}>
                   <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
@@ -508,8 +744,6 @@ export default function WidgetPage({ user, insideDashboard = false }) {
                   </div>
                 </div>
               </div>
-
-              {/* Background stacked card — right tilt */}
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(7deg) translateX(18px) translateY(12px)', opacity: 0.28, pointerEvents: 'none', width: '85%', filter: 'grayscale(0.3)' }}>
                 <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.1)', padding: 20, border: '1px solid #e2e8f0' }}>
                   <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
@@ -602,9 +836,6 @@ export default function WidgetPage({ user, insideDashboard = false }) {
         </div>
       </div>
 
-      <style>{`
-        @keyframes wgFadeIn { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
-      `}</style>
     </div>
   );
 }

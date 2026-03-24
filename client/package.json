@@ -11,13 +11,17 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@turf/great-circle": "^7.3.4",
+    "@turf/helpers": "^7.3.4",
     "lucide-react": "^0.577.0",
+    "mapbox-gl": "^3.20.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.2",
     "react-router-dom": "^7.13.1",
     "recharts": "^3.8.0",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "zipcodes": "^8.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
