@@ -15,12 +15,16 @@ import VerifyEmail from './pages/VerifyEmail';
 
 // Customer Dashboard
 import Dashboard from './pages/Dashboard';
-import LeadFeed from './pages/dashboard/LeadFeed';
+import Leads from './pages/dashboard/Leads';
 import MyLeads from './pages/dashboard/MyLeads';
 import Customers from './pages/dashboard/Customers';
 import Billing from './pages/dashboard/Billing';
 import Profile from './pages/dashboard/Profile';
 import SettingsPage from './pages/dashboard/Settings';
+import Widget from './pages/dashboard/Widget';
+
+// Public pages
+import WidgetPage from './pages/WidgetPage';
 
 // Admin Dashboard
 import Admin from './pages/Admin';
@@ -46,10 +50,12 @@ function App() {
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/for-movers" element={<ForMovers />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/widget-page" element={<WidgetPage />} />
 
           {/* Customer Dashboard Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/leads" element={<ProtectedRoute><LeadFeed /></ProtectedRoute>} />
+          <Route path="/dashboard/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
+          <Route path="/dashboard/widget" element={<ProtectedRoute><Widget /></ProtectedRoute>} />
           <Route path="/dashboard/my-leads" element={<ProtectedRoute><MyLeads /></ProtectedRoute>} />
           <Route path="/dashboard/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
           <Route path="/dashboard/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />

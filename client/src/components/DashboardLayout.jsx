@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CreditCard, User, Settings,
-  Menu, X, LogOut, Package, Briefcase, Zap
+  Menu, X, LogOut, Briefcase, Zap, Code
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/dashboard/billing',  end: false, icon: <CreditCard size={18} />,      label: 'Billing'     },
   { to: '/dashboard/profile',  end: false, icon: <User size={18} />,            label: 'Profile'     },
   { to: '/dashboard/settings', end: false, icon: <Settings size={18} />,        label: 'Settings'    },
+  { to: '/dashboard/widget',   end: false, icon: <Code size={18} />,            label: 'Widget'      },
 ];
 
 export default function DashboardLayout({ children }) {
