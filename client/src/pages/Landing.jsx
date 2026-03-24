@@ -86,6 +86,14 @@ export default function Landing() {
                 onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
               >{t}</a>
             ))}
+            <Link to="/widget-page" style={{
+              color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)',
+              fontSize: 14, fontWeight: 500, textDecoration: 'none',
+              padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = scrolled ? NAVY : '#fff'; e.currentTarget.style.background = scrolled ? '#f1f5f9' : 'rgba(255,255,255,0.07)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
+            >Booking Widget</Link>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Link to="/login" style={{ color: scrolled ? '#475569' : 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 600, textDecoration: 'none', padding: '8px 14px', borderRadius: 8, transition: 'color 0.18s' }}>Log in</Link>
