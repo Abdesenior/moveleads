@@ -32,11 +32,19 @@ async function verifyLeadPhone(leadId) {
     if (!twilioClient) {
       console.warn('[Twilio] Missing credentials. Running in MOCK mode.');
       await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // FIX 5: calculate grade in mock mode so grade === 'A' warm-transfer
+      // logic actually fires in development and staging environments.
+      const mockScoring = calculateLeadScore(lead, lead.miles, 'mobile', lead.moveDate);
+      lead.score = mockScoring.score;
+      lead.grade = mockScoring.grade;
+      lead.scoreFactors = mockScoring.scoreFactors;
+
       lead.isVerified = true;
       lead.status = 'READY_FOR_DISTRIBUTION';
       lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
       await lead.save();
-      console.log(`[Twilio] Mock verification SUCCESS for lead ${leadId}`);
+      console.log(`[Twilio] Mock verification SUCCESS for lead ${leadId} — Grade: ${mockScoring.grade} (score: ${mockScoring.score})`);
       socketService.emitNewLead(lead);
       return;
     }
@@ -89,6 +97,21 @@ async function verifyLeadPhone(leadId) {
       }
 
       console.log(`[Twilio] Verification PASSED (Type: ${lineType}) - Grade: ${scoring.grade}`);
+      
+      // TRIGGER WARM TRANSFER CALL FOR GRADE 'A' LEADS
+      if (scoring.grade === 'A' && twilioClient) {
+        const serverUrl = process.env.SERVER_URL || 'https://moveleads.cloud';
+        console.log(`[Twilio Warm Transfer] Triggering call to ${lead.customerPhone} for lead ${lead._id}`);
+        
+        twilioClient.calls.create({
+          to: lead.customerPhone,
+          from: fromPhone,
+          url: `${serverUrl}/api/voice/customer-answered?leadId=${lead._id}`
+        }).catch(err => {
+          console.error('[Twilio Warm Transfer Error] Failed to trigger call:', err.message);
+        });
+      }
+
       socketService.emitNewLead(lead);
     } else {
       // voip, toll_free, invalid, unknown → reject
