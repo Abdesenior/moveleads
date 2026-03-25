@@ -24,7 +24,7 @@ function calculateLeadScore(lead, miles, lineType, moveDate) {
 
   // 2. Size: +15 points for 3+ Bedrooms, 4 Bedrooms, or 5 Bedrooms
   const homeSize = lead.homeSize || '';
-  if (['3 Bedroom', '4 Bedroom', '5 Bedroom'].some(s => homeSize.includes(s))) {
+  if (['3 Bedroom', '4 Bedroom', '4+ Bedroom', '5 Bedroom', '5+ Bedroom'].some(s => homeSize.includes(s))) {
     score += 15;
     scoreFactors.push('High Volume Move');
   }
