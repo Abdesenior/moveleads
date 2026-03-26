@@ -119,13 +119,13 @@ export default function Customers() {
   };
 
   /* Inline status update (from table row dropdown) */
-  const updateStatusInline = async (purchaseId, newStatus) => {
-    setPurchases(prev => prev.map(p => p._id === purchaseId ? { ...p, leadStatus: newStatus } : p));
+  const updateStatusInline = async (purchaseId, leadId, newStatus) => {
+    setPurchases(prev => prev.map(p => p._id === purchaseId ? { ...p, crmStatus: newStatus } : p));
     try {
-      await fetch(`${API_URL}/purchases/${purchaseId}`, {
-        method: 'PUT',
+      await fetch(`${API_URL}/leads/${leadId}/crm-status`, {
+        method: 'PATCH',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadStatus: newStatus }),
+        body: JSON.stringify({ crmStatus: newStatus }),
       });
     } catch (err) { console.error(err); }
   };
@@ -134,13 +134,13 @@ export default function Customers() {
     if (!detailLead) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/purchases/${detailLead._id}`, {
-        method: 'PUT',
+      const res = await fetch(`${API_URL}/leads/${detailLead.lead._id}/crm-status`, {
+        method: 'PATCH',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadStatus: editStatus, notes: editNotes })
+        body: JSON.stringify({ crmStatus: editStatus, crmNotes: editNotes })
       });
       if (!res.ok) throw new Error('Failed to update');
-      setPurchases(prev => prev.map(p => p._id === detailLead._id ? { ...p, leadStatus: editStatus, notes: editNotes } : p));
+      setPurchases(prev => prev.map(p => p._id === detailLead._id ? { ...p, crmStatus: editStatus, crmNotes: editNotes } : p));
       setDetailLead(null);
     } catch (err) { alert(err.message); } finally { setSaving(false); }
   };
@@ -171,21 +171,21 @@ export default function Customers() {
 
   const filtered = purchases.filter(p => {
     const matchSearch = !searchTerm ||
-      (p.customerName||'').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.originCity||'').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.destinationCity||'').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.customerPhone||'').includes(searchTerm);
-    const matchStatus = !statusFilter || p.leadStatus === statusFilter;
+      (p.lead?.customerName||'').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.lead?.originCity||'').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.lead?.destinationCity||'').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.lead?.customerPhone||'').includes(searchTerm);
+    const matchStatus = !statusFilter || p.crmStatus === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const sorted = [...filtered].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
     switch (sortKey) {
-      case 'customerName': return String(a.customerName||'').localeCompare(String(b.customerName||'')) * dir;
-      case 'route': return `${a.originCity||''} ${a.destinationCity||''}`.localeCompare(`${b.originCity||''} ${b.destinationCity||''}`) * dir;
-      case 'price': return ((a.price||0) - (b.price||0)) * dir;
-      case 'leadStatus': return String(a.leadStatus||'').localeCompare(String(b.leadStatus||'')) * dir;
+      case 'customerName': return String(a.lead?.customerName||'').localeCompare(String(b.lead?.customerName||'')) * dir;
+      case 'route': return `${a.lead?.originCity||''} ${a.lead?.destinationCity||''}`.localeCompare(`${b.lead?.originCity||''} ${b.lead?.destinationCity||''}`) * dir;
+      case 'price': return ((a.pricePaid||0) - (b.pricePaid||0)) * dir;
+      case 'leadStatus': return String(a.crmStatus||'').localeCompare(String(b.crmStatus||'')) * dir;
       default: {
         const av = new Date(a.createdAt).getTime(); const bv = new Date(b.createdAt).getTime();
         return ((Number.isFinite(av) ? av : 0) - (Number.isFinite(bv) ? bv : 0)) * dir;
@@ -202,10 +202,10 @@ export default function Customers() {
     const rows = [
       ['Name', 'Phone', 'Email', 'Route', 'Move Date', 'Home Size', 'Price', 'Status', 'Notes'],
       ...filtered.map(p => [
-        `"${p.customerName||''}"`, `"${p.customerPhone||''}"`, `"${p.customerEmail||''}"`,
-        `"${p.originCity||''} to ${p.destinationCity||''}"`,
-        `"${new Date(p.moveDate).toLocaleDateString()}"`, `"${p.homeSize||''}"`,
-        `"${p.price||''}"`, `"${p.leadStatus||'New'}"`, `"${(p.notes||'').replace(/"/g,'""')}"`
+        `"${p.lead?.customerName||''}"`, `"${p.lead?.customerPhone||''}"`, `"${p.lead?.customerEmail||''}"`,
+        `"${p.lead?.originCity||''} to ${p.lead?.destinationCity||''}"`,
+        `"${new Date(p.lead?.moveDate).toLocaleDateString()}"`, `"${p.lead?.homeSize||''}"`,
+        `"${p.pricePaid||''}"`, `"${p.crmStatus||'New'}"`, `"${(p.crmNotes||'').replace(/"/g,'""')}"`
       ])
     ];
     const csv = rows.map(r => r.join(',')).join('\n');
@@ -254,9 +254,9 @@ export default function Customers() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Total', value: purchases.length, icon: <Users size={15} />, bg: '#eff6ff', color: '#2563eb' },
-          { label: 'New', value: purchases.filter(p => !p.leadStatus || p.leadStatus === 'New').length, icon: <AlertCircle size={15} />, bg: '#f5f3ff', color: '#7c3aed' },
-          { label: 'Booked', value: purchases.filter(p => p.leadStatus === 'Booked').length, icon: <CheckCircle size={15} />, bg: '#f0fdf4', color: '#16a34a' },
-          { label: 'Lost', value: purchases.filter(p => p.leadStatus === 'Lost').length, icon: <X size={15} />, bg: '#fee2e2', color: '#dc2626' },
+          { label: 'New', value: purchases.filter(p => !p.crmStatus || p.crmStatus === 'New').length, icon: <AlertCircle size={15} />, bg: '#f5f3ff', color: '#7c3aed' },
+          { label: 'Booked', value: purchases.filter(p => p.crmStatus === 'Booked').length, icon: <CheckCircle size={15} />, bg: '#f0fdf4', color: '#16a34a' },
+          { label: 'Lost', value: purchases.filter(p => p.crmStatus === 'Lost').length, icon: <X size={15} />, bg: '#fee2e2', color: '#dc2626' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -338,7 +338,7 @@ export default function Customers() {
               </tr>
             ) : (
               paged.map((p) => {
-                const meta = statusMeta(p.leadStatus || 'New');
+                const meta = statusMeta(p.crmStatus || 'New');
                 return (
                   <tr
                     key={p._id}
@@ -355,11 +355,11 @@ export default function Customers() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: meta.color, fontSize: 12, fontWeight: 800, fontFamily: "'Poppins',sans-serif",
                         }}>
-                          {getInitials(p.customerName)}
+                          {getInitials(p.lead?.customerName)}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{p.customerName || '—'}</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{p.customerPhone || '—'}</div>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{p.lead?.customerName || '—'}</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{p.lead?.customerPhone || '—'}</div>
                         </div>
                       </div>
                     </td>
@@ -367,8 +367,8 @@ export default function Customers() {
                     {/* Route */}
                     <td style={{ padding: '14px 12px' }}>
                       <RouteCell
-                        originCity={p.originCity} originZip={p.originZip}
-                        destCity={p.destinationCity} destZip={p.destinationZip}
+                        originCity={p.lead?.originCity} originZip={p.lead?.originZip}
+                        destCity={p.lead?.destinationCity} destZip={p.lead?.destinationZip}
                       />
                     </td>
 
@@ -376,22 +376,22 @@ export default function Customers() {
                     <td style={{ padding: '14px 12px', fontSize: 12, color: '#64748b' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         <Calendar size={12} color="#94a3b8" />
-                        {p.moveDate ? new Date(p.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                        {p.lead?.moveDate ? new Date(p.lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                       </div>
                     </td>
 
                     {/* Price */}
                     <td style={{ padding: '14px 12px' }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
-                        ${p.price?.toFixed(2) || '—'}
+                        ${p.pricePaid?.toFixed(2) || '—'}
                       </span>
                     </td>
 
                     {/* Status — interactive dropdown pill */}
                     <td style={{ padding: '14px 12px' }}>
                       <StatusDropdown
-                        value={p.leadStatus || 'New'}
-                        onChange={newStatus => updateStatusInline(p._id, newStatus)}
+                        value={p.crmStatus || 'New'}
+                        onChange={newStatus => updateStatusInline(p._id, p.lead?._id, newStatus)}
                       />
                     </td>
 
@@ -401,14 +401,14 @@ export default function Customers() {
                         <IconBtn
                           icon={<Phone size={13} />}
                           title="Call customer"
-                          onClick={() => window.open(`tel:${p.customerPhone}`, '_self')}
+                          onClick={() => window.open(`tel:${p.lead?.customerPhone}`, '_self')}
                           hoverColor="#16a34a"
                           hoverBg="#f0fdf4"
                         />
                         <IconBtn
                           icon={<MessageSquare size={13} />}
                           title="Send SMS"
-                          onClick={() => window.open(`sms:${p.customerPhone}`, '_self')}
+                          onClick={() => window.open(`sms:${p.lead?.customerPhone}`, '_self')}
                           hoverColor="#3b82f6"
                           hoverBg="#eff6ff"
                         />
@@ -417,8 +417,8 @@ export default function Customers() {
                           title="View details"
                           onClick={() => {
                             setDetailLead(p);
-                            setEditStatus(p.leadStatus || 'New');
-                            setEditNotes(p.notes || '');
+                            setEditStatus(p.crmStatus || 'New');
+                            setEditNotes(p.crmNotes || '');
                             setDisputingLead(false);
                             setDisputeReason('');
                           }}
@@ -467,10 +467,10 @@ export default function Customers() {
               <div style={{ position: 'absolute', top: '-30%', right: '-5%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle,rgba(234,88,12,0.12),transparent 70%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative' }}>
                 <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 4px', fontFamily: "'Poppins',sans-serif" }}>
-                  {detailLead.customerName}
+                  {detailLead.lead?.customerName}
                 </h2>
                 <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
-                  {detailLead.originCity} → {detailLead.destinationCity}
+                  {detailLead.lead?.originCity} → {detailLead.lead?.destinationCity}
                 </p>
               </div>
               <button onClick={() => setDetailLead(null)} style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', position: 'relative' }}>
@@ -484,8 +484,8 @@ export default function Customers() {
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}>Contact</div>
                 {[
-                  { icon: <Phone size={14} color="#3b82f6" />, bg: '#eff6ff', label: detailLead.customerPhone, sub: 'Phone' },
-                  { icon: <Mail size={14} color="#8b5cf6" />, bg: '#f5f3ff', label: detailLead.customerEmail, sub: 'Email' },
+                  { icon: <Phone size={14} color="#3b82f6" />, bg: '#eff6ff', label: detailLead.lead?.customerPhone, sub: 'Phone' },
+                  { icon: <Mail size={14} color="#8b5cf6" />, bg: '#f5f3ff', label: detailLead.lead?.customerEmail, sub: 'Email' },
                 ].map((r, i) => (
                   <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
                     <div style={{ width: 30, height: 30, borderRadius: 8, background: r.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{r.icon}</div>
@@ -497,10 +497,10 @@ export default function Customers() {
                 ))}
                 {/* Quick actions */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                  <a href={`tel:${detailLead.customerPhone}`} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                  <a href={`tel:${detailLead.lead?.customerPhone}`} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
                     <Phone size={13} /> Call
                   </a>
-                  <a href={`sms:${detailLead.customerPhone}`} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                  <a href={`sms:${detailLead.lead?.customerPhone}`} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
                     <MessageSquare size={13} /> SMS
                   </a>
                 </div>
@@ -510,10 +510,10 @@ export default function Customers() {
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}>Move Details</div>
                 {[
-                  { icon: <MapPin size={12} />, label: 'Route', value: `${detailLead.originCity} → ${detailLead.destinationCity}` },
-                  { icon: <Calendar size={12} />, label: 'Move Date', value: detailLead.moveDate ? new Date(detailLead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A' },
-                  { icon: <Truck size={12} />, label: 'Home Size', value: detailLead.homeSize || '—' },
-                  { icon: <FileText size={12} />, label: 'Price Paid', value: `$${detailLead.price?.toFixed(2) || '—'}` },
+                  { icon: <MapPin size={12} />, label: 'Route', value: `${detailLead.lead?.originCity || '—'} → ${detailLead.lead?.destinationCity || '—'}` },
+                  { icon: <Calendar size={12} />, label: 'Move Date', value: detailLead.lead?.moveDate ? new Date(detailLead.lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A' },
+                  { icon: <Truck size={12} />, label: 'Home Size', value: detailLead.lead?.homeSize || '—' },
+                  { icon: <FileText size={12} />, label: 'Price Paid', value: `$${detailLead.pricePaid?.toFixed(2) || '—'}` },
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < 3 ? '1px solid #f1f5f9' : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b' }}>
