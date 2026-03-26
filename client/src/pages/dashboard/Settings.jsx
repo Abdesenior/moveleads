@@ -111,7 +111,7 @@ const TABS = [
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user, token, API_URL, logout } = useContext(AuthContext);
+  const { user, token, API_URL, logout, refreshUser } = useContext(AuthContext);
 
   const [activeTab, setActiveTab] = useState('notifications');
 
@@ -152,6 +152,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ receiveLiveTransfers: val }),
       });
       if (!res.ok) throw new Error();
+      await refreshUser();
       setLiveTransferMsg('Live transfer preference saved');
       setTimeout(() => setLiveTransferMsg(''), 3000);
     } catch {
@@ -163,15 +164,28 @@ export default function SettingsPage() {
   /* Danger */
   const [dangerDeleting, setDangerDeleting] = useState(false);
 
-  /* Auto-save notifications on toggle */
+  /* Sync local state from DB whenever user object changes (page load / refresh) */
+  const didInit = useRef(false);
   useEffect(() => {
-    if (!user || !API_URL) return;
+    if (!user) return;
+    setEmailNotif(user.emailNotif ?? true);
+    setSmsNotif(user.smsNotif ?? false);
+    setReceiveLiveTransfers(user.receiveLiveTransfers ?? false);
+    didInit.current = true;
+  }, [user?._id]); // eslint-disable-line
+
+  /* Auto-save notifications — skips the initial sync fire */
+  useEffect(() => {
+    if (!didInit.current || !user || !API_URL) return;
     setSaving(true);
     fetch(`${API_URL}/users/${user._id}`, {
       method: 'PUT',
       headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ emailNotif, smsNotif, receiveLiveTransfers }),
-    }).finally(() => setSaving(false));
+    })
+      .then(() => refreshUser())
+      .catch(() => {})
+      .finally(() => setSaving(false));
   }, [emailNotif, smsNotif, receiveLiveTransfers]); // eslint-disable-line
 
   const saveCoverageZips = async (nextZips) => {
