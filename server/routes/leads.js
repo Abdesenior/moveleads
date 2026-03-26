@@ -105,6 +105,45 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
   }
 });
 
+// @route   GET /api/leads/widget-analytics
+// @desc    Get ROI stats for leads captured via the user's widget
+// @access  Private
+router.get('/widget-analytics', auth, async (req, res) => {
+  try {
+    const widgetLeads = await Lead.find({ sourceCompany: req.user.id }).sort({ createdAt: -1 });
+    const totalLeads = widgetLeads.length;
+
+    let pipelineValue = 0;
+    widgetLeads.forEach(lead => {
+      const s = lead.homeSize || '';
+      if (s.includes('Studio'))     pipelineValue += 500;
+      else if (s.includes('1 Bed')) pipelineValue += 900;
+      else if (s.includes('2 Bed')) pipelineValue += 1500;
+      else if (s.includes('3 Bed')) pipelineValue += 2200;
+      else                          pipelineValue += 3000; // 4+ beds
+    });
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentLeadsCount = widgetLeads.filter(l => new Date(l.createdAt) > thirtyDaysAgo).length;
+
+    res.json({
+      success: true,
+      stats: { totalLeads, pipelineValue, recentLeadsCount },
+      recentLeads: widgetLeads.slice(0, 5).map(l => ({
+        _id: l._id,
+        customerName: l.customerName,
+        homeSize: l.homeSize,
+        createdAt: l.createdAt,
+        originCity: l.originCity,
+        destinationCity: l.destinationCity,
+      })),
+    });
+  } catch (err) {
+    console.error('[Widget Analytics Error]:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // @route   GET /api/leads
 // @desc    Get all leads
 // @access  Private

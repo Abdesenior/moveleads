@@ -6,7 +6,8 @@ import { point } from '@turf/helpers';
 import zipcodes from 'zipcodes';
 import {
     Zap, ShieldCheck, Code, CheckCircle, Copy,
-    Mail, ChevronRight, Home, Phone, User
+    Mail, ChevronRight, Home, Phone, User,
+    Users, Activity, DollarSign, TrendingUp
 } from 'lucide-react';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
@@ -640,12 +641,24 @@ export function DemoWidget({ companyId }) {
 /* ══════════════════════════════════════════════════════════
    MAIN PAGE
    ══════════════════════════════════════════════════════════ */
-export default function WidgetPage({ user, insideDashboard = false }) {
+export default function WidgetPage({ user, token, apiUrl, insideDashboard = false }) {
     useEffect(() => {
         if (!insideDashboard) window.scrollTo(0, 0);
     }, [insideDashboard]);
 
     const [copied, setCopied] = useState(false);
+
+    /* ── Widget Analytics ── */
+    const [analytics, setAnalytics] = useState(null);
+    useEffect(() => {
+        if (!user || !token || !apiUrl) return;
+        fetch(`${apiUrl}/leads/widget-analytics`, {
+            headers: { 'x-auth-token': token },
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => d?.success && setAnalytics(d))
+            .catch(() => {});
+    }, [user?._id]); // eslint-disable-line
     const embedRef = useRef(null);
     const companyId = user?._id || 'YOUR-COMPANY-ID';
     const embedCode = `<div id="moveleads-widget" data-company="${companyId}"></div>\n<script src="https://moveleads.cloud/widget.js" defer></script>`;
@@ -680,6 +693,100 @@ export default function WidgetPage({ user, insideDashboard = false }) {
                     </div>
                 </div>
             </div>
+
+            {/* ── Analytics ROI Dashboard (dashboard mode only) ── */}
+            {insideDashboard && (
+                <div style={{ background: '#0f172a', padding: '48px 24px' }}>
+                    <div style={{ maxWidth: 1140, margin: '0 auto' }}>
+
+                        {/* Header row */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+                            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(234,88,12,0.15)', border: '1px solid rgba(234,88,12,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <TrendingUp size={18} color="#ea580c" />
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: '#f1f5f9', fontFamily: "'Poppins',sans-serif", letterSpacing: '-0.01em' }}>Widget Performance</div>
+                                <div style={{ fontSize: 12, color: '#475569' }}>Leads captured via your embedded widget</div>
+                            </div>
+                        </div>
+
+                        {/* Empty state */}
+                        {analytics?.stats?.totalLeads === 0 && (
+                            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '32px 24px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 32 }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', flexShrink: 0, boxShadow: '0 0 0 4px rgba(34,197,94,0.2)', animation: 'wgPulse 2s ease-in-out infinite' }} />
+                                <span style={{ fontSize: 14, color: '#94a3b8', fontStyle: 'italic' }}>Widget is active. Waiting for your first website visitor to request a quote…</span>
+                            </div>
+                        )}
+
+                        {/* KPI cards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 16, marginBottom: 32 }}>
+                            {[
+                                {
+                                    icon: <Users size={18} />,
+                                    label: 'Total Leads Captured',
+                                    value: analytics?.stats?.totalLeads ?? '—',
+                                    sub: 'All time via your widget',
+                                    accent: '#3b82f6',
+                                    glow: 'rgba(59,130,246,0.12)',
+                                },
+                                {
+                                    icon: <Activity size={18} />,
+                                    label: '30-Day Activity',
+                                    value: analytics?.stats?.recentLeadsCount ?? '—',
+                                    sub: 'Leads in last 30 days',
+                                    accent: '#ea580c',
+                                    glow: 'rgba(234,88,12,0.12)',
+                                },
+                                {
+                                    icon: <DollarSign size={18} />,
+                                    label: 'Estimated Pipeline',
+                                    value: analytics?.stats?.pipelineValue != null
+                                        ? `$${analytics.stats.pipelineValue.toLocaleString()}`
+                                        : '—',
+                                    sub: 'Conservative move value estimate',
+                                    accent: '#22c55e',
+                                    glow: 'rgba(34,197,94,0.12)',
+                                },
+                            ].map(card => (
+                                <div key={card.label} style={{ background: `radial-gradient(ellipse at top left, ${card.glow}, transparent 60%), #111827`, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '22px 24px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: 8, background: `${card.accent}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.accent }}>
+                                            {card.icon}
+                                        </div>
+                                        <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{card.label}</span>
+                                    </div>
+                                    <div style={{ fontSize: 36, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.03em', fontFamily: "'Poppins',sans-serif", lineHeight: 1 }}>{card.value}</div>
+                                    <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>{card.sub}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Recent leads mini-feed */}
+                        {analytics?.recentLeads?.length > 0 && (
+                            <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden' }}>
+                                <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                    Recent Leads
+                                </div>
+                                {analytics.recentLeads.map((lead, i) => (
+                                    <div key={lead._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 22px', borderBottom: i < analytics.recentLeads.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', gap: 12 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                                            <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(234,88,12,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                <User size={13} color="#ea580c" />
+                                            </div>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lead.customerName}</span>
+                                        </div>
+                                        <span style={{ fontSize: 11, fontWeight: 600, background: 'rgba(59,130,246,0.12)', color: '#93c5fd', padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap' }}>{lead.homeSize}</span>
+                                        <span style={{ fontSize: 11, color: '#475569', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                            {new Date(lead.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <style>{`@keyframes wgPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
+                </div>
+            )}
 
             {/* ── Feature cards ── */}
             <div style={{ maxWidth: 1140, margin: '0 auto', padding: '80px 24px' }}>
