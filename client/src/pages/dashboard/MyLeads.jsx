@@ -209,7 +209,7 @@ function LeadRow({ purchase, onUpdate }) {
               destZip={lead.destinationZip}
               destCity={lead.destinationCity}
             />
-            {(lead.isWarmTransfer || lead.pricePaid >= 40) && (
+            {(lead.isWarmTransfer || purchase.pricePaid >= 40) && (
               <div style={{ display: 'flex' }}>
                 <span className="live-transfer-badge" style={{
                   fontSize: 11, fontWeight: 600,

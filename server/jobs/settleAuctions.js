@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
+const PurchasedLead = require('../models/PurchasedLead');
 const { getIo } = require('../services/socketService');
 
 // Run every 2 minutes — settle any expired active auctions
@@ -29,6 +30,12 @@ cron.schedule('*/2 * * * *', async () => {
       lead.status        = 'Purchased';
       lead.buyers.push({ company: winning.company, purchasedAt: new Date(), pricePaid: winning.amount });
       await lead.save();
+
+      await new PurchasedLead({
+        company:   winning.company,
+        lead:      lead._id,
+        pricePaid: winning.amount,
+      }).save().catch(err => { if (err.code !== 11000) throw err; });
 
       const io = getIo();
       if (io) {

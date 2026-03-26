@@ -243,7 +243,7 @@ router.post('/:id/claim', auth, async (req, res) => {
         $expr: { $lt: [{ $size: '$buyers' }, '$maxBuyers'] },
         'buyers.company': { $ne: new mongoose.Types.ObjectId(req.user.id) }
       },
-      { $push: { buyers: { company: req.user.id } } },
+      { $push: { buyers: { company: req.user.id, pricePaid: 0 } } },
       { new: true }
     );
 
@@ -272,10 +272,10 @@ router.post('/:id/claim', auth, async (req, res) => {
 
     // 6. Audit record.
     await new PurchasedLead({
-      company: req.user.id,
-      lead: lead._id,
-      pricePaid: lead.price
-    }).save();
+      company:   req.user.id,
+      lead:      lead._id,
+      pricePaid: lead.buyNowPrice || lead.price,
+    }).save().catch(err => { if (err.code !== 11000) throw err; });
 
     res.json({
       success: true,

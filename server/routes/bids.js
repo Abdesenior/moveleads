@@ -2,6 +2,7 @@ const express  = require('express');
 const router   = express.Router();
 const Lead     = require('../models/Lead');
 const User     = require('../models/User');
+const PurchasedLead = require('../models/PurchasedLead');
 const { auth } = require('../middleware/auth');
 const { getIo } = require('../services/socketService');
 
@@ -84,6 +85,13 @@ router.post('/:leadId/buy-now', auth, async (req, res) => {
     lead.buyers.push({ company: req.user.id, purchasedAt: new Date(), pricePaid: lead.buyNowPrice });
     await lead.save();
 
+    // Create audit record so the purchase appears in My Leads
+    await new PurchasedLead({
+      company:   req.user.id,
+      lead:      lead._id,
+      pricePaid: lead.buyNowPrice,
+    }).save().catch(err => { if (err.code !== 11000) throw err; });
+
     broadcastLeadSold(lead);
 
     res.json({ success: true, message: 'Lead claimed!', pricePaid: lead.buyNowPrice, lead });
@@ -116,6 +124,12 @@ router.post('/:leadId/settle', async (req, res) => {
     lead.status        = 'Purchased';
     lead.buyers.push({ company: winning.company, purchasedAt: new Date(), pricePaid: winning.amount });
     await lead.save();
+
+    await new PurchasedLead({
+      company:   winning.company,
+      lead:      lead._id,
+      pricePaid: winning.amount,
+    }).save().catch(err => { if (err.code !== 11000) throw err; });
 
     const io = getIo();
     if (io) {
