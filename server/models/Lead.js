@@ -36,13 +36,33 @@ const LeadSchema = new mongoose.Schema({
   ],
   buyers: [
     {
-      company: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
-      purchasedAt: { type: Date, default: Date.now }
+      company:     { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+      purchasedAt: { type: Date, default: Date.now },
+      pricePaid:   { type: Number, default: 0 },
     }
   ],
-  maxBuyers: { type: Number, default: 1 },
-  sourceCompany: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
-  createdAt: { type: Date, default: Date.now }
+  maxBuyers:      { type: Number, default: 1 },
+  sourceCompany:  { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+  isWarmTransfer: { type: Boolean, default: false },
+  createdAt:      { type: Date, default: Date.now },
+
+  // ── Auction / Dynamic pricing ──────────────────────────────────────────
+  buyNowPrice:      { type: Number, default: 15 },
+  startingBidPrice: { type: Number, default: 9 },
+  currentBidPrice:  { type: Number, default: 0 },
+  auctionEndsAt:    { type: Date },
+  auctionStatus: {
+    type: String,
+    enum: ['pending', 'active', 'sold', 'expired', 'buy_now'],
+    default: 'pending',
+  },
+  bids: [{
+    company:  { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    amount:   Number,
+    placedAt: { type: Date, default: Date.now },
+  }],
+  winnerId:   { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+  finalPrice: { type: Number },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

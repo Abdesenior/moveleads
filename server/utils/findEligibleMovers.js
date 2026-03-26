@@ -79,25 +79,25 @@ async function findEligibleMovers(leadOriginZip, leadDestinationZip) {
               $expr: {
                 $and: [
                   { $eq: ['$_id', '$$companyId'] },
-                  { $gte: ['$balance', leadPrice] },
-                  { $ne: ['$isSuspended', true] },
-                  { $eq: ['$role', 'customer'] }
-                ]
-              }
-            }
-          },
-          {
-            $project: {
-              companyName: 1,
-              email: 1,
-              phone: 1,
-              balance: 1,
-              serviceAreas: 1,
-              autoRechargeThreshold: 1,
-              autoRechargeAmount: 1,
-              stripeCustomerId: 1
-            }
-          }
+                   { $eq: ['$role', 'customer'] },
+                   { $eq: ['$receiveLiveTransfers', true] }
+                 ]
+               }
+             }
+           },
+           {
+             $project: {
+               companyName: 1,
+               email: 1,
+               phone: 1,
+               balance: 1,
+               serviceAreas: 1,
+               autoRechargeThreshold: 1,
+               autoRechargeAmount: 1,
+               stripeCustomerId: 1,
+               receiveLiveTransfers: 1
+             }
+           }
         ],
         as: 'userDoc'
       }

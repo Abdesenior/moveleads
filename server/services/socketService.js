@@ -121,18 +121,27 @@ const emitNewLead = (lead) => {
     homeSize: lead.homeSize,
     moveDate: lead.moveDate,
     distance: lead.distance,
-    price: lead.price,
-    createdAt: lead.createdAt
+    price:            lead.price,
+    createdAt:        lead.createdAt,
+    // Auction fields
+    grade:            lead.grade            || null,
+    score:            lead.score            || 0,
+    miles:            lead.miles            || 0,
+    buyNowPrice:      lead.buyNowPrice      || lead.price || 25,
+    startingBidPrice: lead.startingBidPrice || 9,
+    currentBidPrice:  lead.currentBidPrice  || 0,
+    auctionEndsAt:    lead.auctionEndsAt    || null,
+    auctionStatus:    lead.auctionStatus    || 'active',
   };
 
-  // Rooms to target
-  const originRoom = `zip_${lead.originZip}`;
+  const originRoom      = `zip_${lead.originZip}`;
   const destinationRoom = `zip_${lead.destinationZip}`;
 
   console.log(`[Socket] Broadcasting Lead ${lead._id} to rooms: ${originRoom}, ${destinationRoom}`);
-  
-  // io.to can be chained to target multiple rooms
   io.to(originRoom).to(destinationRoom).emit('NEW_LEAD_AVAILABLE', payload);
 };
 
-module.exports = { init, emitNewLead };
+/** Expose the io instance so other services (e.g. bids.js) can emit events. */
+const getIo = () => io;
+
+module.exports = { init, emitNewLead, getIo };

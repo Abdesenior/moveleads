@@ -16,7 +16,7 @@ import VerifyEmail from './pages/VerifyEmail';
 
 // Customer Dashboard
 import Dashboard from './pages/Dashboard';
-import Leads from './pages/dashboard/Leads';
+import LeadFeed from './pages/dashboard/LeadFeed';
 import MyLeads from './pages/dashboard/MyLeads';
 import Customers from './pages/dashboard/Customers';
 import Billing from './pages/dashboard/Billing';
@@ -67,7 +67,7 @@ function App() {
 
           {/* Customer Dashboard Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
+          <Route path="/dashboard/leads" element={<ProtectedRoute><LeadFeed /></ProtectedRoute>} />
           <Route path="/dashboard/widget" element={<ProtectedRoute><Widget /></ProtectedRoute>} />
           <Route path="/dashboard/my-leads" element={<ProtectedRoute><MyLeads /></ProtectedRoute>} />
           <Route path="/dashboard/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />

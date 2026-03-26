@@ -13,7 +13,7 @@ const Transaction = require('../models/Transaction');
  * @param {ClientSession} session - Active Mongoose session (required)
  * @returns {Promise<{ balance: number }>}
  */
-async function deductLeadBalance(userId, amount, session = null) {
+async function deductLeadBalance(userId, amount, session = null, description = null) {
   // Atomic balance deduction — findOneAndUpdate prevents read-modify-save race.
   // session is optional; standalone MongoDB instances don't support multi-doc transactions.
   const findOpts = session ? { new: true, session } : { new: true };
@@ -36,7 +36,7 @@ async function deductLeadBalance(userId, amount, session = null) {
     user: userId,
     type: 'Lead Purchase',
     amount: -amount,
-    description: `Purchased Lead for $${amount}`,
+    description: description || `Purchased Lead for $${amount}`,
     status: 'Completed'
   });
   await leadTransaction.save(session ? { session } : {});

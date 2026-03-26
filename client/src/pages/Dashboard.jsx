@@ -6,7 +6,7 @@ import {
 import {
   Wallet, ShoppingBag, Trophy, TrendingDown,
   ArrowUpCircle, Clock, Plus, Zap, MapPin, Truck,
-  AlertTriangle, ChevronRight
+  AlertTriangle, ChevronRight, Code
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { AuthContext } from '../context/AuthContext';
@@ -223,6 +223,15 @@ export default function Dashboard() {
       icon: <TrendingDown size={18} />,
       accent: '#8b5cf6',
     },
+    {
+      title: 'AI Sales Rep',
+      value: 'Widget',
+      sub: 'Embed on your site',
+      icon: <Code size={18} />,
+      accent: '#ec4899',
+      cta: 'Get Code',
+      onCta: () => navigate('/dashboard/widget'),
+    },
   ];
 
   return (
@@ -236,7 +245,7 @@ export default function Dashboard() {
       </header>
 
       {/* ── KPI row ───────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginBottom: 24 }}>
         {kpiCards.map((c, i) => <KpiCard key={i} loading={loading} {...c} />)}
       </div>
 

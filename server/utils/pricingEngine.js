@@ -40,4 +40,48 @@ async function calculateLeadPrice(leadData) {
   }
 }
 
-module.exports = { calculateLeadPrice };
+/**
+ * Calculate dynamic auction pricing for a lead.
+ * Used at ingest time — after preliminary scoring — to set buyNowPrice and startingBidPrice.
+ *
+ * @param {{ homeSize, miles, moveDate, grade }} lead
+ * @returns {{ buyNowPrice, startingBidPrice, factors }}
+ */
+function calculateAuctionPrice(lead) {
+  const { homeSize = '', miles = 0, moveDate, grade = 'C' } = lead;
+
+  let base = 15;
+  if (miles > 1000)     base = 35;
+  else if (miles > 500) base = 25;
+  else if (miles > 100) base = 18;
+
+  const SIZE_MULT = {
+    'Studio': 1.0, '1 Bedroom': 1.1, '2 Bedroom': 1.2,
+    '3 Bedroom': 1.35, '4 Bedroom': 1.5, '4+ Bedroom': 1.5,
+    '5 Bedroom': 1.75, '5+ Bedroom': 1.75,
+  };
+  const sizeMult = SIZE_MULT[homeSize] || 1.0;
+
+  const days = moveDate ? (new Date(moveDate) - new Date()) / 86400000 : 60;
+  const urgencyMult = days <= 7 ? 1.5 : days <= 14 ? 1.3 : days <= 30 ? 1.15 : 1.0;
+
+  const mo = moveDate ? new Date(moveDate).getMonth() + 1 : new Date().getMonth() + 1;
+  const seasonMult = [5, 6, 7, 8].includes(mo) ? 1.15 : 1.0;
+
+  const dom = moveDate ? new Date(moveDate).getDate() : 15;
+  const eomMult = dom >= 28 ? 1.12 : 1.0;
+
+  const gradeMult = { A: 1.4, B: 1.15, C: 1.0, D: 0.85 }[grade] || 1.0;
+
+  let price = base * sizeMult * urgencyMult * seasonMult * eomMult * gradeMult;
+  price = Math.round(price / 5) * 5;
+  price = Math.max(15, Math.min(price, 150));
+
+  return {
+    buyNowPrice:      price,
+    startingBidPrice: Math.max(9, Math.round(price * 0.6 / 5) * 5),
+    factors: { base, sizeMult, urgencyMult, seasonMult, eomMult, gradeMult },
+  };
+}
+
+module.exports = { calculateLeadPrice, calculateAuctionPrice };

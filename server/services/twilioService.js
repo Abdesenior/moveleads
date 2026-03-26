@@ -21,15 +21,18 @@ const LOOKUP_TIMEOUT_MS = 3000;
  *
  * @param {string} leadId
  */
-async function verifyLeadPhone(leadId) {
+async function verifyLeadPhone(leadId, { testMode = false } = {}) {
   try {
     const lead = await Lead.findById(leadId);
     if (!lead) return;
 
     console.log(`[Twilio] Starting verification for lead ${leadId} (${lead.customerPhone})`);
 
-    // Mock mode — no credentials configured
-    if (!twilioClient) {
+    // Mock mode — no credentials configured, dev environment, or explicit test flag
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!twilioClient || isDev || testMode) {
+      if (isDev || testMode) console.log(`[Twilio] MOCK mode active (NODE_ENV=${process.env.NODE_ENV}, testMode=${testMode})`);
+
       console.warn('[Twilio] Missing credentials. Running in MOCK mode.');
       await new Promise(resolve => setTimeout(resolve, 2000));
 

@@ -10,6 +10,7 @@ const PurchasedLeadSchema = new mongoose.Schema({
   // ── Per-buyer CRM fields ─────────────────────────────────────────────────
   crmStatus: { type: String, enum: CRM_STATUSES, default: 'New' },
   crmNotes: { type: String, default: '' },
+  isLiveTransfer: { type: Boolean, default: false },
 });
 
 PurchasedLeadSchema.statics.CRM_STATUSES = CRM_STATUSES;

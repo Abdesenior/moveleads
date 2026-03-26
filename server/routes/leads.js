@@ -13,7 +13,7 @@ const PlatformSettings = require('../models/PlatformSettings');
 const { validateLeadPayload } = require('../validators/leadIngest');
 const { verifyLeadPhone } = require('../services/twilioService');
 
-const { calculateLeadPrice } = require('../utils/pricingEngine');
+const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingEngine');
 const { calculateLeadScore } = require('../services/scoringService');
 
 // ── Rate limiter: lead ingestion ──────────────────────────────────────────────
@@ -50,13 +50,29 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
     const isLocal = data.originZip.substring(0, 3) === data.destinationZip.substring(0, 3);
     const distance = isLocal ? 'Local' : 'Long Distance';
 
-    // 3. Get lead price from dynamic pricing engine
+    // 3. Get base price from DB pricing rules (existing engine)
     const leadPrice = await calculateLeadPrice({
       homeSize: data.homeSize,
       distance: distance
     });
 
-    // 4. Save lead with Pending Verification status
+    // 4. Preliminary score + grade (lineType unknown until Twilio; refines later)
+    const { score, grade, scoreFactors } = calculateLeadScore(
+      { homeSize: data.homeSize },
+      data.miles || 0,
+      null,
+      data.moveDate
+    );
+
+    // 5. Auction pricing based on score/grade
+    const auctionPricing = calculateAuctionPrice({
+      homeSize: data.homeSize,
+      miles:    data.miles || 0,
+      moveDate: data.moveDate,
+      grade,
+    });
+
+    // 6. Save lead with auction fields
     const lead = new Lead({
       route,
       originCity: data.originCity,
@@ -66,17 +82,23 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       homeSize: data.homeSize,
       moveDate: new Date(data.moveDate),
       distance,
-      price: leadPrice,
-      miles: data.miles || 0,
+      price:  auctionPricing.buyNowPrice || leadPrice,
+      miles:  data.miles || 0,
       status: 'Pending Verification',
       isVerified: false,
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerEmail: data.customerEmail,
       specialInstructions: data.specialInstructions || '',
-      estimatedWeight: data.estimatedWeight || '',
-      numberOfRooms: data.numberOfRooms || 0,
+      estimatedWeight:     data.estimatedWeight || '',
+      numberOfRooms:       data.numberOfRooms || 0,
       customerStatus: 'New',
+      score, grade, scoreFactors,
+      buyNowPrice:      auctionPricing.buyNowPrice,
+      startingBidPrice: auctionPricing.startingBidPrice,
+      currentBidPrice:  auctionPricing.startingBidPrice,
+      auctionStatus:    'active',
+      auctionEndsAt:    new Date(Date.now() + 30 * 60 * 1000), // 30-min window
       ...(data.sourceCompany && mongoose.isValidObjectId(data.sourceCompany) && { sourceCompany: data.sourceCompany }),
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }]
     });
@@ -84,7 +106,9 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
     await lead.save();
 
     // 5. Trigger Twilio Verification in the background (NON-BLOCKING)
-    verifyLeadPhone(lead._id).catch(err => {
+    // testMode: skip real Twilio lookup when x-test-lead header is set or NODE_ENV=development
+    const testMode = req.headers['x-test-lead'] === 'true' || process.env.NODE_ENV === 'development';
+    verifyLeadPhone(lead._id, { testMode }).catch(err => {
       console.error('[Twilio Background Trace] Verification failed:', err.message);
     });
 
