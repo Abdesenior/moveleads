@@ -140,7 +140,7 @@ export default function GetQuote() {
     };
 
     try {
-      const res = await fetch(`${API_URL}/leads/ingest`, {
+      const res = await fetch(`${API_URL}/api/leads/ingest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
