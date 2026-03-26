@@ -202,12 +202,26 @@ function LeadRow({ purchase, onUpdate }) {
         onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent'; }}
       >
         <td style={{ padding: '14px 20px' }}>
-          <RouteCell
-            originZip={lead.originZip}
-            originCity={lead.originCity}
-            destZip={lead.destinationZip}
-            destCity={lead.destinationCity}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <RouteCell
+              originZip={lead.originZip}
+              originCity={lead.originCity}
+              destZip={lead.destinationZip}
+              destCity={lead.destinationCity}
+            />
+            {(lead.isWarmTransfer || lead.pricePaid >= 40) && (
+              <div style={{ display: 'flex' }}>
+                <span className="live-transfer-badge" style={{
+                  fontSize: 11, fontWeight: 600,
+                  background: 'linear-gradient(135deg,#ff4500,#c2340a)', color: '#fff',
+                  padding: '3px 10px', borderRadius: 20, letterSpacing: 0.3,
+                  display: 'flex', alignItems: 'center', gap: 4
+                }}>
+                  🔥 Live Transfer
+                </span>
+              </div>
+            )}
+          </div>
         </td>
         <td style={{ padding: '14px 12px' }}>
           <Pill
@@ -433,6 +447,13 @@ export default function MyLeads() {
           </div>
         )}
       </div>
+      <style>{`
+        @keyframes livePulse {
+          0%, 100% { box-shadow: 0 0 4px rgba(255,69,0,0.6); }
+          50%       { box-shadow: 0 0 12px rgba(255,69,0,0.9); }
+        }
+        .live-transfer-badge { animation: livePulse 2s ease-in-out infinite; }
+      `}</style>
     </DashboardLayout>
   );
 }
