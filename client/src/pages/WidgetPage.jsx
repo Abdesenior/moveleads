@@ -147,7 +147,7 @@ function SmartCalendar({ value, onChange }) {
                 {cells.map((day, i) => {
                     if (!day) return <div key={`e${i}`} />;
                     const date = new Date(vm.y, vm.m, day);
-                    const isPast = date < today;
+                    const isPast = date <= today;
                     const isSel = selected && date.toDateString() === selected.toDateString();
                     const isToday = date.toDateString() === today.toDateString();
                     const dem = getDemandLevel(date);

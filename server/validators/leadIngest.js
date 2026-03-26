@@ -22,13 +22,13 @@ const LeadIngestSchema = z.object({
 
   customerPhone: z
     .string({ required_error: 'Phone number is required' })
-    .transform(val => val.replace(/\D/g, ''))              // strip non-digits
-    .pipe(
-      z.string()
-        .length(10, 'Phone number must be exactly 10 digits')
-        .regex(/^\d{10}$/, 'Phone number must contain only digits')
-    )
-    .transform(digits => `+1${digits}`),                   // E.164 for US/CA
+    .regex(/^\+?[\d\s\-().]{7,15}$/, 'Enter a valid phone number')
+    .transform(val => {
+      if (val.startsWith('+')) return val.replace(/[\s\-().]/g, ''); // already E.164
+      const digits = val.replace(/\D/g, '');
+      if (digits.length === 10) return `+1${digits}`;               // US/CA
+      return `+${digits}`;                                           // international
+    }),
 
   originCity: z
     .string({ required_error: 'Origin city is required' })
