@@ -103,6 +103,111 @@ function BidModal({ lead, balance, onClose, onBid }) {
   );
 }
 
+/* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
+function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming }) {
+  const isAuction   = lead.auctionStatus === 'active';
+  const currentBid  = lead.currentBidPrice || 0;
+  const buyNowPrice = lead.buyNowPrice || lead.price || 25;
+  const displayPrice = isAuction
+    ? (currentBid > 0 ? currentBid : lead.startingBidPrice || 9)
+    : buyNowPrice;
+  const isLD        = lead.distance === 'Long Distance';
+  const daysToMove  = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
+
+  const Row = ({ label, value }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+      <span style={{ color: '#64748b' }}>{label}</span>
+      <span style={{ fontWeight: 700, color: '#0f172a' }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: 480 }}>
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg,#0a192f,#112240)', padding: '22px 28px', borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Lead Preview</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+              {lead.originZip} → {lead.destinationZip}
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>
+              {lead.originCity} → {lead.destinationCity}
+            </div>
+          </div>
+          <button className="close-btn" onClick={onClose} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'rgba(255,255,255,0.7)', borderRadius: 9, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="modal-body" style={{ padding: '22px 28px' }}>
+          {/* Lead details */}
+          <Row label="Home Size"  value={lead.homeSize || '—'} />
+          <Row label="Move Date"  value={lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'} />
+          <Row label="Distance"   value={isLD ? 'Long Distance' : 'Local'} />
+          {lead.miles > 0 && <Row label="Miles" value={`${lead.miles} mi`} />}
+          {lead.grade && <Row label="Lead Grade" value={lead.grade === 'A' ? '⭐ A — Premium' : lead.grade} />}
+          {daysToMove <= 7 && daysToMove > 0 && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '8px 14px', marginTop: 12, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+              ⚡ Moving {daysToMove <= 1 ? 'today' : `in ${Math.ceil(daysToMove)} days`} — act fast!
+            </div>
+          )}
+
+          {/* Locked contact teaser */}
+          <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 12, padding: '14px 16px', marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <User size={18} color="#94a3b8" />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', letterSpacing: 4, marginBottom: 2 }}>••••• ••••••••</div>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>Name & contact info unlocked after claiming</div>
+            </div>
+          </div>
+
+          {/* Price + actions */}
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {isAuction ? (currentBid > 0 ? 'Current Bid' : 'Starting Bid') : 'Price'}
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a' }}>${displayPrice.toFixed ? displayPrice.toFixed(2) : displayPrice}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your Balance</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: balance >= displayPrice ? '#16a34a' : '#dc2626' }}>${balance.toFixed(2)}</div>
+              </div>
+            </div>
+
+            {isAuction ? (
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => { onClose(); onBid(lead); }}
+                  style={{ flex: 1, ...BTN_OUTLINE, borderRadius: 12, padding: '12px' }}>
+                  Place Bid
+                </button>
+                <button
+                  onClick={() => { onClose(); onBuyNow(lead); }}
+                  disabled={claiming}
+                  style={{ flex: 2, ...BTN_PRIMARY, borderRadius: 12, padding: '12px', opacity: claiming ? 0.6 : 1 }}>
+                  {claiming ? 'Claiming…' : `Buy Now $${buyNowPrice} ›`}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => onClaim(lead)}
+                disabled={claiming}
+                style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
+                {claiming ? 'Claiming…' : `Claim Lead — $${buyNowPrice} ›`}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Success modal ────────────────────────────────────────────────────────── */
 function SuccessModal({ data, onClose, onNavigate }) {
   return (
@@ -147,8 +252,10 @@ export default function LeadFeed() {
   const [loading, setLoading]           = useState(true);
   const [socketStatus, setSocketStatus] = useState('connecting');
   const [successData, setSuccessData]   = useState(null);
+  const [previewLead, setPreviewLead]   = useState(null);
   const [bidLead, setBidLead]           = useState(null);
   const [buyingId, setBuyingId]         = useState(null);
+  const [claimingId, setClaimingId]     = useState(null);
   const [search, setSearch]             = useState('');
   const [distFilter, setDistFilter]     = useState('all');
   const audioRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
@@ -205,6 +312,7 @@ export default function LeadFeed() {
       const res  = await fetch(`${API_URL}/bids/${id}/buy-now`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Failed to claim lead'); return; }
+      setPreviewLead(null);
       setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== id));
       setSuccessData({ lead: data.lead || lead });
       refreshUser();
@@ -222,13 +330,17 @@ export default function LeadFeed() {
   };
 
   const handleClaim = async (lead) => {
-    const id  = (lead._id || lead.id)?.toString();
-    const res = await fetch(`${API_URL}/leads/${id}/claim`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
-    const data = await res.json();
-    if (!res.ok) { alert(data.msg || 'Failed to claim lead'); return; }
-    setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== id));
-    setSuccessData({ lead: data.lead || lead });
-    refreshUser();
+    const id = (lead._id || lead.id)?.toString();
+    setClaimingId(id);
+    try {
+      const res  = await fetch(`${API_URL}/leads/${id}/claim`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      if (!res.ok) { alert(data.msg || 'Failed to claim lead'); return; }
+      setPreviewLead(null);
+      setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== id));
+      setSuccessData({ lead: data.lead || lead });
+      refreshUser();
+    } finally { setClaimingId(null); }
   };
 
   // Client-side filter
@@ -431,7 +543,7 @@ export default function LeadFeed() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => handleClaim(lead)}
+                            onClick={() => setPreviewLead(lead)}
                             style={{ ...BTN_PRIMARY }}>
                             View ›
                           </button>
@@ -446,6 +558,17 @@ export default function LeadFeed() {
         )}
       </div>
 
+      {previewLead && (
+        <PreviewModal
+          lead={previewLead}
+          balance={balance}
+          claiming={claimingId === (previewLead._id || previewLead.id)?.toString()}
+          onClose={() => setPreviewLead(null)}
+          onClaim={handleClaim}
+          onBid={(lead) => setBidLead(lead)}
+          onBuyNow={handleBuyNow}
+        />
+      )}
       {bidLead && (
         <BidModal lead={bidLead} balance={balance} onClose={() => setBidLead(null)} onBid={handleBid} />
       )}
