@@ -77,7 +77,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       estimatedWeight: data.estimatedWeight || '',
       numberOfRooms: data.numberOfRooms || 0,
       customerStatus: 'New',
-      sourceCompany: data.sourceCompany || null,
+      ...(data.sourceCompany && mongoose.isValidObjectId(data.sourceCompany) && { sourceCompany: data.sourceCompany }),
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }]
     });
 

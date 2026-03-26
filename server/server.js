@@ -8,6 +8,7 @@ const http = require('http');
 const socketService = require('./services/socketService');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Connect Database
@@ -61,6 +62,7 @@ app.use('/api/billing', require('./routes/billing'));
 app.use('/api/purchases', require('./routes/purchases'));
 app.use('/api/routing', require('./routes/routing'));
 app.use('/api/public', require('./routes/public'));
+app.use('/api/voice', require('./routes/voice'));
 
 const PORT = process.env.PORT || 5005;
 // Bind to 0.0.0.0 so Render's load balancer (and Docker) can reach the process.
