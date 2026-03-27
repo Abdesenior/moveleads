@@ -103,13 +103,16 @@ function BidModal({ lead, balance, onClose, onBid }) {
   );
 }
 
+/* ─── Shared price helper — single source of truth ─────────────────────────── */
+const getLeadPrice = (lead) => lead.buyNowPrice || lead.price || 0;
+
 /* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
-function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming }) {
+function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error, onClearError }) {
   const isAuction   = lead.auctionStatus === 'active';
   const currentBid  = lead.currentBidPrice || 0;
-  const buyNowPrice = lead.buyNowPrice || lead.price || 25;
+  const buyNowPrice = getLeadPrice(lead);
   const displayPrice = isAuction
-    ? (currentBid > 0 ? currentBid : lead.startingBidPrice || 9)
+    ? (currentBid > 0 ? currentBid : lead.startingBidPrice || buyNowPrice)
     : buyNowPrice;
   const isLD        = lead.distance === 'Long Distance';
   const daysToMove  = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
@@ -179,6 +182,23 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
               </div>
             </div>
 
+            {/* Inline error — shown when claim/buy fails */}
+            {error && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600, marginBottom: error.includes('balance') || error.includes('Insufficient') ? 8 : 0 }}>
+                  {error}
+                </div>
+                {(error.includes('balance') || error.includes('Insufficient')) && (
+                  <a
+                    href="/dashboard/billing"
+                    onClick={onClearError}
+                    style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: '#ea580c', textDecoration: 'none', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '5px 12px' }}>
+                    Add Funds →
+                  </a>
+                )}
+              </div>
+            )}
+
             {isAuction ? (
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
@@ -190,15 +210,15 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                   onClick={() => { onClose(); onBuyNow(lead); }}
                   disabled={claiming}
                   style={{ flex: 2, ...BTN_PRIMARY, borderRadius: 12, padding: '12px', opacity: claiming ? 0.6 : 1 }}>
-                  {claiming ? 'Claiming…' : `Buy Now $${buyNowPrice} ›`}
+                  {claiming ? 'Claiming…' : `Buy Now $${buyNowPrice.toFixed(2)} ›`}
                 </button>
               </div>
             ) : (
               <button
-                onClick={() => onClaim(lead)}
+                onClick={() => { onClearError(); onClaim(lead); }}
                 disabled={claiming}
                 style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
-                {claiming ? 'Claiming…' : `Claim Lead — $${buyNowPrice} ›`}
+                {claiming ? 'Claiming…' : `Claim Lead — $${buyNowPrice.toFixed(2)} ›`}
               </button>
             )}
           </div>
@@ -253,6 +273,7 @@ export default function LeadFeed() {
   const [socketStatus, setSocketStatus] = useState('connecting');
   const [successData, setSuccessData]   = useState(null);
   const [previewLead, setPreviewLead]   = useState(null);
+  const [claimError, setClaimError]     = useState('');
   const [bidLead, setBidLead]           = useState(null);
   const [buyingId, setBuyingId]         = useState(null);
   const [claimingId, setClaimingId]     = useState(null);
@@ -332,11 +353,16 @@ export default function LeadFeed() {
   const handleClaim = async (lead) => {
     const id = (lead._id || lead.id)?.toString();
     setClaimingId(id);
+    setClaimError('');
     try {
       const res  = await fetch(`${API_URL}/leads/${id}/claim`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
       const data = await res.json();
-      if (!res.ok) { alert(data.msg || 'Failed to claim lead'); return; }
+      if (!res.ok) {
+        setClaimError(data.msg || 'Failed to claim lead. Please try again.');
+        return;
+      }
       setPreviewLead(null);
+      setClaimError('');
       setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== id));
       setSuccessData({ lead: data.lead || lead });
       refreshUser();
@@ -450,10 +476,10 @@ export default function LeadFeed() {
                   const isUrgent  = daysToMove > 1 && daysToMove <= 7;
                   const isPremium = lead.grade === 'A';
                   const currentBid = lead.currentBidPrice || 0;
+                  const buyNowPrice  = getLeadPrice(lead);
                   const displayPrice = isAuction
-                    ? (currentBid > 0 ? currentBid : lead.startingBidPrice || 9)
-                    : (lead.buyNowPrice || lead.price || 25);
-                  const buyNowPrice = lead.buyNowPrice || lead.price || 25;
+                    ? (currentBid > 0 ? currentBid : lead.startingBidPrice || buyNowPrice)
+                    : buyNowPrice;
 
                   return (
                     <tr
@@ -563,7 +589,9 @@ export default function LeadFeed() {
           lead={previewLead}
           balance={balance}
           claiming={claimingId === (previewLead._id || previewLead.id)?.toString()}
-          onClose={() => setPreviewLead(null)}
+          error={claimError}
+          onClearError={() => setClaimError('')}
+          onClose={() => { setPreviewLead(null); setClaimError(''); }}
           onClaim={handleClaim}
           onBid={(lead) => setBidLead(lead)}
           onBuyNow={handleBuyNow}
