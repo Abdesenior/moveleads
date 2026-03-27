@@ -275,7 +275,6 @@ export default function LeadFeed() {
   const [previewLead, setPreviewLead]   = useState(null);
   const [claimError, setClaimError]     = useState('');
   const [bidLead, setBidLead]           = useState(null);
-  const [buyingId, setBuyingId]         = useState(null);
   const [claimingId, setClaimingId]     = useState(null);
   const [search, setSearch]             = useState('');
   const [distFilter, setDistFilter]     = useState('all');
@@ -328,16 +327,20 @@ export default function LeadFeed() {
 
   const handleBuyNow = async (lead) => {
     const id = (lead._id || lead.id)?.toString();
-    setBuyingId(id);
+    setClaimingId(id);
     try {
       const res  = await fetch(`${API_URL}/bids/${id}/buy-now`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
       const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Failed to claim lead'); return; }
+      if (!res.ok) {
+        setClaimError(data.error || 'Failed to claim lead. Please try again.');
+        return;
+      }
       setPreviewLead(null);
+      setClaimError('');
       setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== id));
       setSuccessData({ lead: data.lead || lead });
       refreshUser();
-    } finally { setBuyingId(null); }
+    } finally { setClaimingId(null); }
   };
 
   const handleBid = async (amount) => {
@@ -469,7 +472,6 @@ export default function LeadFeed() {
                 {visible.map((lead, i) => {
                   const id        = (lead._id || lead.id)?.toString();
                   const isAuction = lead.auctionStatus === 'active';
-                  const isBuying  = buyingId === id;
                   const isLD      = lead.distance === 'Long Distance';
                   const daysToMove = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
                   const isToday   = daysToMove <= 1;
@@ -553,27 +555,11 @@ export default function LeadFeed() {
 
                       {/* ── Action ── */}
                       <td style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {isAuction ? (
-                          <div style={{ display: 'inline-flex', gap: 6 }}>
-                            <button
-                              onClick={() => setBidLead(lead)}
-                              style={{ ...BTN_OUTLINE }}>
-                              Bid
-                            </button>
-                            <button
-                              onClick={() => handleBuyNow(lead)}
-                              disabled={isBuying}
-                              style={{ ...BTN_PRIMARY, opacity: isBuying ? 0.6 : 1, cursor: isBuying ? 'not-allowed' : 'pointer' }}>
-                              {isBuying ? '…' : `Buy $${buyNowPrice}`} {!isBuying && '›'}
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setPreviewLead(lead)}
-                            style={{ ...BTN_PRIMARY }}>
-                            View ›
-                          </button>
-                        )}
+                        <button
+                          onClick={() => { setClaimError(''); setPreviewLead(lead); }}
+                          style={{ ...BTN_PRIMARY }}>
+                          View ›
+                        </button>
                       </td>
                     </tr>
                   );
