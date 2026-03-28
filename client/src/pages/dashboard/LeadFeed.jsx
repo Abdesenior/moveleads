@@ -107,7 +107,8 @@ function BidModal({ lead, balance, onClose, onBid }) {
 const getLeadPrice = (lead) => lead.buyNowPrice || lead.price || 0;
 
 /* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
-function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error, onClearError }) {
+function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error }) {
+  const navigate = useNavigate();
   const isAuction   = lead.auctionStatus === 'active';
   const currentBid  = lead.currentBidPrice || 0;
   const buyNowPrice = getLeadPrice(lead);
@@ -189,12 +190,11 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                   {error}
                 </div>
                 {(error.includes('balance') || error.includes('Insufficient')) && (
-                  <a
-                    href="/dashboard/billing"
-                    onClick={onClearError}
-                    style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: '#ea580c', textDecoration: 'none', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '5px 12px' }}>
+                  <button
+                    onClick={() => navigate('/dashboard/billing')}
+                    style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
                     Add Funds →
-                  </a>
+                  </button>
                 )}
               </div>
             )}
@@ -207,7 +207,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                   Place Bid
                 </button>
                 <button
-                  onClick={() => { onClose(); onBuyNow(lead); }}
+                  onClick={() => onBuyNow(lead)}
                   disabled={claiming}
                   style={{ flex: 2, ...BTN_PRIMARY, borderRadius: 12, padding: '12px', opacity: claiming ? 0.6 : 1 }}>
                   {claiming ? 'Claiming…' : `Buy Now $${buyNowPrice.toFixed(2)} ›`}
@@ -215,7 +215,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
               </div>
             ) : (
               <button
-                onClick={() => { onClearError(); onClaim(lead); }}
+                onClick={() => onClaim(lead)}
                 disabled={claiming}
                 style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
                 {claiming ? 'Claiming…' : `Claim Lead — $${buyNowPrice.toFixed(2)} ›`}
@@ -576,7 +576,6 @@ export default function LeadFeed() {
           balance={balance}
           claiming={claimingId === (previewLead._id || previewLead.id)?.toString()}
           error={claimError}
-          onClearError={() => setClaimError('')}
           onClose={() => { setPreviewLead(null); setClaimError(''); }}
           onClaim={handleClaim}
           onBid={(lead) => setBidLead(lead)}
