@@ -41,7 +41,7 @@ router.put('/', [auth, admin], async (req, res) => {
     const settings = await PlatformSettings.findOneAndUpdate(
       {},
       { $set: updates },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     res.json(settings);

@@ -136,7 +136,7 @@ router.post('/mover-accept', twilioWebhook, async (req, res) => {
       const lead = await Lead.findOneAndUpdate(
         { _id: leadId, buyers: { $size: 0 } },
         { $push: { buyers: { company: moverId, purchasedAt: new Date() } } },
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       if (!lead) {

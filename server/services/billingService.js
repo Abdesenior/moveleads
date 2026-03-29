@@ -16,7 +16,7 @@ const Transaction = require('../models/Transaction');
 async function deductLeadBalance(userId, amount, session = null, description = null) {
   // Atomic balance deduction — findOneAndUpdate prevents read-modify-save race.
   // session is optional; standalone MongoDB instances don't support multi-doc transactions.
-  const findOpts = session ? { new: true, session } : { new: true };
+  const findOpts = session ? { returnDocument: 'after', session } : { returnDocument: 'after' };
   const updated = await User.findOneAndUpdate(
     { _id: userId, balance: { $gte: amount } },
     { $inc: { balance: -amount } },

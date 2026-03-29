@@ -44,7 +44,7 @@ router.put('/:id', [auth, admin], async (req, res) => {
     const rule = await PricingRule.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { new: true }
+      { returnDocument: 'after' }
     );
     res.json(rule);
   } catch (err) {

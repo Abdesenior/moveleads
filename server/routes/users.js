@@ -32,7 +32,7 @@ router.put('/:id', auth, async (req, res) => {
     let user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    user = await User.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true }).select('-password');
+    user = await User.findByIdAndUpdate(req.params.id, { $set: req.body }, { returnDocument: 'after' }).select('-password');
     res.json(user);
   } catch (err) {
     console.error(err.message);
@@ -88,7 +88,7 @@ router.put('/:id/suspend', [auth, admin], async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { $set: { isSuspended: Boolean(isSuspended) } },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('-password');
 
     if (!user) return res.status(404).json({ msg: 'User not found' });

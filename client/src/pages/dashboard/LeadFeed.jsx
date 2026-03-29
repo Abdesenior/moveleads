@@ -108,7 +108,6 @@ const getLeadPrice = (lead) => lead.buyNowPrice || lead.price || 0;
 
 /* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
 function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error }) {
-  const navigate = useNavigate();
   const isAuction   = lead.auctionStatus === 'active';
   const currentBid  = lead.currentBidPrice || 0;
   const buyNowPrice = getLeadPrice(lead);
@@ -191,7 +190,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                 </div>
                 {(error.includes('balance') || error.includes('Insufficient')) && (
                   <button
-                    onClick={() => navigate('/dashboard/billing')}
+                    onClick={() => window.open('/dashboard/billing', '_blank')}
                     style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
                     Add Funds →
                   </button>

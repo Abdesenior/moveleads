@@ -64,7 +64,7 @@ router.post('/:leadId/buy-now', auth, async (req, res) => {
     const lead = await Lead.findOneAndUpdate(
       { _id: req.params.leadId, auctionStatus: 'active' },
       { $set: { auctionStatus: 'buy_now' } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!lead) return res.status(400).json({ error: 'Lead no longer available' });
 

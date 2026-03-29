@@ -216,7 +216,7 @@ router.put('/:id', [auth, admin], async (req, res) => {
     let lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
-    lead = await Lead.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true });
+    lead = await Lead.findByIdAndUpdate(req.params.id, { $set: req.body }, { returnDocument: 'after' });
     res.json(lead);
   } catch (err) {
     console.error(err.message);
@@ -234,7 +234,20 @@ router.post('/:id/claim', auth, async (req, res) => {
   }
 
   try {
-    // 2. Atomically claim the lead slot.
+    // 2. Pre-flight: check balance BEFORE touching the lead document.
+    //    This ensures a failed balance check never partially mutates lead state.
+    const mover = await User.findById(req.user.id);
+    if (!mover) return res.status(404).json({ msg: 'User not found' });
+
+    const leadPrecheck = await Lead.findById(req.params.id);
+    if (!leadPrecheck) return res.status(404).json({ msg: 'Lead not found' });
+
+    const leadCost = leadPrecheck.price || 0;
+    if (mover.balance < leadCost) {
+      return res.status(400).json({ msg: 'Insufficient balance to purchase lead' });
+    }
+
+    // 3. Atomically claim the lead slot.
     //    findOneAndUpdate with $push is a single atomic document operation —
     //    no multi-document transaction required (works on standalone MongoDB).
     const lead = await Lead.findOneAndUpdate(
@@ -244,7 +257,7 @@ router.post('/:id/claim', auth, async (req, res) => {
         'buyers.company': { $ne: new mongoose.Types.ObjectId(req.user.id) }
       },
       { $push: { buyers: { company: req.user.id, pricePaid: 0 } } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!lead) {
@@ -257,13 +270,13 @@ router.post('/:id/claim', auth, async (req, res) => {
       return res.status(409).json({ msg: 'Sorry, another mover grabbed this lead first!' });
     }
 
-    // 3. Mark as Purchased once all slots are filled.
+    // 4. Mark as Purchased once all slots are filled.
     if (lead.buyers.length >= lead.maxBuyers) {
       lead.status = 'Purchased';
       await lead.save();
     }
 
-    // 4. Deduct balance atomically (single-document op, no session needed).
+    // 5. Deduct balance atomically (single-document op, no session needed).
     const billing = await deductLeadBalance(req.user.id, lead.price);
     const newBalance = billing.balance;
 
@@ -328,7 +341,7 @@ router.patch('/:id/crm-status', auth, async (req, res) => {
     const record = await PurchasedLead.findOneAndUpdate(
       { lead: req.params.id, company: req.user.id },
       { $set: update },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!record) {
