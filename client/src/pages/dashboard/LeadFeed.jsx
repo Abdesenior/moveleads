@@ -319,8 +319,16 @@ export default function LeadFeed() {
           : l
       ));
     });
-    socket.on('lead_sold',      (d) => setLeads(prev => prev.map(l => (l._id||l.id)?.toString() === d.leadId?.toString() ? { ...l, auctionStatus: 'sold' } : l)));
-    socket.on('auction_settled',(d) => setLeads(prev => prev.map(l => (l._id||l.id)?.toString() === d.leadId?.toString() ? { ...l, auctionStatus: 'sold' } : l)));
+    socket.on('lead_sold', (d) => {
+      // Guard: skip if this was our own purchase — handleBuyNow already removed it
+      if (d.buyerId && d.buyerId === user?._id?.toString()) return;
+      setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== d.leadId?.toString()));
+    });
+    socket.on('auction_settled', (d) => {
+      // Guard: skip if we are the auction winner — handleBuyNow already removed it
+      if (d.winnerId && d.winnerId === user?._id?.toString()) return;
+      setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== d.leadId?.toString()));
+    });
     return () => { stopPolling(); socket.disconnect(); };
   }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling]);
 

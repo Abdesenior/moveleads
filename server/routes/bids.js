@@ -19,10 +19,10 @@ function broadcastBidUpdate(lead) {
   io.to(`zip_${lead.originZip}`).to(`zip_${lead.destinationZip}`).emit('bid_update', payload);
 }
 
-function broadcastLeadSold(lead) {
+function broadcastLeadSold(lead, buyerId) {
   const io = getIo();
   if (!io) return;
-  io.to(`zip_${lead.originZip}`).to(`zip_${lead.destinationZip}`).emit('lead_sold', { leadId: lead._id });
+  io.to(`zip_${lead.originZip}`).to(`zip_${lead.destinationZip}`).emit('lead_sold', { leadId: lead._id, buyerId: buyerId?.toString() });
 }
 
 // ── POST /api/bids/:leadId — Place a bid ──────────────────────────────────────
@@ -92,7 +92,7 @@ router.post('/:leadId/buy-now', auth, async (req, res) => {
       pricePaid: lead.buyNowPrice,
     }).save().catch(err => { if (err.code !== 11000) throw err; });
 
-    broadcastLeadSold(lead);
+    broadcastLeadSold(lead, req.user.id);
 
     res.json({ success: true, message: 'Lead claimed!', pricePaid: lead.buyNowPrice, lead });
   } catch (err) {
