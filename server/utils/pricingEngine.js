@@ -75,7 +75,8 @@ function calculateAuctionPrice(lead) {
 
   let price = base * sizeMult * urgencyMult * seasonMult * eomMult * gradeMult;
   price = Math.round(price / 5) * 5;
-  price = Math.max(15, Math.min(price, 150));
+  price = Math.max(10, Math.min(price, 150));
+  if (miles < 100) price = Math.min(price, 25);
 
   return {
     buyNowPrice:      price,

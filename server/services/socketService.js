@@ -112,6 +112,7 @@ const emitNewLead = (lead) => {
   // Normally, we'd only expose full details after purchase, but "NEW_LEAD_AVAILABLE" 
   // usually implies a notification of a lead they CAN buy.
   const payload = {
+    _id: lead._id,
     id: lead._id,
     route: lead.route,
     originCity: lead.originCity,
@@ -122,6 +123,7 @@ const emitNewLead = (lead) => {
     moveDate: lead.moveDate,
     distance: lead.distance,
     price:            lead.price,
+    status:           lead.status,
     createdAt:        lead.createdAt,
     // Auction fields
     grade:            lead.grade            || null,

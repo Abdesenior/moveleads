@@ -30,8 +30,8 @@ export default function AdminLeads() {
   const [sortDir, setSortDir] = useState('desc');
   
   const emptyForm = {
-    originCity: '', destinationCity: '', homeSize: '1 Bedroom',
-    moveDate: '', distance: 'Local', customerName: '',
+    originCity: '', originZip: '', destinationCity: '', destinationZip: '',
+    homeSize: '1 Bedroom', moveDate: '', distance: 'Local', customerName: '',
     customerPhone: '', customerEmail: '', price: 10,
     specialInstructions: '', estimatedWeight: '', numberOfRooms: 0
   };
@@ -52,7 +52,8 @@ export default function AdminLeads() {
   const handleEditClick = (lead) => {
     setEditingId(lead._id);
     setFormData({
-      originCity: lead.originCity || '', destinationCity: lead.destinationCity || '',
+      originCity: lead.originCity || '', originZip: lead.originZip || '',
+      destinationCity: lead.destinationCity || '', destinationZip: lead.destinationZip || '',
       homeSize: lead.homeSize || '1 Bedroom',
       moveDate: lead.moveDate ? new Date(lead.moveDate).toISOString().split('T')[0] : '',
       distance: lead.distance || 'Local', customerName: lead.customerName || '',
@@ -379,6 +380,18 @@ export default function AdminLeads() {
                     <input type="text" name="destinationCity" list="toCityList" autoComplete="off"
                       value={formData.destinationCity} onChange={handleInput} required
                       style={inputStyle} placeholder="e.g. Los Angeles" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Origin ZIP</label>
+                    <input type="text" name="originZip" maxLength={5}
+                      value={formData.originZip} onChange={handleInput}
+                      style={inputStyle} placeholder="e.g. 10001" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Destination ZIP</label>
+                    <input type="text" name="destinationZip" maxLength={5}
+                      value={formData.destinationZip} onChange={handleInput}
+                      style={inputStyle} placeholder="e.g. 90001" />
                   </div>
                   <div>
                     <label style={labelStyle}>Move Date *</label>
