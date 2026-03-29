@@ -50,7 +50,7 @@ async function calculateLeadPrice(leadData) {
 function calculateAuctionPrice(lead) {
   const { homeSize = '', miles = 0, moveDate, grade = 'C' } = lead;
 
-  let base = 15;
+  let base = 10;
   if (miles > 1000)     base = 35;
   else if (miles > 500) base = 25;
   else if (miles > 100) base = 18;
