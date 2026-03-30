@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
+import zipcodes from 'zipcodes';
 import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -12,15 +13,16 @@ const CITIES = [
 
 const HOME_SIZES = ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4+ Bedroom', 'House (Small)', 'House (Medium)', 'House (Large)', 'Office/Commercial'];
 
-/* ── Custom city autocomplete (replaces native datalist) ── */
-function CityAutocomplete({ label, value, onChange, placeholder }) {
+/* ── Custom city autocomplete with auto ZIP lookup ── */
+function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
   const [query, setQuery] = useState(value || '');
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
+  const [autoZip, setAutoZip] = useState('');
   const wrapRef = useRef(null);
 
-  // keep query in sync if parent resets form
-  useEffect(() => { setQuery(value || ''); }, [value]);
+  // sync query if parent resets form
+  useEffect(() => { setQuery(value || ''); if (!value) setAutoZip(''); }, [value]);
 
   const filtered = query.length > 0
     ? CITIES.filter(c => c.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
@@ -30,6 +32,18 @@ function CityAutocomplete({ label, value, onChange, placeholder }) {
     setQuery(city);
     onChange(city);
     setOpen(false);
+
+    // Auto-find primary ZIP for this city
+    if (onZipFound) {
+      try {
+        const results = zipcodes.lookupByName(city);
+        if (results && results.length > 0) {
+          const zip = results[0].zip;
+          setAutoZip(zip);
+          onZipFound(zip);
+        }
+      } catch (_) {}
+    }
   };
 
   // Close on outside click
@@ -61,7 +75,7 @@ function CityAutocomplete({ label, value, onChange, placeholder }) {
           autoComplete="off"
           required
           style={{ ...inputStyle, paddingLeft: 34 }}
-          onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); setHighlighted(0); }}
+          onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); setHighlighted(0); setAutoZip(''); }}
           onFocus={() => { setOpen(true); setHighlighted(0); }}
           onKeyDown={handleKey}
           onBlur={e => {
@@ -75,6 +89,11 @@ function CityAutocomplete({ label, value, onChange, placeholder }) {
             e.target.style.background = '#fff';
           }}
         />
+        {autoZip && (
+          <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: '#dcfce7', color: '#16a34a', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 100, pointerEvents: 'none' }}>
+            ZIP {autoZip}
+          </div>
+        )}
       </div>
       {open && filtered.length > 0 && (
         <div style={{
@@ -498,12 +517,14 @@ export default function AdminLeads() {
                   label="Origin City *"
                   value={formData.originCity}
                   onChange={val => setFormData(f => ({ ...f, originCity: val }))}
+                  onZipFound={zip => setFormData(f => ({ ...f, originZip: zip }))}
                   placeholder="e.g. New York"
                 />
                 <CityAutocomplete
                   label="Destination City *"
                   value={formData.destinationCity}
                   onChange={val => setFormData(f => ({ ...f, destinationCity: val }))}
+                  onZipFound={zip => setFormData(f => ({ ...f, destinationZip: zip }))}
                   placeholder="e.g. Los Angeles"
                 />
                 <FieldGroup label="Origin ZIP" icon={<Hash size={13} color="#94a3b8" />}>
