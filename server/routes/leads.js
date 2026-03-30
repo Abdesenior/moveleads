@@ -228,6 +228,24 @@ router.put('/:id', [auth, admin], async (req, res) => {
   }
 });
 
+// @route   DELETE /api/leads/:id
+// @desc    Admin: Delete a lead permanently
+// @access  Private (Admin)
+router.delete('/:id', [auth, admin], async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ msg: 'Lead not found' });
+
+    await Lead.findByIdAndDelete(req.params.id);
+    await PurchasedLead.deleteMany({ lead: req.params.id });
+
+    res.json({ success: true, msg: 'Lead deleted successfully' });
+  } catch (err) {
+    console.error('[Delete Lead]', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // @route   POST /api/leads/:id/claim
 // @desc    Claim/Buy a lead with concurrency control
 // @access  Private
