@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import zipcodes from 'zipcodes';
 import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -12,6 +11,61 @@ const CITIES = [
 ];
 
 const HOME_SIZES = ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4+ Bedroom', 'House (Small)', 'House (Medium)', 'House (Large)', 'Office/Commercial'];
+
+/* Primary ZIP codes for each city in the CITIES list */
+const CITY_ZIPS = {
+  "New York": "10001", "Los Angeles": "90001", "Chicago": "60601", "Houston": "77001",
+  "Phoenix": "85001", "Philadelphia": "19101", "San Antonio": "78201", "San Diego": "92101",
+  "Dallas": "75201", "San Jose": "95101", "Austin": "78701", "Jacksonville": "32099",
+  "Fort Worth": "76101", "Columbus": "43085", "Charlotte": "28201", "Indianapolis": "46201",
+  "San Francisco": "94102", "Seattle": "98101", "Denver": "80201", "Nashville": "37201",
+  "Oklahoma City": "73101", "El Paso": "79901", "Washington DC": "20001", "Las Vegas": "89101",
+  "Louisville": "40201", "Memphis": "38101", "Portland": "97201", "Baltimore": "21201",
+  "Milwaukee": "53201", "Albuquerque": "87101", "Tucson": "85701", "Fresno": "93701",
+  "Sacramento": "94203", "Mesa": "85201", "Kansas City": "64101", "Atlanta": "30301",
+  "Omaha": "68101", "Colorado Springs": "80901", "Raleigh": "27601", "Miami": "33101",
+  "Long Beach": "90801", "Virginia Beach": "23450", "Minneapolis": "55401", "Tampa": "33601",
+  "New Orleans": "70112", "Arlington": "76001", "Bakersfield": "93301", "Honolulu": "96801",
+  "Anaheim": "92801", "Aurora": "80010", "Santa Ana": "92701", "Corpus Christi": "78401",
+  "Riverside": "92501", "Lexington": "40502", "St. Louis": "63101", "Pittsburgh": "15201",
+  "Stockton": "95201", "Anchorage": "99501", "Cincinnati": "45201", "St. Paul": "55101",
+  "Greensboro": "27401", "Toledo": "43601", "Newark": "07101", "Plano": "75023",
+  "Henderson": "89002", "Orlando": "32801", "Lincoln": "68501", "Jersey City": "07302",
+  "Chandler": "85224", "St. Petersburg": "33701", "Laredo": "78040", "Norfolk": "23501",
+  "Madison": "53701", "Durham": "27701", "Lubbock": "79401", "Winston-Salem": "27101",
+  "Garland": "75040", "Glendale": "85301", "Hialeah": "33010", "Reno": "89501",
+  "Baton Rouge": "70801", "Irvine": "92602", "Chesapeake": "23320", "Irving": "75061",
+  "Scottsdale": "85250", "North Las Vegas": "89030", "Fremont": "94536", "Gilbert": "85233",
+  "San Bernardino": "92401", "Birmingham": "35201", "Rochester": "14601", "Richmond": "23219",
+  "Spokane": "99201", "Des Moines": "50301", "Montgomery": "36101", "Modesto": "95351",
+  "Fayetteville": "28301", "Tacoma": "98401", "Shreveport": "71101", "Fontana": "92335",
+  "Moreno Valley": "92551", "Akron": "44301", "Yonkers": "10701", "Augusta": "30901",
+  "Little Rock": "72201", "Amarillo": "79101", "Grand Rapids": "49501", "Oxnard": "93030",
+  "Salt Lake City": "84101", "Tallahassee": "32301", "Huntsville": "35801", "Worcester": "01601",
+  "Knoxville": "37901", "Providence": "02901", "Brownsville": "78520", "Santa Clarita": "91350",
+  "Garden Grove": "92840", "Oceanside": "92054", "Fort Lauderdale": "33301", "Chattanooga": "37401",
+  "Tempe": "85281", "Cape Coral": "33904", "Eugene": "97401", "Peoria": "61602",
+  "Cary": "27511", "Springfield": "62701", "Fort Wayne": "46801", "Elk Grove": "95624",
+  "Rockford": "61101", "Corona": "92879", "Hayward": "94541", "Clarksville": "37040",
+  "Paterson": "07501", "Lancaster": "17601", "Salinas": "93901", "Palmdale": "93550",
+  "Sunnyvale": "94085", "Pomona": "91766", "Escondido": "92025", "Surprise": "85374",
+  "Pasadena": "91101", "Torrance": "90501", "Orange": "92856", "Fullerton": "92831",
+  "Killeen": "76541", "McAllen": "78501", "Dayton": "45401", "Cedar Rapids": "52401",
+  "Macon": "31201", "Hampton": "23661", "Hartford": "06101", "Savannah": "31401",
+  "Syracuse": "13201", "Bridgeport": "06601", "Warren": "48089", "Sterling Heights": "48310",
+  "Roseville": "95678", "New Haven": "06501", "Olathe": "66061", "Mesquite": "75149",
+  "Sioux Falls": "57101", "Lakewood": "80214", "Thornton": "80229", "Frisco": "75034",
+  "Waco": "76701", "Jackson": "39201", "Bellevue": "98004", "Alexandria": "22301",
+  "Gainesville": "32601", "Concord": "94519", "Elizabeth": "07201", "Topeka": "66601",
+  "Simi Valley": "93065", "Columbia": "29201", "Stamford": "06901", "Victorville": "92392",
+  "Carrollton": "75006", "Thousand Oaks": "91360", "Abilene": "79601", "Vallejo": "94590",
+  "Beaumont": "77701", "Round Rock": "78664", "West Valley City": "84119", "Costa Mesa": "92626",
+  "Norman": "73069", "Wichita": "67201", "Midland": "79701", "Provo": "84601",
+  "Clearwater": "33755", "Murfreesboro": "37130", "Arvada": "80001", "Independence": "64050",
+  "Ann Arbor": "48103", "Lansing": "48901", "El Monte": "91731", "Inglewood": "90301",
+  "Downey": "90241", "Fairfield": "94533", "Manchester": "03101", "Wilmington": "28401",
+  "Clovis": "93611", "Lowell": "01851", "West Jordan": "84084", "Elgin": "60120", "Joliet": "60431"
+};
 
 /* ── Custom city autocomplete with auto ZIP lookup ── */
 function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
@@ -33,16 +87,13 @@ function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
     onChange(city);
     setOpen(false);
 
-    // Auto-find primary ZIP for this city
+    // Auto-fill ZIP from lookup map
     if (onZipFound) {
-      try {
-        const results = zipcodes.lookupByName(city);
-        if (results && results.length > 0) {
-          const zip = results[0].zip;
-          setAutoZip(zip);
-          onZipFound(zip);
-        }
-      } catch (_) {}
+      const zip = CITY_ZIPS[city];
+      if (zip) {
+        setAutoZip(zip);
+        onZipFound(zip);
+      }
     }
   };
 
