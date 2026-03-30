@@ -507,10 +507,10 @@ function Sidebar({ data }) {
       <div className="gq-trust-card">
         <div className="gq-trust-card-title">Why MoveLeads</div>
         {[
-          { icon: <CheckCircle size={15} />, bg: '#f0fdf4', c: '#16a34a', title: 'Licensed carriers only', sub: 'Every mover is FMCSA-licensed. No unlicensed brokers, ever.' },
-          { icon: <Shield size={15} />, bg: 'var(--blue-l)', c: 'var(--blue)', title: 'Phone-verified movers', sub: 'All movers on our network pass ID and license verification.' },
-          { icon: <Star size={15} />, bg: '#fff7ed', c: 'var(--orange)', title: 'One matched mover', sub: 'We match you to one mover — not a flood of strangers calling.' },
-          { icon: <Clock size={15} />, bg: '#f5f3ff', c: '#7c3aed', title: 'Fast response', sub: 'Most customers receive a call within 15–30 minutes.' },
+          { icon: <CheckCircle size={15} />, bg: '#ecfdf5', c: '#10b981', title: 'Licensed carriers only', sub: 'Every mover is FMCSA-licensed. No unlicensed brokers, ever.' },
+          { icon: <Shield size={15} />, bg: '#eff6ff', c: '#3b82f6', title: 'Phone-verified movers', sub: 'All movers on our network pass ID and license verification.' },
+          { icon: <Star size={15} />, bg: '#fff7ed', c: '#f59e0b', title: 'One matched mover', sub: 'We match you to one mover — not a flood of strangers calling.' },
+          { icon: <Clock size={15} />, bg: '#f5f3ff', c: '#8b5cf6', title: 'Fast response', sub: 'Most customers receive a call within 15–30 minutes.' },
         ].map((t, i) => (
           <div key={i} className="gq-trust-item">
             <div className="gq-trust-item-icon" style={{ background: t.bg, color: t.c }}>{t.icon}</div>
@@ -568,14 +568,14 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         <div className="gq-hero-eyebrow">
           <Shield size={12} /> FMCSA Licensed · Phone-Verified Movers
         </div>
-        <h1>{heroTitle || <>We Match You With the Best <em>Mover</em> for Your Route</>}</h1>
+        <h1>{heroTitle || <>We Match You With the Best{' '}<em>Mover</em> for Your Route</>}</h1>
         <p className="gq-hero-sub">{heroSub || "Tell us about your move and we'll match you with a verified licensed mover — at the best price available."}</p>
         <div className="gq-trust-row">
           {[
-            { icon: <CheckCircle size={14} />, text: 'Licensed Movers Only — No Brokers' },
-            { icon: <Shield size={14} />, text: 'Phone-verified network' },
-            { icon: <Star size={14} />, text: 'One match, not five strangers' },
-            { icon: <Clock size={14} />, text: '15-min avg response' },
+            { icon: <CheckCircle size={13} />, text: 'Licensed movers only — no brokers' },
+            { icon: <Shield size={13} />, text: 'Phone-verified network' },
+            { icon: <Star size={13} />, text: 'One match, not five strangers' },
+            { icon: <Clock size={13} />, text: '15-min avg response' },
           ].map((b, i) => <div key={i} className="gq-trust-chip">{b.icon} {b.text}</div>)}
         </div>
       </div>
@@ -590,7 +590,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       <section className="gq-how-section">
         <div className="gq-how-inner">
           <div className="gq-section-eyebrow">HOW IT WORKS</div>
-          <div className="gq-section-h2">Three steps to your matched mover</div>
+          <h2 className="gq-section-h2">Three steps to your matched mover</h2>
           <p className="gq-section-sub">No browsing endless listings. No callbacks from strangers. Just one verified mover for your route.</p>
           <div className="gq-how-grid">
             {[
@@ -612,24 +612,24 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       <section className="gq-why-section">
         <div className="gq-why-inner">
           <div className="gq-section-eyebrow">WHY MOVELEADS</div>
-          <div className="gq-section-h2">Not another quote site</div>
+          <h2 className="gq-section-h2">Not another quote site</h2>
           <p className="gq-section-sub">Other sites sell your number to 8 strangers who all call at once. We do it differently.</p>
           <div className="gq-why-grid">
             {[
-              { emoji:'🔒', title:'Your info is never sold', body:'We never sell or share your contact details with anyone outside our verified mover network.' },
-              { emoji:'✅', title:'Phone-verified movers only', body:'Every mover on our platform is phone-verified and licensed. No fake numbers, no brokers.' },
-              { emoji:'⚡', title:'15-minute response time', body:'Verified movers in your area are notified instantly. Most respond within 15 minutes.' },
-              { emoji:'🛡️', title:'Resolution Center included', body:"Had an issue with your move? Resolve it privately before it hits public review sites." },
+              { icon: <Shield size={22} />, bg:'#eff6ff', c:'#3b82f6', title:'Your info is never sold', body:'We never sell or share your contact details with anyone outside our verified mover network.' },
+              { icon: <CheckCircle size={22} />, bg:'#ecfdf5', c:'#10b981', title:'Phone-verified movers only', body:'Every mover on our platform is phone-verified and licensed. No fake numbers, no brokers.' },
+              { icon: <Clock size={22} />, bg:'#fff7ed', c:'#f59e0b', title:'15-minute response time', body:'Verified movers in your area are notified instantly. Most respond within 15 minutes.' },
+              { icon: <Star size={22} />, bg:'#f5f3ff', c:'#8b5cf6', title:'Resolution Center included', body:"Had an issue with your move? Resolve it privately before it hits public review sites." },
             ].map((c,i) => (
               <div key={i} className="gq-why-card">
-                <div className="gq-why-emoji">{c.emoji}</div>
+                <div className="gq-why-emoji" style={{ width:48, height:48, borderRadius:14, background:c.bg, color:c.c, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'unset', marginBottom:16 }}>{c.icon}</div>
                 <div className="gq-why-card-title">{c.title}</div>
                 <div className="gq-why-card-body">{c.body}</div>
               </div>
             ))}
           </div>
 
-          <table className="gq-compare-table" style={{ marginTop: 40 }}>
+          <table className="gq-compare-table" style={{ marginTop: 48 }}>
             <thead>
               <tr>
                 <th></th>
@@ -647,7 +647,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
                 ['Cost to get a quote',      'Free',           'Free'],
               ].map(([feat, us, them], i) => (
                 <tr key={i}>
-                  <td style={{ fontWeight: 500, color: 'var(--text)', fontSize: 14 }}>{feat}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-m)', fontSize: 14 }}>{feat}</td>
                   <td className="gq-col-us">{us}</td>
                   <td className="gq-col-them">{them}</td>
                 </tr>
@@ -661,15 +661,15 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       <section className="gq-test-section">
         <div className="gq-test-inner">
           <div className="gq-section-eyebrow">REVIEWS</div>
-          <div className="gq-section-h2" style={{ marginBottom: 28 }}>Families matched, moves completed</div>
+          <h2 className="gq-section-h2" style={{ marginBottom: 32 }}>Families matched, moves completed</h2>
           <div className="gq-test-grid">
             {[
-              { route: 'Dallas → Austin, TX',    q: '"Got matched with a great mover in 10 minutes. Saved $400 on my Dallas move. So much better than getting bombarded by calls."', name:'Sarah M.', loc:'Dallas, TX → Austin, TX' },
-              { route: 'Chicago → Miami, FL',    q: '"One form, one call, done. No spam from 10 different companies. The mover showed up on time and handled everything professionally."', name:'James T.', loc:'Chicago, IL → Miami, FL' },
-              { route: 'Miami → New York, NY',   q: '"Finally a moving site that doesn\'t sell your number to everyone. Got exactly 2 calls from verified movers. Booked the same day."', name:'Maria L.', loc:'Miami, FL → New York, NY' },
+              { stars: 5, q: '"Got matched with a great mover in 10 minutes. Saved $400 on my Dallas move. So much better than getting bombarded by calls."', name:'Sarah M.', loc:'Dallas, TX → Austin, TX' },
+              { stars: 5, q: '"One form, one call, done. No spam from 10 different companies. The mover showed up on time and handled everything professionally."', name:'James T.', loc:'Chicago, IL → Miami, FL' },
+              { stars: 5, q: '"Finally a moving site that doesn\'t sell your number to everyone. Got exactly 2 calls from verified movers. Booked the same day."', name:'Maria L.', loc:'Miami, FL → New York, NY' },
             ].map((t, i) => (
               <div key={i} className="gq-test-card">
-                <div className="gq-test-stars">★★★★★</div>
+                <div className="gq-test-stars">{'★'.repeat(t.stars)}</div>
                 <p className="gq-test-quote">{t.q}</p>
                 <div className="gq-test-footer">
                   <div className="gq-test-avatar">{t.name.split(' ').map(x=>x[0]).join('')}</div>
@@ -685,7 +685,8 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       <section className="gq-faq-section">
         <div className="gq-faq-inner">
           <div className="gq-section-eyebrow">FAQ</div>
-          <div className="gq-section-h2">Common questions</div>
+          <h2 className="gq-section-h2">Common questions</h2>
+          <p className="gq-section-sub">Everything you need to know before submitting your free quote request.</p>
           <div className="gq-faq-list">
             {FAQ_ITEMS.map((item, i) => (
               <div key={i} className={`gq-faq-item${faqOpen === i ? ' gq-faq-item--open' : ''}`}>
@@ -707,7 +708,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
           <h2 className="gq-cta-h2">Your mover is one form away</h2>
           <p className="gq-cta-sub">Free. Takes 60 seconds. No spam, ever.</p>
           <button className="gq-cta-btn" onClick={() => document.getElementById('quote-widget')?.scrollIntoView({ behavior: 'smooth' })}>
-            Get My Free Quote →
+            Get My Free Quote <ArrowRight size={18} />
           </button>
           <div className="gq-cta-trust">
             <span>✓ Licensed movers only</span>
