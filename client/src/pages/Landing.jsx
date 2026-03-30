@@ -77,7 +77,7 @@ export default function Landing() {
             <span style={{ color: scrolled ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontWeight: 600 }}>.cloud</span>
           </div>
           <div style={{ display: 'flex', gap: 2 }} className="lp-links">
-            {['Features', 'Pricing', 'How It Works'].map(t => (
+            {['Features', 'How It Works'].map(t => (
               <a key={t} href={`#${t.toLowerCase().replace(/ /g, '-')}`} style={{
                 color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)',
                 fontSize: 14, fontWeight: 500, textDecoration: 'none',
@@ -87,6 +87,14 @@ export default function Landing() {
                 onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
               >{t}</a>
             ))}
+            <Link to="/pricing" style={{
+              color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)',
+              fontSize: 14, fontWeight: 500, textDecoration: 'none',
+              padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = scrolled ? NAVY : '#fff'; e.currentTarget.style.background = scrolled ? '#f1f5f9' : 'rgba(255,255,255,0.07)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
+            >Pricing</Link>
             <Link to="/for-movers" style={{
               color: scrolled ? '#ea580c' : '#fb923c',
               fontSize: 14, fontWeight: 700, textDecoration: 'none',
@@ -772,69 +780,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PRICING */}
-      <section id="pricing" style={{ padding: '100px 0', background: '#f8fafc', borderTop: `1px solid ${BL}` }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <Reveal>
-            <div style={{ textAlign: 'center', marginBottom: 60 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 100, background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.14)', marginBottom: 16 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 1.8 }}>Pricing</span>
-              </div>
-              <h2 style={{ fontFamily: F, fontSize: 42, fontWeight: 800, letterSpacing: '-0.03em', color: NAVY, marginBottom: 10 }}>Simple, transparent pricing</h2>
-              <p style={{ fontSize: 16, color: '#64748b', maxWidth: 400, margin: '0 auto' }}>No hidden fees. No long-term contracts. Cancel any time.</p>
-            </div>
-          </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 22, maxWidth: 940, margin: '0 auto', alignItems: 'start' }}>
-            {[
-              { name: 'Pay Per Lead', price: '$10', unit: '/lead', desc: 'Perfect for getting started', features: ['Verified & phone-checked leads', 'Real-time dashboard delivery', 'City & state filters', 'Email support'], featured: false, cta: 'Start buying leads' },
-              { name: 'Pro Bundle', price: '$199', unit: '/25 leads', desc: 'Best value — save 20%', features: ['Everything in Pay Per Lead', 'Priority lead access', 'Advanced location filters', 'Phone & chat support', 'CSV export', 'Dedicated account manager'], featured: true, cta: 'Get Pro Bundle' },
-              { name: 'Enterprise', price: 'Custom', unit: '', desc: 'For high-volume operations', features: ['Everything in Pro', 'Unlimited leads', 'API access', 'CRM integration', 'Custom territory', 'SLA guarantee'], featured: false, cta: 'Contact sales' },
-            ].map((plan, i) => (
-              <Reveal key={i} delay={i * 0.07}>
-                <div style={{
-                  background: plan.featured ? NAVY : '#fff',
-                  borderRadius: 20, padding: plan.featured ? '42px 30px' : '34px 26px',
-                  border: plan.featured ? 'none' : `1px solid ${BL}`,
-                  boxShadow: plan.featured ? '0 24px 56px rgba(11,22,40,0.26)' : '0 1px 3px rgba(0,0,0,0.04)',
-                  position: 'relative', overflow: 'hidden',
-                  transform: plan.featured ? 'scale(1.04)' : 'none',
-                }}>
-                  {plan.featured && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${ORANGE},#fb923c)` }} />}
-                  {plan.featured && <div style={{ position: 'absolute', top: 14, right: 14, background: ORANGE, color: '#fff', padding: '3px 12px', borderRadius: 100, fontSize: 10, fontWeight: 700 }}>Most popular</div>}
-                  <h3 style={{ fontFamily: F, fontSize: 16, fontWeight: 700, color: plan.featured ? '#fff' : NAVY, marginBottom: 5 }}>{plan.name}</h3>
-                  <p style={{ fontSize: 13, color: plan.featured ? 'rgba(255,255,255,0.4)' : '#94a3b8', marginBottom: 20 }}>{plan.desc}</p>
-                  <div style={{ marginBottom: 26 }}>
-                    <span style={{ fontSize: 44, fontWeight: 800, color: plan.featured ? '#fff' : NAVY, fontFamily: F, letterSpacing: '-0.03em' }}>{plan.price}</span>
-                    <span style={{ fontSize: 14, color: plan.featured ? 'rgba(255,255,255,0.38)' : '#94a3b8', marginLeft: 4 }}>{plan.unit}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 28, paddingBottom: 26, borderBottom: `1px solid ${plan.featured ? 'rgba(255,255,255,0.07)' : BL}` }}>
-                    {plan.features.map((f, j) => (
-                      <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <div style={{ width: 17, height: 17, borderRadius: '50%', background: plan.featured ? 'rgba(34,197,94,0.18)' : '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <CheckCircle size={11} color="#22c55e" />
-                        </div>
-                        <span style={{ fontSize: 13, color: plan.featured ? 'rgba(255,255,255,0.68)' : '#475569' }}>{f}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <Link to="/register" style={{
-                    display: 'block', textAlign: 'center', padding: '12px 18px', borderRadius: 11,
-                    fontSize: 13, fontWeight: 700, textDecoration: 'none',
-                    background: plan.featured ? ORANGE : 'transparent',
-                    color: plan.featured ? '#fff' : NAVY,
-                    border: plan.featured ? 'none' : `2px solid ${BL}`,
-                    boxShadow: plan.featured ? '0 4px 14px rgba(249,115,22,0.32)' : 'none',
-                    transition: 'all 0.18s',
-                  }}
-                    onMouseEnter={e => { if (!plan.featured) { e.currentTarget.style.borderColor = ORANGE; e.currentTarget.style.color = ORANGE; } else { e.currentTarget.style.background = '#ea6c0a'; } }}
-                    onMouseLeave={e => { if (!plan.featured) { e.currentTarget.style.borderColor = BL; e.currentTarget.style.color = NAVY; } else { e.currentTarget.style.background = ORANGE; } }}
-                  >{plan.cta}</Link>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* FAQ */}
       <section style={{ padding: '100px 0', background: '#fff', borderTop: `1px solid ${BL}` }}>
