@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useNavigate, Link, useSearchParams, useParams } from 'react-router-dom';
 import {
-  ArrowRight, ArrowLeft, Home, MapPin, User, CheckCircle,
-  Truck, Calendar, Phone, Shield, Clock, ChevronRight
+  CheckCircle, ArrowRight, ArrowLeft, Home, MapPin, Calendar,
+  User, Phone, Mail, Shield, Star, Truck, Clock, ChevronRight,
+  Building, ParkingCircle, Package
 } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -16,11 +14,34 @@ import './GetQuote.css';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+/* ── Constants ─────────────────────────────────────────────── */
+const HOME_SIZES = [
+  { label: 'Studio',     vol: '≤ 350 CF',  rooms: 1 },
+  { label: '1 Bedroom',  vol: '≤ 700 CF',  rooms: 2 },
+  { label: '2 Bedroom',  vol: '≤ 1,100 CF', rooms: 3 },
+  { label: '3 Bedroom',  vol: '≤ 1,600 CF', rooms: 4 },
+  { label: '4 Bedroom',  vol: '≤ 2,000 CF', rooms: 5 },
+  { label: '5+ Bedroom', vol: '2,000+ CF', rooms: 6 },
+];
+const ACCESS_OPTIONS = ['Ground Floor', 'Elevator', '2nd Floor', '3rd+ Floor', 'No Stairs'];
+const PARKING_OPTIONS = ['Yes – Easy', 'Long Carry', 'Shuttle Required'];
+const DEMAND_COLORS = {
+  low:  { bg: '#dcfce7', fg: '#166534' },
+  med:  { bg: '#fef9c3', fg: '#854d0e' },
+  high: { bg: '#fee2e2', fg: '#991b1b' },
+};
+
+const STEPS = [
+  { id: 1, label: 'Home Size' },
+  { id: 2, label: 'Locations' },
+  { id: 3, label: 'Move Date' },
+  { id: 4, label: 'Details'   },
+  { id: 5, label: 'Contact'   },
+];
+
+/* ── Helpers ────────────────────────────────────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
-  const R = 3959;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const R = 3959, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
@@ -30,347 +51,419 @@ function geocodeZip(zip) {
   return r ? { lat: r.latitude, lon: r.longitude, city: r.city, state: r.state } : null;
 }
 
-// ── Mapbox Arc Map ─────────────────────────────────────────────────────────
+function demandLevel(date) {
+  const mo = date.getMonth() + 1, day = date.getDate(), dow = date.getDay();
+  if ([5,6,7,8].includes(mo) && (day >= 28 || dow === 0 || dow === 6)) return 'high';
+  if ([5,6,7,8].includes(mo) || dow === 0 || dow === 6) return 'med';
+  return 'low';
+}
+
+/* ── Mapbox Arc ─────────────────────────────────────────────── */
 function MapArc({ origin, destination }) {
-  const containerRef = useRef(null);
+  const ref = useRef(null);
   const mapRef = useRef(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!origin || !destination || !containerRef.current) return;
+    if (!origin || !destination || !ref.current) return;
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 6000);
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [-98.5795, 39.8283],
-      zoom: 2.5,
-      interactive: false,
-      attributionControl: false,
-    });
+    const t = setTimeout(() => setLoading(false), 5000);
+    const map = new mapboxgl.Map({ container: ref.current, style: 'mapbox://styles/mapbox/light-v11', center: [-98.58, 39.83], zoom: 2.5, interactive: false, attributionControl: false });
     mapRef.current = map;
-    map.on('error', () => { setLoading(false); clearTimeout(timer); });
+    map.on('error', () => { setLoading(false); clearTimeout(t); });
     map.on('load', () => {
-      const arcSource = greatCircle(point([origin.lon, origin.lat]), point([destination.lon, destination.lat]), { npoints: 100 });
-      const fullCoords = arcSource.geometry.coordinates;
-      setLoading(false); clearTimeout(timer);
-
-      map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } });
-      map.addLayer({ id: 'route-main', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ea580c', 'line-width': 4.5, 'line-opacity': 1 } });
-
-      const bds = fullCoords.reduce((b, c) => b.extend(c), new mapboxgl.LngLatBounds(fullCoords[0], fullCoords[0]));
-      map.fitBounds(bds, { padding: 60, duration: 2500, pitch: 20, essential: true });
-
-      const mkEl = (color) => {
-        const el = document.createElement('div');
-        el.style.cssText = `width:14px;height:14px;background:#fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.2);border:3px solid ${color};`;
-        return el;
-      };
-      new mapboxgl.Marker({ element: mkEl('#3b82f6') }).setLngLat([origin.lon, origin.lat]).addTo(map);
-      new mapboxgl.Marker({ element: mkEl('#10b981') }).setLngLat([destination.lon, destination.lat]).addTo(map);
-
+      const arc = greatCircle(point([origin.lon, origin.lat]), point([destination.lon, destination.lat]), { npoints: 100 });
+      const coords = arc.geometry.coordinates;
+      setLoading(false); clearTimeout(t);
+      map.addSource('r', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } });
+      map.addLayer({ id: 'rl', type: 'line', source: 'r', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 4 } });
+      const bds = coords.reduce((b, c) => b.extend(c), new mapboxgl.LngLatBounds(coords[0], coords[0]));
+      map.fitBounds(bds, { padding: 50, duration: 2500, essential: true });
+      const mkEl = c => { const el = document.createElement('div'); el.style.cssText = `width:13px;height:13px;background:#fff;border-radius:50%;border:3px solid ${c};box-shadow:0 2px 8px rgba(0,0,0,0.18);`; return el; };
+      new mapboxgl.Marker({ element: mkEl('#2d5a9e') }).setLngLat([origin.lon, origin.lat]).addTo(map);
+      new mapboxgl.Marker({ element: mkEl('#16a34a') }).setLngLat([destination.lon, destination.lat]).addTo(map);
       let step = 0;
-      const animate = () => {
-        if (!mapRef.current) return;
-        if (step < fullCoords.length) {
-          step += 1.5;
-          map.getSource('route').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: fullCoords.slice(0, Math.min(Math.floor(step), fullCoords.length)) } });
-          requestAnimationFrame(animate);
-        }
-      };
-      requestAnimationFrame(animate);
+      const anim = () => { if (!mapRef.current || step >= coords.length) return; step += 1.5; map.getSource('r').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords.slice(0, Math.min(Math.floor(step), coords.length)) } }); requestAnimationFrame(anim); };
+      requestAnimationFrame(anim);
     });
-    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } clearTimeout(timer); };
+    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } clearTimeout(t); };
   }, [origin?.lat, origin?.lon, destination?.lat, destination?.lon]); // eslint-disable-line
 
   return (
-    <div style={{ position: 'relative', height: 220, borderRadius: 16, overflow: 'hidden', marginBottom: 16, border: '1px solid #e2e8f0' }}>
-      <div ref={containerRef} style={{ height: '100%' }} />
-      {loading && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,250,252,0.85)' }}>
-          <span style={{ fontSize: 12, color: '#64748b' }}>Loading map…</span>
-        </div>
-      )}
+    <div className="gq-map-container">
+      <div ref={ref} style={{ height: '100%' }} />
+      {loading && <div className="gq-map-loading">Loading route map…</div>}
     </div>
   );
 }
 
-// ── Schemas ────────────────────────────────────────────────────────────────
-const step1Schema = z.object({
-  homeSize: z.enum(['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4+ Bedroom'], {
-    errorMap: () => ({ message: 'Please select your home size' })
-  }),
-  moveDate: z
-    .string({ required_error: 'Move date is required' })
-    .min(1, 'Move date is required')
-    .refine(d => new Date(d) > new Date(), { message: 'Move date must be in the future' })
-});
-const step2Schema = z.object({});
-const step3Schema = z.object({
-  customerName: z.string().min(2, 'Name must be at least 2 characters'),
-  customerEmail: z.string().email('Must be a valid email address'),
-  customerPhone: z
-    .string()
-    .transform(v => v.replace(/\D/g, ''))
-    .pipe(z.string().length(10, 'Must be a 10-digit phone number'))
-});
+/* ── Smart Calendar ─────────────────────────────────────────── */
+function SmartCalendar({ value, onChange }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const [vm, setVm] = useState({ y: today.getFullYear(), m: today.getMonth() });
+  const sel = value ? new Date(value + 'T00:00:00') : null;
+  const firstDay = new Date(vm.y, vm.m, 1).getDay();
+  const daysInMonth = new Date(vm.y, vm.m + 1, 0).getDate();
+  const monthLabel = new Date(vm.y, vm.m, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  const nav = d => setVm(p => { let m = p.m + d, y = p.y; if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; } return { y, m }; });
 
-const STEPS = [
-  { id: 1, label: 'Move Details', icon: Home },
-  { id: 2, label: 'Locations',   icon: MapPin },
-  { id: 3, label: 'Your Info',   icon: User }
-];
-const HOME_SIZES = ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4+ Bedroom'];
-const SCHEMA_MAP = { 1: step1Schema, 2: step2Schema, 3: step3Schema };
+  return (
+    <div className="gq-cal">
+      <div className="gq-cal-head">
+        <button type="button" className="gq-cal-nav" onClick={() => nav(-1)}>‹</button>
+        <span className="gq-cal-month">{monthLabel}</span>
+        <button type="button" className="gq-cal-nav" onClick={() => nav(1)}>›</button>
+      </div>
+      <div className="gq-cal-grid">
+        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <div key={d} className="gq-cal-day-label">{d}</div>)}
+        {cells.map((day, i) => {
+          if (!day) return <div key={`e${i}`} />;
+          const date = new Date(vm.y, vm.m, day);
+          const past = date <= today;
+          const isSel = sel && date.toDateString() === sel.toDateString();
+          const isToday = date.toDateString() === today.toDateString();
+          const dem = demandLevel(date);
+          const { bg, fg } = DEMAND_COLORS[dem];
+          const str = `${vm.y}-${String(vm.m + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          return (
+            <button key={day} type="button" disabled={past} onClick={() => !past && onChange(str)}
+              className={`gq-cal-day${isSel ? ' gq-cal-day--selected' : ''}${isToday ? ' gq-cal-day--today' : ''}${!past && dem !== 'low' ? ' gq-cal-day--peak' : ''}`}
+              style={!past && !isSel ? { background: bg, color: fg } : undefined}>
+              {day}
+            </button>
+          );
+        })}
+      </div>
+      <div className="gq-demand-legend">
+        {[['low','#dcfce7','#166534','Best rate'],['med','#fef9c3','#854d0e','Peak season'],['high','#fee2e2','#991b1b','High demand']].map(([,bg,fg,l]) => (
+          <div key={l} className="gq-demand-dot"><span style={{ background: bg, border: `1px solid ${fg}50` }} />{l}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-// ── Quote Form ─────────────────────────────────────────────────────────────
+/* ── Step Pills ─────────────────────────────────────────────── */
+function StepPills({ current }) {
+  return (
+    <div className="gq-step-pills">
+      {STEPS.map((s, i) => {
+        const state = s.id < current ? 'done' : s.id === current ? 'active' : 'idle';
+        return (
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
+            <div className={`gq-step-pill gq-step-pill--${state}`}>
+              <div className="gq-step-pill-num">
+                {s.id < current ? <CheckCircle size={12} /> : s.id}
+              </div>
+              <span className="gq-step-pill-label">{s.label}</span>
+            </div>
+            {i < STEPS.length - 1 && <div className={`gq-step-connector${s.id < current ? ' gq-step-connector--done' : ''}`} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Live Summary Sidebar ───────────────────────────────────── */
+function SummaryCard({ data }) {
+  const isLong = (data.miles || 0) > 100;
+  const rows = [
+    {
+      icon: <Package size={16} />, iconBg: '#eff6ff', iconColor: '#2563eb',
+      label: 'Home Size', value: data.homeSize || null
+    },
+    {
+      icon: <MapPin size={16} />, iconBg: '#f0fdf4', iconColor: '#16a34a',
+      label: 'Route',
+      value: data.originCity && data.destCity
+        ? `${data.originCity} → ${data.destCity}`
+        : data.originCity ? `From ${data.originCity}` : null,
+      sub: data.miles ? `${data.miles.toLocaleString()} mi · ${isLong ? 'Long Distance' : 'Local'}` : null
+    },
+    {
+      icon: <Calendar size={16} />, iconBg: '#fff7ed', iconColor: '#f97316',
+      label: 'Move Date',
+      value: data.moveDate ? new Date(data.moveDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : null
+    },
+    {
+      icon: <Building size={16} />, iconBg: '#f5f3ff', iconColor: '#7c3aed',
+      label: 'Access / Parking',
+      value: data.access && data.parking ? `${data.access} · ${data.parking}` : null
+    },
+  ];
+
+  return (
+    <div className="gq-summary-card">
+      <div className="gq-summary-header">
+        <div className="gq-summary-header-icon"><Truck size={16} /></div>
+        <div>
+          <div className="gq-summary-title">Your Move Summary</div>
+          <div className="gq-summary-sub">Updates as you fill in details</div>
+        </div>
+      </div>
+      <div className="gq-summary-body">
+        {rows.map((r, i) => (
+          <div key={i} className="gq-summary-row">
+            <div className="gq-summary-icon" style={{ background: r.iconBg, color: r.iconColor }}>{r.icon}</div>
+            <div>
+              <div className="gq-summary-label">{r.label}</div>
+              {r.value
+                ? <><div className="gq-summary-value">{r.value}</div>{r.sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.sub}</div>}</>
+                : <div className="gq-summary-value--empty">Not yet filled</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Quote Form ─────────────────────────────────────────── */
 function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
 
-  // Step 2: zip state (no Google Maps)
-  const [originZip, setOriginZip] = useState(prefillOriginZip);
-  const [destZip, setDestZip]     = useState(prefillDestZip);
-  const [originCoords, setOriginCoords] = useState(null);
-  const [destCoords, setDestCoords]     = useState(null);
-  const [zipError, setZipError] = useState('');
-  const [miles, setMiles] = useState(0);
-
-  const _base = (import.meta.env.VITE_API_URL || 'http://localhost:5005').replace(/\/api$/, '');
-
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
-    resolver: zodResolver(SCHEMA_MAP[step]),
-    mode: 'onChange',
-    defaultValues: formData
+  // Collected data object
+  const [data, setData] = useState({
+    homeSize: '', originZip: prefillOriginZip, destZip: prefillDestZip,
+    originCity: '', destCity: '', originCoords: null, destCoords: null, miles: 0,
+    moveDate: '', access: '', parking: '', specialInstructions: '',
+    name: '', email: '', phone: '',
   });
 
-  const homeSize = watch('homeSize');
-
-  // Auto-resolve zips as user types
+  // Zip resolution
+  const [zipError, setZipError] = useState('');
   useEffect(() => {
+    const { originZip, destZip } = data;
     if (originZip.length === 5 && destZip.length === 5) {
-      const oc = geocodeZip(originZip);
-      const dc = geocodeZip(destZip);
-      if (!oc) { setZipError(`Couldn't find zip "${originZip}". Please check it.`); setOriginCoords(null); setDestCoords(null); return; }
-      if (!dc) { setZipError(`Couldn't find zip "${destZip}". Please check it.`); setDestCoords(null); return; }
+      const oc = geocodeZip(originZip), dc = geocodeZip(destZip);
+      if (!oc) { setZipError(`Invalid origin zip "${originZip}"`); setData(p => ({ ...p, originCoords: null })); return; }
+      if (!dc) { setZipError(`Invalid destination zip "${destZip}"`); setData(p => ({ ...p, destCoords: null })); return; }
       setZipError('');
-      setOriginCoords(oc); setDestCoords(dc);
-      setMiles(haversine(oc.lat, oc.lon, dc.lat, dc.lon));
+      const mi = haversine(oc.lat, oc.lon, dc.lat, dc.lon);
+      setData(p => ({ ...p, originCoords: oc, destCoords: dc, originCity: oc.city, destCity: dc.city, miles: mi }));
     } else {
-      setOriginCoords(null); setDestCoords(null); setMiles(0); setZipError('');
+      setData(p => ({ ...p, originCoords: null, destCoords: null, originCity: '', destCity: '', miles: 0 }));
+      setZipError('');
     }
-  }, [originZip, destZip]);
+  }, [data.originZip, data.destZip]); // eslint-disable-line
 
-  const onStepSubmit = (data) => {
-    if (step === 2) {
-      if (!originCoords || !destCoords) {
-        setZipError('Please enter valid 5-digit zip codes for both locations.');
-        return;
-      }
-      setFormData(prev => ({
-        ...prev,
-        originZip, destinationZip: destZip,
-        originCity: originCoords.city, destinationCity: destCoords.city,
-        miles
-      }));
-      setStep(3);
-      return;
-    }
-    const merged = { ...formData, ...data };
-    setFormData(merged);
-    if (step < 3) { setStep(step + 1); } else { submitLead(merged); }
+  const set = (key, val) => setData(p => ({ ...p, [key]: val }));
+
+  const canNext = () => {
+    if (step === 1) return !!data.homeSize;
+    if (step === 2) return !!(data.originCoords && data.destCoords);
+    if (step === 3) return !!data.moveDate;
+    if (step === 4) return !!(data.access && data.parking);
+    if (step === 5) return !!(data.name && data.email && data.phone && data.phone.replace(/\D/g,'').length === 10);
+    return false;
   };
 
-  const handleContinue = step === 2
-    ? (e) => { e.preventDefault(); onStepSubmit({}); }
-    : handleSubmit(onStepSubmit);
+  const handleNext = () => {
+    if (step === 2 && !data.originCoords) { setZipError('Please enter valid zip codes for both locations.'); return; }
+    if (step < 5) { setStep(s => s + 1); return; }
+    submitLead();
+  };
 
-  const submitLead = async (data) => {
+  const submitLead = async () => {
     setSubmitting(true); setServerError('');
+    const _base = (import.meta.env.VITE_API_URL || 'http://localhost:5005').replace(/\/api$/, '');
     const payload = {
-      customerName:    data.customerName,
-      customerEmail:   data.customerEmail,
-      customerPhone:   data.customerPhone.replace(/\D/g, ''),
-      originZip:       data.originZip,
-      destinationZip:  data.destinationZip,
-      originCity:      data.originCity || '',
-      destinationCity: data.destinationCity || '',
-      homeSize:        data.homeSize,
-      moveDate:        new Date(data.moveDate).toISOString(),
-      distance:        (data.miles || 0) > 100 ? 'Long Distance' : 'Local',
-      miles:           data.miles || 0,
-      specialInstructions: ''
+      customerName: data.name,
+      customerEmail: data.email,
+      customerPhone: data.phone.replace(/\D/g, ''),
+      originZip: data.originZip,
+      destinationZip: data.destZip,
+      originCity: data.originCity,
+      destinationCity: data.destCity,
+      homeSize: data.homeSize,
+      moveDate: new Date(data.moveDate).toISOString(),
+      distance: data.miles > 100 ? 'Long Distance' : 'Local',
+      miles: data.miles,
+      specialInstructions: `Access: ${data.access}. Parking: ${data.parking}. ${data.specialInstructions}`.trim()
     };
     try {
-      const res = await fetch(`${_base}/api/leads/ingest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const res = await fetch(`${_base}/api/leads/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.message || 'Something went wrong. Please try again.');
-      navigate('/thank-you', { state: { homeSize: data.homeSize, originZip: data.originZip, destZip: data.destinationZip } });
+      if (!res.ok) throw new Error(result.message || 'Submission failed. Please try again.');
+      navigate('/thank-you', { state: { homeSize: data.homeSize, originZip: data.originZip, destZip: data.destZip } });
     } catch (err) { setServerError(err.message); }
     finally { setSubmitting(false); }
   };
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100;
-  const mapReady = !!(originCoords && destCoords);
-  const isLong = miles > 100;
+  const isLong = data.miles > 100;
 
-  const inputStyle = {
-    width: '100%', boxSizing: 'border-box', padding: '12px 14px',
-    borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 15,
-    fontFamily: 'inherit', outline: 'none', color: '#0f172a',
-    transition: 'border-color 0.2s, box-shadow 0.2s', background: '#fff'
-  };
+  const inputSt = (err) => ({
+    className: `gq-input${err ? ' gq-input--error' : ''}`
+  });
 
   return (
-    <div className="gq-card">
-      {/* Step indicator */}
-      <div className="gq-steps">
-        {STEPS.map(s => {
-          const Icon = s.icon;
-          const state = s.id < step ? 'done' : s.id === step ? 'active' : 'idle';
-          return (
-            <div key={s.id} className={`gq-step gq-step--${state}`}>
-              <div className="gq-step-circle">{s.id < step ? <CheckCircle size={14} /> : <Icon size={14} />}</div>
-              <span className="gq-step-label">{s.label}</span>
-            </div>
-          );
-        })}
-        <div className="gq-step-track"><div className="gq-step-fill" style={{ width: `${progress}%` }} /></div>
-      </div>
+    <div>
+      {/* Card */}
+      <div className="gq-card">
+        <div className="gq-card-header">
+          <div className="gq-card-header-icon"><Home size={17} /></div>
+          <div>
+            <div className="gq-card-header-title">Free Moving Quote</div>
+            <div className="gq-card-header-sub">Licensed carriers only · No brokers · No spam</div>
+          </div>
+        </div>
+        <div className="gq-progress-bar"><div className="gq-progress-fill" style={{ width: `${progress}%` }} /></div>
+        <StepPills current={step} />
 
-      <form onSubmit={handleContinue} noValidate>
-
-        {/* ══ Step 1: Move Details ══ */}
+        {/* ══ STEP 1: Home Size ══ */}
         {step === 1 && (
           <div className="gq-step-body">
-            <h3 className="gq-step-title">Tell us about your move</h3>
-            <p className="gq-step-sub">We'll match you with movers who handle your home size.</p>
-
-            <label className="gq-label">What size is your home?</label>
+            <div className="gq-step-title">What size is your home?</div>
+            <div className="gq-step-sub">Select the option that best describes where you're moving from.</div>
             <div className="gq-size-grid">
-              {HOME_SIZES.map(size => (
-                <button key={size} type="button"
-                  className={`gq-size-btn ${homeSize === size ? 'gq-size-btn--selected' : ''}`}
-                  onClick={() => setValue('homeSize', size, { shouldValidate: true })}>
-                  <Truck size={18} /><span>{size}</span>
+              {HOME_SIZES.map(s => (
+                <button key={s.label} type="button"
+                  className={`gq-size-btn${data.homeSize === s.label ? ' gq-size-btn--selected' : ''}`}
+                  onClick={() => set('homeSize', s.label)}>
+                  <Truck size={20} />
+                  <span>{s.label}</span>
+                  <span className="gq-vol">{s.vol}</span>
                 </button>
               ))}
             </div>
-            <input type="hidden" {...register('homeSize')} />
-            {errors.homeSize && <p className="gq-error">{errors.homeSize.message}</p>}
-
-            <label className="gq-label" style={{ marginTop: 24 }}>
-              <Calendar size={15} style={{ display: 'inline', marginRight: 6 }} />Planned move date
-            </label>
-            <input type="date"
-              className={`gq-input ${errors.moveDate ? 'gq-input--error' : ''}`}
-              min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-              {...register('moveDate')} />
-            {errors.moveDate && <p className="gq-error">{errors.moveDate.message}</p>}
           </div>
         )}
 
-        {/* ══ Step 2: Zip codes + Map ══ */}
+        {/* ══ STEP 2: Locations ══ */}
         {step === 2 && (
           <div className="gq-step-body">
-            <h3 className="gq-step-title">Where are you moving?</h3>
-            <p className="gq-step-sub">Enter your 5-digit zip codes — the map will load automatically.</p>
+            <div className="gq-step-title">Where are you moving?</div>
+            <div className="gq-step-sub">Enter your 5-digit zip codes — the route will appear on the map.</div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <label className="gq-label" style={{ color: '#2563eb' }}>📍 From ZIP</label>
-                <input
-                  type="text" inputMode="numeric" maxLength={5}
-                  placeholder="e.g. 75201"
-                  value={originZip}
-                  onChange={e => setOriginZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                  style={{ ...inputStyle, borderColor: originCoords ? '#2563eb' : '#e2e8f0' }}
-                  onFocus={e => { e.target.style.borderColor = '#f97316'; e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)'; }}
-                  onBlur={e => { e.target.style.borderColor = originCoords ? '#2563eb' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
-                />
-                {originCoords && (
-                  <div style={{ fontSize: 11, color: '#2563eb', fontWeight: 700, marginTop: 4 }}>
-                    ✓ {originCoords.city}, {originCoords.state}
-                  </div>
-                )}
+            <div className="gq-zip-grid">
+              <div className="gq-field">
+                <label className="gq-label" style={{ color: '#2563eb' }}>📦 Moving From (ZIP)</label>
+                <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
+                  placeholder="e.g. 75201" value={data.originZip}
+                  onChange={e => set('originZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                  style={{ borderColor: data.originCoords ? '#2563eb' : undefined }} />
+                {data.originCoords && <div className="gq-zip-found" style={{ color: '#2563eb' }}>✓ {data.originCoords.city}, {data.originCoords.state}</div>}
               </div>
-              <div>
-                <label className="gq-label" style={{ color: '#059669' }}>📍 To ZIP</label>
-                <input
-                  type="text" inputMode="numeric" maxLength={5}
-                  placeholder="e.g. 90210"
-                  value={destZip}
-                  onChange={e => setDestZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                  style={{ ...inputStyle, borderColor: destCoords ? '#059669' : '#e2e8f0' }}
-                  onFocus={e => { e.target.style.borderColor = '#f97316'; e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)'; }}
-                  onBlur={e => { e.target.style.borderColor = destCoords ? '#059669' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
-                />
-                {destCoords && (
-                  <div style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginTop: 4 }}>
-                    ✓ {destCoords.city}, {destCoords.state}
-                  </div>
-                )}
+              <div className="gq-field">
+                <label className="gq-label" style={{ color: '#16a34a' }}>🏠 Moving To (ZIP)</label>
+                <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
+                  placeholder="e.g. 90210" value={data.destZip}
+                  onChange={e => set('destZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                  style={{ borderColor: data.destCoords ? '#16a34a' : undefined }} />
+                {data.destCoords && <div className="gq-zip-found" style={{ color: '#16a34a' }}>✓ {data.destCoords.city}, {data.destCoords.state}</div>}
               </div>
             </div>
 
-            {zipError && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '9px 13px', fontSize: 12, color: '#dc2626', marginBottom: 12 }}>
-                {zipError}
-              </div>
-            )}
+            {zipError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '9px 13px', fontSize: 12, color: '#dc2626', marginBottom: 12 }}>{zipError}</div>}
 
-            {mapReady && <MapArc origin={originCoords} destination={destCoords} />}
-
-            {mapReady && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: isLong ? '#eff6ff' : '#f0fdf4', borderRadius: 10, padding: '9px 14px', marginBottom: 12, fontSize: 13, fontWeight: 700, color: isLong ? '#1d4ed8' : '#15803d' }}>
-                <span>{isLong ? '🚛 Long Distance Move' : '📍 Local Move'}</span>
-                <span style={{ fontWeight: 500, fontSize: 12 }}>{originCoords.city} → {destCoords.city} · {miles.toLocaleString()} mi</span>
-              </div>
+            {data.originCoords && data.destCoords && (
+              <>
+                <MapArc origin={data.originCoords} destination={data.destCoords} />
+                <div className={`gq-dist-pill gq-dist-pill--${isLong ? 'long' : 'local'}`}>
+                  <span>{isLong ? '🚛 Long Distance Move' : '📍 Local Move'}</span>
+                  <span style={{ fontWeight: 500, fontSize: 12 }}>{data.originCoords.city} → {data.destCoords.city} · {data.miles.toLocaleString()} mi</span>
+                </div>
+              </>
             )}
           </div>
         )}
 
-        {/* ══ Step 3: Contact Info ══ */}
+        {/* ══ STEP 3: Move Date ══ */}
         {step === 3 && (
           <div className="gq-step-body">
-            <h3 className="gq-step-title">Almost done — who should movers contact?</h3>
-            <p className="gq-step-sub">Your info is shared only with vetted, licensed movers.</p>
+            <div className="gq-step-title">When are you moving?</div>
+            <div className="gq-step-sub">Weekdays and off-peak months give you the best rates.</div>
+            <SmartCalendar value={data.moveDate} onChange={v => set('moveDate', v)} />
+            {data.moveDate && (() => {
+              const d = demandLevel(new Date(data.moveDate + 'T00:00:00'));
+              const msgs = { low: ['🟢','Great choice! This is a low-demand date.'], med: ['🟡','Moderate demand — slight price increase.'], high: ['🔴','High demand date — peak pricing applies.'] };
+              const [icon, text] = msgs[d];
+              return (
+                <div style={{ marginTop: 12, padding: '9px 14px', borderRadius: 10, background: DEMAND_COLORS[d].bg, color: DEMAND_COLORS[d].fg, fontSize: 13, fontWeight: 600 }}>
+                  {icon} {text}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ══ STEP 4: Move Details ══ */}
+        {step === 4 && (
+          <div className="gq-step-body">
+            <div className="gq-step-title">A few more details</div>
+            <div className="gq-step-sub">These help movers provide an accurate quote.</div>
 
             <div className="gq-field">
-              <label className="gq-label">Full name</label>
-              <input type="text" placeholder="Jane Smith"
-                className={`gq-input ${errors.customerName ? 'gq-input--error' : ''}`}
-                {...register('customerName')} autoComplete="name" />
-              {errors.customerName && <p className="gq-error">{errors.customerName.message}</p>}
+              <label className="gq-label"><Building size={12} style={{ display:'inline', marginRight:5 }} />Building Access at Pickup</label>
+              <div className="gq-toggle-row">
+                {ACCESS_OPTIONS.map(o => (
+                  <button key={o} type="button" className={`gq-toggle-btn${data.access === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('access', o)}>{o}</button>
+                ))}
+              </div>
             </div>
+
             <div className="gq-field">
-              <label className="gq-label">Email address</label>
-              <input type="email" placeholder="jane@example.com"
-                className={`gq-input ${errors.customerEmail ? 'gq-input--error' : ''}`}
-                {...register('customerEmail')} autoComplete="email" />
-              {errors.customerEmail && <p className="gq-error">{errors.customerEmail.message}</p>}
+              <label className="gq-label"><ParkingCircle size={12} style={{ display:'inline', marginRight:5 }} />Truck Parking at Pickup</label>
+              <div className="gq-toggle-row">
+                {PARKING_OPTIONS.map(o => (
+                  <button key={o} type="button" className={`gq-toggle-btn${data.parking === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('parking', o)}>{o}</button>
+                ))}
+              </div>
             </div>
+
             <div className="gq-field">
-              <label className="gq-label">Phone number</label>
-              <input type="tel" placeholder="(555) 867-5309"
-                className={`gq-input ${errors.customerPhone ? 'gq-input--error' : ''}`}
-                {...register('customerPhone')} autoComplete="tel" />
-              {errors.customerPhone && <p className="gq-error">{errors.customerPhone.message}</p>}
+              <label className="gq-label">Special instructions (optional)</label>
+              <textarea className="gq-input" rows={3}
+                placeholder="e.g. Grand piano, fragile artwork, storage unit pickup…"
+                style={{ resize: 'vertical' }}
+                value={data.specialInstructions}
+                onChange={e => set('specialInstructions', e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        {/* ══ STEP 5: Contact Info ══ */}
+        {step === 5 && (
+          <div className="gq-step-body">
+            <div className="gq-step-title">Who should movers contact?</div>
+            <div className="gq-step-sub">Your info is shared only with the licensed mover matched to your route.</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="gq-field">
+                <label className="gq-label"><User size={11} style={{ display:'inline', marginRight:4 }} />First Name</label>
+                <input {...inputSt(!data.name)} type="text" placeholder="Jane" value={data.name} onChange={e => set('name', e.target.value)} autoComplete="given-name" />
+              </div>
+              <div className="gq-field">
+                <label className="gq-label"><Phone size={11} style={{ display:'inline', marginRight:4 }} />Phone Number</label>
+                <input {...inputSt(data.phone && data.phone.replace(/\D/g,'').length !== 10)} type="tel" placeholder="(555) 867-5309" value={data.phone} onChange={e => set('phone', e.target.value)} autoComplete="tel" />
+                {data.phone && data.phone.replace(/\D/g,'').length !== 10 && data.phone.length > 5 && <p className="gq-error">Must be a 10-digit US number</p>}
+              </div>
+            </div>
+
+            <div className="gq-field">
+              <label className="gq-label"><Mail size={11} style={{ display:'inline', marginRight:4 }} />Email Address</label>
+              <input {...inputSt(!data.email.includes('@'))} type="email" placeholder="jane@example.com" value={data.email} onChange={e => set('email', e.target.value)} autoComplete="email" />
+            </div>
+
+            {/* One-mover promise */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: 'var(--blue-l)', borderRadius: 12, border: '1px solid #bfdbfe', marginBottom: 4 }}>
+              <Shield size={16} style={{ color: 'var(--blue)', flexShrink: 0, marginTop: 2 }} />
+              <p style={{ fontSize: 12, color: 'var(--blue)', lineHeight: 1.55, margin: 0 }}>
+                <strong>No more than 1 licensed mover</strong> will contact you. We prioritise quality over quantity — no spam, no broker middlemen.
+              </p>
             </div>
 
             {serverError && <div className="gq-server-error">{serverError}</div>}
 
             <p className="gq-privacy">
-              By submitting, you agree to our <Link to="/privacy" target="_blank">Privacy Policy</Link>.
-              We never sell your information.
+              By submitting you agree to our <Link to="/privacy" target="_blank">Privacy Policy</Link>. We never sell your data.
             </p>
           </div>
         )}
@@ -379,108 +472,182 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
         <div className="gq-nav-row">
           {step > 1 && (
             <button type="button" className="gq-btn-back" onClick={() => setStep(s => s - 1)}>
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={15} /> Back
             </button>
           )}
-          <button type="submit" className="gq-btn-next" disabled={submitting}>
+          <button type="button" className="gq-btn-next" disabled={!canNext() || submitting} onClick={handleNext}>
             {submitting
               ? <span className="gq-spinner" />
-              : step < 3
-                ? <>Continue <ArrowRight size={16} /></>
-                : <>Get My Free Quotes <CheckCircle size={16} /></>
+              : step < 5
+                ? <>Next Step <ArrowRight size={15} /></>
+                : <>Get My Free Quote <CheckCircle size={15} /></>
             }
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
 
-// ── /get-quote page ────────────────────────────────────────────────────────
-export default function GetQuote() {
-  const [searchParams] = useSearchParams();
-  const fromZip = searchParams.get('from') || '';
-  const toZip   = searchParams.get('to')   || '';
+/* ── Sidebar ─────────────────────────────────────────────────── */
+function Sidebar({ data }) {
+  return (
+    <div className="gq-sidebar">
+      <SummaryCard data={data} />
+
+      <div className="gq-trust-card">
+        <div className="gq-trust-card-title">Why MoveLeads</div>
+        {[
+          { icon: <CheckCircle size={15} />, bg: '#f0fdf4', c: '#16a34a', title: 'Licensed carriers only', sub: 'Every mover is FMCSA-licensed. No unlicensed brokers, ever.' },
+          { icon: <Shield size={15} />, bg: 'var(--blue-l)', c: 'var(--blue)', title: 'Phone-verified movers', sub: 'All movers on our network pass ID and license verification.' },
+          { icon: <Star size={15} />, bg: '#fff7ed', c: 'var(--orange)', title: 'One matched mover', sub: 'We match you to one mover — not a flood of strangers calling.' },
+          { icon: <Clock size={15} />, bg: '#f5f3ff', c: '#7c3aed', title: 'Fast response', sub: 'Most customers receive a call within 15–30 minutes.' },
+        ].map((t, i) => (
+          <div key={i} className="gq-trust-item">
+            <div className="gq-trust-item-icon" style={{ background: t.bg, color: t.c }}>{t.icon}</div>
+            <div>
+              <div className="gq-trust-item-title">{t.title}</div>
+              <div className="gq-trust-item-sub">{t.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="gq-rating-card">
+        <div className="gq-rating-stars">★★★★★</div>
+        <p className="gq-rating-quote">"Got matched in minutes. The mover who called was professional, gave me a binding estimate, and beat every other quote I had."</p>
+        <div className="gq-rating-footer">
+          <div className="gq-rating-avatar">SR</div>
+          <div>
+            <div className="gq-rating-name">Sarah R.</div>
+            <div className="gq-rating-loc">Dallas → Austin, TX</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE WRAPPER — shared between /get-quote and /move/:from/:to
+═══════════════════════════════════════════════════════════════ */
+function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, heroSub }) {
+  // We hold data at page level so Sidebar can read it
+  const [data, setData] = useState({
+    homeSize: '', originZip: prefillOriginZip, destZip: prefillDestZip,
+    originCity: '', destCity: '', originCoords: null, destCoords: null, miles: 0,
+    moveDate: '', access: '', parking: '', specialInstructions: '',
+    name: '', email: '', phone: '',
+  });
+
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   return (
     <div className="gq-page">
+      {/* Nav */}
       <nav className="gq-nav">
         <Link to="/" className="gq-logo">MoveLeads<span>.cloud</span></Link>
-        <span className="gq-nav-tag">Free · No Obligation</span>
+        <div className="gq-nav-right">
+          <span className="gq-nav-trust"><CheckCircle size={12} /> Licensed Movers Only</span>
+          <Link to="/login" className="gq-nav-login">Mover login →</Link>
+        </div>
       </nav>
 
-      <div className="gq-hero-banner">
-        <h1 className="gq-hero-h1">Get Free Moving Quotes in 60 Seconds</h1>
-        <p className="gq-hero-sub">
-          Compare quotes from licensed, verified movers in your area.<br className="gq-br-hide" />
-          No spam. No obligation.
-        </p>
-        <div className="gq-trust-badges">
+      {/* Hero */}
+      <div className="gq-hero">
+        <div className="gq-hero-eyebrow">
+          <Shield size={12} /> FMCSA Licensed · Phone-Verified Movers
+        </div>
+        <h1>{heroTitle || <>We Match You With the Best <em>Mover</em> for Your Route</>}</h1>
+        <p className="gq-hero-sub">{heroSub || "Tell us about your move and we'll match you with a verified licensed mover — at the best price available."}</p>
+        <div className="gq-trust-row">
           {[
-            { icon: <Shield size={14} />, text: 'Phone-verified movers only' },
-            { icon: <CheckCircle size={14} />, text: 'Free — no credit card' },
-            { icon: <Clock size={14} />, text: 'Quotes in under 2 minutes' },
-          ].map((b, i) => <div key={i} className="gq-trust-badge">{b.icon} {b.text}</div>)}
+            { icon: <CheckCircle size={14} />, text: 'Licensed Movers Only — No Brokers' },
+            { icon: <Shield size={14} />, text: 'Phone-verified network' },
+            { icon: <Star size={14} />, text: 'One match, not five strangers' },
+            { icon: <Clock size={14} />, text: '15-min avg response' },
+          ].map((b, i) => <div key={i} className="gq-trust-chip">{b.icon} {b.text}</div>)}
         </div>
       </div>
 
-      <div className="gq-container">
-        <aside className="gq-aside">
-          <div className="gq-aside-badge">Trusted by 500+ movers</div>
-          <h2 className="gq-aside-heading">Get up to 3 free moving quotes in minutes</h2>
-          <ul className="gq-trust-list">
-            <li><CheckCircle size={16} /><span>100% free, no hidden fees</span></li>
-            <li><CheckCircle size={16} /><span>Verified, licensed moving companies</span></li>
-            <li><CheckCircle size={16} /><span>Compare prices &amp; choose the best fit</span></li>
-            <li><CheckCircle size={16} /><span>Movers contact you — no cold calls</span></li>
-          </ul>
-          <div className="gq-aside-reviews">
-            <div className="gq-stars">★★★★★</div>
-            <p className="gq-review-text">"Saved me $400 on my move to Austin. Took 2 minutes to fill out."</p>
-            <span className="gq-reviewer">— Sarah K., Dallas TX</span>
-          </div>
-        </aside>
-        <QuoteForm prefillOriginZip={fromZip} prefillDestZip={toZip} />
+      {/* Two-column body: form + sidebar */}
+      <div className="gq-body">
+        <QuoteFormStateful prefillOriginZip={prefillOriginZip} prefillDestZip={prefillDestZip} data={data} setData={setData} />
+        <Sidebar data={data} />
       </div>
 
+      {/* How it works */}
       <section className="gq-how-section">
         <div className="gq-how-inner">
-          <h2 className="gq-how-h2">How it works</h2>
+          <div className="gq-section-eyebrow">How it works</div>
+          <div className="gq-section-h2">3 steps to your best moving quote</div>
           <div className="gq-how-grid">
             {[
-              { n: '1', icon: <Home size={22} />, title: 'Tell us about your move', body: 'Fill out our quick 60-second form — home size, dates, and zip codes. No account needed.' },
-              { n: '2', icon: <Phone size={22} />, title: 'We match you with local movers', body: 'Your request goes to licensed, verified movers who serve your exact area. Only the best make the cut.' },
-              { n: '3', icon: <ChevronRight size={22} />, title: 'Movers contact you with their best price', body: 'Sit back and let movers compete for your job. Compare quotes and choose the one you trust.' },
-            ].map((s, i) => (
+              { n:'1', icon:<Home size={22}/>, title:'Tell us about your move', body:'Fill in your home size, zip codes, and move date. Takes 60 seconds.' },
+              { n:'2', icon:<MapPin size={22}/>, title:'We match you with a licensed mover', body:'We identify the single best carrier for your specific route and requirements.' },
+              { n:'3', icon:<Phone size={22}/>, title:'Your mover contacts you directly', body:'Expect a call within 15 minutes. No spam, no brokers — just one qualified mover.' },
+            ].map((s,i) => (
               <div key={i} className="gq-how-card">
                 <div className="gq-how-num">{s.n}</div>
                 <div className="gq-how-icon">{s.icon}</div>
-                <h3 className="gq-how-title">{s.title}</h3>
-                <p className="gq-how-body">{s.body}</p>
+                <div className="gq-how-title">{s.title}</div>
+                <div className="gq-how-body">{s.body}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="gq-testimonials">
+      {/* Comparison table */}
+      <section className="gq-compare-section">
+        <div className="gq-compare-inner">
+          <div className="gq-section-eyebrow">The difference</div>
+          <div className="gq-section-h2">One perfect match vs. a flood of strangers</div>
+          <table className="gq-compare-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th className="gq-col-us">MoveLeads</th>
+                <th className="gq-col-them">Other sites</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ['# of movers who call you',   '1 verified carrier', '5–10 strangers'],
+                ['Licensed carriers only',      '✓ Always',           '✗ No guarantee'],
+                ['No broker middlemen',         '✓ Direct contact',   '✗ Often brokered'],
+                ['Response time',               '~15 minutes',        'Hours or days'],
+                ['Your number sold to others',  '✗ Never',            '✓ Yes, standard'],
+                ['Price shown before buying',   '✓ Real-time quote',  '✗ Bait & switch'],
+              ].map(([feat, us, them], i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 500, color: 'var(--text)', fontSize: 14 }}>{feat}</td>
+                  <td className="gq-col-us">{us}</td>
+                  <td className="gq-col-them">{them}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="gq-test-section">
         <div className="gq-test-inner">
-          <div className="gq-test-header">
-            <div className="gq-test-stars">★★★★★</div>
-            <span className="gq-test-rating">Rated 4.9/5 · 200+ reviews</span>
-          </div>
+          <div className="gq-section-eyebrow">Customer reviews</div>
+          <div className="gq-section-h2" style={{ marginBottom: 28 }}>What our customers say</div>
           <div className="gq-test-grid">
             {[
-              { q: 'Got 3 quotes within 10 minutes. Saved $400 on my move. The whole thing took less time than making a cup of coffee.', name: 'Sarah M.', loc: 'Dallas, TX' },
-              { q: "So easy. Filled out the form and had a mover calling me in 15 minutes. Booked on the spot — couldn't be happier.", name: 'James T.', loc: 'Chicago, IL' },
-              { q: "Finally a site that doesn't spam you. Only heard from 2 movers, both were great. Really appreciate how clean this was.", name: 'Maria L.', loc: 'Miami, FL' },
+              { route: 'Dallas → Austin, TX', q: "Got 3 quotes within 10 minutes. Saved $400 on my move. The whole thing took less time than making a cup of coffee.", name:'Sarah M.', loc:'Dallas, TX' },
+              { route: 'Chicago → Miami, FL', q: "So easy. Filled out the form and had a mover calling me in 15 minutes. Booked on the spot — couldn't be happier.", name:'James T.', loc:'Chicago, IL' },
+              { route: 'Los Angeles → New York', q: "Finally a site that doesn't spam you. Only heard from one mover, they were great and gave me a binding estimate.", name:'Maria L.', loc:'Miami, FL' },
             ].map((t, i) => (
               <div key={i} className="gq-test-card">
-                <div className="gq-test-card-stars">★★★★★</div>
-                <p className="gq-test-card-quote">"{t.q}"</p>
-                <div className="gq-test-card-footer">
-                  <div className="gq-test-avatar">{t.name.split(' ').map(x => x[0]).join('')}</div>
+                <div className="gq-test-stars">★★★★★</div>
+                <div className="gq-test-route">{t.route}</div>
+                <p className="gq-test-quote">"{t.q}"</p>
+                <div className="gq-test-footer">
+                  <div className="gq-test-avatar">{t.name.split(' ').map(x=>x[0]).join('')}</div>
                   <div><div className="gq-test-name">{t.name}</div><div className="gq-test-loc">{t.loc}</div></div>
                 </div>
               </div>
@@ -489,58 +656,260 @@ export default function GetQuote() {
         </div>
       </section>
 
+      {/* Footer */}
       <footer className="gq-footer">
-        <p>© 2026 MoveLeads · <Link to="/privacy">Privacy Policy</Link> · <Link to="/get-quote">Terms</Link></p>
+        <span className="gq-footer-copy">© 2026 MoveLeads.cloud · All rights reserved</span>
+        <div className="gq-footer-links">
+          <Link to="/privacy">Privacy Policy</Link>
+          <Link to="/about">About</Link>
+          <Link to="/for-movers">For Movers</Link>
+          <Link to="/">Home</Link>
+        </div>
       </footer>
     </div>
   );
 }
 
-// ── /move/:originCity/:destCity SEO route ──────────────────────────────────
-export function MoveRoute() {
-  const { originCity, destCity } = useParams();
-  const fmt = s => s?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '';
-  const from = fmt(originCity); const to = fmt(destCity);
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+/* Stateful form that syncs to parent data */
+function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) {
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState('');
+  const [zipError, setZipError] = useState('');
+
+  const set = (key, val) => setData(p => ({ ...p, [key]: val }));
+
+  // Resolve zips
+  useEffect(() => {
+    const { originZip, destZip } = data;
+    if (originZip.length === 5 && destZip.length === 5) {
+      const oc = geocodeZip(originZip), dc = geocodeZip(destZip);
+      if (!oc) { setZipError(`Invalid origin zip "${originZip}"`); setData(p => ({ ...p, originCoords: null, originCity: '' })); return; }
+      if (!dc) { setZipError(`Invalid destination zip "${destZip}"`); setData(p => ({ ...p, destCoords: null, destCity: '' })); return; }
+      setZipError('');
+      const mi = haversine(oc.lat, oc.lon, dc.lat, dc.lon);
+      setData(p => ({ ...p, originCoords: oc, destCoords: dc, originCity: oc.city, destCity: dc.city, miles: mi }));
+    } else {
+      if (originZip.length < 5 || destZip.length < 5) { setData(p => ({ ...p, originCoords: null, destCoords: null, originCity: '', destCity: '', miles: 0 })); setZipError(''); }
+    }
+  }, [data.originZip, data.destZip]); // eslint-disable-line
+
+  const canNext = () => {
+    if (step === 1) return !!data.homeSize;
+    if (step === 2) return !!(data.originCoords && data.destCoords);
+    if (step === 3) return !!data.moveDate;
+    if (step === 4) return !!(data.access && data.parking);
+    if (step === 5) return !!(data.name && data.email?.includes('@') && data.phone?.replace(/\D/g,'').length === 10);
+    return false;
+  };
+
+  const isLong = data.miles > 100;
+
+  const handleNext = () => {
+    if (step === 2 && !data.originCoords) { setZipError('Please enter valid zip codes for both locations.'); return; }
+    if (step < 5) { setStep(s => s + 1); return; }
+    submitLead();
+  };
+
+  const submitLead = async () => {
+    setSubmitting(true); setServerError('');
+    const _base = (import.meta.env.VITE_API_URL || 'http://localhost:5005').replace(/\/api$/, '');
+    const payload = {
+      customerName: data.name, customerEmail: data.email,
+      customerPhone: data.phone.replace(/\D/g,''),
+      originZip: data.originZip, destinationZip: data.destZip,
+      originCity: data.originCity, destinationCity: data.destCity,
+      homeSize: data.homeSize, moveDate: new Date(data.moveDate).toISOString(),
+      distance: data.miles > 100 ? 'Long Distance' : 'Local', miles: data.miles,
+      specialInstructions: `Access: ${data.access}. Parking: ${data.parking}. ${data.specialInstructions}`.trim()
+    };
+    try {
+      const res = await fetch(`${_base}/api/leads/ingest`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || 'Submission failed.');
+      navigate('/thank-you', { state: { homeSize: data.homeSize, originZip: data.originZip, destZip: data.destZip } });
+    } catch (err) { setServerError(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const progress = ((step - 1) / (STEPS.length - 1)) * 100;
 
   return (
-    <div className="gq-page">
-      <nav className="gq-nav">
-        <Link to="/" className="gq-logo">MoveLeads<span>.cloud</span></Link>
-        <span className="gq-nav-tag">Free · No Obligation</span>
-      </nav>
-      <div className="gq-hero-banner">
-        <h1 className="gq-hero-h1">Moving from {from} to {to}?<br />Get Free Quotes in 60 Seconds</h1>
-        <p className="gq-hero-sub">Licensed, verified movers who cover this route.<br className="gq-br-hide" />No spam. No obligation.</p>
-        <div className="gq-trust-badges">
-          {[
-            { icon: <Shield size={14} />, text: 'Phone-verified movers only' },
-            { icon: <CheckCircle size={14} />, text: 'Free — no credit card' },
-            { icon: <Clock size={14} />, text: 'Quotes in under 2 minutes' },
-          ].map((b, i) => <div key={i} className="gq-trust-badge">{b.icon} {b.text}</div>)}
+    <div className="gq-card">
+      <div className="gq-card-header">
+        <div className="gq-card-header-icon"><Home size={17} /></div>
+        <div>
+          <div className="gq-card-header-title">Free Moving Quote</div>
+          <div className="gq-card-header-sub">Licensed carriers only · No brokers · No spam</div>
         </div>
       </div>
-      <div className="gq-container">
-        <aside className="gq-aside">
-          <div className="gq-aside-badge">Trusted by 500+ movers</div>
-          <h2 className="gq-aside-heading">{from} → {to} moving specialists</h2>
-          <ul className="gq-trust-list">
-            <li><CheckCircle size={16} /><span>Free, no hidden fees</span></li>
-            <li><CheckCircle size={16} /><span>Licensed &amp; insured movers only</span></li>
-            <li><CheckCircle size={16} /><span>Compare quotes &amp; pick the best</span></li>
-            <li><CheckCircle size={16} /><span>Movers contact you directly</span></li>
-          </ul>
-          <div className="gq-aside-reviews">
-            <div className="gq-stars">★★★★★</div>
-            <p className="gq-review-text">"Saved me $400 on my move. Took 2 minutes to fill out."</p>
-            <span className="gq-reviewer">— Sarah M., satisfied customer</span>
+      <div className="gq-progress-bar"><div className="gq-progress-fill" style={{ width: `${progress}%` }} /></div>
+      <StepPills current={step} />
+
+      {/* STEP 1 */}
+      {step === 1 && (
+        <div className="gq-step-body">
+          <div className="gq-step-title">What size is your home?</div>
+          <div className="gq-step-sub">Select the option that best matches your current home.</div>
+          <div className="gq-size-grid">
+            {HOME_SIZES.map(s => (
+              <button key={s.label} type="button"
+                className={`gq-size-btn${data.homeSize === s.label ? ' gq-size-btn--selected' : ''}`}
+                onClick={() => set('homeSize', s.label)}>
+                <Truck size={20}/><span>{s.label}</span><span className="gq-vol">{s.vol}</span>
+              </button>
+            ))}
           </div>
-        </aside>
-        <QuoteForm />
+        </div>
+      )}
+
+      {/* STEP 2 */}
+      {step === 2 && (
+        <div className="gq-step-body">
+          <div className="gq-step-title">Where are you moving?</div>
+          <div className="gq-step-sub">Enter your 5-digit zip codes — the map will draw your route automatically.</div>
+          <div className="gq-zip-grid">
+            <div className="gq-field">
+              <label className="gq-label" style={{ color:'#2563eb' }}>📦 From ZIP</label>
+              <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
+                placeholder="e.g. 75201" value={data.originZip}
+                onChange={e => set('originZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                style={{ borderColor: data.originCoords ? '#2563eb' : undefined }} />
+              {data.originCoords && <div className="gq-zip-found" style={{ color:'#2563eb' }}>✓ {data.originCoords.city}, {data.originCoords.state}</div>}
+            </div>
+            <div className="gq-field">
+              <label className="gq-label" style={{ color:'#16a34a' }}>🏠 To ZIP</label>
+              <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
+                placeholder="e.g. 90210" value={data.destZip}
+                onChange={e => set('destZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                style={{ borderColor: data.destCoords ? '#16a34a' : undefined }} />
+              {data.destCoords && <div className="gq-zip-found" style={{ color:'#16a34a' }}>✓ {data.destCoords.city}, {data.destCoords.state}</div>}
+            </div>
+          </div>
+          {zipError && <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:10, padding:'9px 13px', fontSize:12, color:'#dc2626', marginBottom:12 }}>{zipError}</div>}
+          {data.originCoords && data.destCoords && (
+            <>
+              <MapArc origin={data.originCoords} destination={data.destCoords} />
+              <div className={`gq-dist-pill gq-dist-pill--${isLong ? 'long' : 'local'}`}>
+                <span>{isLong ? '🚛 Long Distance Move' : '📍 Local Move'}</span>
+                <span style={{ fontWeight:500, fontSize:12 }}>{data.originCoords.city} → {data.destCoords.city} · {data.miles.toLocaleString()} mi</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* STEP 3 */}
+      {step === 3 && (
+        <div className="gq-step-body">
+          <div className="gq-step-title">When are you moving?</div>
+          <div className="gq-step-sub">Weekdays and off-peak months give you the best rates.</div>
+          <SmartCalendar value={data.moveDate} onChange={v => set('moveDate', v)} />
+          {data.moveDate && (() => {
+            const d = demandLevel(new Date(data.moveDate + 'T00:00:00'));
+            const msgs = { low:['🟢','Great choice! Low-demand, best pricing available.'], med:['🟡','Moderate demand — slight price increase.'], high:['🔴','High demand — peak pricing applies.'] };
+            const [icon, text] = msgs[d];
+            return <div style={{ marginTop:12, padding:'9px 14px', borderRadius:10, background: DEMAND_COLORS[d].bg, color: DEMAND_COLORS[d].fg, fontSize:13, fontWeight:600 }}>{icon} {text}</div>;
+          })()}
+        </div>
+      )}
+
+      {/* STEP 4 */}
+      {step === 4 && (
+        <div className="gq-step-body">
+          <div className="gq-step-title">A few more details</div>
+          <div className="gq-step-sub">This helps movers give you an accurate binding estimate.</div>
+
+          <div className="gq-field">
+            <label className="gq-label">Building access at pickup</label>
+            <div className="gq-toggle-row">
+              {ACCESS_OPTIONS.map(o => (
+                <button key={o} type="button" className={`gq-toggle-btn${data.access===o?' gq-toggle-btn--active':''}`} onClick={()=>set('access',o)}>{o}</button>
+              ))}
+            </div>
+          </div>
+          <div className="gq-field">
+            <label className="gq-label">Truck parking at pickup</label>
+            <div className="gq-toggle-row">
+              {PARKING_OPTIONS.map(o => (
+                <button key={o} type="button" className={`gq-toggle-btn${data.parking===o?' gq-toggle-btn--active':''}`} onClick={()=>set('parking',o)}>{o}</button>
+              ))}
+            </div>
+          </div>
+          <div className="gq-field">
+            <label className="gq-label">Special items or notes (optional)</label>
+            <textarea className="gq-input" rows={3} style={{ resize:'vertical' }}
+              placeholder="e.g. Grand piano, fragile artwork, storage unit pickup…"
+              value={data.specialInstructions} onChange={e=>set('specialInstructions',e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {/* STEP 5 */}
+      {step === 5 && (
+        <div className="gq-step-body">
+          <div className="gq-step-title">Who should movers contact?</div>
+          <div className="gq-step-sub">Shared only with the one licensed mover matched to your route.</div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="gq-field">
+              <label className="gq-label">First Name</label>
+              <input className="gq-input" type="text" placeholder="Jane" value={data.name} onChange={e=>set('name',e.target.value)} autoComplete="given-name" />
+            </div>
+            <div className="gq-field">
+              <label className="gq-label">Phone Number</label>
+              <input className={`gq-input${data.phone&&data.phone.replace(/\D/g,'').length!==10&&data.phone.length>5?' gq-input--error':''}`} type="tel" placeholder="(555) 867-5309" value={data.phone} onChange={e=>set('phone',e.target.value)} autoComplete="tel" />
+              {data.phone&&data.phone.replace(/\D/g,'').length!==10&&data.phone.length>5 && <p className="gq-error">Must be a 10-digit US number</p>}
+            </div>
+          </div>
+          <div className="gq-field">
+            <label className="gq-label">Email Address</label>
+            <input className="gq-input" type="email" placeholder="jane@example.com" value={data.email} onChange={e=>set('email',e.target.value)} autoComplete="email" />
+          </div>
+
+          <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'12px 14px', background:'var(--blue-l)', borderRadius:12, border:'1px solid #bfdbfe', marginBottom:4 }}>
+            <Shield size={16} style={{ color:'var(--blue)', flexShrink:0, marginTop:2 }} />
+            <p style={{ fontSize:12, color:'var(--blue)', lineHeight:1.55, margin:0 }}>
+              <strong>No more than 1 licensed mover</strong> will contact you. We prioritise quality over quantity — no spam, no broker middlemen.
+            </p>
+          </div>
+          {serverError && <div className="gq-server-error">{serverError}</div>}
+          <p className="gq-privacy">By submitting you agree to our <Link to="/privacy" target="_blank">Privacy Policy</Link>. We never sell your data.</p>
+        </div>
+      )}
+
+      {/* Nav buttons */}
+      <div className="gq-nav-row">
+        {step > 1 && (
+          <button type="button" className="gq-btn-back" onClick={() => setStep(s => s - 1)}>
+            <ArrowLeft size={15} /> Back
+          </button>
+        )}
+        <button type="button" className="gq-btn-next" disabled={!canNext() || submitting} onClick={handleNext}>
+          {submitting ? <span className="gq-spinner" /> : step < 5 ? <>Next Step <ArrowRight size={15} /></> : <>Get My Free Quote <CheckCircle size={15} /></>}
+        </button>
       </div>
-      <footer className="gq-footer">
-        <p>© 2026 MoveLeads · <Link to="/privacy">Privacy Policy</Link></p>
-      </footer>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EXPORTED ROUTES
+═══════════════════════════════════════════════════════════════ */
+export default function GetQuote() {
+  const [searchParams] = useSearchParams();
+  return <QuotePage prefillOriginZip={searchParams.get('from')||''} prefillDestZip={searchParams.get('to')||''} />;
+}
+
+export function MoveRoute() {
+  const { originCity, destCity } = useParams();
+  const fmt = s => s?.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())||'';
+  const from = fmt(originCity), to = fmt(destCity);
+  return (
+    <QuotePage
+      heroTitle={<>Moving from {from} to <em>{to}</em>?<br />Get a Free Quote in 60 Seconds</>}
+      heroSub={`We'll match you with a licensed mover who actively services the ${from} to ${to} route — at the best price available.`}
+    />
   );
 }
