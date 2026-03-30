@@ -489,6 +489,15 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
   );
 }
 
+/* ── FAQ accordion ───────────────────────────────────────────── */
+const FAQ_ITEMS = [
+  { q: 'Will I get calls from multiple companies?', a: 'No. We match you with 1–3 verified movers who service your exact route. We never sell your information to multiple companies. You\'ll only hear from movers who are genuinely available for your move.' },
+  { q: 'Is this service free?', a: 'Yes, completely free for you. You fill out one form, we match you with a verified licensed mover, and you pay nothing to use MoveLeads. The moving company pays a small fee only if you\'re matched to them.' },
+  { q: 'How fast will movers respond?', a: 'Most customers receive a call or text within 15 minutes during business hours. For off-hours submissions, expect a response by the next morning. We notify movers immediately when a new lead comes in.' },
+  { q: 'Are the movers licensed and insured?', a: 'Yes. Every mover on our network is FMCSA-licensed and carries full liability insurance. We verify USDOT numbers and licenses before any mover is admitted to our network. Unlicensed brokers are never admitted.' },
+  { q: 'What if I have a bad experience with a mover?', a: 'We have a built-in Resolution Center. If a mover is unresponsive, unprofessional, or fails to honor their quote, you can report the issue directly through your dashboard. We investigate every complaint and remove bad actors from our network.' },
+];
+
 /* ── Sidebar ─────────────────────────────────────────────────── */
 function Sidebar({ data }) {
   return (
@@ -532,6 +541,7 @@ function Sidebar({ data }) {
    PAGE WRAPPER — shared between /get-quote and /move/:from/:to
 ═══════════════════════════════════════════════════════════════ */
 function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, heroSub }) {
+  const [faqOpen, setFaqOpen] = useState(null);
   // We hold data at page level so Sidebar can read it
   const [data, setData] = useState({
     homeSize: '', originZip: prefillOriginZip, destZip: prefillDestZip,
@@ -571,7 +581,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       </div>
 
       {/* Two-column body: form + sidebar */}
-      <div className="gq-body">
+      <div id="quote-widget" className="gq-body">
         <QuoteFormStateful prefillOriginZip={prefillOriginZip} prefillDestZip={prefillDestZip} data={data} setData={setData} />
         <Sidebar data={data} />
       </div>
@@ -579,17 +589,17 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       {/* How it works */}
       <section className="gq-how-section">
         <div className="gq-how-inner">
-          <div className="gq-section-eyebrow">How it works</div>
-          <div className="gq-section-h2">3 steps to your best moving quote</div>
+          <div className="gq-section-eyebrow">HOW IT WORKS</div>
+          <div className="gq-section-h2">Three steps to your matched mover</div>
+          <p className="gq-section-sub">No browsing endless listings. No callbacks from strangers. Just one verified mover for your route.</p>
           <div className="gq-how-grid">
             {[
-              { n:'1', icon:<Home size={22}/>, title:'Tell us about your move', body:'Fill in your home size, zip codes, and move date. Takes 60 seconds.' },
-              { n:'2', icon:<MapPin size={22}/>, title:'We match you with a licensed mover', body:'We identify the single best carrier for your specific route and requirements.' },
-              { n:'3', icon:<Phone size={22}/>, title:'Your mover contacts you directly', body:'Expect a call within 15 minutes. No spam, no brokers — just one qualified mover.' },
+              { n:'1', title:'Tell us about your move', body:'Home size, origin, destination, and move date. Takes under 60 seconds.' },
+              { n:'2', title:'We find your best match', body:'Our system finds verified movers who service your exact route and filters out brokers.' },
+              { n:'3', title:'Movers contact you directly', body:'Expect a call or text within 15 minutes. You compare and choose the best offer.' },
             ].map((s,i) => (
               <div key={i} className="gq-how-card">
-                <div className="gq-how-num">{s.n}</div>
-                <div className="gq-how-icon">{s.icon}</div>
+                <div className="gq-how-num-orange">{s.n}</div>
                 <div className="gq-how-title">{s.title}</div>
                 <div className="gq-how-body">{s.body}</div>
               </div>
@@ -598,12 +608,28 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         </div>
       </section>
 
-      {/* Comparison table */}
-      <section className="gq-compare-section">
-        <div className="gq-compare-inner">
-          <div className="gq-section-eyebrow">The difference</div>
-          <div className="gq-section-h2">One perfect match vs. a flood of strangers</div>
-          <table className="gq-compare-table">
+      {/* Why MoveLeads */}
+      <section className="gq-why-section">
+        <div className="gq-why-inner">
+          <div className="gq-section-eyebrow">WHY MOVELEADS</div>
+          <div className="gq-section-h2">Not another quote site</div>
+          <p className="gq-section-sub">Other sites sell your number to 8 strangers who all call at once. We do it differently.</p>
+          <div className="gq-why-grid">
+            {[
+              { emoji:'🔒', title:'Your info is never sold', body:'We never sell or share your contact details with anyone outside our verified mover network.' },
+              { emoji:'✅', title:'Phone-verified movers only', body:'Every mover on our platform is phone-verified and licensed. No fake numbers, no brokers.' },
+              { emoji:'⚡', title:'15-minute response time', body:'Verified movers in your area are notified instantly. Most respond within 15 minutes.' },
+              { emoji:'🛡️', title:'Resolution Center included', body:"Had an issue with your move? Resolve it privately before it hits public review sites." },
+            ].map((c,i) => (
+              <div key={i} className="gq-why-card">
+                <div className="gq-why-emoji">{c.emoji}</div>
+                <div className="gq-why-card-title">{c.title}</div>
+                <div className="gq-why-card-body">{c.body}</div>
+              </div>
+            ))}
+          </div>
+
+          <table className="gq-compare-table" style={{ marginTop: 40 }}>
             <thead>
               <tr>
                 <th></th>
@@ -613,12 +639,12 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
             </thead>
             <tbody>
               {[
-                ['# of movers who call you',   '1 verified carrier', '5–10 strangers'],
-                ['Licensed carriers only',      '✓ Always',           '✗ No guarantee'],
-                ['No broker middlemen',         '✓ Direct contact',   '✗ Often brokered'],
-                ['Response time',               '~15 minutes',        'Hours or days'],
-                ['Your number sold to others',  '✗ Never',            '✓ Yes, standard'],
-                ['Price shown before buying',   '✓ Real-time quote',  '✗ Bait & switch'],
+                ['Movers who contact you',   '1–3 verified',   '5–8 strangers'],
+                ['Your info sold',           'Never',          'Always'],
+                ['Phone-verified movers',    'Yes ✓',          'Rarely'],
+                ['Response time',            'Under 15 min',   'Hours to days'],
+                ['Fake numbers blocked',     'Yes ✓',          'No'],
+                ['Cost to get a quote',      'Free',           'Free'],
               ].map(([feat, us, them], i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: 500, color: 'var(--text)', fontSize: 14 }}>{feat}</td>
@@ -634,24 +660,59 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       {/* Testimonials */}
       <section className="gq-test-section">
         <div className="gq-test-inner">
-          <div className="gq-section-eyebrow">Customer reviews</div>
-          <div className="gq-section-h2" style={{ marginBottom: 28 }}>What our customers say</div>
+          <div className="gq-section-eyebrow">REVIEWS</div>
+          <div className="gq-section-h2" style={{ marginBottom: 28 }}>Families matched, moves completed</div>
           <div className="gq-test-grid">
             {[
-              { route: 'Dallas → Austin, TX', q: "Got 3 quotes within 10 minutes. Saved $400 on my move. The whole thing took less time than making a cup of coffee.", name:'Sarah M.', loc:'Dallas, TX' },
-              { route: 'Chicago → Miami, FL', q: "So easy. Filled out the form and had a mover calling me in 15 minutes. Booked on the spot — couldn't be happier.", name:'James T.', loc:'Chicago, IL' },
-              { route: 'Los Angeles → New York', q: "Finally a site that doesn't spam you. Only heard from one mover, they were great and gave me a binding estimate.", name:'Maria L.', loc:'Miami, FL' },
+              { route: 'Dallas → Austin, TX',    q: '"Got matched with a great mover in 10 minutes. Saved $400 on my Dallas move. So much better than getting bombarded by calls."', name:'Sarah M.', loc:'Dallas, TX → Austin, TX' },
+              { route: 'Chicago → Miami, FL',    q: '"One form, one call, done. No spam from 10 different companies. The mover showed up on time and handled everything professionally."', name:'James T.', loc:'Chicago, IL → Miami, FL' },
+              { route: 'Miami → New York, NY',   q: '"Finally a moving site that doesn\'t sell your number to everyone. Got exactly 2 calls from verified movers. Booked the same day."', name:'Maria L.', loc:'Miami, FL → New York, NY' },
             ].map((t, i) => (
               <div key={i} className="gq-test-card">
                 <div className="gq-test-stars">★★★★★</div>
-                <div className="gq-test-route">{t.route}</div>
-                <p className="gq-test-quote">"{t.q}"</p>
+                <p className="gq-test-quote">{t.q}</p>
                 <div className="gq-test-footer">
                   <div className="gq-test-avatar">{t.name.split(' ').map(x=>x[0]).join('')}</div>
                   <div><div className="gq-test-name">{t.name}</div><div className="gq-test-loc">{t.loc}</div></div>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="gq-faq-section">
+        <div className="gq-faq-inner">
+          <div className="gq-section-eyebrow">FAQ</div>
+          <div className="gq-section-h2">Common questions</div>
+          <div className="gq-faq-list">
+            {FAQ_ITEMS.map((item, i) => (
+              <div key={i} className={`gq-faq-item${faqOpen === i ? ' gq-faq-item--open' : ''}`}>
+                <button className="gq-faq-q" onClick={() => setFaqOpen(faqOpen === i ? null : i)}>
+                  <span>{item.q}</span>
+                  <span className="gq-faq-chevron">{faqOpen === i ? '−' : '+'}</span>
+                </button>
+                {faqOpen === i && <div className="gq-faq-a">{item.a}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="gq-cta-section">
+        <div className="gq-cta-inner">
+          <div className="gq-cta-eyebrow">GET STARTED</div>
+          <h2 className="gq-cta-h2">Your mover is one form away</h2>
+          <p className="gq-cta-sub">Free. Takes 60 seconds. No spam, ever.</p>
+          <button className="gq-cta-btn" onClick={() => document.getElementById('quote-widget')?.scrollIntoView({ behavior: 'smooth' })}>
+            Get My Free Quote →
+          </button>
+          <div className="gq-cta-trust">
+            <span>✓ Licensed movers only</span>
+            <span>✓ Your info never sold</span>
+            <span>✓ Free, no obligation</span>
           </div>
         </div>
       </section>
