@@ -40,7 +40,7 @@ export default function MarketingLayout({ children }) {
           </Link>
 
           <div style={{ display: 'flex', gap: 2 }} className="lp-links">
-            {[['Features', '/#features'], ['Pricing', '/#pricing'], ['How It Works', '/#how-it-works']].map(([t, h]) => (
+            {[['Features', '/#features'], ['How It Works', '/#how-it-works']].map(([t, h]) => (
               <a key={t} href={h} style={{
                 color: '#475569', fontSize: 14, fontWeight: 500, textDecoration: 'none',
                 padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
@@ -49,6 +49,13 @@ export default function MarketingLayout({ children }) {
                 onMouseLeave={e => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = 'transparent'; }}
               >{t}</a>
             ))}
+            <Link to="/pricing" style={{
+              color: '#475569', fontSize: 14, fontWeight: 500, textDecoration: 'none',
+              padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = NAVY; e.currentTarget.style.background = '#f1f5f9'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = 'transparent'; }}
+            >Pricing</Link>
             <Link to="/for-movers" style={{
               color: '#ea580c', fontSize: 14, fontWeight: 700, textDecoration: 'none',
               padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
