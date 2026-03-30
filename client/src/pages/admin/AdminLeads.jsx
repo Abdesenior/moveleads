@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -11,6 +11,104 @@ const CITIES = [
 ];
 
 const HOME_SIZES = ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4+ Bedroom', 'House (Small)', 'House (Medium)', 'House (Large)', 'Office/Commercial'];
+
+/* ── Custom city autocomplete (replaces native datalist) ── */
+function CityAutocomplete({ label, value, onChange, placeholder }) {
+  const [query, setQuery] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const wrapRef = useRef(null);
+
+  // keep query in sync if parent resets form
+  useEffect(() => { setQuery(value || ''); }, [value]);
+
+  const filtered = query.length > 0
+    ? CITIES.filter(c => c.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    : [];
+
+  const select = (city) => {
+    setQuery(city);
+    onChange(city);
+    setOpen(false);
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleKey = (e) => {
+    if (!open || filtered.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlighted(h => Math.min(h + 1, filtered.length - 1)); }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setHighlighted(h => Math.max(h - 1, 0)); }
+    if (e.key === 'Enter')     { e.preventDefault(); select(filtered[highlighted]); }
+    if (e.key === 'Escape')    { setOpen(false); }
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+          <MapPin size={13} color="#94a3b8" />
+        </div>
+        <input
+          type="text"
+          value={query}
+          placeholder={placeholder}
+          autoComplete="off"
+          required
+          style={{ ...inputStyle, paddingLeft: 34 }}
+          onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); setHighlighted(0); }}
+          onFocus={() => { setOpen(true); setHighlighted(0); }}
+          onKeyDown={handleKey}
+          onBlur={e => {
+            e.target.style.borderColor = '#e2e8f0';
+            e.target.style.boxShadow = 'none';
+            e.target.style.background = '#fafbfc';
+          }}
+          onFocusCapture={e => {
+            e.target.style.borderColor = '#f97316';
+            e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)';
+            e.target.style.background = '#fff';
+          }}
+        />
+      </div>
+      {open && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: '#fff', border: '1.5px solid #e2e8f0',
+          borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          zIndex: 99999, overflow: 'hidden', maxHeight: 260, overflowY: 'auto'
+        }}>
+          {filtered.map((city, i) => (
+            <div
+              key={city}
+              onMouseDown={() => select(city)}
+              onMouseEnter={() => setHighlighted(i)}
+              style={{
+                padding: '10px 16px',
+                fontSize: 13,
+                fontWeight: i === highlighted ? 700 : 500,
+                color: i === highlighted ? '#0f172a' : '#475569',
+                background: i === highlighted ? '#f0f7ff' : 'transparent',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8,
+                borderBottom: i < filtered.length - 1 ? '1px solid #f8fafc' : 'none'
+              }}
+            >
+              <MapPin size={12} color={i === highlighted ? '#3b82f6' : '#cbd5e1'} />
+              {city}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function AdminLeads() {
   const { API_URL, token } = useContext(AuthContext);
@@ -396,16 +494,18 @@ export default function AdminLeads() {
               {/* ── Section 1: Move Details ── */}
               <SectionHeader icon={<MapPin size={14} color="#3b82f6" />} bg="#eff6ff" title="Move Details" subtitle="Origin and destination information" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
-                <FieldGroup label="Origin City *" icon={<MapPin size={13} color="#94a3b8" />}>
-                  <input type="text" name="originCity" list="fromCityList" autoComplete="off"
-                    value={formData.originCity} onChange={handleInput} required
-                    style={inputStyle} placeholder="e.g. New York" />
-                </FieldGroup>
-                <FieldGroup label="Destination City *" icon={<MapPin size={13} color="#94a3b8" />}>
-                  <input type="text" name="destinationCity" list="toCityList" autoComplete="off"
-                    value={formData.destinationCity} onChange={handleInput} required
-                    style={inputStyle} placeholder="e.g. Los Angeles" />
-                </FieldGroup>
+                <CityAutocomplete
+                  label="Origin City *"
+                  value={formData.originCity}
+                  onChange={val => setFormData(f => ({ ...f, originCity: val }))}
+                  placeholder="e.g. New York"
+                />
+                <CityAutocomplete
+                  label="Destination City *"
+                  value={formData.destinationCity}
+                  onChange={val => setFormData(f => ({ ...f, destinationCity: val }))}
+                  placeholder="e.g. Los Angeles"
+                />
                 <FieldGroup label="Origin ZIP" icon={<Hash size={13} color="#94a3b8" />}>
                   <input type="text" name="originZip" maxLength={5}
                     value={formData.originZip} onChange={handleInput}
@@ -516,12 +616,7 @@ export default function AdminLeads() {
               </div>
             </form>
 
-            <datalist id="fromCityList">
-              {CITIES.map((city, i) => <option key={`from-${i}`} value={city} />)}
-            </datalist>
-            <datalist id="toCityList">
-              {CITIES.map((city, i) => <option key={`to-${i}`} value={city} />)}
-            </datalist>
+
           </div>
         </div>
       )}
