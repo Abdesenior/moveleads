@@ -68,6 +68,7 @@ app.use('/api/complaints', require('./routes/complaints'));
 
 // Auction settlement cron — must be required AFTER socketService.init()
 require('./jobs/settleAuctions');
+require('./jobs/requestFeedback');
 
 const PORT = process.env.PORT || 5005;
 // Bind to 0.0.0.0 so Render's load balancer (and Docker) can reach the process.
