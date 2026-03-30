@@ -88,7 +88,7 @@ export default function MarketingLayout({ children }) {
             </div>
             {[
               { title: 'Product', links: [{ l: 'Features', h: '/#features' }, { l: 'Pricing', h: '/#pricing' }, { l: 'How It Works', h: '/#how-it-works' }] },
-              { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'Privacy Policy', to: '/privacy' }] },
+              { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'Privacy Policy', to: '/privacy' }, { l: 'Report an Issue', to: '/feedback' }] },
               { title: 'Account', links: [{ l: 'Sign up free', to: '/register' }, { l: 'Log in', to: '/login' }] },
             ].map((col, i) => (
               <div key={i}>
