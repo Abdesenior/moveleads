@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { greatCircle } from '@turf/great-circle';
@@ -9,6 +10,7 @@ import {
     Mail, ChevronRight, Home, Phone, User,
     Users, Activity, DollarSign, TrendingUp
 } from 'lucide-react';
+import MarketingLayout from '../components/MarketingLayout';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
@@ -607,33 +609,34 @@ export function DemoWidget({ companyId }) {
 
                 {/* ── Step 5: Confirmation ── */}
                 {step === 5 && (
-                    <div style={{ animation: 'wgFadeIn 0.3s ease' }}>
-                        <div style={{ textAlign: 'center', marginBottom: 14 }}>
-                            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                                <CheckCircle size={26} color="#16a34a" />
+                    <>
+                        <div style={{ animation: 'wgFadeIn 0.3s ease' }}>
+                            <div style={{ textAlign: 'center', marginBottom: 14 }}>
+                                <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                                    <CheckCircle size={26} color="#16a34a" />
+                                </div>
+                                <h3 style={{ fontSize: 19, fontWeight: 800, color: '#0f172a', marginBottom: 5, fontFamily: "'Poppins',sans-serif" }}>Quote Confirmed!</h3>
+                                <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                                    Thanks, <strong>{name}</strong>! A local mover will contact <strong>{phone}</strong> shortly.
+                                </p>
                             </div>
-                            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#0f172a', marginBottom: 5, fontFamily: "'Poppins',sans-serif" }}>Quote Confirmed!</h3>
-                            <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
-                                Thanks, <strong>{name}</strong>! A local mover will contact <strong>{phone}</strong> shortly.
-                            </p>
-                        </div>
 
-                        {mapReady && <MapArc origin={originCoords} destination={destCoords} fixedCoords={routeCoords} onRouteLoaded={handleRouteLoaded} />}
+                            {mapReady && <MapArc origin={originCoords} destination={destCoords} fixedCoords={routeCoords} onRouteLoaded={handleRouteLoaded} />}
 
-                        <div style={{ background: '#f0fdf4', borderRadius: 11, padding: '11px 14px', textAlign: 'center', marginBottom: 18 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
-                                ${q.total.toLocaleString()} estimated — {size} move, {effectiveMiles.toLocaleString()} mi
+                            <div style={{ background: '#f0fdf4', borderRadius: 11, padding: '11px 14px', textAlign: 'center', marginBottom: 18 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
+                                    ${q.total.toLocaleString()} estimated — {size} move, {effectiveMiles.toLocaleString()} mi
+                                </div>
                             </div>
-                        </div>
 
-                        <button type="button" onClick={handleReset} style={{ display: 'block', width: '100%', background: 'none', border: 'none', color: '#ea580c', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
-                            ↺ Restart Demo
-                        </button>
-                    </div>
+                            <button type="button" onClick={handleReset} style={{ display: 'block', width: '100%', background: 'none', border: 'none', color: '#ea580c', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
+                                ↺ Restart Demo
+                            </button>
+                        </div>
+                        <style>{`@keyframes wgFadeIn { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }`}</style>
+                    </>
                 )}
             </div>
-
-            <style>{`@keyframes wgFadeIn { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }`}</style>
         </div>
     );
 }
@@ -642,6 +645,8 @@ export function DemoWidget({ companyId }) {
    MAIN PAGE
    ══════════════════════════════════════════════════════════ */
 export default function WidgetPage({ user, token, apiUrl, insideDashboard = false }) {
+    const { pathname } = useLocation();
+    const isPublic = pathname === '/widget-page';
     useEffect(() => {
         if (!insideDashboard) window.scrollTo(0, 0);
     }, [insideDashboard]);
@@ -657,8 +662,9 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
         })
             .then(r => r.ok ? r.json() : null)
             .then(d => d?.success && setAnalytics(d))
-            .catch(() => {});
+            .catch(() => { });
     }, [user?._id]); // eslint-disable-line
+
     const embedRef = useRef(null);
     const companyId = user?._id || 'YOUR-COMPANY-ID';
     const embedCode = `<div id="moveleads-widget" data-company="${companyId}"></div>\n<script src="https://moveleads.cloud/widget.js" defer></script>`;
@@ -666,8 +672,8 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
     const handleCopy = () => { navigator.clipboard.writeText(embedCode); setCopied(true); setTimeout(() => setCopied(false), 2500); };
     const scrollToEmbed = () => embedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    return (
-        <div style={{ background: '#fff', minHeight: '100vh', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    const content = (
+        <div style={{ fontFamily: "'Inter','Segoe UI',sans-serif" }}>
 
             {/* ── Hero ── */}
             <div style={{ textAlign: 'center', padding: insideDashboard ? '64px 20px 80px' : '100px 20px 100px', background: 'linear-gradient(180deg,#fff 0%,#f8fafc 100%)', borderBottom: '1px solid #e2e8f0', position: 'relative', overflow: 'hidden' }}>
@@ -927,4 +933,12 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
 
         </div>
     );
+
+    /* ── Render ── */
+    // If we're on the public route or insideDashboard is explicitly false, show layout
+    if (isPublic && !insideDashboard) {
+        return <MarketingLayout>{content}</MarketingLayout>;
+    }
+
+    return insideDashboard ? content : <MarketingLayout>{content}</MarketingLayout>;
 }
