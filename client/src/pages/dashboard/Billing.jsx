@@ -174,86 +174,89 @@ export default function Billing() {
       </div>
 
       {/* ══════════════════════════════════════════════
-          PREMIUM BALANCE CARD — balance + top-up inline
+          BALANCE CARD — balance + top-up inline
           ══════════════════════════════════════════════ */}
       <div style={{
-        background: 'linear-gradient(135deg,#0a192f 0%,#112240 60%,#0d2240 100%)',
-        borderRadius: 20, padding: '32px 36px', marginBottom: 28,
-        boxShadow: '0 12px 36px rgba(10,25,47,0.28)',
-        position: 'relative', overflow: 'hidden',
+        display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 0,
+        background: '#fff', borderRadius: 20, marginBottom: 28,
+        border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(15,23,42,0.06)',
+        overflow: 'hidden',
       }}>
-        {/* Decorative glows */}
-        <div style={{ position: 'absolute', top: '-30%', right: '-8%', width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle,rgba(249,115,22,0.14),transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '-30%', left: '8%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(59,130,246,0.08),transparent 70%)', pointerEvents: 'none' }} />
-
-        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto', gap: 32, alignItems: 'start' }}>
-
-          {/* Left: balance */}
-          <div>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>
-              Available Balance
-            </p>
-            <div style={{
-              fontSize: 52, fontWeight: 800, color: '#fff', fontFamily: "'Poppins',sans-serif",
-              lineHeight: 1, letterSpacing: -1, marginBottom: 8,
-              animation: balancePulse ? 'blPulse 0.5s ease' : 'none',
-            }}>
-              ${balance.toFixed(2)}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
-              <Wallet size={12} /> MoveLeads Credits
+        {/* Left: balance */}
+        <div style={{ padding: '32px 36px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg,#ea580c,#f59e0b)' }} />
+          <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>
+            Available Balance
+          </p>
+          <div style={{
+            fontSize: 52, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif",
+            lineHeight: 1, letterSpacing: -1, marginBottom: 12,
+            animation: balancePulse ? 'blPulse 0.5s ease' : 'none',
+          }}>
+            ${balance.toFixed(2)}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 20, padding: '4px 10px' }}>
+              <Wallet size={12} color="#94a3b8" />
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>MoveLeads Credits</span>
             </div>
           </div>
+        </div>
 
-          {/* Right: quick top-up */}
-          <div style={{ minWidth: 280 }}>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>
-              Quick Top Up
-            </p>
+        {/* Divider */}
+        <div style={{ background: '#e2e8f0' }} />
 
-            {/* Amount selector pills */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-              {CREDIT_PACKS.map(pkg => {
-                const active = selectedAmount === pkg.amount;
-                return (
-                  <button
-                    key={pkg.amount}
-                    type="button"
-                    onClick={() => setSelectedAmount(pkg.amount)}
-                    style={{
-                      padding: '6px 14px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
-                      cursor: 'pointer', border: '1.5px solid',
-                      background: active ? '#f59e0b' : 'rgba(255,255,255,0.08)',
-                      color: active ? '#fff' : 'rgba(255,255,255,0.65)',
-                      borderColor: active ? '#f59e0b' : 'rgba(255,255,255,0.15)',
-                      transition: 'all 0.15s',
-                      position: 'relative',
-                    }}
-                  >
-                    {pkg.label}
-                    {pkg.popular && !active && (
-                      <span style={{ position: 'absolute', top: -6, right: -4, background: '#f59e0b', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 4 }}>★</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+        {/* Right: quick top-up */}
+        <div style={{ padding: '32px 36px' }}>
+          <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 12px' }}>
+            Quick Top Up
+          </p>
 
-            {/* Checkout button */}
-            <button
-              onClick={() => setConfirmAmount(selectedAmount)}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                background: 'linear-gradient(135deg,#f59e0b,#d97706)',
-                color: '#fff', border: 'none', borderRadius: 12, padding: '13px 20px',
-                fontSize: 14, fontWeight: 700, fontFamily: "'Poppins',sans-serif",
-                cursor: 'pointer', boxShadow: '0 6px 20px rgba(245,158,11,0.35)',
-                transition: 'all 0.25s',
-              }}
-            >
-              <Plus size={16} /> Add ${selectedAmount} Credits
-            </button>
+          {/* Amount selector pills */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+            {CREDIT_PACKS.map(pkg => {
+              const active = selectedAmount === pkg.amount;
+              return (
+                <button
+                  key={pkg.amount}
+                  type="button"
+                  onClick={() => setSelectedAmount(pkg.amount)}
+                  style={{
+                    padding: '7px 16px', borderRadius: 9999, fontSize: 13, fontWeight: 700,
+                    cursor: 'pointer', border: '1.5px solid',
+                    background: active ? 'linear-gradient(135deg,#f59e0b,#ea580c)' : '#f8fafc',
+                    color: active ? '#fff' : '#475569',
+                    borderColor: active ? '#f59e0b' : '#e2e8f0',
+                    boxShadow: active ? '0 4px 12px rgba(245,158,11,0.3)' : 'none',
+                    transition: 'all 0.15s',
+                    position: 'relative',
+                  }}
+                >
+                  {pkg.label}
+                  {pkg.popular && !active && (
+                    <span style={{ position: 'absolute', top: -6, right: -4, background: '#ea580c', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 4 }}>★</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
+
+          {/* Checkout button */}
+          <button
+            onClick={() => setConfirmAmount(selectedAmount)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              background: 'linear-gradient(135deg,#ea580c,#c2410c)',
+              color: '#fff', border: 'none', borderRadius: 12, padding: '14px 20px',
+              fontSize: 14, fontWeight: 700, fontFamily: "'Poppins',sans-serif",
+              cursor: 'pointer', boxShadow: '0 4px 16px rgba(234,88,12,0.3)',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 22px rgba(234,88,12,0.42)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(234,88,12,0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            <Plus size={16} /> Add ${selectedAmount} Credits
+          </button>
         </div>
       </div>
 
