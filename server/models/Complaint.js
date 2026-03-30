@@ -7,17 +7,15 @@ const MessageSchema = new mongoose.Schema({
 });
 
 const ComplaintSchema = new mongoose.Schema({
-    lead: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'lead',
-        required: true
-    },
-    company: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'user',
-        required: true
-    },
-    customerName: { type: String, required: true },
+    // Linked complaints (magic link) have both populated.
+    // Unlinked complaints (manual form) may have neither until admin assigns them.
+    lead:    { type: mongoose.Schema.Types.ObjectId, ref: 'lead', default: null },
+    company: { type: mongoose.Schema.Types.ObjectId, ref: 'user', default: null },
+    // true = verified lead+company pair; false = goes to admin queue
+    isLinked: { type: Boolean, default: false },
+    // Customer-typed company name when no magic link
+    companyNameManual: { type: String, default: '' },
+    customerName:  { type: String, required: true },
     customerEmail: { type: String, required: true },
     issueType: {
         type: String,
