@@ -330,182 +330,189 @@ export default function AdminLeads() {
       {/* PREMIUM ADD/EDIT LEAD MODAL */}
       {showModal && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(12px)',
+          position: 'fixed', inset: 0,
+          background: 'rgba(10,20,40,0.65)',
+          backdropFilter: 'blur(14px)',
           zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-          animation: 'fadeIn 0.3s ease'
+          animation: 'fadeIn 0.25s ease'
         }}>
           <div style={{
-            background: 'white', width: '100%', maxWidth: 720, borderRadius: 24,
-            boxShadow: '0 32px 80px rgba(0,0,0,0.25)', maxHeight: '92vh', overflowY: 'auto',
-            animation: 'scaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
+            background: '#fff', width: '100%', maxWidth: 780, borderRadius: 28,
+            boxShadow: '0 40px 100px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.12)',
+            maxHeight: '94vh', overflowY: 'auto',
+            animation: 'scaleIn 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+            display: 'flex', flexDirection: 'column'
           }}>
-            {/* Modal Header */}
+
+            {/* ── Modal Header ── */}
             <div style={{
-              background: 'linear-gradient(135deg, #0a192f 0%, #112240 100%)',
-              padding: '28px 32px', borderRadius: '24px 24px 0 0',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              background: 'linear-gradient(135deg, #0a192f 0%, #1e3a5f 100%)',
+              padding: '26px 32px 22px',
+              borderRadius: '28px 28px 0 0',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+              flexShrink: 0
             }}>
               <div>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, fontFamily: 'Poppins' }}>
-                  {editingId ? '✏️ Edit Lead' : '📋 Create New Lead'}
-                </h2>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '4px 0 0' }}>
-                  {editingId ? 'Update lead details below' : 'Fill in the details to add a lead to the marketplace'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(249,115,22,0.2)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {editingId ? <Edit2 size={16} color="#f97316" /> : <Plus size={16} color="#f97316" />}
+                  </div>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, fontFamily: 'Poppins', letterSpacing: '-0.3px' }}>
+                    {editingId ? 'Edit Lead' : 'Create New Lead'}
+                  </h2>
+                </div>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', margin: 0, paddingLeft: 46 }}>
+                  {editingId ? 'Update lead details in the marketplace' : 'Fill in all sections to publish a new moving lead'}
                 </p>
               </div>
               <button onClick={() => { setShowModal(false); setEditingId(null); }}
-                style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)' }}>
+                style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', transition: 'all 0.2s', flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}>
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAddLead} style={{ padding: '24px 32px 32px' }}>
-              {/* Section: Move Details */}
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <MapPin size={14} color="#3b82f6" />
-                  </div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>Move Details</h3>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div>
-                    <label style={labelStyle}>Origin City *</label>
-                    <input type="text" name="originCity" list="fromCityList" autoComplete="off"
-                      value={formData.originCity} onChange={handleInput} required
-                      style={inputStyle} placeholder="e.g. New York" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Destination City *</label>
-                    <input type="text" name="destinationCity" list="toCityList" autoComplete="off"
-                      value={formData.destinationCity} onChange={handleInput} required
-                      style={inputStyle} placeholder="e.g. Los Angeles" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Origin ZIP</label>
-                    <input type="text" name="originZip" maxLength={5}
-                      value={formData.originZip} onChange={handleInput}
-                      style={inputStyle} placeholder="e.g. 10001" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Destination ZIP</label>
-                    <input type="text" name="destinationZip" maxLength={5}
-                      value={formData.destinationZip} onChange={handleInput}
-                      style={inputStyle} placeholder="e.g. 90001" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Move Date *</label>
-                    <input type="date" name="moveDate" value={formData.moveDate} onChange={handleInput} required style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Distance Type *</label>
-                    <select name="distance" value={formData.distance} onChange={handleInput} style={inputStyle}>
-                      <option value="Local">Local (Under 50 miles)</option>
-                      <option value="Long Distance">Long Distance (50+ miles)</option>
-                    </select>
-                  </div>
-                </div>
+            {/* ── Route Summary Badge (live preview) ── */}
+            {(formData.originCity || formData.destinationCity) && (
+              <div style={{ background: '#f0f7ff', borderBottom: '1px solid #dbeafe', padding: '12px 32px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <MapPin size={14} color="#3b82f6" />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1e3a8a' }}>
+                  {formData.originCity || '—'} → {formData.destinationCity || '—'}
+                </span>
+                <span style={{ fontSize: 11, color: '#64748b', background: '#e0f2fe', padding: '2px 10px', borderRadius: 100, fontWeight: 600, marginLeft: 4 }}>
+                  {formData.distance}
+                </span>
+                {formData.moveDate && (
+                  <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>
+                    📅 {new Date(formData.moveDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <form onSubmit={handleAddLead} style={{ padding: '20px 32px 32px', flex: 1 }}>
+
+              {/* ── Section 1: Move Details ── */}
+              <SectionHeader icon={<MapPin size={14} color="#3b82f6" />} bg="#eff6ff" title="Move Details" subtitle="Origin and destination information" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+                <FieldGroup label="Origin City *" icon={<MapPin size={13} color="#94a3b8" />}>
+                  <input type="text" name="originCity" list="fromCityList" autoComplete="off"
+                    value={formData.originCity} onChange={handleInput} required
+                    style={inputStyle} placeholder="e.g. New York" />
+                </FieldGroup>
+                <FieldGroup label="Destination City *" icon={<MapPin size={13} color="#94a3b8" />}>
+                  <input type="text" name="destinationCity" list="toCityList" autoComplete="off"
+                    value={formData.destinationCity} onChange={handleInput} required
+                    style={inputStyle} placeholder="e.g. Los Angeles" />
+                </FieldGroup>
+                <FieldGroup label="Origin ZIP" icon={<Hash size={13} color="#94a3b8" />}>
+                  <input type="text" name="originZip" maxLength={5}
+                    value={formData.originZip} onChange={handleInput}
+                    style={inputStyle} placeholder="e.g. 10001" />
+                </FieldGroup>
+                <FieldGroup label="Destination ZIP" icon={<Hash size={13} color="#94a3b8" />}>
+                  <input type="text" name="destinationZip" maxLength={5}
+                    value={formData.destinationZip} onChange={handleInput}
+                    style={inputStyle} placeholder="e.g. 90001" />
+                </FieldGroup>
+                <FieldGroup label="Move Date *" icon={<Calendar size={13} color="#94a3b8" />}>
+                  <input type="date" name="moveDate" value={formData.moveDate} onChange={handleInput} required style={inputStyle} />
+                </FieldGroup>
+                <FieldGroup label="Distance Type *" icon={<MapPin size={13} color="#94a3b8" />}>
+                  <select name="distance" value={formData.distance} onChange={handleInput} style={inputStyle}>
+                    <option value="Local">🏙️ Local (Under 50 miles)</option>
+                    <option value="Long Distance">🛣️ Long Distance (50+ miles)</option>
+                  </select>
+                </FieldGroup>
               </div>
 
-              {/* Section: Property Info */}
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Home size={14} color="#8b5cf6" />
-                  </div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>Property Information</h3>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-                  <div>
-                    <label style={labelStyle}>Home Size *</label>
-                    <select name="homeSize" value={formData.homeSize} onChange={handleInput} style={inputStyle}>
-                      {HOME_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Number of Rooms</label>
-                    <input type="number" name="numberOfRooms" value={formData.numberOfRooms} onChange={handleInput}
-                      style={inputStyle} placeholder="0" min="0" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Est. Weight (lbs)</label>
-                    <input type="text" name="estimatedWeight" value={formData.estimatedWeight} onChange={handleInput}
-                      style={inputStyle} placeholder="e.g. 5,000 lbs" />
-                  </div>
-                </div>
+              {/* ── Section 2: Property Info ── */}
+              <SectionHeader icon={<Home size={14} color="#8b5cf6" />} bg="#f5f3ff" title="Property Information" subtitle="Home size and move logistics" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
+                <FieldGroup label="Home Size *" icon={<Home size={13} color="#94a3b8" />}>
+                  <select name="homeSize" value={formData.homeSize} onChange={handleInput} style={inputStyle}>
+                    {HOME_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </FieldGroup>
+                <FieldGroup label="Number of Rooms" icon={<Hash size={13} color="#94a3b8" />}>
+                  <input type="number" name="numberOfRooms" value={formData.numberOfRooms} onChange={handleInput}
+                    style={inputStyle} placeholder="0" min="0" />
+                </FieldGroup>
+                <FieldGroup label="Est. Weight (lbs)" icon={<Weight size={13} color="#94a3b8" />}>
+                  <input type="text" name="estimatedWeight" value={formData.estimatedWeight} onChange={handleInput}
+                    style={inputStyle} placeholder="e.g. 5,000" />
+                </FieldGroup>
               </div>
 
-              {/* Section: Contact Info */}
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <User size={14} color="#16a34a" />
-                  </div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>Customer Contact</h3>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 16 }}>
-                  <div>
-                    <label style={labelStyle}>Full Name *</label>
+              {/* ── Section 3: Customer Contact ── */}
+              <SectionHeader icon={<User size={14} color="#16a34a" />} bg="#f0fdf4" title="Customer Contact" subtitle="Lead contact details" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <FieldGroup label="Full Name *" icon={<User size={13} color="#94a3b8" />}>
                     <input type="text" name="customerName" value={formData.customerName} onChange={handleInput}
                       required style={inputStyle} placeholder="John Doe" />
-                  </div>
+                  </FieldGroup>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div>
-                    <label style={labelStyle}>Phone Number *</label>
-                    <input type="tel" name="customerPhone" value={formData.customerPhone} onChange={handleInput}
-                      required style={inputStyle} placeholder="(555) 123-4567" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Email Address *</label>
-                    <input type="email" name="customerEmail" value={formData.customerEmail} onChange={handleInput}
-                      required style={inputStyle} placeholder="john@example.com" />
-                  </div>
-                </div>
+                <FieldGroup label="Phone Number *" icon={<Phone size={13} color="#94a3b8" />}>
+                  <input type="tel" name="customerPhone" value={formData.customerPhone} onChange={handleInput}
+                    required style={inputStyle} placeholder="(555) 123-4567" />
+                </FieldGroup>
+                <FieldGroup label="Email Address *" icon={<Mail size={13} color="#94a3b8" />}>
+                  <input type="email" name="customerEmail" value={formData.customerEmail} onChange={handleInput}
+                    required style={inputStyle} placeholder="john@example.com" />
+                </FieldGroup>
+                <FieldGroup label="Price ($) *" icon={<DollarSign size={13} color="#94a3b8" />}>
+                  <input type="number" name="price" value={formData.price} onChange={handleInput}
+                    required style={{ ...inputStyle, fontWeight: 700, color: '#0f172a' }} min="1" />
+                </FieldGroup>
               </div>
 
-              {/* Section: Pricing & Notes */}
-              <div style={{ marginBottom: 32 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <DollarSign size={14} color="#f59e0b" />
-                  </div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>Pricing & Notes</h3>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
-                  <div>
-                    <label style={labelStyle}>Price ($) *</label>
-                    <input type="number" name="price" value={formData.price} onChange={handleInput}
-                      required style={inputStyle} min="1" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Special Instructions</label>
-                    <input type="text" name="specialInstructions" value={formData.specialInstructions}
-                      onChange={handleInput} style={inputStyle}
-                      placeholder="e.g. 3rd floor walk-up, has pets, piano..." />
-                  </div>
-                </div>
+              {/* ── Section 4: Notes ── */}
+              <SectionHeader icon={<FileText size={14} color="#f59e0b" />} bg="#fffbeb" title="Special Instructions" subtitle="Extra details for the moving company" />
+              <div style={{ marginBottom: 28 }}>
+                <textarea name="specialInstructions" value={formData.specialInstructions} onChange={handleInput}
+                  rows={3} style={{ ...inputStyle, resize: 'vertical', minHeight: 80, lineHeight: 1.6 }}
+                  placeholder="e.g. 3rd floor walk-up, fragile items, has pets, piano needs disassembly..." />
               </div>
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f1f5f9', paddingTop: 24 }}>
-                <button type="button" onClick={() => { setShowModal(false); setEditingId(null); }}
-                  style={{
-                    padding: '12px 28px', borderRadius: 12, border: '2px solid #e2e8f0',
-                    background: 'transparent', color: '#64748b', fontSize: 14, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: "'Poppins', sans-serif"
-                  }}>Cancel</button>
-                <button type="submit" disabled={submitting}
-                  style={{
-                    padding: '12px 32px', borderRadius: 12, border: 'none',
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Poppins', sans-serif",
-                    boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
-                    opacity: submitting ? 0.6 : 1
-                  }}>
-                  {submitting ? 'Saving...' : (editingId ? 'Update Lead' : 'Publish to Marketplace')}
-                </button>
+              {/* ── Action Buttons ── */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: 20, gap: 12 }}>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                  * Required fields
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => { setShowModal(false); setEditingId(null); }}
+                    style={{
+                      padding: '12px 24px', borderRadius: 12, border: '1.5px solid #e2e8f0',
+                      background: 'transparent', color: '#64748b', fontSize: 14, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: "'Poppins', sans-serif", transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'transparent'; }}>
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={submitting}
+                    style={{
+                      padding: '12px 32px', borderRadius: 12, border: 'none',
+                      background: submitting ? '#94a3b8' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: '#fff', fontSize: 14, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer',
+                      fontFamily: "'Poppins', sans-serif",
+                      boxShadow: submitting ? 'none' : '0 4px 16px rgba(245,158,11,0.35)',
+                      transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 8
+                    }}
+                    onMouseEnter={e => { if (!submitting) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(245,158,11,0.45)'; } }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = submitting ? 'none' : '0 4px 16px rgba(245,158,11,0.35)'; }}>
+                    {submitting ? (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        Saving...
+                      </>
+                    ) : (
+                      <>{editingId ? <><Edit2 size={14} /> Update Lead</> : <><Plus size={14} /> Publish to Marketplace</>}</>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
 
@@ -520,21 +527,57 @@ export default function AdminLeads() {
       )}
 
       <style>{`
-        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-        @keyframes scaleIn { from { opacity:0; transform:scale(0.9) translateY(20px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        @keyframes fadeIn  { from { opacity:0 } to { opacity:1 } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.92) translateY(24px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        @keyframes spin    { to { transform: rotate(360deg); } }
       `}</style>
     </AdminLayout>
   );
 }
 
+/* ── Reusable sub-components ── */
+function SectionHeader({ icon, bg, title, subtitle }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid #f1f5f9' }}>
+      <div style={{ width: 30, height: 30, borderRadius: 8, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>{title}</div>
+        <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{subtitle}</div>
+      </div>
+    </div>
+  );
+}
+
+function FieldGroup({ label, icon, children }) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        {icon && (
+          <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+            {icon}
+          </div>
+        )}
+        {React.cloneElement(children, {
+          style: { ...children.props.style, paddingLeft: icon ? 34 : 14 },
+          onFocus: e => { e.target.style.borderColor = '#f97316'; e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)'; e.target.style.background = '#fff'; },
+          onBlur:  e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafbfc'; }
+        })}
+      </div>
+    </div>
+  );
+}
+
 const labelStyle = {
-  display: 'block', fontSize: 12, fontWeight: 600, color: '#475569',
-  marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px'
+  display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b',
+  marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px'
 };
 
 const inputStyle = {
-  width: '100%', padding: '12px 14px', borderRadius: 12,
-  border: '1px solid #e2e8f0', outline: 'none', fontSize: 14,
-  fontFamily: "'Inter', sans-serif", transition: 'border-color 0.2s',
-  background: '#fafbfc'
+  width: '100%', padding: '11px 14px', borderRadius: 10,
+  border: '1.5px solid #e2e8f0', outline: 'none', fontSize: 13,
+  fontFamily: "'Inter', sans-serif", transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s',
+  background: '#fafbfc', boxSizing: 'border-box', color: '#0f172a'
 };
