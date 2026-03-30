@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const CRM_STATUSES = ['New', 'Contacted', 'Quoted', 'Booked', 'Lost'];
+const CRM_STATUSES = ['New', 'Contacted', 'Quoted', 'Booked', 'Completed', 'Lost'];
 
 const PurchasedLeadSchema = new mongoose.Schema({
   company: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },

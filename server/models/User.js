@@ -24,6 +24,7 @@ const UserSchema = new mongoose.Schema({
   smsNotif: { type: Boolean, default: false },
   isSuspended: { type: Boolean, default: false },
   receiveLiveTransfers: { type: Boolean, default: false },
+  googleReviewLink: { type: String, default: '' },
   // ── Email verification ───────────────────────────────────────────────────
   isEmailVerified: { type: Boolean, default: false },
   emailVerificationToken: { type: String },

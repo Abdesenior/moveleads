@@ -11,6 +11,7 @@ const { deductLeadBalance, runAutoRecharge } = require('../services/billingServi
 const { sendSpeedToLeadSMS } = require('../services/twilioService');
 const PlatformSettings = require('../models/PlatformSettings');
 const { validateLeadPayload } = require('../validators/leadIngest');
+const { sendReviewRequestEmail } = require('../services/emailService');
 const { verifyLeadPhone } = require('../services/twilioService');
 
 const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingEngine');
@@ -67,7 +68,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
     // 5. Auction pricing based on score/grade
     const auctionPricing = calculateAuctionPrice({
       homeSize: data.homeSize,
-      miles:    data.miles || 0,
+      miles: data.miles || 0,
       moveDate: data.moveDate,
       grade,
     });
@@ -82,23 +83,23 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       homeSize: data.homeSize,
       moveDate: new Date(data.moveDate),
       distance,
-      price:  auctionPricing.buyNowPrice || leadPrice,
-      miles:  data.miles || 0,
+      price: auctionPricing.buyNowPrice || leadPrice,
+      miles: data.miles || 0,
       status: 'Pending Verification',
       isVerified: false,
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerEmail: data.customerEmail,
       specialInstructions: data.specialInstructions || '',
-      estimatedWeight:     data.estimatedWeight || '',
-      numberOfRooms:       data.numberOfRooms || 0,
+      estimatedWeight: data.estimatedWeight || '',
+      numberOfRooms: data.numberOfRooms || 0,
       customerStatus: 'New',
       score, grade, scoreFactors,
-      buyNowPrice:      auctionPricing.buyNowPrice,
+      buyNowPrice: auctionPricing.buyNowPrice,
       startingBidPrice: auctionPricing.startingBidPrice,
-      currentBidPrice:  auctionPricing.startingBidPrice,
-      auctionStatus:    'active',
-      auctionEndsAt:    new Date(Date.now() + 30 * 60 * 1000), // 30-min window
+      currentBidPrice: auctionPricing.startingBidPrice,
+      auctionStatus: 'active',
+      auctionEndsAt: new Date(Date.now() + 30 * 60 * 1000), // 30-min window
       ...(data.sourceCompany && mongoose.isValidObjectId(data.sourceCompany) && { sourceCompany: data.sourceCompany }),
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }]
     });
@@ -140,11 +141,11 @@ router.get('/widget-analytics', auth, async (req, res) => {
     let pipelineValue = 0;
     widgetLeads.forEach(lead => {
       const s = lead.homeSize || '';
-      if (s.includes('Studio'))     pipelineValue += 500;
+      if (s.includes('Studio')) pipelineValue += 500;
       else if (s.includes('1 Bed')) pipelineValue += 900;
       else if (s.includes('2 Bed')) pipelineValue += 1500;
       else if (s.includes('3 Bed')) pipelineValue += 2200;
-      else                          pipelineValue += 3000; // 4+ beds
+      else pipelineValue += 3000; // 4+ beds
     });
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -307,8 +308,8 @@ router.post('/:id/claim', auth, async (req, res) => {
 
     // 6. Audit record.
     await new PurchasedLead({
-      company:   req.user.id,
-      lead:      lead._id,
+      company: req.user.id,
+      lead: lead._id,
       pricePaid: lead.buyNowPrice || lead.price,
     }).save().catch(err => { if (err.code !== 11000) throw err; });
 
@@ -330,7 +331,7 @@ router.post('/:id/claim', auth, async (req, res) => {
           console.error('[Background SMS Trace] Automation error:', err.message);
         });
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
   } catch (err) {
     console.error(`[Claim Error] ${req.user.id} -> ${req.params.id}:`, err.message);
@@ -358,16 +359,32 @@ router.patch('/:id/crm-status', auth, async (req, res) => {
   try {
     const update = {};
     if (crmStatus !== undefined) update.crmStatus = crmStatus;
-    if (crmNotes  !== undefined) update.crmNotes  = crmNotes;
+    if (crmNotes !== undefined) update.crmNotes = crmNotes;
 
     const record = await PurchasedLead.findOneAndUpdate(
       { lead: req.params.id, company: req.user.id },
       { $set: update },
       { returnDocument: 'after' }
-    );
+    ).populate('lead');
 
     if (!record) {
       return res.status(404).json({ msg: 'No purchase record found for this lead.' });
+    }
+
+    // Automate Review Request if marked as Completed
+    if (update.crmStatus === 'Completed') {
+      const mover = await User.findById(req.user.id);
+      if (mover && mover.googleReviewLink && record.lead && record.lead.customerEmail) {
+        // Fire and forget email
+        sendReviewRequestEmail({
+          toEmail: record.lead.customerEmail,
+          customerName: record.lead.customerName,
+          companyName: mover.companyName,
+          reviewLink: mover.googleReviewLink
+        }).catch(err => {
+          console.error('[Background Review Email Error]', err.message);
+        });
+      }
     }
 
     res.json(record);

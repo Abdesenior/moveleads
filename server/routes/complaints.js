@@ -93,19 +93,33 @@ router.get('/', auth, async (req, res) => {
 
 // @route   POST /api/complaints/:id/messages
 // @desc    Add a message to the internal complaint thread
-// @access  Public (Customer) / Private (Mover)
+//          Sender is derived from auth context — never trusted from client:
+//            authenticated admin  → 'admin'
+//            authenticated mover  → 'mover'
+//            no token             → 'customer'
+// @access  Public (Customer) / Private (Mover/Admin)
 router.post('/:id/messages', async (req, res) => {
-    const { text, sender } = req.body; // sender should be 'customer', 'mover', or 'admin'
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ msg: 'Message text is required.' });
+
+    // Determine sender from JWT, not from request body
+    let sender = 'customer';
+    const authHeader = req.headers['x-auth-token'];
+    if (authHeader) {
+        try {
+            const jwt = require('jsonwebtoken');
+            const decoded = jwt.verify(authHeader, process.env.JWT_SECRET);
+            sender = decoded.user?.role === 'admin' ? 'admin' : 'mover';
+        } catch {
+            // Invalid token — treat as customer
+        }
+    }
 
     try {
         const complaint = await Complaint.findById(req.params.id);
         if (!complaint) return res.status(404).json({ msg: 'Complaint not found' });
 
-        complaint.messages.push({
-            sender,
-            text
-        });
-
+        complaint.messages.push({ sender, text: text.trim() });
         complaint.updatedAt = Date.now();
         await complaint.save();
 
