@@ -137,12 +137,18 @@ router.patch('/:id/status', auth, async (req, res) => {
     const { status } = req.body;
 
     try {
-        const complaint = await Complaint.findByIdAndUpdate(
-            req.params.id,
-            { $set: { status, updatedAt: Date.now() } },
-            { returnDocument: 'after' }
-        ).populate('lead', 'route moveDate homeSize');
+        const complaint = await Complaint.findById(req.params.id);
+        if (!complaint) return res.status(404).json({ msg: 'Complaint not found.' });
 
+        if (req.user.role !== 'admin' && complaint.company?.toString() !== req.user.id) {
+            return res.status(403).json({ msg: 'Not authorized to update this complaint.' });
+        }
+
+        complaint.status    = status;
+        complaint.updatedAt = Date.now();
+        await complaint.save();
+
+        await complaint.populate('lead', 'route moveDate homeSize');
         res.json(complaint);
     } catch (err) {
         console.error('[Update Complaint Status Error]', err.message);

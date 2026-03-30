@@ -303,7 +303,7 @@ async function sendReviewRequestEmail({ toEmail, customerName, companyName, revi
   const { error } = await getResend().emails.send({
     from: 'MoveLeads <no-reply@moveleads.cloud>',
     to: [toEmail],
-    subject: `How was your move with ${companyName}?`,
+    subject: `Share your experience with ${companyName} — leave a review!`,
     html,
   });
 

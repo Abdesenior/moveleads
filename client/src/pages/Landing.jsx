@@ -87,6 +87,14 @@ export default function Landing() {
                 onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
               >{t}</a>
             ))}
+            <Link to="/for-movers" style={{
+              color: scrolled ? '#ea580c' : '#fb923c',
+              fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = scrolled ? '#fff7ed' : 'rgba(249,115,22,0.15)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+            >For Movers</Link>
             <Link to="/widget-page" style={{
               color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)',
               fontSize: 14, fontWeight: 500, textDecoration: 'none',
@@ -915,8 +923,8 @@ export default function Landing() {
             </div>
             {[
               { title: 'Product', links: [{ l: 'Features', h: '#features' }, { l: 'Pricing', h: '#pricing' }, { l: 'How It Works', h: '#how-it-works' }] },
-              { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'Privacy Policy', to: '/privacy' }] },
-              { title: 'Account', links: [{ l: 'Sign up free', to: '/register' }, { l: 'Log in', to: '/login' }] },
+              { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'For Movers', to: '/for-movers' }, { l: 'Privacy Policy', to: '/privacy' }] },
+              { title: 'Account', links: [{ l: 'Sign up free', to: '/register' }, { l: 'Log in', to: '/login' }, { l: 'Feedback', to: '/feedback' }] },
             ].map((col, i) => (
               <div key={i}>
                 <h4 style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 18 }}>{col.title}</h4>
