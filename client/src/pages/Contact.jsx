@@ -209,7 +209,7 @@ export default function Contact() {
               </Reveal>
 
               {[
-                { icon: <Mail size={20} />, c: '#3b82f6', bg: '#eff6ff', label: 'Email us', value: 'support@moveleads.io', sub: 'Responses within 2–4 hours' },
+                { icon: <Mail size={20} />, c: '#3b82f6', bg: '#eff6ff', label: 'Email us', value: 'support@moveleads.cloud', sub: 'Responses within 2–4 hours' },
                 { icon: <Phone size={20} />, c: '#22c55e', bg: '#f0fdf4', label: 'Call us', value: '+1 (888) 555-0192', sub: 'Mon–Fri, 9am–6pm EST' },
                 { icon: <Clock size={20} />, c: ORANGE, bg: '#fff7ed', label: 'Business hours', value: 'Mon – Fri, 9am – 6pm EST', sub: 'Chat support 24/7 in-app' },
                 { icon: <MapPin size={20} />, c: '#8b5cf6', bg: '#f5f3ff', label: 'Headquarters', value: 'Austin, TX', sub: 'Serving all 50 states' },
@@ -269,7 +269,7 @@ export default function Contact() {
               { q: 'How fast will you respond?', a: 'Email responses within 2–4 hours on business days. In-app chat is available 24/7.' },
               { q: 'Is there a demo I can book?', a: 'Yes — email us with "demo" in the subject line and we\'ll schedule a 20-minute walkthrough.' },
               { q: 'Can I speak to an account manager?', a: 'All Pro Bundle customers get a dedicated account manager. Email us to get connected.' },
-              { q: 'How do I report a bad lead?', a: 'Contact support@moveleads.io within 48 hours with the lead ID and we\'ll issue a full credit.' },
+              { q: 'How do I report a bad lead?', a: 'Contact support@moveleads.cloud within 48 hours with the lead ID and we\'ll issue a full credit.' },
             ].map((item, i) => (
               <Reveal key={i} delay={i * 0.06}>
                 <div style={{ background: '#fff', border: `1px solid ${BL}`, borderRadius: 14, padding: '22px 22px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>

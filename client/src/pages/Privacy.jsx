@@ -95,11 +95,11 @@ While we take reasonable precautions, no system is 100% secure. You are responsi
 
 **Portability:** Request your data in a machine-readable format.
 
-**Opt-out of marketing:** Click "Unsubscribe" in any marketing email or contact support@moveleads.io.
+**Opt-out of marketing:** Click "Unsubscribe" in any marketing email or contact support@moveleads.cloud.
 
 **California residents (CCPA):** You have the right to know, delete, and opt out of the sale of your personal information. We do not sell personal information.
 
-To exercise any of these rights, contact us at privacy@moveleads.io. We will respond within 30 days.`,
+To exercise any of these rights, contact us at legal@moveleads.cloud. We will respond within 30 days.`,
   },
   {
     id: 'cookies',
@@ -142,8 +142,8 @@ Your continued use of MoveLeads after any changes constitutes acceptance of the 
     title: '10. Contact Us',
     content: `If you have questions about this Privacy Policy or how we handle your data, contact us:
 
-**Email:** privacy@moveleads.io
-**Support:** support@moveleads.io
+**Email:** legal@moveleads.cloud
+**Support:** support@moveleads.cloud
 **Mailing address:** MoveLeads, Inc., Austin, TX, United States
 
 For EU/UK inquiries related to GDPR, you may also contact our Data Protection contact at: dpo@moveleads.io

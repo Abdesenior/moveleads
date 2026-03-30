@@ -9,7 +9,7 @@ import Login from './pages/Login';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Privacy from './pages/Privacy';
-import GetQuote from './pages/GetQuote';
+import GetQuote, { MoveRoute } from './pages/GetQuote';
 import ThankYou from './pages/ThankYou';
 import ForMovers from './pages/ForMovers';
 import VerifyEmail from './pages/VerifyEmail';
@@ -61,6 +61,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/get-quote" element={<GetQuote />} />
+          <Route path="/move/:originCity/:destCity" element={<MoveRoute />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/for-movers" element={<ForMovers />} />
           <Route path="/verify-email" element={<VerifyEmail />} />

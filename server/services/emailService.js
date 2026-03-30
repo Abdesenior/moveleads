@@ -7,7 +7,31 @@ function getResend() {
   return _resend;
 }
 
-const FROM = 'MoveLeads <no-reply@moveleads.cloud>';
+const FROM     = process.env.EMAIL_FROM     || 'MoveLeads <noreply@moveleads.cloud>';
+const REPLY_TO = process.env.EMAIL_REPLY_TO || 'support@moveleads.cloud';
+const SUPPORT  = process.env.EMAIL_SUPPORT  || 'support@moveleads.cloud';
+const BILLING  = process.env.EMAIL_BILLING  || 'billing@moveleads.cloud';
+
+/** Shared email footer HTML */
+function emailFooter({ billing = false } = {}) {
+  return `
+    <tr>
+      <td style="background:#f8fafc;padding:22px 40px;border-top:1px solid #e2e8f0;">
+        <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;text-align:center;">
+          Questions? Email us at
+          <a href="mailto:${SUPPORT}" style="color:#f97316;text-decoration:none;">${SUPPORT}</a>
+        </p>
+        ${billing ? `<p style="margin:0 0 6px;font-size:12px;color:#94a3b8;text-align:center;">Billing questions?
+          <a href="mailto:${BILLING}" style="color:#f97316;text-decoration:none;">${BILLING}</a>
+        </p>` : ''}
+        <p style="margin:0;font-size:11px;color:#cbd5e1;text-align:center;">
+          © ${new Date().getFullYear()} MoveLeads.cloud ·
+          <a href="https://moveleads.cloud/privacy" style="color:#94a3b8;text-decoration:none;">Privacy Policy</a> ·
+          <a href="https://moveleads.cloud/terms" style="color:#94a3b8;text-decoration:none;">Terms</a>
+        </p>
+      </td>
+    </tr>`;
+}
 
 /**
  * Send a "dispute approved — account credited" email to the mover.
@@ -64,19 +88,9 @@ async function sendDisputeApprovedEmail({ toEmail, companyName, refundAmount, le
                      style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px;letter-spacing:0.3px;">
                     View My Balance
                   </a>
-                  <p style="margin:32px 0 0;font-size:13px;color:#94a3b8;line-height:1.6;">
-                    Questions? Reply to this email or contact
-                    <a href="mailto:support@moveleads.cloud" style="color:#f97316;">support@moveleads.cloud</a>.
-                  </p>
                 </td>
               </tr>
-              <tr>
-                <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
-                  <p style="margin:0;font-size:11px;color:#94a3b8;">
-                    © ${new Date().getFullYear()} MoveLeads.cloud · You are receiving this because you have an account with us.
-                  </p>
-                </td>
-              </tr>
+              ${emailFooter({ billing: true })}
             </table>
           </td>
         </tr>
@@ -87,6 +101,7 @@ async function sendDisputeApprovedEmail({ toEmail, companyName, refundAmount, le
 
   const { error } = await getResend().emails.send({
     from: FROM,
+    replyTo: REPLY_TO,
     to: [toEmail],
     subject: `✓ Dispute Approved — $${refundAmount.toFixed(2)} credited to your MoveLeads account`,
     html,
@@ -152,13 +167,7 @@ async function sendVerificationEmail({ toEmail, companyName, token }) {
                   </p>
                 </td>
               </tr>
-              <tr>
-                <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
-                  <p style="margin:0;font-size:11px;color:#94a3b8;">
-                    © ${new Date().getFullYear()} MoveLeads.cloud · You are receiving this because you registered an account.
-                  </p>
-                </td>
-              </tr>
+              ${emailFooter()}
             </table>
           </td>
         </tr>
@@ -169,6 +178,7 @@ async function sendVerificationEmail({ toEmail, companyName, token }) {
 
   const { error } = await getResend().emails.send({
     from: FROM,
+    replyTo: REPLY_TO,
     to: [toEmail],
     subject: 'Verify your MoveLeads Account',
     html,
@@ -182,7 +192,6 @@ async function sendVerificationEmail({ toEmail, companyName, token }) {
  */
 async function sendFeedbackRequestEmail({ toEmail, customerName, companyName, leadId, companyId }) {
   const clientUrl = process.env.CLIENT_URL || 'https://moveleads.cloud';
-  // The "Magic Link" containing the secure IDs
   const feedbackUrl = `${clientUrl}/feedback?leadId=${leadId}&companyId=${companyId}&name=${encodeURIComponent(customerName)}&email=${encodeURIComponent(toEmail)}`;
 
   const html = `
@@ -222,13 +231,7 @@ async function sendFeedbackRequestEmail({ toEmail, customerName, companyName, le
                   </a>
                 </td>
               </tr>
-              <tr>
-                <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
-                  <p style="margin:0;font-size:11px;color:#94a3b8;">
-                    © ${new Date().getFullYear()} MoveLeads.cloud · We partner with trusted local moving companies.
-                  </p>
-                </td>
-              </tr>
+              ${emailFooter()}
             </table>
           </td>
         </tr>
@@ -238,7 +241,8 @@ async function sendFeedbackRequestEmail({ toEmail, customerName, companyName, le
   `;
 
   const { error } = await getResend().emails.send({
-    from: 'MoveLeads <no-reply@moveleads.cloud>',
+    from: FROM,
+    replyTo: REPLY_TO,
     to: [toEmail],
     subject: `How was your move with ${companyName}?`,
     html,
@@ -248,7 +252,7 @@ async function sendFeedbackRequestEmail({ toEmail, customerName, companyName, le
 }
 
 /**
- * Send an automated review request when a move is marked as "Completed"
+ * Send an automated review request after a completed move.
  */
 async function sendReviewRequestEmail({ toEmail, customerName, companyName, reviewLink }) {
   const html = `
@@ -285,13 +289,7 @@ async function sendReviewRequestEmail({ toEmail, customerName, companyName, revi
                   </a>
                 </td>
               </tr>
-              <tr>
-                <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
-                  <p style="margin:0;font-size:11px;color:#94a3b8;">
-                    © ${new Date().getFullYear()} MoveLeads.cloud · Supporting local moving companies.
-                  </p>
-                </td>
-              </tr>
+              ${emailFooter()}
             </table>
           </td>
         </tr>
@@ -301,7 +299,8 @@ async function sendReviewRequestEmail({ toEmail, customerName, companyName, revi
   `;
 
   const { error } = await getResend().emails.send({
-    from: 'MoveLeads <no-reply@moveleads.cloud>',
+    from: FROM,
+    replyTo: REPLY_TO,
     to: [toEmail],
     subject: `Share your experience with ${companyName} — leave a review!`,
     html,
