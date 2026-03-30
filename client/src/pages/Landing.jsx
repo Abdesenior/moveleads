@@ -787,7 +787,7 @@ export default function Landing() {
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
               <h2 style={{ fontFamily: F, fontSize: 38, fontWeight: 800, letterSpacing: '-0.03em', color: NAVY, marginBottom: 10 }}>Frequently asked questions</h2>
-              <p style={{ fontSize: 15, color: '#64748b' }}>Can't find an answer? <a href="mailto:support@moveleads.io" style={{ color: ORANGE, fontWeight: 600 }}>Email our team</a></p>
+              <p style={{ fontSize: 15, color: '#64748b' }}>Can't find an answer? <a href="mailto:support@moveleads.cloud" style={{ color: ORANGE, fontWeight: 600 }}>Email our team</a></p>
             </div>
           </Reveal>
           {[

@@ -59,7 +59,7 @@ We do not sell your personal information to third parties. We do not share your 
     title: '4. Sharing of Information',
     content: `We may share your information with:
 
-**Service providers:** Companies that help us operate our platform, including Stripe (payments), AWS (hosting), SendGrid (email), and analytics providers. These providers are contractually required to protect your data.
+**Service providers:** Companies that help us operate our platform, including Stripe (payments), AWS (hosting), Resend (email), and analytics providers. These providers are contractually required to protect your data.
 
 **Business transfers:** If MoveLeads is acquired or merges with another company, your data may be transferred as part of that transaction. You will be notified before such a transfer.
 
@@ -146,7 +146,7 @@ Your continued use of MoveLeads after any changes constitutes acceptance of the 
 **Support:** support@moveleads.cloud
 **Mailing address:** MoveLeads, Inc., Austin, TX, United States
 
-For EU/UK inquiries related to GDPR, you may also contact our Data Protection contact at: dpo@moveleads.io
+For EU/UK inquiries related to GDPR, you may also contact our Data Protection contact at: legal@moveleads.cloud
 
 We aim to respond to all privacy inquiries within 5 business days.`,
   },
