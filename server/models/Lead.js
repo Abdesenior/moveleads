@@ -47,7 +47,7 @@ const LeadSchema = new mongoose.Schema({
   createdAt:      { type: Date, default: Date.now },
 
   // ── Auction / Dynamic pricing ──────────────────────────────────────────
-  buyNowPrice:      { type: Number, default: 15 },
+  buyNowPrice:      { type: Number, default: 10 },
   startingBidPrice: { type: Number, default: 9 },
   currentBidPrice:  { type: Number, default: 0 },
   auctionEndsAt:    { type: Date },

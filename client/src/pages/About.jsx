@@ -43,7 +43,7 @@ const VALUES = [
 ];
 
 export default function About() {
-  useEffect(() => { document.title = 'About Us — MoveLeads.io'; }, []);
+  useEffect(() => { document.title = 'About Us — MoveLeads.cloud'; }, []);
 
   return (
     <MarketingLayout>

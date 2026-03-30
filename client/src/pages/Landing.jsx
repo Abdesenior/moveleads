@@ -41,7 +41,7 @@ export default function Landing() {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    document.title = 'MoveLeads.io — Verified Moving Leads';
+    document.title = 'MoveLeads.cloud — Verified Moving Leads';
     const fn = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', fn);
     return () => window.removeEventListener('scroll', fn);
@@ -74,7 +74,7 @@ export default function Landing() {
           <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', fontFamily: F }}>
             <span style={{ color: scrolled ? NAVY : '#fff' }}>Move</span>
             <span style={{ color: ORANGE }}>Leads</span>
-            <span style={{ color: scrolled ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontWeight: 600 }}>.io</span>
+            <span style={{ color: scrolled ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontWeight: 600 }}>.cloud</span>
           </div>
           <div style={{ display: 'flex', gap: 2 }} className="lp-links">
             {['Features', 'Pricing', 'How It Works'].map(t => (
@@ -832,7 +832,7 @@ export default function Landing() {
           <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:44, marginBottom:48 }}>
             <div>
               <div style={{ fontFamily:F, fontSize:21, fontWeight:800, letterSpacing:'-0.4px', marginBottom:12 }}>
-                <span style={{ color:'#fff' }}>Move</span><span style={{ color:ORANGE }}>Leads</span><span style={{ color:'rgba(255,255,255,0.28)', fontWeight:600 }}>.io</span>
+                <span style={{ color:'#fff' }}>Move</span><span style={{ color:ORANGE }}>Leads</span><span style={{ color:'rgba(255,255,255,0.28)', fontWeight:600 }}>.cloud</span>
               </div>
               <p style={{ fontSize:13, color:'rgba(255,255,255,0.32)', lineHeight:1.75, maxWidth:240, marginBottom:22 }}>Verified moving leads delivered instantly. Pay only for what you buy.</p>
               <div style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 14px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:9, width:'fit-content' }}>
@@ -858,7 +858,7 @@ export default function Landing() {
             ))}
           </div>
           <div style={{ borderTop:'1px solid rgba(255,255,255,0.055)', paddingTop:22, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
-            <p style={{ fontSize:12, color:'rgba(255,255,255,0.2)' }}>© 2026 MoveLeads.io. All rights reserved.</p>
+            <p style={{ fontSize:12, color:'rgba(255,255,255,0.2)' }}>© 2026 MoveLeads.cloud. All rights reserved.</p>
             <p style={{ fontSize:12, color:'rgba(255,255,255,0.2)' }}>Built for the moving industry.</p>
           </div>
         </div>

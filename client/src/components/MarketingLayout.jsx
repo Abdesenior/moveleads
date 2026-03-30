@@ -36,7 +36,7 @@ export default function MarketingLayout({ children }) {
           <Link to="/" style={{ textDecoration: 'none', fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', fontFamily: F }}>
             <span style={{ color: NAVY }}>Move</span>
             <span style={{ color: ORANGE }}>Leads</span>
-            <span style={{ color: '#94a3b8', fontWeight: 600 }}>.io</span>
+            <span style={{ color: '#94a3b8', fontWeight: 600 }}>.cloud</span>
           </Link>
 
           <div style={{ display: 'flex', gap: 2 }} className="lp-links">
@@ -76,7 +76,7 @@ export default function MarketingLayout({ children }) {
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 44, marginBottom: 48 }}>
             <div>
               <Link to="/" style={{ textDecoration: 'none', fontFamily: F, fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', display: 'inline-block', marginBottom: 12 }}>
-                <span style={{ color: '#fff' }}>Move</span><span style={{ color: ORANGE }}>Leads</span><span style={{ color: 'rgba(255,255,255,0.28)', fontWeight: 600 }}>.io</span>
+                <span style={{ color: '#fff' }}>Move</span><span style={{ color: ORANGE }}>Leads</span><span style={{ color: 'rgba(255,255,255,0.28)', fontWeight: 600 }}>.cloud</span>
               </Link>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.32)', lineHeight: 1.75, maxWidth: 240, marginBottom: 22 }}>
                 Verified moving leads delivered instantly. Pay only for what you buy.
@@ -104,7 +104,7 @@ export default function MarketingLayout({ children }) {
             ))}
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.055)', paddingTop: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>© 2026 MoveLeads.io. All rights reserved.</p>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>© 2026 MoveLeads.cloud. All rights reserved.</p>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Built for the moving industry.</p>
           </div>
         </div>

@@ -37,7 +37,7 @@ const inputStyle = (focused) => ({
 });
 
 export default function Contact() {
-  useEffect(() => { document.title = 'Contact Us — MoveLeads.io'; }, []);
+  useEffect(() => { document.title = 'Contact Us — MoveLeads.cloud'; }, []);
 
   const [form, setForm] = useState({ name: '', email: '', company: '', subject: '', message: '' });
   const [focused, setFocused] = useState({});

@@ -16,7 +16,7 @@ export default function ThankYou() {
     <div className="ty-page">
       <nav className="ty-nav">
         <Link to="/" className="ty-logo">
-          MoveLeads<span>.io</span>
+          MoveLeads<span>.cloud</span>
         </Link>
       </nav>
 

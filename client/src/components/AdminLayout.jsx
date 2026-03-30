@@ -61,7 +61,7 @@ export default function AdminLayout({ children }) {
         <div className="logo-container">
           <div className="logo" style={{ fontSize: '24px', fontFamily: 'Poppins' }}>
             <span style={{ fontWeight: 800, color: '#fff' }}>MoveLeads</span>
-            <span style={{ fontWeight: 800, color: '#f97316' }}>.io</span>
+            <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
           </div>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,

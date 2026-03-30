@@ -167,7 +167,7 @@ export default function GetQuote() {
   return (
     <div className="gq-page">
       <nav className="gq-nav">
-        <Link to="/" className="gq-logo">MoveLeads<span>.io</span></Link>
+        <Link to="/" className="gq-logo">MoveLeads<span>.cloud</span></Link>
         <span className="gq-nav-tag">Free · No Obligation</span>
       </nav>
 

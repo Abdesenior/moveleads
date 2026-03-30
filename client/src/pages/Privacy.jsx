@@ -186,7 +186,7 @@ function renderBold(text) {
 
 export default function Privacy() {
   const [active, setActive] = useState('information-we-collect');
-  useEffect(() => { document.title = 'Privacy Policy — MoveLeads.io'; }, []);
+  useEffect(() => { document.title = 'Privacy Policy — MoveLeads.cloud'; }, []);;
 
   return (
     <MarketingLayout>
@@ -208,7 +208,7 @@ export default function Privacy() {
             Last updated: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>March 20, 2026</strong>
           </p>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, maxWidth: 520, margin: '10px auto 0' }}>
-            We take your privacy seriously. This policy explains how MoveLeads.io collects, uses, and protects your information.
+            We take your privacy seriously. This policy explains how MoveLeads.cloud collects, uses, and protects your information.
           </p>
         </div>
       </section>

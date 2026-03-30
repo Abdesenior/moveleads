@@ -59,7 +59,7 @@ export default function Register() {
           <div style={{ marginBottom: 48 }}>
             <div style={{ fontSize: 28, fontFamily: "'Poppins', sans-serif", marginBottom: 4 }}>
               <span style={{ fontWeight: 800, color: '#fff' }}>MoveLeads</span>
-              <span style={{ fontWeight: 800, color: '#f97316' }}>.io</span>
+              <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
             </div>
             <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, margin: 0 }}>Lead Marketplace Platform</p>
           </div>

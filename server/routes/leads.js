@@ -199,7 +199,9 @@ router.get('/', auth, async (req, res) => {
 // @access  Private (Admin)
 router.post('/', [auth, admin], async (req, res) => {
   try {
-    const newLead = new Lead(req.body);
+    const body = req.body;
+    if (body.price && !body.buyNowPrice) body.buyNowPrice = body.price;
+    const newLead = new Lead(body);
     const lead = await newLead.save();
     res.json(lead);
   } catch (err) {
@@ -216,7 +218,9 @@ router.put('/:id', [auth, admin], async (req, res) => {
     let lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
-    lead = await Lead.findByIdAndUpdate(req.params.id, { $set: req.body }, { returnDocument: 'after' });
+    const update = req.body;
+    if (update.price && !update.buyNowPrice) update.buyNowPrice = update.price;
+    lead = await Lead.findByIdAndUpdate(req.params.id, { $set: update }, { returnDocument: 'after' });
     res.json(lead);
   } catch (err) {
     console.error(err.message);

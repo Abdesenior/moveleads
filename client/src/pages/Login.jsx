@@ -75,7 +75,7 @@ export default function Login() {
           <div style={{ marginBottom: 48 }}>
             <div style={{ fontSize: 28, fontFamily: "'Poppins', sans-serif", marginBottom: 4 }}>
               <span style={{ fontWeight: 800, color: '#fff' }}>MoveLeads</span>
-              <span style={{ fontWeight: 800, color: '#f97316' }}>.io</span>
+              <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
             </div>
             <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, margin: 0 }}>Lead Marketplace Platform</p>
           </div>
@@ -116,7 +116,7 @@ export default function Login() {
         <div className="login-card">
           <div className="logo" style={{ marginBottom: '40px', fontFamily: 'Poppins' }}>
             <span style={{ fontWeight: 800, fontSize: '32px', color: 'var(--bg-navy)' }}>MoveLeads</span>
-            <span style={{ fontWeight: 800, fontSize: '32px', color: '#f97316' }}>.io</span>
+            <span style={{ fontWeight: 800, fontSize: '32px', color: '#f97316' }}>.cloud</span>
           </div>
           
           <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '8px', color: 'var(--bg-navy)', fontFamily: 'Poppins' }}>Welcome back</h2>
