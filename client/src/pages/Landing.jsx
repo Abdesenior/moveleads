@@ -922,7 +922,7 @@ export default function Landing() {
               </div>
             </div>
             {[
-              { title: 'Product', links: [{ l: 'Features', h: '#features' }, { l: 'Pricing', h: '#pricing' }, { l: 'How It Works', h: '#how-it-works' }] },
+              { title: 'Product', links: [{ l: 'Features', h: '#features' }, { l: 'Pricing', to: '/pricing' }, { l: 'How It Works', h: '#how-it-works' }] },
               { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'For Movers', to: '/for-movers' }, { l: 'Privacy Policy', to: '/privacy' }] },
               { title: 'Account', links: [{ l: 'Sign up free', to: '/register' }, { l: 'Log in', to: '/login' }, { l: 'Feedback', to: '/feedback' }] },
             ].map((col, i) => (

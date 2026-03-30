@@ -14,6 +14,7 @@ import ThankYou from './pages/ThankYou';
 import ForMovers from './pages/ForMovers';
 import VerifyEmail from './pages/VerifyEmail';
 import Feedback from './pages/Feedback';
+import Pricing from './pages/Pricing';
 
 // Customer Dashboard
 import Dashboard from './pages/Dashboard';
@@ -67,6 +68,7 @@ function App() {
           <Route path="/embed/widget/:companyId" element={<WidgetEmbedPage />} />
           <Route path="/embed/widget" element={<WidgetEmbedPage />} />
           <Route path="/feedback" element={<Feedback />} />
+          <Route path="/pricing" element={<Pricing />} />
 
           {/* Customer Dashboard Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
