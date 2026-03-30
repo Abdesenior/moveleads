@@ -30,7 +30,7 @@ app.use(helmet({
 const ALLOWED_ORIGINS = process.env.CLIENT_ORIGIN
   ? process.env.CLIENT_ORIGIN.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175',
-     'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'];
+    'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'];
 
 app.use(cors({
   origin: ALLOWED_ORIGINS,
@@ -63,7 +63,8 @@ app.use('/api/purchases', require('./routes/purchases'));
 app.use('/api/routing', require('./routes/routing'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/voice', require('./routes/voice'));
-app.use('/api/bids',  require('./routes/bids'));
+app.use('/api/bids', require('./routes/bids'));
+app.use('/api/complaints', require('./routes/complaints'));
 
 // Auction settlement cron — must be required AFTER socketService.init()
 require('./jobs/settleAuctions');

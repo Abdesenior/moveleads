@@ -115,7 +115,7 @@ export default function Login() {
       <div className="login-form-side">
         <div className="login-card">
           <div className="logo" style={{ marginBottom: '40px', fontFamily: 'Poppins' }}>
-            <span style={{ fontWeight: 800, fontSize: '32px', color: 'var(--bg-navy)' }}>MoveLeads</span>
+            <span style={{ fontWeight: 800, fontSize: '32px', color: '#0f172a' }}>MoveLeads</span>
             <span style={{ fontWeight: 800, fontSize: '32px', color: '#f97316' }}>.cloud</span>
           </div>
           

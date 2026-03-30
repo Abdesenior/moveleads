@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CreditCard, User, Settings,
-  Menu, X, LogOut, Briefcase, Zap, Code
+  Menu, X, LogOut, Briefcase, Zap, Code, MessageSquareWarning
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
@@ -17,12 +17,32 @@ const NAV_ITEMS = [
   { to: '/dashboard/profile',  end: false, icon: <User size={18} />,            label: 'Profile'     },
   { to: '/dashboard/settings', end: false, icon: <Settings size={18} />,        label: 'Settings'    },
   { to: '/dashboard/widget',   end: false, icon: <Code size={18} />,            label: 'Widget'      },
+  { to: '/dashboard/resolution-center', end: false, icon: <MessageSquareWarning size={18} />, label: 'Resolution' },
 ];
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useContext(AuthContext);
+  const [openComplaints, setOpenComplaints] = useState(0);
+  const { user, logout, token, API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // Silently poll for open/in-progress complaints to drive the nav badge
+  useEffect(() => {
+    const fetchBadge = async () => {
+      if (!token || !API_URL) return;
+      try {
+        const res = await fetch(`${API_URL}/complaints`, { headers: { 'x-auth-token': token } });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setOpenComplaints(data.filter(c => c.status === 'Open' || c.status === 'In Progress').length);
+        }
+      } catch { /* silent */ }
+    };
+    fetchBadge();
+    const interval = setInterval(fetchBadge, 60000); // refresh every minute
+    return () => clearInterval(interval);
+  }, [token, API_URL]);
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -94,6 +114,19 @@ export default function DashboardLayout({ children }) {
             >
               {icon}
               <span>{label}</span>
+              {/* Badge for Resolution Center */}
+              {to === '/dashboard/resolution-center' && openComplaints > 0 && (
+                <span style={{
+                  marginLeft: 'auto',
+                  background: '#ef4444', color: '#fff',
+                  fontSize: 10, fontWeight: 800,
+                  padding: '2px 6px', borderRadius: 10,
+                  minWidth: 18, textAlign: 'center',
+                  lineHeight: '14px',
+                }}>
+                  {openComplaints}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

@@ -60,7 +60,7 @@ export default function AdminLayout({ children }) {
       <aside className="sidebar" aria-hidden={!sidebarOpen}>
         <div className="logo-container">
           <div className="logo" style={{ fontSize: '24px', fontFamily: 'Poppins' }}>
-            <span style={{ fontWeight: 800, color: '#fff' }}>MoveLeads</span>
+            <span style={{ fontWeight: 800, color: '#0f172a' }}>MoveLeads</span>
             <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
           </div>
           <div style={{

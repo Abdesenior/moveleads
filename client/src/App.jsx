@@ -23,6 +23,7 @@ import Billing from './pages/dashboard/Billing';
 import Profile from './pages/dashboard/Profile';
 import SettingsPage from './pages/dashboard/Settings';
 import Widget from './pages/dashboard/Widget';
+import ResolutionCenter from './pages/dashboard/ResolutionCenter';
 
 // Public pages
 import WidgetPage from './pages/WidgetPage';
@@ -74,6 +75,7 @@ function App() {
           <Route path="/dashboard/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/dashboard/resolution-center" element={<ProtectedRoute><ResolutionCenter /></ProtectedRoute>} />
 
           <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
           <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminLeads /></ProtectedRoute>} />
