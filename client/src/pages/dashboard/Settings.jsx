@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus } from 'lucide-react';
+import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus, Star, ExternalLink } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -103,10 +103,11 @@ function ZipTagInput({ tags, onAdd, onRemove }) {
 }
 
 const TABS = [
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'coverage',      label: 'Coverage Areas', icon: MapPin },
+  { id: 'notifications', label: 'Notifications',   icon: Bell },
+  { id: 'coverage',      label: 'Coverage Areas',  icon: MapPin },
   { id: 'preferences',   label: 'Lead Preferences', icon: Filter },
-  { id: 'danger',        label: 'Danger Zone', icon: AlertTriangle },
+  { id: 'profile',       label: 'Profile',          icon: Star },
+  { id: 'danger',        label: 'Danger Zone',      icon: AlertTriangle },
 ];
 
 export default function SettingsPage() {
@@ -141,6 +142,31 @@ export default function SettingsPage() {
   const [liveTransferMsg, setLiveTransferMsg] = useState('');
   const [prefsSaving, setPrefsSaving]   = useState(false);
   const [prefsMsg, setPrefsMsg]         = useState('');
+
+  /* Profile */
+  const [googleReviewLink, setGoogleReviewLink] = useState(user?.googleReviewLink || '');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg]       = useState('');
+
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    setProfileMsg('');
+    try {
+      const res = await fetch(`${API_URL}/users/${user._id}`, {
+        method: 'PUT',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ googleReviewLink: googleReviewLink.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      await refreshUser();
+      setProfileMsg('Profile saved.');
+      setTimeout(() => setProfileMsg(''), 3000);
+    } catch (err) {
+      setProfileMsg(err.message || 'Failed to save.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   /* Auto-save live transfer toggle on change */
   const handleLiveTransferToggle = async (val) => {
@@ -517,6 +543,73 @@ export default function SettingsPage() {
                 </button>
                 {prefsMsg && (
                   <span style={{ marginLeft: 14, fontSize: 13, fontWeight: 700, color: '#16a34a' }}>✓ {prefsMsg}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Profile tab ── */}
+          {activeTab === 'profile' && (
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: '#fefce8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Star size={16} color="#ca8a04" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>Profile</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Public-facing details used in customer emails</div>
+                </div>
+              </div>
+
+              <div style={{ padding: '24px' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  Google Review Link
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="url"
+                    value={googleReviewLink}
+                    onChange={e => setGoogleReviewLink(e.target.value)}
+                    placeholder="https://g.page/r/your-business/review"
+                    className="input-field"
+                    style={{ width: '100%', paddingRight: googleReviewLink ? 44 : 16, boxSizing: 'border-box' }}
+                  />
+                  {googleReviewLink && (
+                    <a
+                      href={googleReviewLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Preview link"
+                      style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex' }}
+                    >
+                      <ExternalLink size={15} />
+                    </a>
+                  )}
+                </div>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, marginBottom: 24 }}>
+                  This link is included in automated post-move emails asking customers to leave a review. Find yours at <strong>Google Business Profile → Ask for reviews</strong>.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={saveProfile}
+                  disabled={profileSaving}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '11px 24px', borderRadius: 12, border: 'none',
+                    background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                    color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    fontFamily: "'Poppins',sans-serif",
+                    boxShadow: '0 4px 12px rgba(245,158,11,0.25)',
+                    opacity: profileSaving ? 0.6 : 1,
+                  }}
+                >
+                  <Save size={14} /> {profileSaving ? 'Saving…' : 'Save Profile'}
+                </button>
+                {profileMsg && (
+                  <span style={{ marginLeft: 14, fontSize: 13, fontWeight: 700, color: profileMsg.startsWith('Failed') ? '#dc2626' : '#16a34a' }}>
+                    ✓ {profileMsg}
+                  </span>
                 )}
               </div>
             </div>
