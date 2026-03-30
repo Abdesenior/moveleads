@@ -13,6 +13,7 @@ import GetQuote from './pages/GetQuote';
 import ThankYou from './pages/ThankYou';
 import ForMovers from './pages/ForMovers';
 import VerifyEmail from './pages/VerifyEmail';
+import Feedback from './pages/Feedback';
 
 // Customer Dashboard
 import Dashboard from './pages/Dashboard';
@@ -65,6 +66,7 @@ function App() {
           <Route path="/widget-page" element={<WidgetPage />} />
           <Route path="/embed/widget/:companyId" element={<WidgetEmbedPage />} />
           <Route path="/embed/widget" element={<WidgetEmbedPage />} />
+          <Route path="/feedback" element={<Feedback />} />
 
           {/* Customer Dashboard Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
