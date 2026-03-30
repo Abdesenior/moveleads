@@ -284,7 +284,7 @@
 
 /* Booking confirmed card — white, top right */
 .float-booking {
-  top: -48px; right: -104px;
+  top: -48px; right: -124px;
   display: flex; align-items: center; gap: 11px; text-align: left;
   animation-delay: 0.7s;
   min-width: 168px;
