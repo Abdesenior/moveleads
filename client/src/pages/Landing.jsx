@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import JsonLd, { organizationSchema, softwareAppSchema } from '../components/JsonLd';
 import '../phone-mockup.css';
+import './Landing.css';
 
 function useReveal() {
   const ref = useRef();
@@ -130,15 +131,15 @@ export default function Landing() {
       </nav>
 
       {/* HERO */}
-      <section style={{
+      <section className="lp-hero-section" style={{
         background: `${NOISE}, linear-gradient(155deg, #070e1b 0%, #0b1628 50%, #0d1f38 100%)`,
-        position: 'relative', overflow: 'hidden', paddingTop: 130, paddingBottom: 110,
+        position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', top: '-15%', right: '0%', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(circle, rgba(249,115,22,0.09) 0%, transparent 65%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: '-10%', left: '-5%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 65%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)', backgroundSize: '52px 52px', pointerEvents: 'none' }} />
 
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center', position: 'relative' }}>
+        <div className="lp-hero-grid" style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <div>
             <Reveal>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px 6px 8px', borderRadius: 100, background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', marginBottom: 26 }}>
@@ -149,7 +150,7 @@ export default function Landing() {
               </div>
             </Reveal>
             <Reveal delay={0.07}>
-              <h1 style={{ fontFamily: F, fontSize: 56, fontWeight: 800, lineHeight: 1.07, letterSpacing: '-0.03em', color: '#fff', marginBottom: 20 }}>
+              <h1 className="lp-hero-h1" style={{ fontFamily: F, fontWeight: 800, lineHeight: 1.07, letterSpacing: '-0.03em', color: '#fff', marginBottom: 20 }}>
                 Verified moving leads.<br />
                 <span style={{ color: ORANGE }}>Close more deals.</span>
               </h1>
@@ -160,7 +161,7 @@ export default function Landing() {
               </p>
             </Reveal>
             <Reveal delay={0.2}>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 48, flexWrap: 'wrap' }}>
+              <div className="lp-hero-buttons">
                 <Link to="/register" style={{
                   background: ORANGE, color: '#fff', padding: '14px 28px', borderRadius: 12,
                   fontSize: 15, fontWeight: 700, textDecoration: 'none',
@@ -193,6 +194,7 @@ export default function Landing() {
           </div>
 
           {/* Dashboard mockup */}
+          <div className="lp-hero-mockup">
           <Reveal delay={0.18}>
             <div style={{ position: 'relative' }}>
               <div style={{ position: 'absolute', inset: '-24px', background: 'radial-gradient(circle at 50% 50%, rgba(249,115,22,0.07), transparent 70%)', borderRadius: 40, pointerEvents: 'none' }} />
@@ -251,6 +253,7 @@ export default function Landing() {
               </div>
             </div>
           </Reveal>
+          </div>
         </div>
       </section>
 
@@ -272,7 +275,7 @@ export default function Landing() {
       </section>
 
       {/* FEATURES */}
-      <section id="features" style={{ padding: '100px 0', background: '#fff' }}>
+      <section id="features" className="lp-section" style={{ background: '#fff' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 60 }}>
@@ -285,7 +288,7 @@ export default function Landing() {
               <p style={{ fontSize: 16, color: '#64748b', maxWidth: 480, margin: '0 auto', lineHeight: 1.72 }}>A complete lead system built for modern moving companies.</p>
             </div>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+          <div className="lp-features-grid">
             {[
               { icon: <Shield size={20} />, c: '#22c55e', bg: '#f0fdf4', bc: 'rgba(34,197,94,0.14)', title: 'Verified Quality', desc: 'Every lead is phone-verified and high-intent. Real people, real moves — no bots, no spam.' },
               { icon: <Zap size={20} />, c: '#3b82f6', bg: '#eff6ff', bc: 'rgba(59,130,246,0.14)', title: 'Real-Time Delivery', desc: 'Leads hit your dashboard in seconds. Be the first to call and win every job.' },
@@ -313,7 +316,7 @@ export default function Landing() {
       </section>
 
       {/* REPUTATION MANAGEMENT */}
-      <section style={{ padding: '100px 0', background: '#f8fafc', borderTop: `1px solid ${BL}` }}>
+      <section className="lp-section" style={{ background: '#f8fafc', borderTop: `1px solid ${BL}` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 60 }}>
@@ -328,7 +331,7 @@ export default function Landing() {
               </p>
             </div>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          <div className="lp-two-grid">
             <Reveal delay={0.05}>
               <div style={{
                 background: '#fff', border: `1px solid ${BL}`, borderRadius: 18, padding: '30px 28px',
@@ -386,9 +389,10 @@ export default function Landing() {
       </section>
 
       {/* PHONE SECTION */}
-      <section style={{ padding: '100px 0', background: '#f8fafc', borderTop: `1px solid ${BL}`, borderBottom: `1px solid ${BL}` }}>
+      <section className="lp-section" style={{ background: '#f8fafc', borderTop: `1px solid ${BL}`, borderBottom: `1px solid ${BL}` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
+          <div className="lp-phone-grid">
+            <div className="lp-phone-side">
             <Reveal>
               <div className="phone-mockup-wrapper">
                 <div className="floating-stat float-revenue">
@@ -451,6 +455,7 @@ export default function Landing() {
                 </div>
               </div>
             </Reveal>
+            </div>
 
             <div>
               <Reveal>
@@ -498,9 +503,9 @@ export default function Landing() {
       </section>
 
       {/* CAPTURE MORE LEADS (WIDGET SHOWCASE) */}
-      <section style={{ padding: '100px 0', background: '#fff', position: 'relative', overflow: 'hidden' }}>
+      <section className="lp-section" style={{ background: '#fff', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 70% 50%, rgba(249,115,22,0.03), transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 60, alignItems: 'center', position: 'relative' }}>
+        <div className="lp-widget-grid" style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <div>
             <Reveal>
               <h2 style={{ fontFamily: F, fontSize: 44, fontWeight: 800, letterSpacing: '-0.025em', color: NAVY, marginBottom: 8 }}>
@@ -541,6 +546,7 @@ export default function Landing() {
           </div>
 
           {/* Right side - 3D Stacked Widget Mockups */}
+          <div className="lp-widget-side">
           <Reveal delay={0.15}>
             <div style={{ position: 'relative', height: 540, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* Back Mockups (faded) */}
@@ -619,11 +625,12 @@ export default function Landing() {
               </div>
             </div>
           </Reveal>
+          </div>
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how-it-works" style={{ padding: '100px 0', background: '#fff' }}>
+      <section id="how-it-works" className="lp-section" style={{ background: '#fff' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 60 }}>
@@ -634,7 +641,7 @@ export default function Landing() {
               <p style={{ fontSize: 16, color: '#64748b', maxWidth: 440, margin: '0 auto', lineHeight: 1.72 }}>No complex setup. Start buying leads in under 10 minutes.</p>
             </div>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, position: 'relative' }}>
+          <div className="lp-how-grid">
             <div style={{ position: 'absolute', top: 34, left: '21%', right: '21%', height: 1, background: 'linear-gradient(90deg, rgba(249,115,22,0.25), rgba(59,130,246,0.25))', zIndex: 0 }} />
             {[
               { n: '01', icon: <Users size={24} />, c: '#3b82f6', bg: '#eff6ff', title: 'Create your account', desc: 'Sign up in 2 minutes. No credit card. Dashboard access is instant.' },
@@ -662,7 +669,7 @@ export default function Landing() {
       </section>
 
       {/* LEAD PREVIEW */}
-      <section style={{ padding: '100px 0', background: '#f8fafc', borderTop: `1px solid ${BL}` }}>
+      <section className="lp-section" style={{ background: '#f8fafc', borderTop: `1px solid ${BL}` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 44 }}>
@@ -722,13 +729,13 @@ export default function Landing() {
       </section>
 
       {/* STATS */}
-      <section style={{ background: `${NOISE}, linear-gradient(135deg,#070e1b 0%,#0b1628 100%)`, padding: '88px 0' }}>
+      <section className="lp-section-stats" style={{ background: `${NOISE}, linear-gradient(135deg,#070e1b 0%,#0b1628 100%)` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 24, textAlign: 'center' }}>
+          <div className="lp-stats-grid">
             {[['10,000+', 'Leads delivered'], ['500+', 'Moving companies'], ['98%', 'Satisfaction rate'], ['$10', 'Average lead cost']].map(([v, l], i) => (
               <Reveal key={i} delay={i * 0.07}>
                 <div>
-                  <div style={{ fontSize: 46, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', fontFamily: F, marginBottom: 7 }}>{v}</div>
+                  <div className="lp-stat-val" style={{ fontSize: 46, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', fontFamily: F, marginBottom: 7 }}>{v}</div>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 500 }}>{l}</div>
                 </div>
               </Reveal>
@@ -738,7 +745,7 @@ export default function Landing() {
       </section>
 
       {/* TESTIMONIALS */}
-      <section style={{ padding: '100px 0', background: '#fff' }}>
+      <section className="lp-section" style={{ background: '#fff' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
@@ -749,7 +756,7 @@ export default function Landing() {
               <h2 style={{ fontFamily: F, fontSize: 42, fontWeight: 800, letterSpacing: '-0.03em', color: NAVY }}>Trusted across America</h2>
             </div>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 22 }}>
+          <div className="lp-test-grid">
             {[
               { n: 'Mike Thompson', co: 'Atlas Moving Co', loc: 'Phoenix, AZ', q: 'MoveLeads doubled our bookings in 3 months. We closed $47,000 in new business. The quality is unlike anything we\'ve tried.', stat: '+$47k revenue' },
               { n: 'Sarah Chen', co: 'Premier Movers', loc: 'Seattle, WA', q: 'Conversion jumped from 8% to 22% after switching to MoveLeads. Every dollar we spend returns 15x. Absolute game changer.', stat: '22% close rate' },
@@ -785,7 +792,7 @@ export default function Landing() {
 
 
       {/* FAQ */}
-      <section style={{ padding: '100px 0', background: '#fff', borderTop: `1px solid ${BL}` }}>
+      <section className="lp-section" style={{ background: '#fff', borderTop: `1px solid ${BL}` }}>
         <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 28px' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
@@ -823,7 +830,7 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section style={{ background: `linear-gradient(135deg,${ORANGE} 0%,#ea6c0a 100%)`, padding: '90px 0', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section className="lp-section-cta" style={{ background: `linear-gradient(135deg,${ORANGE} 0%,#ea6c0a 100%)`, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: NOISE, opacity: 0.4, pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: '-40%', left: '50%', transform: 'translateX(-50%)', width: 700, height: 450, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: 580, margin: '0 auto', padding: '0 28px', position: 'relative' }}>
@@ -834,7 +841,7 @@ export default function Landing() {
             <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', marginBottom: 38, lineHeight: 1.65 }}>
               Join 500+ moving companies getting exclusive leads. No credit card required.
             </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div className="lp-cta-buttons">
               <Link to="/register" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 background: '#fff', color: ORANGE, padding: '14px 30px', borderRadius: 13,
@@ -858,7 +865,7 @@ export default function Landing() {
       {/* FOOTER */}
       <footer style={{ background: '#060d1a', padding: '60px 0 28px' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 44, marginBottom: 48 }}>
+          <div className="lp-footer-grid">
             <div>
               <div style={{ fontFamily: F, fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', marginBottom: 12 }}>
                 <span style={{ color: '#fff' }}>Move</span><span style={{ color: ORANGE }}>Leads</span><span style={{ color: 'rgba(255,255,255,0.28)', fontWeight: 600 }}>.cloud</span>

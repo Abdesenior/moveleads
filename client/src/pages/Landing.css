@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════
+   Landing Page — Responsive Layout System
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Grid classes (moved out of inline so media queries work) ── */
+
+.lp-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  position: relative;
+}
+
+.lp-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.lp-two-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.lp-phone-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.lp-widget-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 60px;
+  align-items: center;
+  position: relative;
+}
+
+.lp-how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  position: relative;
+}
+
+.lp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  text-align: center;
+}
+
+.lp-test-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.lp-footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 44px;
+  margin-bottom: 48px;
+}
+
+/* ── Other responsive elements ── */
+
+.lp-hero-section { padding-top: 130px; padding-bottom: 110px; }
+
+.lp-hero-h1 { font-size: 56px; }
+
+.lp-hero-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+}
+
+.lp-cta-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.lp-section     { padding: 100px 0; }
+.lp-section-stats { padding: 88px 0; }
+.lp-section-cta   { padding: 90px 0; }
+
+/* ══════════════════════════════════════════════════════════
+   TABLET  ≤ 900px
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .lp-hero-section  { padding-top: 90px; padding-bottom: 60px; }
+  .lp-section       { padding: 72px 0; }
+  .lp-section-stats { padding: 64px 0; }
+  .lp-section-cta   { padding: 72px 0; }
+
+  /* Hero */
+  .lp-hero-grid   { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+  .lp-hero-mockup { display: none; }
+  .lp-hero-h1     { font-size: 40px; }
+  .lp-hero-buttons { justify-content: center; }
+
+  /* Sections */
+  .lp-features-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-two-grid      { grid-template-columns: 1fr; gap: 20px; }
+  .lp-phone-grid    { grid-template-columns: 1fr; gap: 40px; }
+  .lp-phone-side    { display: none; }
+  .lp-widget-grid   { grid-template-columns: 1fr; gap: 40px; }
+  .lp-widget-side   { display: none; }
+  .lp-how-grid      { grid-template-columns: repeat(2, 1fr); }
+  .lp-stats-grid    { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .lp-test-grid     { grid-template-columns: 1fr; max-width: 540px; margin: 0 auto; }
+  .lp-footer-grid   { grid-template-columns: 1fr 1fr; gap: 28px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE  ≤ 600px
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .lp-hero-section  { padding-top: 76px; padding-bottom: 48px; }
+  .lp-section       { padding: 56px 0; }
+  .lp-section-stats { padding: 52px 0; }
+  .lp-section-cta   { padding: 56px 0; }
+
+  .lp-hero-h1   { font-size: 29px; line-height: 1.1; }
+  .lp-hero-grid { gap: 24px; }
+
+  .lp-hero-buttons { flex-direction: column; gap: 10px; }
+  .lp-hero-buttons > * {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .lp-features-grid { grid-template-columns: 1fr; }
+  .lp-how-grid      { grid-template-columns: 1fr; }
+  .lp-footer-grid   { grid-template-columns: 1fr; gap: 24px; }
+
+  .lp-cta-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 340px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .lp-cta-buttons > * {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Stats numbers */
+  .lp-stat-val { font-size: 34px !important; }
+
+  /* Trust bar under hero */
+  .lp-trust-row { flex-direction: column; gap: 10px; align-items: center; }
+}
