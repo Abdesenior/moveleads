@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, X, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { useToast } from './ui/Toast';
 import { ButtonSpinner } from './ui/Loading';
 
 const ORANGE = '#f97316';
@@ -11,23 +12,31 @@ export default function VerificationBanner() {
   const [dismissed, setDismissed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const navigate = useNavigate();
+  const toast = useToast();
 
-  if (!user || user.isVerified || dismissed) return null;
+  if (!user || user.isEmailVerified || user.role !== 'customer' || dismissed) return null;
 
   const handleResend = async () => {
     setLoading(true);
+    console.log(`[VerificationBanner] Requesting resend for ${user.email} towards ${API_URL}`);
     try {
       const res = await fetch(`${API_URL}/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email })
       });
+      
+      const data = await res.json();
+      
       if (res.ok) {
         setSent(true);
+        toast.success('Check your inbox', 'Verification email sent! Be sure to check your spam folder.');
+      } else {
+        toast.error('Failed to resend', data.msg || 'Please try again in a few minutes.');
       }
     } catch (err) {
       console.error('Failed to resend:', err);
+      toast.error('Network error', 'Make sure you are connected to the internet and try again.');
     } finally {
       setLoading(false);
     }

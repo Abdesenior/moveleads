@@ -1,0 +1,63 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="glowTopRight" cx="100%" cy="0%" r="70%">
+      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#0b1628" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowBottomLeft" cx="0%" cy="100%" r="70%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#0b1628" stop-opacity="0" />
+    </radialGradient>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.04" />
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0b1628" />
+  <rect width="1200" height="630" fill="url(#grid)" />
+  <rect width="1200" height="630" fill="url(#glowTopRight)" />
+  <rect width="1200" height="630" fill="url(#glowBottomLeft)" />
+
+  <!-- Left Content -->
+  <g transform="translate(100, 180)">
+    <!-- Logo -->
+    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="42" font-weight="900" fill="#ffffff" letter-spacing="-0.5">
+      Move<tspan fill="#f97316">Leads</tspan><tspan fill="#94a3b8" font-weight="600">.cloud</tspan>
+    </text>
+
+    <!-- Headline -->
+    <text x="0" y="100" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="76" font-weight="800" fill="#ffffff" letter-spacing="-2">
+      Verified moving leads.
+    </text>
+    <text x="0" y="190" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="76" font-weight="800" fill="#f97316" letter-spacing="-2">
+      Close more deals.
+    </text>
+
+    <!-- Subheadline -->
+    <text x="0" y="270" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="30" font-weight="500" fill="#94a3b8" letter-spacing="-0.5">
+      100% phone-verified moving leads delivered
+    </text>
+    <text x="0" y="315" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="30" font-weight="500" fill="#94a3b8" letter-spacing="-0.5">
+      to your dashboard in real-time.
+    </text>
+  </g>
+
+  <!-- Right Side Abstract UI Elements -->
+  <g transform="translate(760, 140)">
+    <!-- Card 1 -->
+    <rect width="360" height="140" rx="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+    <circle cx="40" cy="45" r="8" fill="#22c55e" />
+    <text x="65" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#ffffff">New Lead Available</text>
+    <text x="40" y="100" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="36" font-weight="800" fill="#f97316">$1,650</text>
+    <text x="175" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="600" fill="#94a3b8">· 2 Bedroom</text>
+    
+    <!-- Card 2 -->
+    <g transform="translate(60, 180)">
+      <rect width="360" height="140" rx="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+      <circle cx="40" cy="45" r="8" fill="#3b82f6" />
+      <text x="65" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Twilio Verified</text>
+      <text x="40" y="100" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="36" font-weight="800" fill="#ffffff">+1 (310) 555-0199</text>
+    </g>
+  </g>
+</svg>
