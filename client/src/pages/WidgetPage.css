@@ -1,0 +1,86 @@
+/* ═══════════════════════════════════════════════════════════
+   WidgetPage — Responsive Layout
+   ═══════════════════════════════════════════════════════════ */
+
+/* Demo section two-col grid */
+.wp-demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+
+/* Hero */
+.wp-hero-h1   { font-size: 52px; }
+.wp-hero-h1sm { font-size: 40px; } /* insideDashboard */
+
+.wp-hero-btns {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* CTA block */
+.wp-cta-pad { padding: 52px 48px; }
+
+.wp-cta-btns {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TABLET  ≤ 860px
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .wp-demo-grid { grid-template-columns: 1fr; gap: 40px; }
+  .wp-demo-widget-side { display: none; }
+  .wp-hero-h1   { font-size: 38px; }
+  .wp-hero-h1sm { font-size: 34px; }
+  .wp-cta-pad   { padding: 40px 32px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE  ≤ 600px
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .wp-hero-h1   { font-size: 28px; line-height: 1.12; }
+  .wp-hero-h1sm { font-size: 26px; line-height: 1.12; }
+
+  .wp-hero-btns {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+  .wp-hero-btns > * {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .wp-cta-pad { padding: 32px 20px; }
+
+  .wp-cta-btns {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+  .wp-cta-btns > * {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Embed code block — prevent horizontal overflow */
+  .wp-embed-code pre {
+    font-size: 11px !important;
+    word-break: break-all;
+    white-space: pre-wrap;
+  }
+}

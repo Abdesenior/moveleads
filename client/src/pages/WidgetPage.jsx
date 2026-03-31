@@ -11,6 +11,7 @@ import {
     Users, Activity, DollarSign, TrendingUp
 } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
+import './WidgetPage.css';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
@@ -683,13 +684,13 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#fff7ed', color: '#ea580c', padding: '6px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, marginBottom: 28, border: '1px solid #fed7aa' }}>
                         <Zap size={14} fill="#ea580c" /> Free for MoveLeads members
                     </div>
-                    <h1 style={{ fontSize: insideDashboard ? 40 : 52, fontWeight: 900, color: '#0f172a', marginBottom: 22, letterSpacing: '-0.03em', lineHeight: 1.1, fontFamily: "'Poppins',sans-serif" }}>
+                    <h1 className={insideDashboard ? 'wp-hero-h1sm' : 'wp-hero-h1'} style={{ fontWeight: 900, color: '#0f172a', marginBottom: 22, letterSpacing: '-0.03em', lineHeight: 1.1, fontFamily: "'Poppins',sans-serif" }}>
                         Turn your website into<br />a lead machine
                     </h1>
                     <p style={{ fontSize: 18, color: '#475569', maxWidth: 600, margin: '0 auto 36px', lineHeight: 1.7 }}>
                         Add our booking widget to your website in under 2 minutes. Live map, instant quotes, and every lead synced to your dashboard automatically.
                     </p>
-                    <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <div className="wp-hero-btns">
                         <button onClick={scrollToEmbed} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px rgba(234,88,12,0.3)', fontFamily: "'Poppins',sans-serif" }}>
                             Get Your Embed Code <ChevronRight size={16} />
                         </button>
@@ -853,7 +854,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                         </p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'center' }}>
+                    <div className="wp-demo-grid">
 
                         {/* Left: embed code */}
                         <div>
@@ -870,7 +871,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                                 ))}
                             </div>
 
-                            <div ref={embedRef} style={{ background: '#1e293b', borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 32px rgba(15,23,42,0.2)' }}>
+                            <div ref={embedRef} className="wp-embed-code" style={{ background: '#1e293b', borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 32px rgba(15,23,42,0.2)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 18px', background: '#0f172a', borderBottom: '1px solid #334155' }}>
                                     <div style={{ display: 'flex', gap: 6 }}>
                                         {['#fc5f5f', '#febc2e', '#28c741'].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
@@ -893,7 +894,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                         </div>
 
                         {/* Right: stacked widget */}
-                        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 560 }}>
+                        <div className="wp-demo-widget-side" style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 560 }}>
                             {[{ rot: -7, tx: -18 }, { rot: 7, tx: 18 }].map(({ rot, tx }, idx) => (
                                 <div key={idx} style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%,-50%) rotate(${rot}deg) translateX(${tx}px) translateY(12px)`, opacity: 0.28, pointerEvents: 'none', width: '85%', filter: 'grayscale(0.3)' }}>
                                     <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.1)', padding: 20, border: '1px solid #e2e8f0' }}>
@@ -936,13 +937,13 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
 
             {/* ── CTA ── */}
             <div style={{ padding: '0 24px 80px' }}>
-                <div style={{ maxWidth: 860, margin: '0 auto', background: 'linear-gradient(135deg,#0a192f 0%,#112240 60%,#1e3a5f 100%)', borderRadius: 24, padding: '52px 48px', textAlign: 'center', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 60px rgba(10,25,47,0.25)' }}>
+                <div className="wp-cta-pad" style={{ maxWidth: 860, margin: '0 auto', background: 'linear-gradient(135deg,#0a192f 0%,#112240 60%,#1e3a5f 100%)', borderRadius: 24, textAlign: 'center', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 60px rgba(10,25,47,0.25)' }}>
                     <div style={{ position: 'absolute', top: '-30%', right: '-5%', width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle,rgba(234,88,12,0.12),transparent 70%)', pointerEvents: 'none' }} />
                     <div style={{ position: 'relative' }}>
                         <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '5px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, marginBottom: 22, border: '1px solid rgba(255,255,255,0.15)' }}>Free while in beta</div>
                         <h2 style={{ fontSize: 34, fontWeight: 800, color: '#fff', marginBottom: 14, fontFamily: "'Poppins',sans-serif", letterSpacing: '-0.02em' }}>Want this widget on your website?</h2>
                         <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 16, margin: '0 auto 36px', maxWidth: 520 }}>Contact us and we'll set everything up for you — no technical knowledge needed.</p>
-                        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <div className="wp-cta-btns">
                             <a href="mailto:support@moveleads.cloud?subject=Widget%20Setup%20Request" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 6px 20px rgba(234,88,12,0.4)', fontFamily: "'Poppins',sans-serif" }}>
                                 <Mail size={16} /> Contact us to get started
                             </a>
