@@ -164,16 +164,58 @@
   gap: 32px; align-items: start;
 }
 
+/* Contact name/phone grid — responsive */
+.gq-contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
 @media (max-width: 960px) {
   .gq-body { grid-template-columns: 1fr; }
   .gq-sidebar { order: -1; }
 }
+
+/* ── Mobile: tablet ── */
+@media (max-width: 720px) {
+  .gq-sidebar { display: none; } /* hide summary sidebar on mobile — widget is self-contained */
+}
+
 @media (max-width: 600px) {
-  .gq-body { padding: 24px 16px 60px; gap: 20px; }
-  .gq-hero { padding: 48px 20px 44px; }
+  .gq-body { padding: 20px 12px 60px; gap: 16px; }
+  .gq-hero { padding: 40px 16px 36px; }
   .gq-nav { padding: 0 16px; }
   .gq-nav-links { display: none; }
-  .gq-hero h1 { font-size: 28px; }
+  .gq-hero h1 { font-size: 26px; line-height: 1.12; }
+  .gq-hero-sub { font-size: 15px; }
+  .gq-hero-cta { width: 100%; justify-content: center; padding: 16px 24px; font-size: 16px; }
+  .gq-hero-cta-wrap { width: 100%; max-width: 400px; }
+  .gq-trust-row { gap: 14px; }
+  .gq-trust-chip { font-size: 12px; }
+
+  /* Widget card */
+  .gq-card { border-radius: 16px; }
+  .gq-card-header { padding: 16px 18px; }
+  .gq-card-header-title { font-size: 15px; }
+  .gq-step-pills { padding: 10px 16px; gap: 0; }
+  .gq-step-pill-label { display: none; } /* show only numbers on mobile */
+  .gq-step-pill-num { width: 26px; height: 26px; font-size: 10px; }
+  .gq-step-connector { width: 14px; }
+  .gq-step-body { padding: 20px 16px 4px; }
+  .gq-step-title { font-size: 18px; }
+  .gq-step-sub { font-size: 13px; margin-bottom: 18px; }
+  .gq-nav-row { padding: 16px 16px 20px; gap: 8px; }
+  .gq-btn-next { flex: 1; justify-content: center; padding: 14px 16px; font-size: 14px; }
+  .gq-btn-back { padding: 12px 14px; font-size: 13px; }
+
+  /* Step 1 size grid */
+  .gq-size-btn { padding: 14px 8px; font-size: 12px; }
+  .gq-size-btn svg { display: none; }
+
+  /* Step 2 zip grid */
+  .gq-zip-grid { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Step 5 contact grid */
+  .gq-contact-grid { grid-template-columns: 1fr; }
+
+  /* Toggle buttons */
+  .gq-toggle-btn { padding: 8px 12px; font-size: 12px; }
 }
 .gq-how-section, .gq-why-section, .gq-test-section, .gq-faq-section, .gq-cta-section {
   scroll-margin-top: 72px;

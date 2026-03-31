@@ -1062,7 +1062,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
           <div className="gq-step-title">Who should movers contact?</div>
           <div className="gq-step-sub">Shared only with the one licensed mover matched to your route.</div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="gq-contact-grid">
             <div className="gq-field">
               <label className="gq-label">First Name</label>
               <input className="gq-input" type="text" placeholder="Jane" value={data.name} onChange={e => set('name', e.target.value)} autoComplete="given-name" />
