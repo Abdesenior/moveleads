@@ -509,24 +509,24 @@
 
 /* ── TESTIMONIALS ── */
 .gq-test-section { background: var(--bg); padding: 100px 40px; border-top: 1px solid var(--border-l); }
-.gq-test-grid { display: flex; flex-direction: column; gap: 20px; max-width: 760px; margin: 0 auto; }
+.gq-test-grid-3col {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  max-width: 1100px; margin: 0 auto;
+}
+@media (max-width: 860px) { .gq-test-grid-3col { grid-template-columns: 1fr; max-width: 560px; } }
 
 .gq-test-card {
   background: var(--white); border: 1px solid var(--border);
-  border-radius: 20px; padding: 32px;
+  border-radius: 20px; padding: 32px 28px;
+  display: flex; flex-direction: column;
   transition: all 0.3s var(--ease);
 }
 .gq-test-card:hover { box-shadow: var(--shadow-m); }
-.gq-test-stars { color: #f59e0b; font-size: 18px; letter-spacing: 3px; margin-bottom: 18px; }
-.gq-test-quote { font-size: 16px; color: var(--text-m); line-height: 1.75; margin-bottom: 24px; }
-.gq-test-footer { display: flex; align-items: center; gap: 12px; }
-.gq-test-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--navy); display: flex; align-items: center;
-  justify-content: center; color: #fff; font-size: 13px; font-weight: 800;
-}
+.gq-test-stars { color: #e8a800; font-size: 18px; letter-spacing: 3px; margin-bottom: 16px; }
+.gq-test-quote { font-size: 15px; color: var(--text-m); line-height: 1.75; margin-bottom: 24px; flex: 1; }
+.gq-test-footer { }
 .gq-test-name { font-size: 14px; font-weight: 700; color: var(--text); }
-.gq-test-loc  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.gq-test-loc  { font-size: 13px; color: var(--muted); margin-top: 3px; }
 
 /* ── FAQ ── */
 .gq-faq-section { background: var(--white); padding: 100px 40px; border-top: 1px solid var(--border-l); }
