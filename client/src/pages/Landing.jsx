@@ -4,7 +4,7 @@ import {
   CheckCircle, Zap, Shield, ArrowRight, Star,
   MapPin, Clock, Users, TrendingUp,
   ChevronDown, Lock, BarChart2, Bell,
-  Home, Warehouse
+  Home, Warehouse, Menu, X
 } from 'lucide-react';
 import JsonLd, { organizationSchema, softwareAppSchema } from '../components/JsonLd';
 import '../phone-mockup.css';
@@ -41,6 +41,7 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [faqOpen, setFaqOpen] = useState(null);
   const [tick, setTick] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     document.title = 'MoveLeads.cloud — Verified Moving Leads for Moving Companies';
@@ -48,6 +49,11 @@ export default function Landing() {
     window.addEventListener('scroll', fn);
     return () => window.removeEventListener('scroll', fn);
   }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
 
   useEffect(() => {
     const t = setInterval(() => setTick(x => (x + 1) % 3), 3600);
@@ -69,65 +75,72 @@ export default function Landing() {
       {/* NAV */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-        background: scrolled ? 'rgba(255,255,255,0.93)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
-        borderBottom: scrolled ? `1px solid ${BL}` : 'none',
+        background: (scrolled || menuOpen) ? 'rgba(255,255,255,0.97)' : 'transparent',
+        backdropFilter: (scrolled || menuOpen) ? 'blur(20px) saturate(180%)' : 'none',
+        borderBottom: (scrolled || menuOpen) ? `1px solid ${BL}` : 'none',
         transition: 'all 0.3s ease',
       }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', height: 66, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px', fontFamily: F }}>
-            <span style={{ color: scrolled ? NAVY : '#fff' }}>Move</span>
+        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 20px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+
+          {/* Logo */}
+          <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.4px', fontFamily: F, flexShrink: 0 }}>
+            <span style={{ color: (scrolled || menuOpen) ? NAVY : '#fff' }}>Move</span>
             <span style={{ color: ORANGE }}>Leads</span>
-            <span style={{ color: scrolled ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontWeight: 600 }}>.cloud</span>
+            <span style={{ color: (scrolled || menuOpen) ? '#94a3b8' : 'rgba(255,255,255,0.45)', fontWeight: 600 }}>.cloud</span>
           </div>
-          <div style={{ display: 'flex', gap: 2 }} className="lp-links">
+
+          {/* Desktop links */}
+          <div className="lp-links" style={{ gap: 2 }}>
             {['Features', 'How It Works'].map(t => (
-              <a key={t} href={`#${t.toLowerCase().replace(/ /g, '-')}`} style={{
-                color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)',
-                fontSize: 14, fontWeight: 500, textDecoration: 'none',
-                padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
-              }}
+              <a key={t} href={`#${t.toLowerCase().replace(/ /g, '-')}`} style={{ color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: 500, textDecoration: 'none', padding: '8px 12px', borderRadius: 8, transition: 'all 0.18s' }}
                 onMouseEnter={e => { e.currentTarget.style.color = scrolled ? NAVY : '#fff'; e.currentTarget.style.background = scrolled ? '#f1f5f9' : 'rgba(255,255,255,0.07)'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
               >{t}</a>
             ))}
-            <Link to="/pricing" style={{
-              color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)',
-              fontSize: 14, fontWeight: 500, textDecoration: 'none',
-              padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
-            }}
+            <Link to="/pricing" style={{ color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: 500, textDecoration: 'none', padding: '8px 12px', borderRadius: 8, transition: 'all 0.18s' }}
               onMouseEnter={e => { e.currentTarget.style.color = scrolled ? NAVY : '#fff'; e.currentTarget.style.background = scrolled ? '#f1f5f9' : 'rgba(255,255,255,0.07)'; }}
               onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
             >Pricing</Link>
-            <Link to="/for-movers" style={{
-              color: scrolled ? '#ea580c' : '#fb923c',
-              fontSize: 14, fontWeight: 700, textDecoration: 'none',
-              padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
-            }}
+            <Link to="/for-movers" style={{ color: scrolled ? '#ea580c' : '#fb923c', fontSize: 14, fontWeight: 700, textDecoration: 'none', padding: '8px 12px', borderRadius: 8, transition: 'all 0.18s' }}
               onMouseEnter={e => { e.currentTarget.style.background = scrolled ? '#fff7ed' : 'rgba(249,115,22,0.15)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             >For Movers</Link>
-            <Link to="/widget-page" style={{
-              color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)',
-              fontSize: 14, fontWeight: 500, textDecoration: 'none',
-              padding: '8px 13px', borderRadius: 8, transition: 'all 0.18s',
-            }}
+            <Link to="/widget-page" style={{ color: scrolled ? '#475569' : 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: 500, textDecoration: 'none', padding: '8px 12px', borderRadius: 8, transition: 'all 0.18s' }}
               onMouseEnter={e => { e.currentTarget.style.color = scrolled ? NAVY : '#fff'; e.currentTarget.style.background = scrolled ? '#f1f5f9' : 'rgba(255,255,255,0.07)'; }}
               onMouseLeave={e => { e.currentTarget.style.color = scrolled ? '#475569' : 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent'; }}
             >Booking Widget</Link>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Link to="/login" style={{ color: scrolled ? '#475569' : 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 600, textDecoration: 'none', padding: '8px 14px', borderRadius: 8, transition: 'color 0.18s' }}>Log in</Link>
-            <Link to="/register" style={{
-              background: ORANGE, color: '#fff', padding: '9px 20px', borderRadius: 10,
-              fontSize: 14, fontWeight: 700, textDecoration: 'none',
-              boxShadow: '0 2px 10px rgba(249,115,22,0.38)', transition: 'all 0.18s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 5px 18px rgba(249,115,22,0.48)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(249,115,22,0.38)'; }}
-            >Get started free</Link>
+
+          {/* Desktop auth */}
+          <div className="lp-auth" style={{ gap: 8, alignItems: 'center' }}>
+            <Link to="/login" style={{ color: scrolled ? '#475569' : 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 600, textDecoration: 'none', padding: '8px 14px', borderRadius: 8 }}>Log in</Link>
+            <Link to="/register" style={{ background: ORANGE, color: '#fff', padding: '9px 18px', borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: 'none', boxShadow: '0 2px 10px rgba(249,115,22,0.38)', whiteSpace: 'nowrap' }}>Get started free</Link>
           </div>
+
+          {/* Mobile hamburger */}
+          <button className="lp-hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: (scrolled || menuOpen) ? NAVY : '#fff' }}>
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div style={{ background: '#fff', borderTop: `1px solid ${BL}`, padding: '16px 20px 24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
+              {[['Features', '#features'], ['How It Works', '#how-it-works']].map(([label, href]) => (
+                <a key={label} href={href} onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '12px 14px', fontSize: 15, fontWeight: 600, color: NAVY, textDecoration: 'none', borderRadius: 10 }}>{label}</a>
+              ))}
+              <Link to="/pricing" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '12px 14px', fontSize: 15, fontWeight: 600, color: NAVY, textDecoration: 'none', borderRadius: 10 }}>Pricing</Link>
+              <Link to="/for-movers" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '12px 14px', fontSize: 15, fontWeight: 700, color: '#ea580c', textDecoration: 'none', borderRadius: 10 }}>For Movers</Link>
+              <Link to="/widget-page" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '12px 14px', fontSize: 15, fontWeight: 600, color: NAVY, textDecoration: 'none', borderRadius: 10 }}>Booking Widget</Link>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16, borderTop: `1px solid ${BL}` }}>
+              <Link to="/login" onClick={() => setMenuOpen(false)} style={{ display: 'block', textAlign: 'center', padding: 12, fontSize: 15, fontWeight: 600, color: NAVY, textDecoration: 'none', border: '1.5px solid #e2e8f0', borderRadius: 12 }}>Log in</Link>
+              <Link to="/register" onClick={() => setMenuOpen(false)} style={{ display: 'block', textAlign: 'center', padding: 13, fontSize: 15, fontWeight: 700, color: '#fff', textDecoration: 'none', background: ORANGE, borderRadius: 12, boxShadow: '0 4px 14px rgba(249,115,22,0.35)' }}>Get started free →</Link>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* HERO */}
@@ -904,7 +917,13 @@ export default function Landing() {
         @keyframes lpPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(1.35)} }
         @keyframes lpMarquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
         .lp-links { display:flex; }
-        @media(max-width:900px){ .lp-links{display:none} }
+        .lp-auth { display:flex; }
+        .lp-hamburger { display:none; }
+        @media(max-width:900px){
+          .lp-links { display:none; }
+          .lp-auth  { display:none; }
+          .lp-hamburger { display:flex; align-items:center; justify-content:center; }
+        }
       `}</style>
     </div>
   );
