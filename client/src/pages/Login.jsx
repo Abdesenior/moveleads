@@ -2,6 +2,8 @@ import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Zap, CheckCircle, Lock, Mail, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { useToast } from '../components/ui/Toast';
+import { ButtonSpinner } from '../components/ui/Loading';
 import '../auth.css';
 
 export default function Login() {
@@ -15,6 +17,7 @@ export default function Login() {
   
   const navigate = useNavigate();
   const { login, API_URL } = useContext(AuthContext);
+  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,15 +38,18 @@ export default function Login() {
         if (data.code === 'EMAIL_NOT_VERIFIED') {
           setUnverified(true);
           setError(data.msg);
+          toast.warning('Email not verified', data.msg);
           return;
         }
         throw new Error(data.msg || 'Login failed');
       }
       
       login(data.token, data.user);
+      toast.success('Welcome back!', 'Successfully signed in');
       navigate(data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err.message);
+      toast.error('Login failed', err.message);
     } finally {
       setLoading(false);
     }
@@ -59,9 +65,13 @@ export default function Login() {
       });
       if (res.ok) {
         setResendSuccess(true);
+        toast.success('Email sent', 'Verification link has been sent to your email');
+      } else {
+        const data = await res.json();
+        toast.error('Failed to send', data.msg || 'Please try again');
       }
     } catch {
-      // Silently fail — the UI already shows a generic message
+      toast.error('Failed to send', 'Please try again');
     } finally {
       setResendLoading(false);
     }
@@ -69,7 +79,6 @@ export default function Login() {
 
   return (
     <div className="login-wrapper">
-      {/* Dark Navy Brand Panel */}
       <div className="login-brand">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: 48 }}>
@@ -111,7 +120,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Login Form */}
       <div className="login-form-side">
         <div className="login-card">
           <div className="logo" style={{ marginBottom: '40px', fontFamily: 'Poppins' }}>
@@ -122,7 +130,6 @@ export default function Login() {
           <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '8px', color: 'var(--bg-navy)', fontFamily: 'Poppins' }}>Welcome back</h2>
           <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 32 }}>Sign in to access your dashboard</p>
           
-          {/* Unverified email warning */}
           {unverified && (
             <div className="verification-warning">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -144,14 +151,13 @@ export default function Login() {
                   disabled={resendLoading}
                   className="resend-btn"
                 >
-                  <RefreshCw size={16} className={resendLoading ? 'spin-animation' : ''} />
+                  {resendLoading ? <ButtonSpinner /> : <RefreshCw size={16} />}
                   {resendLoading ? 'Sending…' : 'Resend Verification Email'}
                 </button>
               )}
             </div>
           )}
 
-          {/* Generic error */}
           {error && !unverified && (
             <div style={{
               background: '#fee2e2', color: '#dc2626',
@@ -175,11 +181,11 @@ export default function Login() {
             </div>
             
             <div style={{ textAlign: 'right', marginBottom: '32px' }}>
-              <a href="#" style={{ fontSize: '13px', color: '#f97316', fontWeight: 600, textDecoration: 'none' }}>Forgot password?</a>
+              <Link to="/forgot-password" style={{ fontSize: '13px', color: '#f97316', fontWeight: 600, textDecoration: 'none' }}>Forgot password?</Link>
             </div>
             
             <button type="submit" disabled={loading} className="auth-btn">
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? <><ButtonSpinner /> Signing in...</> : 'Sign In'}
             </button>
           </form>
           
@@ -191,4 +197,3 @@ export default function Login() {
     </div>
   );
 }
-

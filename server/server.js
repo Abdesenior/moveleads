@@ -6,27 +6,20 @@ const connectDB = require('./config/db');
 
 const http = require('http');
 const socketService = require('./services/socketService');
+const sanitizeInput = require('./middleware/sanitize');
+const { requestLogger, responseTimeMiddleware } = require('./middleware/logger');
 
 const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
 
-// Connect Database
 connectDB();
 
-// ── Security headers (helmet) ─────────────────────────────────────────────────
-// Sets X-Content-Type-Options, X-Frame-Options, Strict-Transport-Security,
-// X-XSS-Protection, Referrer-Policy, and more in one call.
 app.use(helmet({
-  // Allow same-origin iframes for dashboard embeds; deny cross-origin framing
   frameguard: { action: 'sameorigin' },
-  // Relax CSP only if you use inline scripts/styles; tighten further post-launch
   contentSecurityPolicy: false,
 }));
 
-// ── CORS ─────────────────────────────────────────────────────────────────────
-// In production set CLIENT_ORIGIN to a comma-separated list, e.g.:
-//   CLIENT_ORIGIN=https://moveleads.cloud,https://www.moveleads.cloud
 const ALLOWED_ORIGINS = process.env.CLIENT_ORIGIN
   ? process.env.CLIENT_ORIGIN.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175',
@@ -35,22 +28,42 @@ const ALLOWED_ORIGINS = process.env.CLIENT_ORIGIN
 app.use(cors({
   origin: ALLOWED_ORIGINS,
   credentials: true,
-  // Restrict allowed methods to only what the API uses
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-auth-token'],
 }));
-// Stripe Webhook: MUST be before express.json() to get raw body for signature verification
+
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json({ extended: false }));
 
-// Initialize WebSocket Service
+app.use(requestLogger);
+app.use(responseTimeMiddleware());
+app.use(sanitizeInput);
+
 socketService.init(server);
 
-// Basic Health Check Route for Browser testing
 app.get('/', (req, res) => res.send('MoveLeads Core API is Live'));
 
-// Define Routes
+app.get('/api/health', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor(process.uptime()),
+      database: dbState,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/leads', require('./routes/leads'));
 app.use('/api/users', require('./routes/users'));
@@ -66,11 +79,21 @@ app.use('/api/voice', require('./routes/voice'));
 app.use('/api/bids', require('./routes/bids'));
 app.use('/api/complaints', require('./routes/complaints'));
 
-// Auction settlement cron — must be required AFTER socketService.init()
 require('./jobs/settleAuctions');
 require('./jobs/requestFeedback');
 
+app.use((req, res, next) => {
+  res.status(404).json({ msg: 'Route not found' });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Server Error:', err.stack);
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    msg: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
 const PORT = process.env.PORT || 5005;
-// Bind to 0.0.0.0 so Render's load balancer (and Docker) can reach the process.
-// '127.0.0.1' only works on localhost and must NOT be used in production.
 server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

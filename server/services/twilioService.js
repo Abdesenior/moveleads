@@ -1,7 +1,7 @@
 const twilio = require('twilio');
 const Lead = require('../models/Lead');
 const Communication = require('../models/Communication');
-const PurchasedLead = require('../models/PurchasedLead'); 
+const PurchasedLead = require('../models/PurchasedLead');
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 
@@ -68,6 +68,11 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       if (raceErr.message === 'LOOKUP_TIMEOUT') {
         console.warn(`[Twilio] Lookup timed out for lead ${leadId}. Marking PENDING_MANUAL_REVIEW.`);
         lead.status = 'PENDING_MANUAL_REVIEW';
+        lead.price = 0;
+        lead.buyNowPrice = 0;
+        lead.startingBidPrice = 0;
+        lead.currentBidPrice = 0;
+        lead.auctionStatus = 'expired';
         lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
         await lead.save();
         return;
@@ -81,7 +86,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
     if (lineType === 'mobile' || lineType === 'landline') {
       lead.isVerified = true;
       lead.status = 'READY_FOR_DISTRIBUTION';
-      
+
       // Calculate score and grade once lineType is known
       const scoring = calculateLeadScore(lead, lead.miles, lineType, lead.moveDate);
       lead.score = scoring.score;
@@ -100,12 +105,12 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       }
 
       console.log(`[Twilio] Verification PASSED (Type: ${lineType}) - Grade: ${scoring.grade}`);
-      
+
       // TRIGGER WARM TRANSFER CALL FOR GRADE 'A' LEADS
       if (scoring.grade === 'A' && twilioClient) {
         const serverUrl = process.env.SERVER_URL || 'https://moveleads.cloud';
         console.log(`[Twilio Warm Transfer] Triggering call to ${lead.customerPhone} for lead ${lead._id}`);
-        
+
         twilioClient.calls.create({
           to: lead.customerPhone,
           from: fromPhone,
@@ -120,6 +125,12 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       // voip, toll_free, invalid, unknown → reject
       lead.isVerified = false;
       lead.status = 'REJECTED_FAKE';
+      // FIX: A rejected lead should have no price.
+      lead.price = 0;
+      lead.buyNowPrice = 0;
+      lead.startingBidPrice = 0;
+      lead.currentBidPrice = 0;
+      lead.auctionStatus = 'expired';
       console.log(`[Twilio] Verification FAILED (Type: ${lineType || 'unknown'})`);
     }
 
@@ -132,6 +143,11 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       const lead = await Lead.findById(leadId);
       if (lead) {
         lead.status = 'PENDING_MANUAL_REVIEW';
+        lead.price = 0;
+        lead.buyNowPrice = 0;
+        lead.startingBidPrice = 0;
+        lead.currentBidPrice = 0;
+        lead.auctionStatus = 'expired';
         lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
         await lead.save();
       }

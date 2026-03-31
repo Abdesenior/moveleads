@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
+import VerificationBanner from './VerificationBanner';
 import '../dashboard.css';
 
 const NAV_ITEMS = [
@@ -64,6 +65,7 @@ export default function DashboardLayout({ children }) {
   return (
     <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <ImpersonationBanner />
+      <VerificationBanner />
 
       {/* Mobile hamburger */}
       <button

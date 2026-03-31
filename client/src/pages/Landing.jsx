@@ -6,6 +6,7 @@ import {
   ChevronDown, Lock, BarChart2, Bell,
   Home, Warehouse
 } from 'lucide-react';
+import JsonLd, { organizationSchema, softwareAppSchema } from '../components/JsonLd';
 import '../phone-mockup.css';
 
 function useReveal() {
@@ -41,7 +42,7 @@ export default function Landing() {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    document.title = 'MoveLeads.cloud — Verified Moving Leads';
+    document.title = 'MoveLeads.cloud — Verified Moving Leads for Moving Companies';
     const fn = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', fn);
     return () => window.removeEventListener('scroll', fn);
@@ -61,6 +62,8 @@ export default function Landing() {
 
   return (
     <div style={{ fontFamily: F, color: NAVY, overflowX: 'hidden' }}>
+      <JsonLd schema={organizationSchema} />
+      <JsonLd schema={softwareAppSchema} />
 
       {/* NAV */}
       <nav style={{

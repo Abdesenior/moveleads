@@ -16,18 +16,18 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
 /* ── Constants ─────────────────────────────────────────────── */
 const HOME_SIZES = [
-  { label: 'Studio',     vol: '≤ 350 CF',  rooms: 1 },
-  { label: '1 Bedroom',  vol: '≤ 700 CF',  rooms: 2 },
-  { label: '2 Bedroom',  vol: '≤ 1,100 CF', rooms: 3 },
-  { label: '3 Bedroom',  vol: '≤ 1,600 CF', rooms: 4 },
-  { label: '4 Bedroom',  vol: '≤ 2,000 CF', rooms: 5 },
+  { label: 'Studio', vol: '≤ 350 CF', rooms: 1 },
+  { label: '1 Bedroom', vol: '≤ 700 CF', rooms: 2 },
+  { label: '2 Bedroom', vol: '≤ 1,100 CF', rooms: 3 },
+  { label: '3 Bedroom', vol: '≤ 1,600 CF', rooms: 4 },
+  { label: '4 Bedroom', vol: '≤ 2,000 CF', rooms: 5 },
   { label: '5+ Bedroom', vol: '2,000+ CF', rooms: 6 },
 ];
 const ACCESS_OPTIONS = ['Ground Floor', 'Elevator', '2nd Floor', '3rd+ Floor', 'No Stairs'];
 const PARKING_OPTIONS = ['Yes – Easy', 'Long Carry', 'Shuttle Required'];
 const DEMAND_COLORS = {
-  low:  { bg: '#dcfce7', fg: '#166534' },
-  med:  { bg: '#fef9c3', fg: '#854d0e' },
+  low: { bg: '#dcfce7', fg: '#166534' },
+  med: { bg: '#fef9c3', fg: '#854d0e' },
   high: { bg: '#fee2e2', fg: '#991b1b' },
 };
 
@@ -35,8 +35,8 @@ const STEPS = [
   { id: 1, label: 'Home Size' },
   { id: 2, label: 'Locations' },
   { id: 3, label: 'Move Date' },
-  { id: 4, label: 'Details'   },
-  { id: 5, label: 'Contact'   },
+  { id: 4, label: 'Details' },
+  { id: 5, label: 'Contact' },
 ];
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -53,8 +53,8 @@ function geocodeZip(zip) {
 
 function demandLevel(date) {
   const mo = date.getMonth() + 1, day = date.getDate(), dow = date.getDay();
-  if ([5,6,7,8].includes(mo) && (day >= 28 || dow === 0 || dow === 6)) return 'high';
-  if ([5,6,7,8].includes(mo) || dow === 0 || dow === 6) return 'med';
+  if ([5, 6, 7, 8].includes(mo) && (day >= 28 || dow === 0 || dow === 6)) return 'high';
+  if ([5, 6, 7, 8].includes(mo) || dow === 0 || dow === 6) return 'med';
   return 'low';
 }
 
@@ -117,7 +117,7 @@ function SmartCalendar({ value, onChange }) {
         <button type="button" className="gq-cal-nav" onClick={() => nav(1)}>›</button>
       </div>
       <div className="gq-cal-grid">
-        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <div key={d} className="gq-cal-day-label">{d}</div>)}
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <div key={d} className="gq-cal-day-label">{d}</div>)}
         {cells.map((day, i) => {
           if (!day) return <div key={`e${i}`} />;
           const date = new Date(vm.y, vm.m, day);
@@ -126,7 +126,7 @@ function SmartCalendar({ value, onChange }) {
           const isToday = date.toDateString() === today.toDateString();
           const dem = demandLevel(date);
           const { bg, fg } = DEMAND_COLORS[dem];
-          const str = `${vm.y}-${String(vm.m + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const str = `${vm.y}-${String(vm.m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           return (
             <button key={day} type="button" disabled={past} onClick={() => !past && onChange(str)}
               className={`gq-cal-day${isSel ? ' gq-cal-day--selected' : ''}${isToday ? ' gq-cal-day--today' : ''}${!past && dem !== 'low' ? ' gq-cal-day--peak' : ''}`}
@@ -137,7 +137,7 @@ function SmartCalendar({ value, onChange }) {
         })}
       </div>
       <div className="gq-demand-legend">
-        {[['low','#dcfce7','#166534','Best rate'],['med','#fef9c3','#854d0e','Peak season'],['high','#fee2e2','#991b1b','High demand']].map(([,bg,fg,l]) => (
+        {[['low', '#dcfce7', '#166534', 'Best rate'], ['med', '#fef9c3', '#854d0e', 'Peak season'], ['high', '#fee2e2', '#991b1b', 'High demand']].map(([, bg, fg, l]) => (
           <div key={l} className="gq-demand-dot"><span style={{ background: bg, border: `1px solid ${fg}50` }} />{l}</div>
         ))}
       </div>
@@ -260,7 +260,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
     if (step === 2) return !!(data.originCoords && data.destCoords);
     if (step === 3) return !!data.moveDate;
     if (step === 4) return !!(data.access && data.parking);
-    if (step === 5) return !!(data.name && data.email && data.phone && data.phone.replace(/\D/g,'').length === 10);
+    if (step === 5) return !!(data.name && data.email && data.phone && data.phone.replace(/\D/g, '').length === 10);
     return false;
   };
 
@@ -347,7 +347,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
                 <label className="gq-label" style={{ color: '#2563eb' }}>📦 Moving From (ZIP)</label>
                 <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
                   placeholder="e.g. 75201" value={data.originZip}
-                  onChange={e => set('originZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                  onChange={e => set('originZip', e.target.value.replace(/\D/g, '').slice(0, 5))}
                   style={{ borderColor: data.originCoords ? '#2563eb' : undefined }} />
                 {data.originCoords && <div className="gq-zip-found" style={{ color: '#2563eb' }}>✓ {data.originCoords.city}, {data.originCoords.state}</div>}
               </div>
@@ -355,7 +355,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
                 <label className="gq-label" style={{ color: '#16a34a' }}>🏠 Moving To (ZIP)</label>
                 <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
                   placeholder="e.g. 90210" value={data.destZip}
-                  onChange={e => set('destZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                  onChange={e => set('destZip', e.target.value.replace(/\D/g, '').slice(0, 5))}
                   style={{ borderColor: data.destCoords ? '#16a34a' : undefined }} />
                 {data.destCoords && <div className="gq-zip-found" style={{ color: '#16a34a' }}>✓ {data.destCoords.city}, {data.destCoords.state}</div>}
               </div>
@@ -383,7 +383,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
             <SmartCalendar value={data.moveDate} onChange={v => set('moveDate', v)} />
             {data.moveDate && (() => {
               const d = demandLevel(new Date(data.moveDate + 'T00:00:00'));
-              const msgs = { low: ['🟢','Great choice! This is a low-demand date.'], med: ['🟡','Moderate demand — slight price increase.'], high: ['🔴','High demand date — peak pricing applies.'] };
+              const msgs = { low: ['🟢', 'Great choice! This is a low-demand date.'], med: ['🟡', 'Moderate demand — slight price increase.'], high: ['🔴', 'High demand date — peak pricing applies.'] };
               const [icon, text] = msgs[d];
               return (
                 <div style={{ marginTop: 12, padding: '9px 14px', borderRadius: 10, background: DEMAND_COLORS[d].bg, color: DEMAND_COLORS[d].fg, fontSize: 13, fontWeight: 600 }}>
@@ -401,7 +401,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
             <div className="gq-step-sub">These help movers provide an accurate quote.</div>
 
             <div className="gq-field">
-              <label className="gq-label"><Building size={12} style={{ display:'inline', marginRight:5 }} />Building Access at Pickup</label>
+              <label className="gq-label"><Building size={12} style={{ display: 'inline', marginRight: 5 }} />Building Access at Pickup</label>
               <div className="gq-toggle-row">
                 {ACCESS_OPTIONS.map(o => (
                   <button key={o} type="button" className={`gq-toggle-btn${data.access === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('access', o)}>{o}</button>
@@ -410,7 +410,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
             </div>
 
             <div className="gq-field">
-              <label className="gq-label"><ParkingCircle size={12} style={{ display:'inline', marginRight:5 }} />Truck Parking at Pickup</label>
+              <label className="gq-label"><ParkingCircle size={12} style={{ display: 'inline', marginRight: 5 }} />Truck Parking at Pickup</label>
               <div className="gq-toggle-row">
                 {PARKING_OPTIONS.map(o => (
                   <button key={o} type="button" className={`gq-toggle-btn${data.parking === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('parking', o)}>{o}</button>
@@ -437,18 +437,18 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="gq-field">
-                <label className="gq-label"><User size={11} style={{ display:'inline', marginRight:4 }} />First Name</label>
+                <label className="gq-label"><User size={11} style={{ display: 'inline', marginRight: 4 }} />First Name</label>
                 <input {...inputSt(!data.name)} type="text" placeholder="Jane" value={data.name} onChange={e => set('name', e.target.value)} autoComplete="given-name" />
               </div>
               <div className="gq-field">
-                <label className="gq-label"><Phone size={11} style={{ display:'inline', marginRight:4 }} />Phone Number</label>
-                <input {...inputSt(data.phone && data.phone.replace(/\D/g,'').length !== 10)} type="tel" placeholder="(555) 867-5309" value={data.phone} onChange={e => set('phone', e.target.value)} autoComplete="tel" />
-                {data.phone && data.phone.replace(/\D/g,'').length !== 10 && data.phone.length > 5 && <p className="gq-error">Must be a 10-digit US number</p>}
+                <label className="gq-label"><Phone size={11} style={{ display: 'inline', marginRight: 4 }} />Phone Number</label>
+                <input {...inputSt(data.phone && data.phone.replace(/\D/g, '').length !== 10)} type="tel" placeholder="(555) 867-5309" value={data.phone} onChange={e => set('phone', e.target.value)} autoComplete="tel" />
+                {data.phone && data.phone.replace(/\D/g, '').length !== 10 && data.phone.length > 5 && <p className="gq-error">Must be a 10-digit US number</p>}
               </div>
             </div>
 
             <div className="gq-field">
-              <label className="gq-label"><Mail size={11} style={{ display:'inline', marginRight:4 }} />Email Address</label>
+              <label className="gq-label"><Mail size={11} style={{ display: 'inline', marginRight: 4 }} />Email Address</label>
               <input {...inputSt(!data.email.includes('@'))} type="email" placeholder="jane@example.com" value={data.email} onChange={e => set('email', e.target.value)} autoComplete="email" />
             </div>
 
@@ -573,8 +573,8 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         <div className="gq-hero-eyebrow">
           <Shield size={12} /> Licensed Movers Only — No Brokers
         </div>
-        <h1>{heroTitle || <>We Match You With the Best{' '}<em>Mover</em> for Your Route</>}</h1>
-        <p className="gq-hero-sub">{heroSub || "Tell us your route and we'll match you with a verified mover who actually services it — at the best price available."}</p>
+        <h1>{heroTitle || <>Get Matched With a Verified <em>Mover</em> in 60 Seconds</>}</h1>
+        <p className="gq-hero-sub">{heroSub || "One verified mover for your route. Transparent pricing. No spam, ever."}</p>
         <div className="gq-hero-cta-wrap">
           <button className="gq-hero-cta" onClick={scrollToWidget}>Get Matched Now <ArrowRight size={16} /></button>
           <span className="gq-hero-cta-note">It's free. No obligation.</span>
@@ -590,9 +590,9 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         {/* Trust badge row — like MoveSafe's FMCSA/BBB row but better */}
         <div className="gq-badge-row">
           {[
-            { icon: <Shield size={20} />, title: 'FMCSA Licensed', sub: 'Federal motor carrier authorized' },
-            { icon: <Award size={20} />, title: 'Phone Verified', sub: 'Every mover identity-checked' },
-            { icon: <CheckCircle size={20} />, title: 'No Brokers', sub: 'Direct carrier connections only' },
+            { icon: <Shield size={20} />, title: 'Licensed movers only', sub: 'Direct carrier connections — no brokers' },
+            { icon: <Award size={20} />, title: 'Free — no obligation', sub: 'Get matched for free in under 60 seconds' },
+            { icon: <CheckCircle size={20} />, title: 'Your info is never sold', sub: 'Privacy first — we never sell your data' },
           ].map((b, i) => (
             <div key={i} className="gq-badge">
               <div className="gq-badge-icon">{b.icon}</div>
@@ -619,10 +619,10 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
           </div>
           <div className="gq-how-grid">
             {[
-              { n:'1', title:'Enter your route', body:'Tell us where you\'re moving from and to, your home size, and when you\'d like to move.' },
-              { n:'2', title:'We find your best match', body:'We search every verified mover on your route and match you with the best one — based on quality, availability, and price.' },
-              { n:'3', title:'Get your price and talk to your mover', body:'See transparent pricing for your route and connect directly with your matched mover. Book online or talk it through first.' },
-            ].map((s,i) => (
+              { n: '1', title: 'Tell us about your move (60 seconds)', body: 'Enter your destination, home size, and move date. Takes just 60 seconds.' },
+              { n: '2', title: 'We match you with verified movers', body: 'Our algorithm finds the best licensed carrier for your specific route and area.' },
+              { n: '3', title: 'Movers contact you — you choose', body: 'Get a call within minutes with their best price. You choose the one that fits.' },
+            ].map((s, i) => (
               <div key={i} className="gq-how-card">
                 <div className="gq-how-num-orange">{s.n}</div>
                 <div className="gq-how-title">{s.title}</div>
@@ -664,7 +664,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
               <p className="gq-feature-dark-body">A dedicated follow-up agent is assigned to your move from booking to delivery — monitoring pickup, transit, and drop-off. If anything goes wrong, we step in.</p>
             </div>
             <div className="gq-feature-dark-right">
-              {['Pickup confirmed', 'In transit', 'Delivered safely'].map((s,i) => (
+              {['Pickup confirmed', 'In transit', 'Delivered safely'].map((s, i) => (
                 <span key={i} className="gq-followup-step"><CheckCircle size={15} /> {s}</span>
               ))}
             </div>
@@ -703,12 +703,11 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
             </thead>
             <tbody>
               {[
-                ['How many movers contact you', '1 matched mover',      '5–8 random companies'],
-                ['Pricing',                     'Best rate across verified movers', 'Opaque, varies wildly'],
-                ['When you get a response',     'Within 15 minutes',    'Hours to days'],
-                ['Who shows up',                'Licensed carrier, no brokers', "Often a broker's subcontractor"],
-                ['Your data privacy',           'Never sold or shared', 'Sold to multiple buyers'],
-                ['Cost to get a quote',         'Free',                 'Free'],
+                ['Phone verified movers', 'Yes',            'Rarely'],
+                ['Your info sold',           'Never',          'Always'],
+                ['Fake numbers blocked',     'Yes',            'No'],
+                ['Response time',            'Under 15 min',   'Hours'],
+                ['Cost to get a quote',      'Free',           'Free'],
               ].map(([feat, us, them], i) => (
                 <tr key={i}>
                   <td>{feat}</td>
@@ -730,9 +729,9 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
           </div>
           <div className="gq-test-grid-3col">
             {[
-              { stars: 5, q: '"One form, one mover, zero stress. I got a call within 10 minutes from a licensed carrier. No spam, no brokers. Saved over $500 compared to quotes I got elsewhere."', name:'Sarah M.', loc:'New York to Florida' },
-              { stars: 5, q: '"The transparency was a game-changer. I could see exactly who was calling me and why. The mover showed up on the exact date, handled my furniture with care, and the final price matched the quote."', name:'James K.', loc:'California to Texas' },
-              { stars: 5, q: '"I was dreading my cross-country move, but MoveLeads made it painless. Got matched with a verified carrier in minutes. They even followed up after delivery to make sure everything arrived safely."', name:'Maria L.', loc:'Illinois to Arizona' },
+              { stars: 5, q: '"Got 3 quotes within 10 minutes. Saved $400 on my move."', name: 'Sarah M.', loc: 'Dallas, TX' },
+              { stars: 5, q: '"So easy. One form and a mover called me in 15 minutes."', name: 'James T.', loc: 'Chicago, IL' },
+              { stars: 5, q: '"Finally a site that doesn\'t spam you with 10 calls."', name: 'Maria L.', loc: 'Miami, FL' },
             ].map((t, i) => (
               <div key={i} className="gq-test-card">
                 <div className="gq-test-stars">{'★'.repeat(t.stars)}</div>
@@ -771,8 +770,8 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       {/* ─── BOTTOM CTA ─── */}
       <section className="gq-cta-section">
         <div className="gq-cta-inner">
-          <h2 className="gq-cta-h2">Your perfect mover is one click away</h2>
-          <p className="gq-cta-sub">Tell us your route. Our algorithm matches you with one verified mover who actually services it — with transparent pricing, instantly.</p>
+          <h2 className="gq-cta-h2">Your mover is one form away — it's free and takes 60 seconds.</h2>
+          <p className="gq-cta-sub">Tell us your route. Our algorithm matches you with the best verified mover for your specific needs, instantly.</p>
           <div className="gq-hero-cta-wrap">
             <button className="gq-hero-cta" onClick={scrollToWidget}>Get Matched Now <ArrowRight size={16} /></button>
             <span className="gq-hero-cta-note">It's free. Takes 60 seconds. No spam, ever.</span>
@@ -817,6 +816,66 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         <span className="gq-sticky-text"><Zap size={14} /> Matched with a verified mover in 60 seconds</span>
         <button className="gq-sticky-btn" onClick={scrollToWidget}>Get Matched Now — It's Free</button>
       </div>
+
+      <style>{`
+        @media (max-width: 960px) {
+          .gq-body {
+            display: flex !important;
+            flex-direction: column !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            padding: 20px !important;
+            gap: 40px;
+          }
+          .gq-card, .gq-sidebar {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            margin: 0 !important;
+          }
+          .gq-card { order: 1; }
+          .gq-sidebar { 
+            order: 2; 
+            padding: 15px !important;
+            margin-top: -20px !important; 
+          }
+          .gq-sidebar-card {
+            box-shadow: none !important;
+            border: 1px solid var(--blue-l) !important;
+          }
+          .gq-nav-links {
+            display: none;
+          }
+          .gq-hero h1 {
+            font-size: 34px !important;
+          }
+          .gq-hero {
+            padding: 40px 20px !important;
+          }
+          .gq-sticky-bar .gq-sticky-text {
+            display: none;
+          }
+          .gq-sticky-bar {
+            justify-content: center;
+          }
+          .gq-how-grid, .gq-feature-grid, .gq-test-grid-3col {
+            grid-template-columns: 1fr !important;
+          }
+          .gq-badge-row, .gq-trust-row {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center;
+            gap: 12px;
+          }
+          .gq-zip-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .gq-feature-dark {
+            flex-direction: column !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -851,7 +910,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
     if (step === 2) return !!(data.originCoords && data.destCoords);
     if (step === 3) return !!data.moveDate;
     if (step === 4) return !!(data.access && data.parking);
-    if (step === 5) return !!(data.name && data.email?.includes('@') && data.phone?.replace(/\D/g,'').length === 10);
+    if (step === 5) return !!(data.name && data.email?.includes('@') && data.phone?.replace(/\D/g, '').length === 10);
     return false;
   };
 
@@ -868,7 +927,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
     const _base = (import.meta.env.VITE_API_URL || 'http://localhost:5005').replace(/\/api$/, '');
     const payload = {
       customerName: data.name, customerEmail: data.email,
-      customerPhone: data.phone.replace(/\D/g,''),
+      customerPhone: data.phone.replace(/\D/g, ''),
       originZip: data.originZip, destinationZip: data.destZip,
       originCity: data.originCity, destinationCity: data.destCity,
       homeSize: data.homeSize, moveDate: new Date(data.moveDate).toISOString(),
@@ -876,7 +935,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
       specialInstructions: `Access: ${data.access}. Parking: ${data.parking}. ${data.specialInstructions}`.trim()
     };
     try {
-      const res = await fetch(`${_base}/api/leads/ingest`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const res = await fetch(`${_base}/api/leads/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || 'Submission failed.');
       navigate('/thank-you', { state: { homeSize: data.homeSize, originZip: data.originZip, destZip: data.destZip } });
@@ -908,7 +967,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
               <button key={s.label} type="button"
                 className={`gq-size-btn${data.homeSize === s.label ? ' gq-size-btn--selected' : ''}`}
                 onClick={() => set('homeSize', s.label)}>
-                <Truck size={20}/><span>{s.label}</span><span className="gq-vol">{s.vol}</span>
+                <Truck size={20} /><span>{s.label}</span><span className="gq-vol">{s.vol}</span>
               </button>
             ))}
           </div>
@@ -922,29 +981,29 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
           <div className="gq-step-sub">Enter your 5-digit zip codes — the map will draw your route automatically.</div>
           <div className="gq-zip-grid">
             <div className="gq-field">
-              <label className="gq-label" style={{ color:'#2563eb' }}>📦 From ZIP</label>
+              <label className="gq-label" style={{ color: '#2563eb' }}>📦 From ZIP</label>
               <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
                 placeholder="e.g. 75201" value={data.originZip}
-                onChange={e => set('originZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                onChange={e => set('originZip', e.target.value.replace(/\D/g, '').slice(0, 5))}
                 style={{ borderColor: data.originCoords ? '#2563eb' : undefined }} />
-              {data.originCoords && <div className="gq-zip-found" style={{ color:'#2563eb' }}>✓ {data.originCoords.city}, {data.originCoords.state}</div>}
+              {data.originCoords && <div className="gq-zip-found" style={{ color: '#2563eb' }}>✓ {data.originCoords.city}, {data.originCoords.state}</div>}
             </div>
             <div className="gq-field">
-              <label className="gq-label" style={{ color:'#16a34a' }}>🏠 To ZIP</label>
+              <label className="gq-label" style={{ color: '#16a34a' }}>🏠 To ZIP</label>
               <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
                 placeholder="e.g. 90210" value={data.destZip}
-                onChange={e => set('destZip', e.target.value.replace(/\D/g,'').slice(0,5))}
+                onChange={e => set('destZip', e.target.value.replace(/\D/g, '').slice(0, 5))}
                 style={{ borderColor: data.destCoords ? '#16a34a' : undefined }} />
-              {data.destCoords && <div className="gq-zip-found" style={{ color:'#16a34a' }}>✓ {data.destCoords.city}, {data.destCoords.state}</div>}
+              {data.destCoords && <div className="gq-zip-found" style={{ color: '#16a34a' }}>✓ {data.destCoords.city}, {data.destCoords.state}</div>}
             </div>
           </div>
-          {zipError && <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:10, padding:'9px 13px', fontSize:12, color:'#dc2626', marginBottom:12 }}>{zipError}</div>}
+          {zipError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '9px 13px', fontSize: 12, color: '#dc2626', marginBottom: 12 }}>{zipError}</div>}
           {data.originCoords && data.destCoords && (
             <>
               <MapArc origin={data.originCoords} destination={data.destCoords} />
               <div className={`gq-dist-pill gq-dist-pill--${isLong ? 'long' : 'local'}`}>
                 <span>{isLong ? '🚛 Long Distance Move' : '📍 Local Move'}</span>
-                <span style={{ fontWeight:500, fontSize:12 }}>{data.originCoords.city} → {data.destCoords.city} · {data.miles.toLocaleString()} mi</span>
+                <span style={{ fontWeight: 500, fontSize: 12 }}>{data.originCoords.city} → {data.destCoords.city} · {data.miles.toLocaleString()} mi</span>
               </div>
             </>
           )}
@@ -959,9 +1018,9 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
           <SmartCalendar value={data.moveDate} onChange={v => set('moveDate', v)} />
           {data.moveDate && (() => {
             const d = demandLevel(new Date(data.moveDate + 'T00:00:00'));
-            const msgs = { low:['🟢','Great choice! Low-demand, best pricing available.'], med:['🟡','Moderate demand — slight price increase.'], high:['🔴','High demand — peak pricing applies.'] };
+            const msgs = { low: ['🟢', 'Great choice! Low-demand, best pricing available.'], med: ['🟡', 'Moderate demand — slight price increase.'], high: ['🔴', 'High demand — peak pricing applies.'] };
             const [icon, text] = msgs[d];
-            return <div style={{ marginTop:12, padding:'9px 14px', borderRadius:10, background: DEMAND_COLORS[d].bg, color: DEMAND_COLORS[d].fg, fontSize:13, fontWeight:600 }}>{icon} {text}</div>;
+            return <div style={{ marginTop: 12, padding: '9px 14px', borderRadius: 10, background: DEMAND_COLORS[d].bg, color: DEMAND_COLORS[d].fg, fontSize: 13, fontWeight: 600 }}>{icon} {text}</div>;
           })()}
         </div>
       )}
@@ -976,7 +1035,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
             <label className="gq-label">Building access at pickup</label>
             <div className="gq-toggle-row">
               {ACCESS_OPTIONS.map(o => (
-                <button key={o} type="button" className={`gq-toggle-btn${data.access===o?' gq-toggle-btn--active':''}`} onClick={()=>set('access',o)}>{o}</button>
+                <button key={o} type="button" className={`gq-toggle-btn${data.access === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('access', o)}>{o}</button>
               ))}
             </div>
           </div>
@@ -984,15 +1043,15 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
             <label className="gq-label">Truck parking at pickup</label>
             <div className="gq-toggle-row">
               {PARKING_OPTIONS.map(o => (
-                <button key={o} type="button" className={`gq-toggle-btn${data.parking===o?' gq-toggle-btn--active':''}`} onClick={()=>set('parking',o)}>{o}</button>
+                <button key={o} type="button" className={`gq-toggle-btn${data.parking === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('parking', o)}>{o}</button>
               ))}
             </div>
           </div>
           <div className="gq-field">
             <label className="gq-label">Special items or notes (optional)</label>
-            <textarea className="gq-input" rows={3} style={{ resize:'vertical' }}
+            <textarea className="gq-input" rows={3} style={{ resize: 'vertical' }}
               placeholder="e.g. Grand piano, fragile artwork, storage unit pickup…"
-              value={data.specialInstructions} onChange={e=>set('specialInstructions',e.target.value)} />
+              value={data.specialInstructions} onChange={e => set('specialInstructions', e.target.value)} />
           </div>
         </div>
       )}
@@ -1003,25 +1062,25 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
           <div className="gq-step-title">Who should movers contact?</div>
           <div className="gq-step-sub">Shared only with the one licensed mover matched to your route.</div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="gq-field">
               <label className="gq-label">First Name</label>
-              <input className="gq-input" type="text" placeholder="Jane" value={data.name} onChange={e=>set('name',e.target.value)} autoComplete="given-name" />
+              <input className="gq-input" type="text" placeholder="Jane" value={data.name} onChange={e => set('name', e.target.value)} autoComplete="given-name" />
             </div>
             <div className="gq-field">
               <label className="gq-label">Phone Number</label>
-              <input className={`gq-input${data.phone&&data.phone.replace(/\D/g,'').length!==10&&data.phone.length>5?' gq-input--error':''}`} type="tel" placeholder="(555) 867-5309" value={data.phone} onChange={e=>set('phone',e.target.value)} autoComplete="tel" />
-              {data.phone&&data.phone.replace(/\D/g,'').length!==10&&data.phone.length>5 && <p className="gq-error">Must be a 10-digit US number</p>}
+              <input className={`gq-input${data.phone && data.phone.replace(/\D/g, '').length !== 10 && data.phone.length > 5 ? ' gq-input--error' : ''}`} type="tel" placeholder="(555) 867-5309" value={data.phone} onChange={e => set('phone', e.target.value)} autoComplete="tel" />
+              {data.phone && data.phone.replace(/\D/g, '').length !== 10 && data.phone.length > 5 && <p className="gq-error">Must be a 10-digit US number</p>}
             </div>
           </div>
           <div className="gq-field">
             <label className="gq-label">Email Address</label>
-            <input className="gq-input" type="email" placeholder="jane@example.com" value={data.email} onChange={e=>set('email',e.target.value)} autoComplete="email" />
+            <input className="gq-input" type="email" placeholder="jane@example.com" value={data.email} onChange={e => set('email', e.target.value)} autoComplete="email" />
           </div>
 
-          <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'12px 14px', background:'var(--blue-l)', borderRadius:12, border:'1px solid #bfdbfe', marginBottom:4 }}>
-            <Shield size={16} style={{ color:'var(--blue)', flexShrink:0, marginTop:2 }} />
-            <p style={{ fontSize:12, color:'var(--blue)', lineHeight:1.55, margin:0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: 'var(--blue-l)', borderRadius: 12, border: '1px solid #bfdbfe', marginBottom: 4 }}>
+            <Shield size={16} style={{ color: 'var(--blue)', flexShrink: 0, marginTop: 2 }} />
+            <p style={{ fontSize: 12, color: 'var(--blue)', lineHeight: 1.55, margin: 0 }}>
               <strong>No more than 1 licensed mover</strong> will contact you. We prioritise quality over quantity — no spam, no broker middlemen.
             </p>
           </div>
@@ -1050,12 +1109,12 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
 ═══════════════════════════════════════════════════════════════ */
 export default function GetQuote() {
   const [searchParams] = useSearchParams();
-  return <QuotePage prefillOriginZip={searchParams.get('from')||''} prefillDestZip={searchParams.get('to')||''} />;
+  return <QuotePage prefillOriginZip={searchParams.get('from') || ''} prefillDestZip={searchParams.get('to') || ''} />;
 }
 
 export function MoveRoute() {
   const { originCity, destCity } = useParams();
-  const fmt = s => s?.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())||'';
+  const fmt = s => s?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '';
   const from = fmt(originCity), to = fmt(destCity);
   return (
     <QuotePage

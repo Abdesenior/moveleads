@@ -70,8 +70,8 @@ export default function ThankYou() {
 
         {/* ── CTA ── */}
         <div className="ty-cta-row">
-          <Link to="/" className="ty-btn-home">
-            Back to Home <ArrowRight size={15} />
+          <Link to="/get-quote" className="ty-btn-home">
+            Back to Get Quote <ArrowRight size={15} />
           </Link>
           <Link to="/get-quote" className="ty-btn-another">
             Get Another Quote

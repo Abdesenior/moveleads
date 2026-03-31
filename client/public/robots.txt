@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://moveleads.cloud/sitemap.xml
+
+# Block admin and dashboard from indexing
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /embed/widget/
+Disallow: /api/
+
+# Allow API docs if you have any
+Disallow: /api/docs

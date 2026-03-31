@@ -1,6 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useToast } from '../components/ui/Toast';
+import { ButtonSpinner } from '../components/ui/Loading';
 import { CheckCircle2, Zap, Shield, Clock, ArrowRight, Lock, ShieldCheck, CreditCard, Mail } from 'lucide-react';
 import '../auth.css';
 
@@ -13,13 +15,21 @@ export default function Register() {
 
   const navigate = useNavigate();
   const { login, API_URL } = useContext(AuthContext);
+  const toast = useToast();
 
   const handleInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      return setError('Passwords do not match');
+      setError('Passwords do not match');
+      toast.warning('Passwords do not match', 'Please make sure both passwords are the same');
+      return;
+    }
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      toast.warning('Password too short', 'Password must be at least 8 characters');
+      return;
     }
 
     setLoading(true);
@@ -35,17 +45,18 @@ export default function Register() {
       
       if (!res.ok) throw new Error(data.msg || 'Registration failed');
       
-      // Admin accounts are auto-verified — log them in immediately
       if (data.user && data.user.role === 'admin') {
         login(data.token, data.user);
+        toast.success('Welcome!', 'Successfully logged in as admin');
         navigate('/admin');
         return;
       }
 
-      // Customer accounts need email verification — show success panel
       setRegistrationSuccess(true);
+      toast.success('Account created!', 'Please check your email to verify your account');
     } catch (err) {
       setError(err.message);
+      toast.error('Registration failed', err.message);
     } finally {
       setLoading(false);
     }
@@ -53,7 +64,6 @@ export default function Register() {
 
   return (
     <div className="auth-split">
-      {/* Dark Navy Brand Panel */}
       <div className="auth-left">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: 48 }}>
@@ -108,7 +118,6 @@ export default function Register() {
         </div>
       </div>
 
-      {/* Form Panel */}
       <div className="auth-right">
         <div style={{ maxWidth: 480, width: '100%', margin: '0 auto' }}>
           {registrationSuccess ? (
@@ -203,7 +212,7 @@ export default function Register() {
                 <div style={{ display: 'flex', gap: 16 }}>
                   <button type="button" className="secondary-btn" onClick={() => setStep(1)} style={{ flex: 1, padding: 14, justifyContent: 'center' }}>Back</button>
                   <button type="submit" disabled={loading} className="auth-btn" style={{ flex: 2 }}>
-                    {loading ? 'Creating...' : 'Create Account'}
+                    {loading ? <><ButtonSpinner /> Creating...</> : 'Create Account'}
                   </button>
                 </div>
               </div>
