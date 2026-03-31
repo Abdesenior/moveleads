@@ -630,39 +630,54 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         </div>
       </section>
 
-      {/* ─── WHY MOVELEADS (editorial stacked cards) ─── */}
+      {/* ─── WHY MOVELEADS ─── */}
       <section className="gq-why-section">
         <div className="gq-section-inner">
-          <div className="gq-section-center">
+          {/* Header — left-aligned like MoveSafe */}
+          <div className="gq-why-header">
             <h2 className="gq-section-h2-lg">MoveLeads is not another quote site.<br /><em>It's a smarter way to move.</em></h2>
-            <p className="gq-section-sub-center">Other sites sell your info and disappear. We match you with one verified mover — and stay with you until the last box is delivered.</p>
+            <p className="gq-why-header-sub">Other sites sell your info and disappear. We match you with one verified mover — and stay with you until the last box is delivered.</p>
           </div>
 
-          <div className="gq-feature-stack">
-            {[
-              { tag:'MATCHING', icon:<Lock size={20}/>, title:'One matched mover, not five strangers', body:'Other sites sell your info to 5–8 companies who all call at once. We match you with one verified mover who actually services your route.' },
-              { tag:'TRUST', icon:<Shield size={20}/>, title:'Licensed carriers only — no brokers, ever', body:'Every company in our network is an actual moving carrier — licensed by the FMCSA, fully insured, and phone-verified. No brokers outsourcing to random subcontractors.' },
-              { tag:'SPEED', icon:<Zap size={20}/>, title:'15-minute response time', body:'Your matched mover connects with you almost instantly. No waiting hours or days for someone to call back.' },
-              { tag:'FOLLOW-UP', icon:<CheckCircle size={20}/>, title:'We follow up on your move until it\'s done', body:'A follow-up agent is assigned to your move from booking to delivery — monitoring pickup, transit, and drop-off. If anything goes wrong, we step in.' },
-              { tag:'PRICING', icon:<Star size={20}/>, title:'Matched on price, not just proximity', body:'Our algorithm compares real rates across all verified companies on your route and matches you with the best value for your move size and service level.' },
-            ].map((f,i) => (
-              <div key={i} className="gq-feature-card">
-                <div className="gq-feature-tag">{f.tag}</div>
-                <h3 className="gq-feature-title">{f.title}</h3>
-                <p className="gq-feature-body">{f.body}</p>
-              </div>
-            ))}
+          {/* Top row — 2 cards */}
+          <div className="gq-feature-grid">
+            <div className="gq-feature-card">
+              <div className="gq-feature-tag">MATCHING</div>
+              <h3 className="gq-feature-title">One matched mover, not five strangers</h3>
+              <p className="gq-feature-body">Other sites sell your info to 5–8 companies who all call at once. We match you with one verified mover who actually services your route.</p>
+            </div>
+            <div className="gq-feature-card">
+              <div className="gq-feature-tag">TRUST</div>
+              <h3 className="gq-feature-title">Licensed carriers only — no brokers, ever</h3>
+              <p className="gq-feature-body">Every company in our network is an actual moving carrier — licensed by the FMCSA, fully insured, and phone-verified. No brokers outsourcing to random subcontractors.</p>
+            </div>
           </div>
 
-          {/* Follow-up status bar */}
-          <div className="gq-followup-bar">
-            <div className="gq-followup-label">What sets us apart</div>
-            <h3 className="gq-followup-h3">We follow up on your move until it's done</h3>
-            <p className="gq-followup-body">A follow-up agent is assigned to your move from booking to delivery — monitoring pickup, transit, and drop-off. If anything goes wrong, we step in.</p>
-            <div className="gq-followup-steps">
+          {/* Featured dark card — full width */}
+          <div className="gq-feature-dark">
+            <div className="gq-feature-dark-left">
+              <div className="gq-feature-dark-label">What sets us apart</div>
+              <h3 className="gq-feature-dark-title">We follow up on your move until it's done</h3>
+              <p className="gq-feature-dark-body">A dedicated follow-up agent is assigned to your move from booking to delivery — monitoring pickup, transit, and drop-off. If anything goes wrong, we step in.</p>
+            </div>
+            <div className="gq-feature-dark-right">
               {['Pickup confirmed', 'In transit', 'Delivered safely'].map((s,i) => (
-                <span key={i} className="gq-followup-step"><CheckCircle size={14} /> {s}</span>
+                <span key={i} className="gq-followup-step"><CheckCircle size={15} /> {s}</span>
               ))}
+            </div>
+          </div>
+
+          {/* Bottom row — 2 cards */}
+          <div className="gq-feature-grid">
+            <div className="gq-feature-card">
+              <div className="gq-feature-tag">PRICING</div>
+              <h3 className="gq-feature-title">Matched on price, not just proximity</h3>
+              <p className="gq-feature-body">Our algorithm compares real rates across all verified companies on your route and matches you with the best value for your move size and service level.</p>
+            </div>
+            <div className="gq-feature-card">
+              <div className="gq-feature-tag">SPEED</div>
+              <h3 className="gq-feature-title">15-minute response time</h3>
+              <p className="gq-feature-body">Your matched mover connects with you almost instantly. No waiting hours or days for someone to call back.</p>
             </div>
           </div>
         </div>
