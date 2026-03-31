@@ -559,9 +559,12 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       {/* ─── STICKY NAV ─── */}
       <nav className="gq-nav">
         <Link to="/" className="gq-logo">MoveLeads<span>.cloud</span></Link>
-        <div className="gq-nav-right">
-          <span className="gq-nav-trust"><CheckCircle size={12} /> Licensed Movers Only</span>
-          <Link to="/login" className="gq-nav-login">Mover login →</Link>
+        <div className="gq-nav-links">
+          <a href="#quote-widget" onClick={e => { e.preventDefault(); scrollToWidget(); }} className="gq-nav-link">Get Quote</a>
+          <a href="#how-it-works" onClick={e => { e.preventDefault(); document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">How It Works</a>
+          <a href="#why-moveleads" onClick={e => { e.preventDefault(); document.getElementById('why-moveleads')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">Why Us</a>
+          <a href="#reviews" onClick={e => { e.preventDefault(); document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">Reviews</a>
+          <a href="#faq" onClick={e => { e.preventDefault(); document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">FAQ</a>
         </div>
       </nav>
 
@@ -607,7 +610,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       </div>
 
       {/* ─── HOW IT WORKS ─── */}
-      <section className="gq-how-section">
+      <section id="how-it-works" className="gq-how-section">
         <div className="gq-section-inner">
           <div className="gq-section-center">
             <div className="gq-section-eyebrow">HOW IT WORKS</div>
@@ -631,7 +634,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       </section>
 
       {/* ─── WHY MOVELEADS ─── */}
-      <section className="gq-why-section">
+      <section id="why-moveleads" className="gq-why-section">
         <div className="gq-section-inner">
           {/* Header — left-aligned like MoveSafe */}
           <div className="gq-why-header">
@@ -719,7 +722,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       </section>
 
       {/* ─── TESTIMONIALS ─── */}
-      <section className="gq-test-section">
+      <section id="reviews" className="gq-test-section">
         <div className="gq-section-inner">
           <div className="gq-section-center">
             <div className="gq-section-eyebrow">CUSTOMER REVIEWS</div>
@@ -745,7 +748,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
       </section>
 
       {/* ─── FAQ ─── */}
-      <section className="gq-faq-section">
+      <section id="faq" className="gq-faq-section">
         <div className="gq-section-inner gq-section-narrow">
           <div className="gq-section-center">
             <div className="gq-section-eyebrow">FAQ</div>

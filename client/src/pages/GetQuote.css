@@ -64,18 +64,13 @@
   color: var(--navy); text-decoration: none; letter-spacing: -0.03em;
 }
 .gq-logo span { color: var(--accent); }
-.gq-nav-right { display: flex; align-items: center; gap: 14px; }
-.gq-nav-trust {
-  font-size: 12px; font-weight: 600; color: var(--green);
-  background: var(--green-l); border: 1px solid #a7f3d0;
-  padding: 6px 14px; border-radius: 100px;
-  display: flex; align-items: center; gap: 5px;
+.gq-nav-links { display: flex; align-items: center; gap: 6px; }
+.gq-nav-link {
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  text-decoration: none; padding: 7px 14px; border-radius: 8px;
+  transition: all 0.2s var(--ease);
 }
-.gq-nav-login {
-  font-size: 13px; color: var(--muted); text-decoration: none;
-  font-weight: 500; transition: color 0.2s var(--ease);
-}
-.gq-nav-login:hover { color: var(--navy); }
+.gq-nav-link:hover { color: var(--navy); background: var(--bg); }
 
 /* ══ HERO ═══════════════════════════════════════════════════ */
 .gq-hero {
@@ -177,7 +172,11 @@
   .gq-body { padding: 24px 16px 60px; gap: 20px; }
   .gq-hero { padding: 48px 20px 44px; }
   .gq-nav { padding: 0 16px; }
+  .gq-nav-links { display: none; }
   .gq-hero h1 { font-size: 28px; }
+}
+.gq-how-section, .gq-why-section, .gq-test-section, .gq-faq-section, .gq-cta-section {
+  scroll-margin-top: 72px;
 }
 
 /* ══ FORM CARD ══════════════════════════════════════════════ */
