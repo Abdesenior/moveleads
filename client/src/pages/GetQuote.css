@@ -524,7 +524,6 @@
 .gq-test-card:hover { box-shadow: var(--shadow-m); }
 .gq-test-stars { color: #e8a800; font-size: 18px; letter-spacing: 3px; margin-bottom: 16px; }
 .gq-test-quote { font-size: 15px; color: var(--text-m); line-height: 1.75; margin-bottom: 24px; flex: 1; }
-.gq-test-footer { }
 .gq-test-name { font-size: 14px; font-weight: 700; color: var(--text); }
 .gq-test-loc  { font-size: 13px; color: var(--muted); margin-top: 3px; }
 

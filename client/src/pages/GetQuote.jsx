@@ -725,18 +725,18 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
             <div className="gq-section-eyebrow">CUSTOMER REVIEWS</div>
             <h2 className="gq-section-h2">Families matched, moves completed</h2>
           </div>
-          <div className="gq-test-grid">
+          <div className="gq-test-grid-3col">
             {[
-              { stars: 5, q: '"I was matched with an amazing mover within seconds. One company, one call, transparent pricing upfront. So much better than getting bombarded by 10 different companies."', name:'Sarah M.', loc:'New York to Florida' },
-              { stars: 5, q: '"The instant pricing was a game-changer. I could see what each service level costs and pick the one that fit my budget. Booked and paid online. Easiest move I\'ve ever done."', name:'James K.', loc:'California to Texas' },
-              { stars: 5, q: '"I was nervous about a cross-country move, but seeing the FMCSA verification gave me real peace of mind. The mover they matched me with was professional and on time."', name:'Maria L.', loc:'Illinois to Arizona' },
+              { stars: 5, q: '"One form, one mover, zero stress. I got a call within 10 minutes from a licensed carrier. No spam, no brokers. Saved over $500 compared to quotes I got elsewhere."', name:'Sarah M.', loc:'New York to Florida' },
+              { stars: 5, q: '"The transparency was a game-changer. I could see exactly who was calling me and why. The mover showed up on the exact date, handled my furniture with care, and the final price matched the quote."', name:'James K.', loc:'California to Texas' },
+              { stars: 5, q: '"I was dreading my cross-country move, but MoveLeads made it painless. Got matched with a verified carrier in minutes. They even followed up after delivery to make sure everything arrived safely."', name:'Maria L.', loc:'Illinois to Arizona' },
             ].map((t, i) => (
               <div key={i} className="gq-test-card">
                 <div className="gq-test-stars">{'★'.repeat(t.stars)}</div>
                 <p className="gq-test-quote">{t.q}</p>
                 <div className="gq-test-footer">
-                  <div className="gq-test-avatar">{t.name.split(' ').map(x=>x[0]).join('')}</div>
-                  <div><div className="gq-test-name">{t.name}</div><div className="gq-test-loc">{t.loc}</div></div>
+                  <div className="gq-test-name">{t.name}</div>
+                  <div className="gq-test-loc">{t.loc}</div>
                 </div>
               </div>
             ))}
