@@ -652,6 +652,10 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
         if (!insideDashboard) window.scrollTo(0, 0);
     }, [insideDashboard]);
 
+    useEffect(() => {
+        if (!insideDashboard) document.title = 'Booking Widget — MoveLeads.cloud';
+    }, [insideDashboard]);
+
     const [copied, setCopied] = useState(false);
 
     /* ── Widget Analytics ── */

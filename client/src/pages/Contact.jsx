@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle, ArrowRight } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
+import useCanonical from '../utils/useCanonical';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -37,6 +38,7 @@ const inputStyle = (focused) => ({
 });
 
 export default function Contact() {
+  useCanonical('/contact');
   useEffect(() => { document.title = 'Contact Us — MoveLeads.cloud'; }, []);
 
   const [form, setForm] = useState({ name: '', email: '', company: '', subject: '', message: '' });

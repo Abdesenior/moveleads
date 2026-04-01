@@ -12,6 +12,7 @@ const Login = lazy(() => import('./pages/Login'));
 const About = lazy(() => import('./pages/About'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
 const GetQuote = lazy(() => import('./pages/GetQuote'));
 const ThankYou = lazy(() => import('./pages/ThankYou'));
 const ForMovers = lazy(() => import('./pages/ForMovers'));
@@ -64,6 +65,7 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="/get-quote" element={<GetQuote />} />
               <Route path="/move/:originCity/:destCity" element={<MoveRoute />} />
               <Route path="/thank-you" element={<ThankYou />} />

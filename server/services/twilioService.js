@@ -1,9 +1,11 @@
 const twilio = require('twilio');
+const { Vonage } = require('@vonage/server-sdk');
 const Lead = require('../models/Lead');
 const Communication = require('../models/Communication');
 const PurchasedLead = require('../models/PurchasedLead');
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
+const { calculateAuctionPrice } = require('../utils/pricingEngine');
 
 // Singleton Twilio client — instantiated once at module load, not per call.
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -11,6 +13,11 @@ const authToken = process.env.TWILIO_AUTH_TOKEN;
 const fromPhone = process.env.TWILIO_PHONE_NUMBER || '+15005550006';
 
 const twilioClient = accountSid && authToken ? twilio(accountSid, authToken) : null;
+
+// Vonage client for number verification as a Twilio alternative
+const vonageApiKey = process.env.VONAGE_API_KEY;
+const vonageApiSecret = process.env.VONAGE_API_SECRET;
+const vonageClient = vonageApiKey && vonageApiSecret ? new Vonage({ apiKey: vonageApiKey, apiSecret: vonageApiSecret }) : null;
 
 const LOOKUP_TIMEOUT_MS = 3000;
 
@@ -27,13 +34,78 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
     if (!lead) return;
 
     console.log(`[Twilio] Starting verification for lead ${leadId} (${lead.customerPhone})`);
+    // --- Vonage Verification Logic (Priority) ---
+    if (vonageClient && !testMode) {
+      console.log(`[Vonage] Starting verification for lead ${leadId} (${lead.customerPhone})`);
+      try {
+        const resp = await vonageClient.numberInsight.check({ number: lead.customerPhone, insight: ['carrier'] });
+        const lineType = resp?.carrier?.network_type; // mobile, landline, voip, etc.
+        console.log(`[Vonage] Lookup result for ${lead.customerPhone}: type=${lineType}`);
+
+        if (lineType === 'mobile' || lineType === 'landline') {
+          lead.isVerified = true;
+          lead.status = 'READY_FOR_DISTRIBUTION';
+
+          const scoring = calculateLeadScore(lead, lead.miles, lineType, lead.moveDate);
+          lead.score = scoring.score;
+          lead.grade = scoring.grade;
+          lead.scoreFactors = scoring.scoreFactors;
+
+          // Recalculate price with the final verified grade
+          const finalPricing = calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
+          lead.buyNowPrice = finalPricing.buyNowPrice;
+          lead.price = finalPricing.buyNowPrice;
+          lead.startingBidPrice = finalPricing.startingBidPrice;
+          lead.currentBidPrice = finalPricing.startingBidPrice;
+
+          if (lead.sourceCompany) {
+            lead.status = 'Purchased';
+            await new PurchasedLead({
+              company: lead.sourceCompany,
+              lead: lead._id,
+              pricePaid: 0
+            }).save();
+            console.log(`[Vonage] Exclusive assignment to ${lead.sourceCompany}`);
+          }
+
+          console.log(`[Vonage] Verification PASSED (Type: ${lineType}) - Grade: ${scoring.grade}`);
+          socketService.emitNewLead(lead);
+        } else {
+          lead.isVerified = false;
+          lead.status = 'REJECTED_FAKE';
+          lead.price = 0;
+          lead.buyNowPrice = 0;
+          lead.startingBidPrice = 0;
+          lead.currentBidPrice = 0;
+          lead.auctionStatus = 'expired';
+          console.log(`[Vonage] Verification FAILED (Type: ${lineType || 'unknown'})`);
+        }
+
+        lead.statusHistory.push({ status: lead.status, timestamp: new Date() });
+        await lead.save();
+        return; // Exit after successful Vonage verification
+
+      } catch (vonageErr) {
+        console.error(`[Vonage] Critical error verifying lead ${leadId}:`, vonageErr.message);
+        // Fall through to the generic error handler at the bottom
+      }
+    }
+
+    // --- Twilio Verification Logic (Fallback) ---
+    if (twilioClient && !testMode) {
+      console.log(`[Twilio] Starting verification for lead ${leadId} (${lead.customerPhone})`);
+    } else {
+      // Fall through to mock mode if neither is configured
+    }
 
     // Mock mode — no credentials configured, dev environment, or explicit test flag
     const isDev = process.env.NODE_ENV === 'development';
     if (!twilioClient || isDev || testMode) {
+    if ((!twilioClient && !vonageClient) || isDev || testMode) {
       if (isDev || testMode) console.log(`[Twilio] MOCK mode active (NODE_ENV=${process.env.NODE_ENV}, testMode=${testMode})`);
 
       console.warn('[Twilio] Missing credentials. Running in MOCK mode.');
+      console.warn('[Phone Service] No provider configured. Running in MOCK mode.');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // FIX 5: calculate grade in mock mode so grade === 'A' warm-transfer
@@ -42,6 +114,12 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       lead.score = mockScoring.score;
       lead.grade = mockScoring.grade;
       lead.scoreFactors = mockScoring.scoreFactors;
+
+      const mockPricing = calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: mockScoring.grade });
+      lead.buyNowPrice = mockPricing.buyNowPrice;
+      lead.price = mockPricing.buyNowPrice;
+      lead.startingBidPrice = mockPricing.startingBidPrice;
+      lead.currentBidPrice = mockPricing.startingBidPrice;
 
       lead.isVerified = true;
       lead.status = 'READY_FOR_DISTRIBUTION';
@@ -92,6 +170,13 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       lead.score = scoring.score;
       lead.grade = scoring.grade;
       lead.scoreFactors = scoring.scoreFactors;
+
+      // Recalculate price with the final verified grade
+      const finalPricing = calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
+      lead.buyNowPrice = finalPricing.buyNowPrice;
+      lead.price = finalPricing.buyNowPrice;
+      lead.startingBidPrice = finalPricing.startingBidPrice;
+      lead.currentBidPrice = finalPricing.startingBidPrice;
 
       // EXCLUSIVE ROUTING: If lead came from a specific company's widget
       if (lead.sourceCompany) {

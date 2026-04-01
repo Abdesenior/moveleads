@@ -1,11 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../components/MarketingLayout';
+import JsonLd from '../components/JsonLd';
+import useCanonical from '../utils/useCanonical';
 import {
   CheckCircle, ChevronDown, ArrowRight, Phone,
   Zap, Shield, Star, BarChart2, Clock, CreditCard,
   MapPin, TrendingUp, Gavel, Users
 } from 'lucide-react';
+
+const pricingPageFaqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Do I need a subscription?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'No. Add balance and buy leads whenever you want. There are no monthly fees, no contracts, and no minimums. You only pay when you claim a lead.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'What if a lead has a bad phone number?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Every lead is verified via Twilio before entering the marketplace. If you receive an invalid or disconnected number, contact support within 24 hours for a full credit.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I set a territory so I only see local leads?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes — set your coverage zip codes in Settings and only leads that match will appear in your feed. You won\'t see (or be charged for) leads outside your area.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'What is a Live Warm Transfer?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'When a Grade A lead submits, our system calls the customer immediately. If they press 1, your phone rings. Press 1 to accept and you\'re instantly connected to a live customer ready to book. You\'re charged $40 only if you accept the call.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'How is Lead Grade calculated?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'We score every lead on distance, home size, urgency, and whether the phone number is a real mobile line. Grade A = highest value, long-distance, peak season. Grade C = standard local leads.'
+      }
+    }
+  ]
+};
 
 const ORANGE = '#f97316';
 const NAVY   = '#0b1628';
@@ -60,8 +109,11 @@ function FAQ({ items }) {
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
 export default function Pricing() {
+  useCanonical('/pricing');
+  useEffect(() => { document.title = 'Pricing — MoveLeads.cloud'; }, []);
   return (
     <MarketingLayout>
+      <JsonLd schema={pricingPageFaqSchema} />
       {/* ── HERO ───────────────────────────────────────────── */}
       <section style={{ background: `linear-gradient(160deg, ${NAVY} 0%, #0f2447 100%)`, padding: '100px 0 80px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.015\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")', pointerEvents: 'none' }} />

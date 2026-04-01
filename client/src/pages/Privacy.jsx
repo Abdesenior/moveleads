@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../components/MarketingLayout';
+import useCanonical from '../utils/useCanonical';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -186,7 +187,8 @@ function renderBold(text) {
 
 export default function Privacy() {
   const [active, setActive] = useState('information-we-collect');
-  useEffect(() => { document.title = 'Privacy Policy — MoveLeads.cloud'; }, []);;
+  useCanonical('/privacy');
+  useEffect(() => { document.title = 'Privacy Policy — MoveLeads.cloud'; }, []);
 
   return (
     <MarketingLayout>

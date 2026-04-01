@@ -6,7 +6,8 @@ import {
   ChevronDown, Lock, BarChart2, Bell,
   Home, Warehouse, Menu, X
 } from 'lucide-react';
-import JsonLd, { organizationSchema, softwareAppSchema } from '../components/JsonLd';
+import JsonLd, { organizationSchema, softwareAppSchema, landingPageFaqSchema } from '../components/JsonLd';
+import useCanonical from '../utils/useCanonical';
 import '../phone-mockup.css';
 import './Landing.css';
 
@@ -43,6 +44,8 @@ export default function Landing() {
   const [tick, setTick] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useCanonical('/');
+
   useEffect(() => {
     document.title = 'MoveLeads.cloud — Verified Moving Leads for Moving Companies';
     const fn = () => setScrolled(window.scrollY > 50);
@@ -71,6 +74,7 @@ export default function Landing() {
     <div style={{ fontFamily: F, color: NAVY, overflowX: 'hidden' }}>
       <JsonLd schema={organizationSchema} />
       <JsonLd schema={softwareAppSchema} />
+      <JsonLd schema={landingPageFaqSchema} />
 
       {/* NAV */}
       <nav style={{
@@ -222,7 +226,7 @@ export default function Landing() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18 }}>
                   {['#ef4444', '#eab308', '#22c55e'].map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
                   <div style={{ flex: 1, height: 22, borderRadius: 6, background: 'rgba(255,255,255,0.05)', marginLeft: 8, display: 'flex', alignItems: 'center', paddingLeft: 10 }}>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', fontFamily: 'monospace' }}>app.moveleads.io/dashboard</span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', fontFamily: 'monospace' }}>moveleads.cloud/dashboard</span>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 9, marginBottom: 14 }}>
