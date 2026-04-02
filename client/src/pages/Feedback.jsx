@@ -124,12 +124,8 @@ export default function Feedback() {
                                 {/* Email */}
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={LABEL_STYLE}>Your Email</label>
-                                    {isLinkedMode && emailVal ? (
-                                        <div style={{ ...INPUT_STYLE, background: '#f8fafc', color: '#475569' }}>{emailVal}</div>
-                                    ) : (
-                                        <input type="email" value={emailVal} onChange={e => setEmailVal(e.target.value)}
-                                            placeholder="jane@example.com" style={INPUT_STYLE} />
-                                    )}
+                                    <input type="email" value={emailVal} onChange={e => setEmailVal(e.target.value)}
+                                        placeholder="jane@example.com" style={INPUT_STYLE} />
                                 </div>
 
                                 {/* Company name — manual mode only */}
