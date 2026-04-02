@@ -7,7 +7,7 @@ function getResend() {
   return _resend;
 }
 
-const FROM     = process.env.EMAIL_FROM     || 'MoveLeads <noreply@moveleads.cloud>';
+const FROM     = process.env.EMAIL_FROM     || 'MoveLeads <support@moveleads.cloud>';
 const REPLY_TO = process.env.EMAIL_REPLY_TO || 'support@moveleads.cloud';
 const SUPPORT  = process.env.EMAIL_SUPPORT  || 'support@moveleads.cloud';
 const BILLING  = process.env.EMAIL_BILLING  || 'billing@moveleads.cloud';
@@ -176,7 +176,8 @@ async function sendVerificationEmail({ toEmail, companyName, token }) {
     </html>
   `;
 
-  const { error } = await getResend().emails.send({
+  console.log(`[EmailService] Attempting to send verification email to: ${toEmail}`);
+  const { data, error } = await getResend().emails.send({
     from: FROM,
     replyTo: REPLY_TO,
     to: [toEmail],
@@ -184,7 +185,12 @@ async function sendVerificationEmail({ toEmail, companyName, token }) {
     html,
   });
 
-  if (error) throw new Error(`Resend error: ${error.message}`);
+  if (error) {
+    console.error(`[EmailService] Resend Error for ${toEmail}:`, error);
+    throw new Error(`Resend error: ${error.message}`);
+  }
+  
+  console.log(`[EmailService] Resend Success for ${toEmail}. ID: ${data?.id}`);
 }
 
 /**
@@ -309,4 +315,78 @@ async function sendReviewRequestEmail({ toEmail, customerName, companyName, revi
   if (error) console.error(`[Review Email] Resend error: ${error.message}`);
 }
 
-module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail };
+/**
+ * Send a password reset email.
+ */
+async function sendPasswordResetEmail({ toEmail, resetLink }) {
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Reset your MoveLeads password</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#0b1628 0%,#1a3154 100%);padding:32px 40px;">
+                  <p style="margin:0;font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
+                    MoveLeads<span style="color:#f97316;">.cloud</span>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#f97316;padding:10px 40px;">
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">
+                    🔐 Password Reset Request
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px;">
+                  <p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f172a;">
+                    Reset your password
+                  </p>
+                  <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.6;">
+                    We received a request to reset the password for your MoveLeads account. Click the button below to set a new password.
+                  </p>
+                  <a href="${resetLink}"
+                     style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 36px;border-radius:10px;letter-spacing:0.3px;">
+                    Reset My Password
+                  </a>
+                  <p style="margin:28px 0 8px;font-size:13px;color:#64748b;">
+                    Or copy and paste this link into your browser:
+                  </p>
+                  <p style="margin:0 0 28px;font-size:12px;color:#94a3b8;word-break:break-all;">
+                    ${resetLink}
+                  </p>
+                  <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                    This link expires in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email — your password will not change.
+                  </p>
+                </td>
+              </tr>
+              ${emailFooter()}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    replyTo: REPLY_TO,
+    to: [toEmail],
+    subject: 'Reset your MoveLeads password',
+    html,
+  });
+
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
+module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail };

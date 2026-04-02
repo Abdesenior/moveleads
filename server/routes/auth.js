@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const PlatformSettings = require('../models/PlatformSettings');
-const { sendVerificationEmail } = require('../services/emailService');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
@@ -125,18 +125,15 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
 
-    // Block unverified customer accounts
+    // Log unverified status but allow login so they can see the VerificationBanner in dashboard
     if (user.isEmailVerified === false && user.role === 'customer') {
-      return res.status(403).json({
-        msg: 'Please verify your email to log in. Check your inbox or request a new link.',
-        code: 'EMAIL_NOT_VERIFIED',
-      });
+      console.log(`[Login] Unverified customer logged in: ${email}`);
     }
 
     issueJWT(user, res);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('[Login Route Error]:', err);
+    res.status(500).json({ msg: 'Internal Server Error', error: err.message });
   }
 });
 
@@ -181,9 +178,16 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
+    console.log(`[ResendVerify] Request for: ${email}. User found: ${!!user}`);
 
     // Always return 200 to avoid user enumeration
-    if (!user || user.isEmailVerified) {
+    if (!user) {
+      console.log(`[ResendVerify] No user found for: ${email}`);
+      return res.json({ msg: 'If that email exists and is unverified, a new link has been sent.' });
+    }
+
+    if (user.isEmailVerified) {
+      console.log(`[ResendVerify] User already verified: ${email}`);
       return res.json({ msg: 'If that email exists and is unverified, a new link has been sent.' });
     }
 
@@ -192,7 +196,9 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
     user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await user.save();
 
+    console.log(`[ResendVerify] Sending email to: ${email} with token: ${token.slice(0, 10)}...`);
     sendVerificationEmail({ toEmail: email, companyName: user.companyName, token })
+      .then(() => console.log(`[ResendVerify] Success queued for: ${email}`))
       .catch(err => console.error('[ResendVerify] Failed to send:', err.message));
 
     res.json({ msg: 'If that email exists and is unverified, a new link has been sent.' });
@@ -213,6 +219,55 @@ router.get('/me', auth, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email?.toLowerCase().trim() });
+    if (!user) return res.json({ success: true }); // don't reveal if email exists
+
+    const token = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    await sendPasswordResetEmail({
+      toEmail: email,
+      resetLink: `${process.env.CLIENT_URL || 'https://moveleads.cloud'}/reset-password?token=${token}`,
+    });
+
+    res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+  } catch (err) {
+    console.error('[forgot-password]', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ msg: 'Token and new password are required' });
+    if (newPassword.length < 8) return res.status(400).json({ msg: 'Password must be at least 8 characters' });
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+    if (!user) return res.status(400).json({ msg: 'Invalid or expired reset link' });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successfully' });
+  } catch (err) {
+    console.error('[reset-password]', err.message);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 

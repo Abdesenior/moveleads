@@ -1,5 +1,5 @@
-import React, { useState, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Shield, Zap, CheckCircle, Lock, Mail, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
@@ -16,8 +16,13 @@ export default function Login() {
   const [resendSuccess, setResendSuccess] = useState(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, API_URL } = useContext(AuthContext);
   const toast = useToast();
+
+  useEffect(() => {
+    if (location.state?.message) toast.success('Success', location.state.message);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
