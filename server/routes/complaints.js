@@ -5,6 +5,7 @@ const { auth } = require('../middleware/auth');
 const Complaint = require('../models/Complaint');
 const PurchasedLead = require('../models/PurchasedLead');
 const Lead = require('../models/Lead');
+const { sendMoverReplyEmail } = require('../services/emailService');
 
 // @route   POST /api/complaints
 // @desc    Customer: Create a new complaint
@@ -85,7 +86,7 @@ router.get('/', auth, async (req, res) => {
             : { company: req.user.id, isLinked: true };
 
         const complaints = await Complaint.find(query)
-            .populate('lead', 'route moveDate homeSize')
+            .populate('lead', 'route moveDate homeSize originCity destinationCity')
             .sort({ updatedAt: -1 });
 
         res.json(complaints);
@@ -123,9 +124,24 @@ router.post('/:id/messages', async (req, res) => {
         const complaint = await Complaint.findById(req.params.id);
         if (!complaint) return res.status(404).json({ msg: 'Complaint not found' });
 
-        complaint.messages.push({ sender, text: text.trim() });
+        const newMessage = { sender, text: text.trim() };
+        complaint.messages.push(newMessage);
         complaint.updatedAt = Date.now();
         await complaint.save();
+
+        // Notify customer by email when mover or admin replies
+        if (sender === 'mover' || sender === 'admin') {
+            const clientUrl = process.env.CLIENT_URL || 'https://moveleads.cloud';
+            const conversationUrl = complaint.lead && complaint.company
+                ? `${clientUrl}/feedback?leadId=${complaint.lead}&companyId=${complaint.company}`
+                : `${clientUrl}/feedback`;
+            sendMoverReplyEmail({
+                toEmail: complaint.customerEmail,
+                customerName: complaint.customerName,
+                replyText: text.trim(),
+                conversationUrl,
+            }).catch(err => console.error('[Reply Email Error]', err.message));
+        }
 
         res.json(complaint);
     } catch (err) {

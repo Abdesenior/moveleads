@@ -142,9 +142,17 @@ export default function ResolutionCenter() {
             <div style={{ padding: '20px 32px', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{selected.customerName}</h3>
-                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 13, color: '#64748b' }}>
-                  <span><strong>Move Date:</strong> {new Date(selected.lead?.moveDate).toLocaleDateString()}</span>
-                  <span><strong>Route:</strong> {selected.lead?.route}</span>
+                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 13, color: '#64748b', flexWrap: 'wrap' }}>
+                  {selected.lead?.moveDate
+                    ? <span><strong>Move Date:</strong> {new Date(selected.lead.moveDate).toLocaleDateString()}</span>
+                    : null}
+                  {(selected.lead?.route || (selected.lead?.originCity && selected.lead?.destinationCity))
+                    ? <span><strong>Route:</strong> {selected.lead.route || `${selected.lead.originCity} → ${selected.lead.destinationCity}`}</span>
+                    : null}
+                  {selected.lead?.homeSize
+                    ? <span><strong>Home Size:</strong> {selected.lead.homeSize}</span>
+                    : null}
+                  <span><strong>Issue:</strong> {selected.issueType}</span>
                 </div>
               </div>
               <select

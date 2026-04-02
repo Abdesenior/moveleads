@@ -117,12 +117,8 @@ export default function Feedback() {
                                 {/* Name */}
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={LABEL_STYLE}>Your Name</label>
-                                    {isLinkedMode && nameVal ? (
-                                        <div style={{ ...INPUT_STYLE, background: '#f8fafc', color: '#475569' }}>{nameVal}</div>
-                                    ) : (
-                                        <input type="text" value={nameVal} onChange={e => setNameVal(e.target.value)}
-                                            placeholder="Jane Smith" style={INPUT_STYLE} />
-                                    )}
+                                    <input type="text" value={nameVal} onChange={e => setNameVal(e.target.value)}
+                                        placeholder="Jane Smith" style={INPUT_STYLE} />
                                 </div>
 
                                 {/* Email */}

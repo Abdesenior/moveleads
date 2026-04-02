@@ -389,4 +389,79 @@ async function sendPasswordResetEmail({ toEmail, resetLink }) {
   if (error) throw new Error(`Resend error: ${error.message}`);
 }
 
-module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail };
+/**
+ * Notify customer when a mover or admin replies to their complaint.
+ */
+async function sendMoverReplyEmail({ toEmail, customerName, replyText, conversationUrl }) {
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Update on your complaint</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#0b1628 0%,#1a3154 100%);padding:32px 40px;">
+                  <p style="margin:0;font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
+                    MoveLeads<span style="color:#f97316;">.cloud</span>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#3b82f6;padding:10px 40px;">
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">
+                    💬 New Reply on Your Complaint
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px;">
+                  <p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f172a;">
+                    Hi ${customerName}, you have a new reply
+                  </p>
+                  <p style="margin:0 0 20px;font-size:15px;color:#475569;line-height:1.6;">
+                    The moving company has responded to your complaint:
+                  </p>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-left:4px solid #3b82f6;border-radius:0 8px 8px 0;margin-bottom:28px;">
+                    <tr>
+                      <td style="padding:16px 20px;">
+                        <p style="margin:0;font-size:15px;color:#334155;line-height:1.6;">${replyText}</p>
+                      </td>
+                    </tr>
+                  </table>
+                  <a href="${conversationUrl}"
+                     style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px;letter-spacing:0.3px;">
+                    View Conversation →
+                  </a>
+                  <p style="margin:28px 0 0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                    You can reply directly through the link above. If you feel the issue is not being resolved, MoveLeads admins monitor all tickets.
+                  </p>
+                </td>
+              </tr>
+              ${emailFooter()}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    replyTo: REPLY_TO,
+    to: [toEmail],
+    subject: 'Update on your complaint — MoveLeads',
+    html,
+  });
+
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
+module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail };
