@@ -481,7 +481,7 @@ export default function LeadFeed() {
                   const isAuction = lead.auctionStatus === 'active';
                   const isLD      = lead.distance === 'Long Distance';
                   const daysToMove = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
-                  const isToday   = daysToMove <= 1;
+                  const isToday   = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
                   const isUrgent  = daysToMove > 1 && daysToMove <= 7;
                   const isPremium = lead.grade === 'A';
                   const currentBid = lead.currentBidPrice || 0;
