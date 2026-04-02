@@ -27,9 +27,12 @@ router.post('/', async (req, res) => {
             && mongoose.isValidObjectId(leadId)
             && mongoose.isValidObjectId(companyId);
 
+        console.log(`[Complaints POST] hasIds=${hasIds} leadId=${leadId} companyId=${companyId} email=${customerEmail}`);
+
         if (hasIds) {
             // ── Path 1: magic-link submission ──────────────────────────────────
             const purchase = await PurchasedLead.findOne({ lead: leadId, company: companyId });
+            console.log(`[Complaints POST] PurchasedLead lookup: ${purchase ? `found (${purchase._id})` : 'NOT FOUND'}`);
             if (!purchase) {
                 return res.status(400).json({ msg: 'Invalid link: this company did not purchase that lead.' });
             }
@@ -63,6 +66,7 @@ router.post('/', async (req, res) => {
 
         const complaint = new Complaint(complaintData);
         await complaint.save();
+        console.log(`[Complaints POST] Saved complaint ${complaint._id} isLinked=${complaint.isLinked} company=${complaint.company}`);
         res.status(201).json(complaint);
     } catch (err) {
         console.error('[Create Complaint Error]', err.message);

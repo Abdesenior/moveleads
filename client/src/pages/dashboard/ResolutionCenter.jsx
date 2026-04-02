@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
-import { MessageSquareWarning, CheckCircle, Send, AlertCircle, Clock } from 'lucide-react';
+import { MessageSquareWarning, CheckCircle, Send, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 
 export default function ResolutionCenter() {
@@ -9,17 +9,32 @@ export default function ResolutionCenter() {
   const [selected, setSelected] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
 
   const fetchComplaints = async () => {
+    setLoading(true);
+    setFetchError('');
     try {
       const res = await fetch(`${API_URL}/complaints`, {
         headers: { 'x-auth-token': token }
       });
       const data = await res.json();
+      if (!res.ok) {
+        setFetchError(data.msg || `Error ${res.status}`);
+        setComplaints([]);
+        return;
+      }
+      if (!Array.isArray(data)) {
+        setFetchError('Unexpected response from server');
+        setComplaints([]);
+        return;
+      }
       setComplaints(data);
       if (data.length > 0 && !selected) setSelected(data[0]);
     } catch (err) {
       console.error(err);
+      setFetchError('Failed to load. Check your connection.');
+      setComplaints([]);
     } finally {
       setLoading(false);
     }
@@ -75,12 +90,19 @@ export default function ResolutionCenter() {
       {/* Left Sidebar: Complaint List */}
       <div style={{ width: 340, background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>Resolution Center</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>Resolution Center</h2>
+            <button onClick={fetchComplaints} disabled={loading} title="Refresh" style={{ background: 'none', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', color: '#94a3b8', padding: 4, borderRadius: 6, display: 'flex', alignItems: 'center' }}>
+              <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+          </div>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>Manage customer feedback</p>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {complaints.length === 0 ? (
+          {fetchError ? (
+            <div style={{ padding: '20px 24px', color: '#dc2626', fontSize: 13 }}>{fetchError}</div>
+          ) : complaints.length === 0 ? (
             <div style={{ padding: 30, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No complaints found. Great job!</div>
           ) : (
             complaints.map(c => (
