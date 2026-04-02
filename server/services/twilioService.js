@@ -100,7 +100,6 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
 
     // Mock mode — no credentials configured, dev environment, or explicit test flag
     const isDev = process.env.NODE_ENV === 'development';
-    if (!twilioClient || isDev || testMode) {
     if ((!twilioClient && !vonageClient) || isDev || testMode) {
       if (isDev || testMode) console.log(`[Twilio] MOCK mode active (NODE_ENV=${process.env.NODE_ENV}, testMode=${testMode})`);
 
