@@ -434,11 +434,24 @@ export default function Customers() {
                             setDetailLead(p);
                             setEditStatus(p.crmStatus || 'New');
                             setEditNotes(p.crmNotes || '');
-                            setDisputingLead(false);
-                            setDisputeReason('');
+                            resetDisputeState();
                           }}
                           hoverColor="#ea580c"
                           hoverBg="#fff7ed"
+                        />
+                        <IconBtn
+                          icon={<Flag size={13} />}
+                          title="Dispute lead"
+                          onClick={() => {
+                            setDetailLead(p);
+                            setEditStatus(p.crmStatus || 'New');
+                            setEditNotes(p.crmNotes || '');
+                            resetDisputeState();
+                            setDisputingLead(true);
+                          }}
+                          color="#dc2626"
+                          hoverColor="#dc2626"
+                          hoverBg="#fef2f2"
                         />
                       </div>
                     </td>
