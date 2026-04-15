@@ -3,6 +3,7 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const PurchasedLead = require('../models/PurchasedLead');
 const { getIo } = require('../services/socketService');
+const { sendAuctionWonEmail } = require('../services/emailService');
 
 // Run every 2 minutes — settle any expired active auctions
 cron.schedule('*/2 * * * *', async () => {
@@ -44,6 +45,19 @@ cron.schedule('*/2 * * * *', async () => {
           winnerId:   winning.company,
           finalPrice: winning.amount,
         });
+      }
+
+      // Email the winner — non-blocking
+      const winner = await User.findById(winning.company).select('email companyName');
+      if (winner?.email) {
+        const clientUrl = process.env.CLIENT_URL || 'https://app.moveleads.cloud';
+        sendAuctionWonEmail({
+          toEmail:      winner.email,
+          companyName:  winner.companyName || 'there',
+          finalPrice:   winning.amount,
+          lead,
+          dashboardUrl: `${clientUrl}/dashboard/customers`,
+        }).catch(err => console.error('[Auction] Win email error:', err.message));
       }
 
       console.log(`[Auction] Lead ${lead._id} settled — winner charged $${winning.amount}`);

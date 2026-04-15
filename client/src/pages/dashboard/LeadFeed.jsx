@@ -227,19 +227,32 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
   );
 }
 
-/* ─── Success modal ────────────────────────────────────────────────────────── */
+/* ─── Success modal (buy-now + auction win) ─────────────────────────────────── */
 function SuccessModal({ data, onClose, onNavigate }) {
+  const fromAuction = data.fromAuction;
+  const hasContact  = data.lead?.customerName && data.lead?.customerPhone;
   return (
     <div className="modal-overlay">
       <div className="modal-content success-modal">
-        <div className="success-icon-box"><CheckCircle size={48} /></div>
-        <h2>Lead Unlocked!</h2>
-        <p>You now have full access to the customer's contact details.</p>
-        <div className="contact-details-box">
-          <div className="detail-item"><User size={18} /><div><label>Customer Name</label><span>{data.lead.customerName}</span></div></div>
-          <div className="detail-item"><PhoneIcon size={18} /><div><label>Phone Number</label><span>{data.lead.customerPhone}</span></div></div>
-          <div className="detail-item"><Truck size={18} /><div><label>Move Target</label><span>{data.lead.originCity} to {data.lead.destinationCity}</span></div></div>
+        <div className="success-icon-box">
+          {fromAuction ? <Gavel size={48} /> : <CheckCircle size={48} />}
         </div>
+        <h2>{fromAuction ? 'Auction Won!' : 'Lead Unlocked!'}</h2>
+        {fromAuction ? (
+          <p>
+            You won the auction with a bid of <strong>${data.finalPrice}</strong>.
+            The amount has been deducted from your balance and the lead is now in your customers.
+          </p>
+        ) : (
+          <p>You now have full access to the customer's contact details.</p>
+        )}
+        {hasContact && (
+          <div className="contact-details-box">
+            <div className="detail-item"><User size={18} /><div><label>Customer Name</label><span>{data.lead.customerName}</span></div></div>
+            <div className="detail-item"><PhoneIcon size={18} /><div><label>Phone Number</label><span>{data.lead.customerPhone}</span></div></div>
+            <div className="detail-item"><Truck size={18} /><div><label>Move Target</label><span>{data.lead.originCity} to {data.lead.destinationCity}</span></div></div>
+          </div>
+        )}
         <div className="modal-actions">
           <button className="view-btn" onClick={onNavigate}>Go to My Customers</button>
           <button className="close-success-btn" onClick={onClose}>Continue Feeding</button>
@@ -277,8 +290,10 @@ export default function LeadFeed() {
   const [claimingId, setClaimingId]     = useState(null);
   const [search, setSearch]             = useState('');
   const [distFilter, setDistFilter]     = useState('all');
-  const audioRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
-  const pollRef  = useRef(null);
+  const [outbidToast, setOutbidToast]   = useState(''); // "you were outbid" banner
+  const audioRef  = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
+  const pollRef   = useRef(null);
+  const myBidsRef = useRef(new Set()); // lead IDs the current user has bid on
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -320,26 +335,57 @@ export default function LeadFeed() {
       ));
     });
     socket.on('lead_sold', (d) => {
-      // Guard: skip if this was our own purchase — handleBuyNow already removed it
+      // Guard: skip if this was our own buy-now purchase — handleBuyNow already updated state
       if (d.buyerId && d.buyerId === user?._id?.toString()) return;
       setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== d.leadId?.toString()));
     });
     socket.on('auction_settled', (d) => {
-      // Guard: skip if we are the auction winner — handleBuyNow already removed it
-      if (d.winnerId && d.winnerId === user?._id?.toString()) return;
-      setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== d.leadId?.toString()));
+      const winnerId = d.winnerId?.toString();
+      const leadId   = d.leadId?.toString();
+      const isWinner = winnerId && winnerId === user?._id?.toString();
+
+      setLeads(prev => {
+        const wonLead = prev.find(l => (l._id||l.id)?.toString() === leadId);
+
+        if (isWinner) {
+          // Cron settled this auction in our favour — show success + refresh balance
+          setTimeout(() => {
+            setSuccessData({ lead: wonLead || { _id: leadId }, finalPrice: d.finalPrice, fromAuction: true });
+            refreshUser();
+          }, 0);
+        } else if (myBidsRef.current.has(leadId)) {
+          // We bid on this lead but someone else won
+          myBidsRef.current.delete(leadId);
+          setTimeout(() => {
+            setOutbidToast('You were outbid — this lead was claimed by another mover.');
+          }, 0);
+        }
+
+        return prev.filter(l => (l._id||l.id)?.toString() !== leadId);
+      });
     });
     return () => { stopPolling(); socket.disconnect(); };
   }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling]);
 
   const handleBuyNow = async (lead) => {
-    const id = (lead._id || lead.id)?.toString();
+    const id      = (lead._id || lead.id)?.toString();
+    const balance = user?.balance || 0;
+    const price   = getLeadPrice(lead);
+
+    // Pre-flight: catch insufficient balance before hitting the server
+    if (balance < price) {
+      setClaimError('Insufficient balance. Please add funds to your account.');
+      setPreviewLead(lead); // Open modal so the error + "Add Funds" button are visible
+      return;
+    }
+
     setClaimingId(id);
     try {
       const res  = await fetch(`${API_URL}/bids/${id}/buy-now`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
       const data = await res.json();
       if (!res.ok) {
         setClaimError(data.error || 'Failed to claim lead. Please try again.');
+        setPreviewLead(lead); // Ensure modal is open so error is visible
         return;
       }
       setPreviewLead(null);
@@ -356,6 +402,7 @@ export default function LeadFeed() {
     const res = await fetch(`${API_URL}/bids/${id}`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ amount }) });
     const data = await res.json();
     if (!res.ok) { alert(data.error || 'Failed to place bid'); return; }
+    myBidsRef.current.add(id); // Track that we have an active bid on this lead
     setLeads(prev => prev.map(l => (l._id||l.id)?.toString() === id ? { ...l, currentBidPrice: data.currentBidPrice, auctionEndsAt: data.auctionEndsAt } : l));
     setBidLead(null);
   };
@@ -614,6 +661,26 @@ export default function LeadFeed() {
           onClose={() => setSuccessData(null)}
           onNavigate={() => { setSuccessData(null); navigate('/dashboard/customers'); }}
         />
+      )}
+
+      {/* ── Outbid toast ─────────────────────────────────────────────────── */}
+      {outbidToast && (
+        <div style={{
+          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
+          background: '#1e293b', color: '#f1f5f9', borderRadius: 12,
+          padding: '14px 22px', fontSize: 14, fontWeight: 600,
+          display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)', zIndex: 9999,
+          animation: 'fadeInUp 0.2s ease',
+        }}>
+          <ZapOff size={16} color="#f59e0b" />
+          {outbidToast}
+          <button
+            onClick={() => setOutbidToast('')}
+            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0 0 0 8px', fontSize: 16, lineHeight: 1 }}>
+            ×
+          </button>
+        </div>
       )}
     </DashboardLayout>
   );
