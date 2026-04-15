@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import {
   Users, Search, Download, X, MapPin, Calendar, Phone, Mail,
   FileText, CheckCircle, AlertCircle, MessageSquare, Eye,
-  ArrowRight, Truck
+  ArrowRight, Truck, Flag
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -101,6 +101,9 @@ export default function Customers() {
   const [editStatus, setEditStatus] = useState('');
   const [disputingLead, setDisputingLead] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDesc, setDisputeDesc]     = useState('');
+  const [disputeError, setDisputeError]   = useState('');
+  const [disputeSuccess, setDisputeSuccess] = useState(false);
   const [saving, setSaving]         = useState(false);
   const [page, setPage]             = useState(1);
   const [pageSize, setPageSize]     = useState(10);
@@ -146,21 +149,33 @@ export default function Customers() {
   };
 
   const submitDispute = async () => {
-    if (!disputeReason.trim()) return;
+    if (!disputeReason) { setDisputeError('Please select a reason.'); return; }
+    setDisputeError('');
     setSaving(true);
     try {
+      const leadId = detailLead.lead?._id || detailLead.lead;
+      const reason = disputeDesc.trim()
+        ? `${disputeReason}: ${disputeDesc.trim()}`
+        : disputeReason;
       const res = await fetch(`${API_URL}/disputes`, {
         method: 'POST',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: detailLead.lead, reason: disputeReason })
+        body: JSON.stringify({ leadId, reason })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || 'Failed to submit dispute');
-      alert('Dispute submitted successfully. Admin will review it shortly.');
-      setDetailLead(null);
-      setDisputingLead(false);
-      setDisputeReason('');
-    } catch (err) { alert(err.message); } finally { setSaving(false); }
+      setDisputeSuccess(true);
+    } catch (err) {
+      setDisputeError(err.message);
+    } finally { setSaving(false); }
+  };
+
+  const resetDisputeState = () => {
+    setDisputingLead(false);
+    setDisputeReason('');
+    setDisputeDesc('');
+    setDisputeError('');
+    setDisputeSuccess(false);
   };
 
   const toggleSort = (key) => {
@@ -473,7 +488,7 @@ export default function Customers() {
                   {detailLead.lead?.originCity} → {detailLead.lead?.destinationCity}
                 </p>
               </div>
-              <button onClick={() => setDetailLead(null)} style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', position: 'relative' }}>
+              <button onClick={() => { setDetailLead(null); resetDisputeState(); }} style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', position: 'relative' }}>
                 <X size={16} />
               </button>
             </div>
@@ -528,25 +543,92 @@ export default function Customers() {
             {/* CRM section */}
             <div style={{ padding: '20px 28px 28px' }}>
               {disputingLead ? (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>Dispute Reason (Required)</div>
-                  <textarea
-                    value={disputeReason}
-                    onChange={e => setDisputeReason(e.target.value)}
-                    placeholder="Why are you disputing this lead? (e.g. Fake phone number, duplicate)"
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: 12, border: '2px solid #fee2e2', fontSize: 13, outline: 'none', marginBottom: 12, minHeight: 80, fontFamily: 'inherit', resize: 'vertical' }}
-                    onFocus={e => (e.target.style.borderColor = '#ef4444')}
-                    onBlur={e  => (e.target.style.borderColor = '#fee2e2')}
-                  />
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={submitDispute} disabled={!disputeReason.trim() || saving} style={{ flex: 1, padding: '11px', borderRadius: 12, border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                      {saving ? 'Submitting…' : 'Submit Dispute'}
-                    </button>
-                    <button onClick={() => setDisputingLead(false)} style={{ padding: '11px 20px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                      Cancel
+                disputeSuccess ? (
+                  /* ── Success state ── */
+                  <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
+                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                      <CheckCircle size={26} color="#16a34a" />
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Dispute Submitted</div>
+                    <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
+                      Your dispute has been received. An admin will review it and you'll be notified of the outcome by email.
+                    </p>
+                    <button
+                      onClick={() => { setDetailLead(null); resetDisputeState(); }}
+                      style={{ padding: '10px 24px', borderRadius: 12, border: 'none', background: '#0f172a', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      Close
                     </button>
                   </div>
-                </div>
+                ) : (
+                  /* ── Dispute form ── */
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Flag size={14} color="#dc2626" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Dispute this Lead</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>An admin will review and decide on a refund.</div>
+                      </div>
+                    </div>
+
+                    {/* Reason dropdown */}
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
+                        Reason <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <select
+                        value={disputeReason}
+                        onChange={e => { setDisputeReason(e.target.value); setDisputeError(''); }}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${disputeError && !disputeReason ? '#fca5a5' : '#e2e8f0'}`, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: '#fff', cursor: 'pointer' }}
+                        onFocus={e => (e.target.style.borderColor = '#ef4444')}
+                        onBlur={e  => (e.target.style.borderColor = disputeError && !disputeReason ? '#fca5a5' : '#e2e8f0')}
+                      >
+                        <option value="">Select a reason…</option>
+                        <option value="Fake phone number">Fake phone number</option>
+                        <option value="Customer already booked">Customer already booked</option>
+                        <option value="Wrong information">Wrong information</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Description */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
+                        Additional Details <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span>
+                      </label>
+                      <textarea
+                        value={disputeDesc}
+                        onChange={e => setDisputeDesc(e.target.value)}
+                        placeholder="Describe what happened in more detail…"
+                        rows={3}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', lineHeight: 1.5 }}
+                        onFocus={e => (e.target.style.borderColor = '#ef4444')}
+                        onBlur={e  => (e.target.style.borderColor = '#e2e8f0')}
+                      />
+                    </div>
+
+                    {disputeError && (
+                      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#dc2626', fontWeight: 600, marginBottom: 14 }}>
+                        {disputeError}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={submitDispute}
+                        disabled={!disputeReason || saving}
+                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px', borderRadius: 12, border: 'none', background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 700, cursor: !disputeReason || saving ? 'not-allowed' : 'pointer', opacity: !disputeReason || saving ? 0.6 : 1 }}>
+                        <Flag size={13} /> {saving ? 'Submitting…' : 'Submit Dispute'}
+                      </button>
+                      <button
+                        onClick={resetDisputeState}
+                        style={{ padding: '11px 20px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )
               ) : (
                 <>
                   {/* Status */}
@@ -585,11 +667,11 @@ export default function Customers() {
 
                   {/* Actions */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <button onClick={() => setDisputingLead(true)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 12, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                      <MessageSquare size={13} /> Dispute Lead
+                    <button onClick={() => { resetDisputeState(); setDisputingLead(true); }} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 12, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      <Flag size={13} /> Dispute Lead
                     </button>
                     <div style={{ display: 'flex', gap: 10 }}>
-                      <button onClick={() => setDetailLead(null)} style={{ padding: '11px 22px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      <button onClick={() => { setDetailLead(null); resetDisputeState(); }} style={{ padding: '11px 22px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                         Cancel
                       </button>
                       <button onClick={saveLead} disabled={saving} style={{ padding: '11px 28px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#0f172a,#1e293b)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(15,23,42,0.2)', opacity: saving ? 0.6 : 1 }}>
