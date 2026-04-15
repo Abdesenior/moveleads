@@ -38,7 +38,7 @@ function milesFromZips(originZip, destinationZip) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function run() {
-  await mongoose.connect(process.env.MONGO_URI);
+  await mongoose.connect(process.env.MONGODB_URI);
   console.log('Connected to MongoDB');
 
   // Target all leads that haven't been purchased yet and have a future move date
