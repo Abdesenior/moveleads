@@ -562,11 +562,27 @@ export default function LeadFeed() {
 
                       {/* ── Action ── */}
                       <td style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button
-                          onClick={() => { setClaimError(''); setPreviewLead(lead); }}
-                          style={{ ...BTN_PRIMARY }}>
-                          View ›
-                        </button>
+                        {isAuction ? (
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => { setClaimError(''); setPreviewLead(lead); setBidLead(lead); }}
+                              style={{ ...BTN_OUTLINE, padding: '8px 14px', fontSize: 12 }}>
+                              <Gavel size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Bid
+                            </button>
+                            <button
+                              onClick={() => { setClaimError(''); handleBuyNow(lead); }}
+                              disabled={claimingId === id}
+                              style={{ ...BTN_PRIMARY, opacity: claimingId === id ? 0.6 : 1 }}>
+                              {claimingId === id ? 'Claiming…' : `Buy $${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›`}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setClaimError(''); setPreviewLead(lead); }}
+                            style={{ ...BTN_PRIMARY }}>
+                            View ›
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
