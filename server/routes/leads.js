@@ -16,6 +16,25 @@ const { verifyLeadPhone } = require('../services/twilioService');
 
 const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingEngine');
 const { calculateLeadScore } = require('../services/scoringService');
+const zipcodes = require('zipcodes');
+
+/* ── Haversine distance (miles) between two lat/lon pairs ─────────────────── */
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 3959;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return Math.round(3959 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+/* ── Compute straight-line miles from zip codes ───────────────────────────── */
+function milesFromZips(originZip, destinationZip) {
+  const o = zipcodes.lookup(originZip);
+  const d = zipcodes.lookup(destinationZip);
+  if (!o || !d) return 0;
+  return haversine(o.latitude, o.longitude, d.latitude, d.longitude);
+}
 
 // ── Rate limiter: lead ingestion ──────────────────────────────────────────────
 // 5 quote submissions per IP per 10 minutes — prevents form spam and DDoS
@@ -45,11 +64,16 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
   const data = validation.data;
 
   try {
-    // 2. Compute route string and distance category
+    // 2. Compute route string and real distance in miles
     const route = `${data.originCity} → ${data.destinationCity}`;
-    // Simple heuristic: if origin and destination zips share the first 3 digits → Local
-    const isLocal = data.originZip.substring(0, 3) === data.destinationZip.substring(0, 3);
-    const distance = isLocal ? 'Local' : 'Long Distance';
+
+    // Trust miles from the form (calculated client-side via haversine + zipcodes).
+    // If miles is 0 or missing (e.g. zip lookup failed on client), recompute server-side.
+    const miles = (data.miles && data.miles > 0)
+      ? data.miles
+      : milesFromZips(data.originZip, data.destinationZip);
+
+    const distance = miles > 100 ? 'Long Distance' : 'Local';
 
     // 3. Get base price from DB pricing rules (existing engine)
     const leadPrice = await calculateLeadPrice({
@@ -60,7 +84,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
     // 4. Preliminary score + grade (lineType unknown until Twilio; refines later)
     const { score, grade, scoreFactors } = calculateLeadScore(
       { homeSize: data.homeSize },
-      data.miles || 0,
+      miles,
       null,
       data.moveDate
     );
@@ -68,7 +92,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
     // 5. Auction pricing based on score/grade
     const auctionPricing = calculateAuctionPrice({
       homeSize: data.homeSize,
-      miles: data.miles || 0,
+      miles,
       moveDate: data.moveDate,
       grade,
     });
@@ -84,7 +108,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       moveDate: new Date(data.moveDate),
       distance,
       price: auctionPricing.buyNowPrice || leadPrice,
-      miles: data.miles || 0,
+      miles,
       status: 'Pending Verification',
       isVerified: false,
       customerName: data.customerName,
@@ -197,16 +221,19 @@ router.get('/', auth, async (req, res) => {
       };
     }
 
-    // Re-activate any expired leads that still have no buyer and a future move date
-    // (handles the case where 24h window lapsed but movers haven't seen the lead)
+    // Ensure every available, unbought lead with a future move date has an active auction.
+    // This catches:
+    //   - 'expired' leads (24h window lapsed but no buyer yet)
+    //   - 'pending' leads (admin-created leads that never got activated)
+    //   - null/undefined auctionStatus (old leads created before auction system)
     await Lead.updateMany(
       {
-        auctionStatus: 'expired',
+        auctionStatus: { $nin: ['active', 'sold', 'buy_now'] },
         status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
         moveDate: { $gte: new Date() },
         $or: [
-          { 'buyers': { $size: 0 } },
-          { 'buyers': { $exists: false } }
+          { buyers: { $size: 0 } },
+          { buyers: { $exists: false } }
         ]
       },
       {
