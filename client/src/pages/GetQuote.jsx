@@ -295,6 +295,9 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
       const res = await fetch(`${_base}/api/leads/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || 'Submission failed. Please try again.');
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'conversion', { send_to: 'AW-18096682129', value: 1.0, currency: 'USD' });
+      }
       navigate('/thank-you', { state: { homeSize: data.homeSize, originZip: data.originZip, destZip: data.destZip } });
     } catch (err) { setServerError(err.message); }
     finally { setSubmitting(false); }
@@ -942,6 +945,9 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
       const res = await fetch(`${_base}/api/leads/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || 'Submission failed.');
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'conversion', { send_to: 'AW-18096682129', value: 1.0, currency: 'USD' });
+      }
       navigate('/thank-you', { state: { homeSize: data.homeSize, originZip: data.originZip, destZip: data.destZip } });
     } catch (err) { setServerError(err.message); }
     finally { setSubmitting(false); }
