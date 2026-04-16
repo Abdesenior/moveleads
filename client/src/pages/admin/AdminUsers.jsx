@@ -3,7 +3,6 @@ import { ShieldAlert, Trash2, Search, Users, UserCheck, UserX, UserPlus } from '
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
-import ConfirmModal from '../../components/ConfirmModal';
 import TablePagination from '../../components/ui/TablePagination';
 import TableSkeleton from '../../components/ui/TableSkeleton';
 
@@ -14,6 +13,8 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedUserName, setSelectedUserName] = useState('');
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [suspending, setSuspending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -257,7 +258,7 @@ export default function AdminUsers() {
                         <UserPlus size={13} /> Impersonate
                       </button>
                     )}
-                    <button onClick={() => { setSelectedUserId(u._id); setShowConfirm(true); }}
+                    <button onClick={() => { setSelectedUserId(u._id); setSelectedUserName(u.companyName || u.email); setDeleteConfirmInput(''); setShowConfirm(true); }}
                       style={{ width: 34, height: 34, borderRadius: 8, background: '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', transition: 'all 0.2s' }}
                       title="Delete"><Trash2 size={14} /></button>
                   </div>
@@ -276,15 +277,68 @@ export default function AdminUsers() {
         )}
       </div>
 
-      <ConfirmModal 
-        isOpen={showConfirm} 
-        onClose={() => { setShowConfirm(false); setSelectedUserId(null); }}
-        onConfirm={() => handleDelete(selectedUserId)}
-        title="Delete User"
-        message="Are you sure you want to permanently remove this customer from the platform? This will delete all their data."
-        confirmText="Remove Account"
-        type="danger"
-      />
+      {showConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 440,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 size={20} color="#ef4444" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 17, color: '#0f172a' }}>Delete Account</div>
+                <div style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>This action cannot be undone</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 20 }}>
+              You are about to permanently delete <strong>{selectedUserName}</strong>. Their purchased leads and transaction history will remain in the database but will be unlinked from this account.
+            </p>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#b91c1c' }}>
+              Type <strong>{selectedUserName}</strong> to confirm deletion:
+            </div>
+            <input
+              autoFocus
+              value={deleteConfirmInput}
+              onChange={e => setDeleteConfirmInput(e.target.value)}
+              placeholder={selectedUserName}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8,
+                border: '1.5px solid #e2e8f0', fontSize: 14, marginBottom: 20, outline: 'none',
+                borderColor: deleteConfirmInput && deleteConfirmInput !== selectedUserName ? '#ef4444' : '#e2e8f0'
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && deleteConfirmInput === selectedUserName) {
+                  setShowConfirm(false);
+                  handleDelete(selectedUserId);
+                }
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowConfirm(false); setSelectedUserId(null); setSelectedUserName(''); setDeleteConfirmInput(''); }}
+                style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#64748b' }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={deleteConfirmInput !== selectedUserName}
+                onClick={() => { setShowConfirm(false); handleDelete(selectedUserId); }}
+                style={{
+                  padding: '10px 20px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 600, cursor: deleteConfirmInput === selectedUserName ? 'pointer' : 'not-allowed',
+                  background: deleteConfirmInput === selectedUserName ? '#ef4444' : '#fca5a5', color: '#fff', transition: 'background 0.2s'
+                }}
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
