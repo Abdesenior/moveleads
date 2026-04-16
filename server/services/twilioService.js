@@ -1,5 +1,5 @@
 const twilio = require('twilio');
-const { Vonage } = require('@vonage/server-sdk');
+const https  = require('https');
 const Lead = require('../models/Lead');
 const Communication = require('../models/Communication');
 const PurchasedLead = require('../models/PurchasedLead');
@@ -7,236 +7,198 @@ const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
 
-// Singleton Twilio client — instantiated once at module load, not per call.
+// Twilio — used for SMS and warm-transfer calls only (not phone lookup)
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const fromPhone = process.env.TWILIO_PHONE_NUMBER || '+15005550006';
-
+const authToken  = process.env.TWILIO_AUTH_TOKEN;
+const fromPhone  = process.env.TWILIO_PHONE_NUMBER || '+15005550006';
 const twilioClient = accountSid && authToken ? twilio(accountSid, authToken) : null;
 
-// Vonage client for number verification as a Twilio alternative
-const vonageApiKey = process.env.VONAGE_API_KEY;
-const vonageApiSecret = process.env.VONAGE_API_SECRET;
-const vonageClient = vonageApiKey && vonageApiSecret ? new Vonage({ apiKey: vonageApiKey, apiSecret: vonageApiSecret }) : null;
+// Abstract API — used for phone number validation
+const ABSTRACT_API_KEY = process.env.ABSTRACT_API_KEY;
 
-const LOOKUP_TIMEOUT_MS = 3000;
+const LOOKUP_TIMEOUT_MS = 5000;
 
 /**
- * Verify a lead's phone number using Twilio Lookup API.
- * Runs in the background (non-blocking) and updates the lead status.
- * Times out after 3 s — marks lead PENDING_MANUAL_REVIEW on timeout/error.
+ * Look up a phone number via Abstract Phone Validation API.
+ * Returns { valid, lineType, isVoip, riskLevel } or throws on network error.
+ */
+async function abstractLookup(phone) {
+  // Abstract expects E.164 without the leading +
+  const digits = phone.replace(/\D/g, '');
+  const url = `https://phonevalidation.abstractapi.com/v1/?api_key=${ABSTRACT_API_KEY}&phone=${digits}`;
+
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => (body += chunk));
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          console.log(`[Abstract] Raw response for ${phone}:`, JSON.stringify(data));
+          resolve({
+            valid:     data.valid === true,
+            lineType:  data.type || 'unknown',           // 'Mobile', 'Landline', 'VOIP', etc.
+            isVoip:    data.type?.toLowerCase() === 'voip',
+            riskLevel: null,                             // Abstract free tier has no risk score
+          });
+        } catch (e) {
+          reject(new Error(`Abstract API parse error: ${e.message}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(LOOKUP_TIMEOUT_MS, () => {
+      req.destroy();
+      reject(new Error('LOOKUP_TIMEOUT'));
+    });
+  });
+}
+
+/**
+ * Verify a lead's phone number.
+ * Priority: Abstract API (primary) → mock (dev/test fallback).
+ * Twilio is kept only for SMS and warm-transfer calls.
  *
- * @param {string} leadId
+ * Pass/fail rules:
+ *   PASS: valid === true AND NOT voip
+ *   FAIL: valid === false OR isVoip === true
  */
 async function verifyLeadPhone(leadId, { testMode = false } = {}) {
+  let lead;
   try {
-    const lead = await Lead.findById(leadId);
+    lead = await Lead.findById(leadId);
     if (!lead) return;
 
-    console.log(`[Twilio] Starting verification for lead ${leadId} (${lead.customerPhone})`);
-    // --- Vonage Verification Logic (Priority) ---
-    if (vonageClient && !testMode) {
-      console.log(`[Vonage] Starting verification for lead ${leadId} (${lead.customerPhone})`);
-      try {
-        const resp = await vonageClient.numberInsight.check({ number: lead.customerPhone, insight: ['carrier'] });
-        const lineType = resp?.carrier?.network_type; // mobile, landline, voip, etc.
-        console.log(`[Vonage] Lookup result for ${lead.customerPhone}: type=${lineType}`);
+    console.log(`[PhoneVerify] Starting for lead ${leadId} (${lead.customerPhone})`);
 
-        if (lineType === 'mobile' || lineType === 'landline') {
-          lead.isVerified = true;
-          lead.status = 'READY_FOR_DISTRIBUTION';
-
-          const scoring = calculateLeadScore(lead, lead.miles, lineType, lead.moveDate);
-          lead.score = scoring.score;
-          lead.grade = scoring.grade;
-          lead.scoreFactors = scoring.scoreFactors;
-
-          // Recalculate price with the final verified grade
-          const finalPricing = await calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
-          lead.buyNowPrice = finalPricing.buyNowPrice;
-          lead.price = finalPricing.buyNowPrice;
-          lead.startingBidPrice = finalPricing.startingBidPrice;
-          lead.currentBidPrice = finalPricing.startingBidPrice;
-
-          if (lead.sourceCompany) {
-            lead.status = 'Purchased';
-            await new PurchasedLead({
-              company: lead.sourceCompany,
-              lead: lead._id,
-              pricePaid: 0
-            }).save();
-            console.log(`[Vonage] Exclusive assignment to ${lead.sourceCompany}`);
-          }
-
-          console.log(`[Vonage] Verification PASSED (Type: ${lineType}) - Grade: ${scoring.grade}`);
-          socketService.emitNewLead(lead);
-        } else {
-          lead.isVerified = false;
-          lead.status = 'REJECTED_FAKE';
-          lead.price = 0;
-          lead.buyNowPrice = 0;
-          lead.startingBidPrice = 0;
-          lead.currentBidPrice = 0;
-          lead.auctionStatus = 'expired';
-          console.log(`[Vonage] Verification FAILED (Type: ${lineType || 'unknown'})`);
-        }
-
-        lead.statusHistory.push({ status: lead.status, timestamp: new Date() });
-        await lead.save();
-        return; // Exit after successful Vonage verification
-
-      } catch (vonageErr) {
-        console.error(`[Vonage] Critical error verifying lead ${leadId}:`, vonageErr.message);
-        // Fall through to the generic error handler at the bottom
-      }
-    }
-
-    // --- Twilio Verification Logic (Fallback) ---
-    if (twilioClient && !testMode) {
-      console.log(`[Twilio] Starting verification for lead ${leadId} (${lead.customerPhone})`);
-    } else {
-      // Fall through to mock mode if neither is configured
-    }
-
-    // Mock mode — no credentials configured, dev environment, or explicit test flag
     const isDev = process.env.NODE_ENV === 'development';
-    if ((!twilioClient && !vonageClient) || isDev || testMode) {
-      if (isDev || testMode) console.log(`[Twilio] MOCK mode active (NODE_ENV=${process.env.NODE_ENV}, testMode=${testMode})`);
 
-      console.warn('[Twilio] Missing credentials. Running in MOCK mode.');
-      console.warn('[Phone Service] No provider configured. Running in MOCK mode.');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    // ── Mock mode: dev environment or explicit test flag ──────────────────────
+    if (!ABSTRACT_API_KEY || isDev || testMode) {
+      console.log(`[PhoneVerify] MOCK mode (apiKey=${!!ABSTRACT_API_KEY} isDev=${isDev} testMode=${testMode})`);
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // FIX 5: calculate grade in mock mode so grade === 'A' warm-transfer
-      // logic actually fires in development and staging environments.
-      const mockScoring = calculateLeadScore(lead, lead.miles, 'mobile', lead.moveDate);
-      lead.score = mockScoring.score;
-      lead.grade = mockScoring.grade;
+      const mockScoring = calculateLeadScore(lead, lead.miles, 'Mobile', lead.moveDate);
+      lead.score        = mockScoring.score;
+      lead.grade        = mockScoring.grade;
       lead.scoreFactors = mockScoring.scoreFactors;
 
       const mockPricing = await calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: mockScoring.grade });
-      lead.buyNowPrice = mockPricing.buyNowPrice;
-      lead.price = mockPricing.buyNowPrice;
+      lead.buyNowPrice      = mockPricing.buyNowPrice;
+      lead.price            = mockPricing.buyNowPrice;
       lead.startingBidPrice = mockPricing.startingBidPrice;
-      lead.currentBidPrice = mockPricing.startingBidPrice;
+      lead.currentBidPrice  = mockPricing.startingBidPrice;
 
       lead.isVerified = true;
-      lead.status = 'READY_FOR_DISTRIBUTION';
+      lead.status     = 'READY_FOR_DISTRIBUTION';
       lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
       await lead.save();
-      console.log(`[Twilio] Mock verification SUCCESS for lead ${leadId} — Grade: ${mockScoring.grade} (score: ${mockScoring.score})`);
+      console.log(`[PhoneVerify] Mock PASS — Grade: ${mockScoring.grade}`);
       socketService.emitNewLead(lead);
       return;
     }
 
-    // Race the Lookup call against a 3-second timeout.
-    const lookupPromise = twilioClient.lookups.v2
-      .phoneNumbers(lead.customerPhone)
-      .fetch({ fields: 'line_type_intelligence' });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('LOOKUP_TIMEOUT')), LOOKUP_TIMEOUT_MS)
-    );
-
-    let lookup;
+    // ── Abstract API verification ─────────────────────────────────────────────
+    let result;
     try {
-      lookup = await Promise.race([lookupPromise, timeoutPromise]);
-    } catch (raceErr) {
-      if (raceErr.message === 'LOOKUP_TIMEOUT') {
-        console.warn(`[Twilio] Lookup timed out for lead ${leadId}. Marking PENDING_MANUAL_REVIEW.`);
-        lead.status = 'PENDING_MANUAL_REVIEW';
-        lead.price = 0;
-        lead.buyNowPrice = 0;
-        lead.startingBidPrice = 0;
-        lead.currentBidPrice = 0;
-        lead.auctionStatus = 'expired';
-        lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
-        await lead.save();
-        return;
+      result = await abstractLookup(lead.customerPhone);
+    } catch (lookupErr) {
+      if (lookupErr.message === 'LOOKUP_TIMEOUT') {
+        console.warn(`[PhoneVerify] Abstract API timed out for lead ${leadId} — marking PENDING_MANUAL_REVIEW`);
+      } else {
+        console.error(`[PhoneVerify] Abstract API error for lead ${leadId}:`, lookupErr.message);
       }
-      throw raceErr; // re-throw non-timeout errors to outer catch
+      lead.status       = 'PENDING_MANUAL_REVIEW';
+      lead.price        = 0;
+      lead.buyNowPrice  = 0;
+      lead.startingBidPrice = 0;
+      lead.currentBidPrice  = 0;
+      lead.auctionStatus    = 'expired';
+      lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
+      await lead.save();
+      return;
     }
 
-    const lineType = lookup.lineTypeIntelligence?.type;
-    console.log(`[Twilio] Lookup result for ${lead.customerPhone}: type=${lineType}`);
+    const { valid, lineType, isVoip } = result;
+    console.log(`[PhoneVerify] Abstract result: valid=${valid} type=${lineType} isVoip=${isVoip}`);
 
-    if (lineType === 'mobile' || lineType === 'landline') {
+    const passed = valid === true && !isVoip;
+
+    if (passed) {
       lead.isVerified = true;
-      lead.status = 'READY_FOR_DISTRIBUTION';
+      lead.status     = 'READY_FOR_DISTRIBUTION';
 
-      // Calculate score and grade once lineType is known
-      const scoring = calculateLeadScore(lead, lead.miles, lineType, lead.moveDate);
-      lead.score = scoring.score;
-      lead.grade = scoring.grade;
+      // Map Abstract type to scoring-compatible string
+      const normalizedType = lineType?.toLowerCase().includes('mobile') ? 'mobile'
+                           : lineType?.toLowerCase().includes('land')   ? 'landline'
+                           : 'mobile'; // default to mobile scoring if ambiguous
+
+      const scoring     = calculateLeadScore(lead, lead.miles, normalizedType, lead.moveDate);
+      lead.score        = scoring.score;
+      lead.grade        = scoring.grade;
       lead.scoreFactors = scoring.scoreFactors;
 
-      // Recalculate price with the final verified grade
-      const finalPricing = calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
-      lead.buyNowPrice = finalPricing.buyNowPrice;
-      lead.price = finalPricing.buyNowPrice;
+      const finalPricing = await calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
+      lead.buyNowPrice      = finalPricing.buyNowPrice;
+      lead.price            = finalPricing.buyNowPrice;
       lead.startingBidPrice = finalPricing.startingBidPrice;
-      lead.currentBidPrice = finalPricing.startingBidPrice;
+      lead.currentBidPrice  = finalPricing.startingBidPrice;
 
-      // EXCLUSIVE ROUTING: If lead came from a specific company's widget
+      // Exclusive routing: widget-sourced lead goes straight to that company
       if (lead.sourceCompany) {
         lead.status = 'Purchased';
         await new PurchasedLead({
-          company: lead.sourceCompany,
-          lead: lead._id,
-          pricePaid: 0 // Widget leads are free/pre-paid in this model
-        }).save();
-        console.log(`[Twilio] Exclusive assignment to ${lead.sourceCompany}`);
+          company:   lead.sourceCompany,
+          lead:      lead._id,
+          pricePaid: 0
+        }).save().catch(err => { if (err.code !== 11000) throw err; });
+        console.log(`[PhoneVerify] Exclusive assignment to ${lead.sourceCompany}`);
       }
 
-      console.log(`[Twilio] Verification PASSED (Type: ${lineType}) - Grade: ${scoring.grade}`);
+      console.log(`[PhoneVerify] PASS — Type: ${lineType} Grade: ${scoring.grade} Price: $${finalPricing.buyNowPrice}`);
 
-      // TRIGGER WARM TRANSFER CALL FOR GRADE 'A' LEADS
+      // Warm transfer for Grade A leads (still uses Twilio calling)
       if (scoring.grade === 'A' && twilioClient) {
-        const serverUrl = process.env.SERVER_URL || 'https://moveleads.cloud';
-        console.log(`[Twilio Warm Transfer] Triggering call to ${lead.customerPhone} for lead ${lead._id}`);
-
+        const serverUrl = process.env.SERVER_URL || 'https://api.moveleads.cloud';
+        console.log(`[PhoneVerify] Triggering warm-transfer call for lead ${lead._id}`);
         twilioClient.calls.create({
-          to: lead.customerPhone,
+          to:   lead.customerPhone,
           from: fromPhone,
-          url: `${serverUrl}/api/voice/customer-answered?leadId=${lead._id}`
-        }).catch(err => {
-          console.error('[Twilio Warm Transfer Error] Failed to trigger call:', err.message);
-        });
+          url:  `${serverUrl}/api/voice/customer-answered?leadId=${lead._id}`
+        }).catch(err => console.error('[WarmTransfer] Call failed:', err.message));
       }
 
       socketService.emitNewLead(lead);
     } else {
-      // voip, toll_free, invalid, unknown → reject
-      lead.isVerified = false;
-      lead.status = 'REJECTED_FAKE';
-      // FIX: A rejected lead should have no price.
-      lead.price = 0;
-      lead.buyNowPrice = 0;
+      // VOIP or invalid number — reject
+      lead.isVerified       = false;
+      lead.status           = 'REJECTED_FAKE';
+      lead.price            = 0;
+      lead.buyNowPrice      = 0;
       lead.startingBidPrice = 0;
-      lead.currentBidPrice = 0;
-      lead.auctionStatus = 'expired';
-      console.log(`[Twilio] Verification FAILED (Type: ${lineType || 'unknown'})`);
+      lead.currentBidPrice  = 0;
+      lead.auctionStatus    = 'expired';
+      console.log(`[PhoneVerify] FAIL — valid=${valid} type=${lineType} isVoip=${isVoip}`);
     }
 
     lead.statusHistory.push({ status: lead.status, timestamp: new Date() });
     await lead.save();
 
   } catch (err) {
-    console.error(`[Twilio] Critical error verifying lead ${leadId}:`, err.message);
+    console.error(`[PhoneVerify] Unexpected error for lead ${leadId}:`, err.message);
     try {
-      const lead = await Lead.findById(leadId);
       if (lead) {
-        lead.status = 'PENDING_MANUAL_REVIEW';
-        lead.price = 0;
-        lead.buyNowPrice = 0;
+        lead.status           = 'PENDING_MANUAL_REVIEW';
+        lead.price            = 0;
+        lead.buyNowPrice      = 0;
         lead.startingBidPrice = 0;
-        lead.currentBidPrice = 0;
-        lead.auctionStatus = 'expired';
+        lead.currentBidPrice  = 0;
+        lead.auctionStatus    = 'expired';
         lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
         await lead.save();
       }
     } catch (saveErr) {
-      console.error('[Twilio] Failed to save error status:', saveErr.message);
+      console.error('[PhoneVerify] Failed to save error status:', saveErr.message);
     }
   }
 }
