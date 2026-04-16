@@ -63,6 +63,7 @@ async function calculateAuctionPrice(lead) {
   try {
     const distance = miles > 100 ? 'Long Distance' : 'Local';
     const rules = await PricingRule.find({ isActive: true });
+    console.log(`[Pricing] miles=${miles} distance=${distance} homeSize=${homeSize} grade=${grade} | active rules: ${rules.length} | ${rules.map(r => `${r.category}:${r.matchValue}:${r.multiplier}`).join(', ')}`);
     for (const rule of rules) {
       if (rule.category === 'HOME_SIZE'  && homeSize === rule.matchValue) dbMult *= rule.multiplier;
       if (rule.category === 'DISTANCE'   && distance === rule.matchValue) dbMult *= rule.multiplier;
@@ -93,9 +94,11 @@ async function calculateAuctionPrice(lead) {
   price = Math.max(10, Math.min(price, 150));
   if (miles < 100) price = Math.min(price, 25);
 
+  const startingBidPrice = Math.max(9, Math.round(price * 0.6 / 5) * 5);
+  console.log(`[Pricing] Result → base=${base} dbMult=${dbMult} → buyNow=$${price} startingBid=$${startingBidPrice}`);
   return {
     buyNowPrice:      price,
-    startingBidPrice: Math.max(9, Math.round(price * 0.6 / 5) * 5),
+    startingBidPrice,
     factors: { base, dbMult, urgencyMult, seasonMult, eomMult, gradeMult },
   };
 }
