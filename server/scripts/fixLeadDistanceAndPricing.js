@@ -58,7 +58,7 @@ async function run() {
     if (computedMiles === 0) { skipped++; continue; }
 
     const correctDistance = computedMiles > 100 ? 'Long Distance' : 'Local';
-    const pricing = calculateAuctionPrice({
+    const pricing = await calculateAuctionPrice({
       homeSize: lead.homeSize,
       miles: computedMiles,
       moveDate: lead.moveDate,

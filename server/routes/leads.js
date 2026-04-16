@@ -90,7 +90,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
     );
 
     // 5. Auction pricing based on score/grade
-    const auctionPricing = calculateAuctionPrice({
+    const auctionPricing = await calculateAuctionPrice({
       homeSize: data.homeSize,
       miles,
       moveDate: data.moveDate,

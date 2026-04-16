@@ -38,7 +38,7 @@ async function run() {
   const auctionEndsAt = new Date(Date.now() + 30 * 60 * 1000);
 
   for (const lead of leads) {
-    const pricing = calculateAuctionPrice({
+    const pricing = await calculateAuctionPrice({
       homeSize: lead.homeSize,
       miles:    lead.miles || 0,
       moveDate: lead.moveDate,

@@ -52,7 +52,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
           lead.scoreFactors = scoring.scoreFactors;
 
           // Recalculate price with the final verified grade
-          const finalPricing = calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
+          const finalPricing = await calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
           lead.buyNowPrice = finalPricing.buyNowPrice;
           lead.price = finalPricing.buyNowPrice;
           lead.startingBidPrice = finalPricing.startingBidPrice;
@@ -114,7 +114,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       lead.grade = mockScoring.grade;
       lead.scoreFactors = mockScoring.scoreFactors;
 
-      const mockPricing = calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: mockScoring.grade });
+      const mockPricing = await calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: mockScoring.grade });
       lead.buyNowPrice = mockPricing.buyNowPrice;
       lead.price = mockPricing.buyNowPrice;
       lead.startingBidPrice = mockPricing.startingBidPrice;
