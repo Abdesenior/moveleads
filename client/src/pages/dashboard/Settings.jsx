@@ -189,6 +189,9 @@ export default function SettingsPage() {
 
   /* Danger */
   const [dangerDeleting, setDangerDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   /* Sync local state from DB whenever user object changes (page load / refresh) */
   const didInit = useRef(false);
@@ -274,8 +277,12 @@ export default function SettingsPage() {
   };
 
   const deleteAccount = async () => {
-    if (!window.confirm('Permanently delete your MoveLeads account and wipe all corresponding data?')) return;
+    if (deleteConfirmText !== 'DELETE') {
+      setDeleteError('Please type DELETE to confirm');
+      return;
+    }
     setDangerDeleting(true);
+    setDeleteError('');
     try {
       const res = await fetch(`${API_URL}/users/me`, {
         method: 'DELETE',
@@ -286,8 +293,7 @@ export default function SettingsPage() {
       logout();
       navigate('/');
     } catch (err) {
-      alert(err.message || 'Failed to delete account.');
-    } finally {
+      setDeleteError(err.message || 'Failed to delete account.');
       setDangerDeleting(false);
     }
   };
@@ -633,8 +639,7 @@ export default function SettingsPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={deleteAccount}
-                  disabled={dangerDeleting}
+                  onClick={() => { setShowDeleteModal(true); setDeleteConfirmText(''); setDeleteError(''); }}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                     padding: '11px 24px', borderRadius: 12, border: 'none',
@@ -642,16 +647,70 @@ export default function SettingsPage() {
                     color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Poppins',sans-serif",
                     boxShadow: '0 4px 12px rgba(239,68,68,0.25)',
-                    opacity: dangerDeleting ? 0.6 : 1,
                   }}
                 >
-                  <Trash2 size={14} /> {dangerDeleting ? 'Deleting…' : 'Delete My Account'}
+                  <Trash2 size={14} /> Delete My Account
                 </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Delete Account Modal ── */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Trash2 size={20} color="#ef4444" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 17, color: '#0f172a' }}>Delete Account</div>
+                <div style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>This action cannot be undone</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 20 }}>
+              This action is permanent and cannot be undone. All your data, purchased leads, and billing history will be deleted.
+            </p>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#b91c1c' }}>
+              Type <strong>DELETE</strong> to confirm:
+            </div>
+            <input
+              autoFocus
+              value={deleteConfirmText}
+              onChange={e => { setDeleteConfirmText(e.target.value); setDeleteError(''); }}
+              placeholder="Type DELETE to confirm"
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8,
+                border: `1.5px solid ${deleteError ? '#ef4444' : '#e2e8f0'}`, fontSize: 14, marginBottom: 8, outline: 'none',
+              }}
+              onKeyDown={e => { if (e.key === 'Enter' && deleteConfirmText === 'DELETE') deleteAccount(); }}
+            />
+            {deleteError && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 12 }}>{deleteError}</div>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 12 }}>
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); setDeleteError(''); }}
+                style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#64748b' }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={deleteConfirmText !== 'DELETE' || dangerDeleting}
+                onClick={deleteAccount}
+                style={{
+                  padding: '10px 20px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700,
+                  cursor: deleteConfirmText === 'DELETE' && !dangerDeleting ? 'pointer' : 'not-allowed',
+                  background: deleteConfirmText === 'DELETE' ? '#ef4444' : '#fca5a5',
+                  color: '#fff', transition: 'background 0.2s',
+                }}
+              >
+                {dangerDeleting ? 'Deleting…' : 'Delete My Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 700px) {

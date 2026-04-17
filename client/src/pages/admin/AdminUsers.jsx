@@ -296,23 +296,23 @@ export default function AdminUsers() {
               </div>
             </div>
             <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 20 }}>
-              You are about to permanently delete <strong>{selectedUserName}</strong>. Their purchased leads and transaction history will remain in the database but will be unlinked from this account.
+              You are about to permanently delete <strong>{selectedUserName}</strong>. This will permanently delete this mover account and all associated data.
             </p>
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#b91c1c' }}>
-              Type <strong>{selectedUserName}</strong> to confirm deletion:
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#b91c1c' }}>
+              Type <strong>DELETE</strong> to confirm:
             </div>
             <input
               autoFocus
               value={deleteConfirmInput}
               onChange={e => setDeleteConfirmInput(e.target.value)}
-              placeholder={selectedUserName}
+              placeholder="Type DELETE to confirm"
               style={{
                 width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8,
-                border: '1.5px solid #e2e8f0', fontSize: 14, marginBottom: 20, outline: 'none',
-                borderColor: deleteConfirmInput && deleteConfirmInput !== selectedUserName ? '#ef4444' : '#e2e8f0'
+                border: `1.5px solid ${deleteConfirmInput && deleteConfirmInput !== 'DELETE' ? '#ef4444' : '#e2e8f0'}`,
+                fontSize: 14, marginBottom: 20, outline: 'none',
               }}
               onKeyDown={e => {
-                if (e.key === 'Enter' && deleteConfirmInput === selectedUserName) {
+                if (e.key === 'Enter' && deleteConfirmInput === 'DELETE') {
                   setShowConfirm(false);
                   handleDelete(selectedUserId);
                 }
@@ -326,14 +326,15 @@ export default function AdminUsers() {
                 Cancel
               </button>
               <button
-                disabled={deleteConfirmInput !== selectedUserName}
+                disabled={deleteConfirmInput !== 'DELETE'}
                 onClick={() => { setShowConfirm(false); handleDelete(selectedUserId); }}
                 style={{
-                  padding: '10px 20px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 600, cursor: deleteConfirmInput === selectedUserName ? 'pointer' : 'not-allowed',
-                  background: deleteConfirmInput === selectedUserName ? '#ef4444' : '#fca5a5', color: '#fff', transition: 'background 0.2s'
+                  padding: '10px 20px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 600,
+                  cursor: deleteConfirmInput === 'DELETE' ? 'pointer' : 'not-allowed',
+                  background: deleteConfirmInput === 'DELETE' ? '#ef4444' : '#fca5a5', color: '#fff', transition: 'background 0.2s'
                 }}
               >
-                Delete Account
+                Delete User Account
               </button>
             </div>
           </div>
