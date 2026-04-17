@@ -32,7 +32,12 @@ router.put('/:id', auth, async (req, res) => {
     let user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    user = await User.findByIdAndUpdate(req.params.id, { $set: req.body }, { returnDocument: 'after' }).select('-password');
+    // Strip fields that must never be changed via this endpoint regardless of caller.
+    // Role and balance changes go through dedicated admin-only routes.
+    const { role, balance, isSuspended, password, isEmailVerified,
+            emailVerificationToken, resetPasswordToken, ...safeBody } = req.body;
+
+    user = await User.findByIdAndUpdate(req.params.id, { $set: safeBody }, { returnDocument: 'after' }).select('-password');
     res.json(user);
   } catch (err) {
     console.error(err.message);

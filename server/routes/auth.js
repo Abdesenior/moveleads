@@ -66,31 +66,24 @@ router.post('/register', registerLimiter, async (req, res) => {
       return res.status(400).json({ msg: 'User already exists' });
     }
 
-    const isAdmin = email.includes('admin');
     const verificationToken = generateVerificationToken();
 
     const user = new User({
       companyName, dotNumber, mcNumber, phone, email,
       password: await bcrypt.hash(password, 10),
-      role: isAdmin ? 'admin' : 'customer',
+      role: 'mover',   // public registration always creates movers — never admin
       balance: 0,
-      // Admins are auto-verified; customers must confirm their email
-      isEmailVerified: isAdmin,
-      emailVerificationToken: isAdmin ? undefined : verificationToken,
-      emailVerificationExpires: isAdmin ? undefined : new Date(Date.now() + 24 * 60 * 60 * 1000),
+      isEmailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
     await user.save();
 
-    if (isAdmin) {
-      // Admins are auto-verified — issue JWT immediately
-      issueJWT(user, res);
-    } else {
-      // Customers must verify email first — send link, return 201 (no token)
-      sendVerificationEmail({ toEmail: email, companyName, token: verificationToken })
-        .catch(err => console.error('[VerifyEmail] Failed to send:', err.message));
-      return res.status(201).json({ msg: 'Account created. Please check your email to verify before logging in.' });
-    }
+    // All public registrations require email verification before login
+    sendVerificationEmail({ toEmail: email, companyName, token: verificationToken })
+      .catch(err => console.error('[VerifyEmail] Failed to send:', err.message));
+    return res.status(201).json({ msg: 'Account created. Please check your email to verify before logging in.' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
