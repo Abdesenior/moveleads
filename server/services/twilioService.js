@@ -25,7 +25,7 @@ const LOOKUP_TIMEOUT_MS = 5000;
 async function abstractLookup(phone) {
   // Abstract expects E.164 without the leading +
   const digits = phone.replace(/\D/g, '');
-  const url = `https://phonevalidation.abstractapi.com/v1/?api_key=${ABSTRACT_API_KEY}&phone=${digits}`;
+  const url = `https://phoneintelligence.abstractapi.com/v1/?api_key=${ABSTRACT_API_KEY}&phone=${digits}`;
 
   return new Promise((resolve, reject) => {
     const req = https.get(url, (res) => {
@@ -35,11 +35,18 @@ async function abstractLookup(phone) {
         try {
           const data = JSON.parse(body);
           console.log(`[Abstract] Raw response for ${phone}:`, JSON.stringify(data));
+
+          // Phone Intelligence response structure:
+          //   data.phone_validation.is_valid  → boolean
+          //   data.phone_carrier.line_type    → 'mobile', 'landline', 'voip', etc.
+          //   data.phone_risk.risk_level      → 'low', 'medium', 'high'
+          const lineType  = data.phone_carrier?.line_type || 'unknown';
+          const riskLevel = data.phone_risk?.risk_level   || 'low';
           resolve({
-            valid:     data.valid === true,
-            lineType:  data.type || 'unknown',           // 'Mobile', 'Landline', 'VOIP', etc.
-            isVoip:    data.type?.toLowerCase() === 'voip',
-            riskLevel: null,                             // Abstract free tier has no risk score
+            valid:     data.phone_validation?.is_valid === true,
+            lineType,
+            isVoip:    lineType.toLowerCase() === 'voip',
+            riskLevel,
           });
         } catch (e) {
           reject(new Error(`Abstract API parse error: ${e.message}`));
@@ -60,8 +67,8 @@ async function abstractLookup(phone) {
  * Twilio is kept only for SMS and warm-transfer calls.
  *
  * Pass/fail rules:
- *   PASS: valid === true AND NOT voip
- *   FAIL: valid === false OR isVoip === true
+ *   PASS: phone_validation.is_valid === true AND line_type !== 'voip' AND risk_level !== 'high'
+ *   FAIL: is_valid === false OR isVoip === true OR risk_level === 'high'
  */
 async function verifyLeadPhone(leadId, { testMode = false } = {}) {
   let lead;
@@ -119,10 +126,10 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       return;
     }
 
-    const { valid, lineType, isVoip } = result;
-    console.log(`[PhoneVerify] Abstract result: valid=${valid} type=${lineType} isVoip=${isVoip}`);
+    const { valid, lineType, isVoip, riskLevel } = result;
+    console.log(`[PhoneVerify] Abstract result: valid=${valid} type=${lineType} isVoip=${isVoip} risk=${riskLevel}`);
 
-    const passed = valid === true && !isVoip;
+    const passed = valid === true && !isVoip && riskLevel !== 'high';
 
     if (passed) {
       lead.isVerified = true;
@@ -178,7 +185,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       lead.startingBidPrice = 0;
       lead.currentBidPrice  = 0;
       lead.auctionStatus    = 'expired';
-      console.log(`[PhoneVerify] FAIL — valid=${valid} type=${lineType} isVoip=${isVoip}`);
+      console.log(`[PhoneVerify] FAIL — valid=${valid} type=${lineType} isVoip=${isVoip} risk=${riskLevel}`);
     }
 
     lead.statusHistory.push({ status: lead.status, timestamp: new Date() });
