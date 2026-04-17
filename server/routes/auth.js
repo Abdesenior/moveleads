@@ -71,7 +71,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     const user = new User({
       companyName, dotNumber, mcNumber, phone, email,
       password: await bcrypt.hash(password, 10),
-      role: 'mover',   // public registration always creates movers — never admin
+      role: 'customer',   // public registration always creates customers — never admin
       balance: 0,
       isEmailVerified: false,
       emailVerificationToken: verificationToken,
@@ -85,8 +85,8 @@ router.post('/register', registerLimiter, async (req, res) => {
       .catch(err => console.error('[VerifyEmail] Failed to send:', err.message));
     return res.status(201).json({ msg: 'Account created. Please check your email to verify before logging in.' });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('[Register]', err.message);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
