@@ -1,6 +1,7 @@
 const twilio = require('twilio');
 const https  = require('https');
 const Lead = require('../models/Lead');
+const User = require('../models/User');
 const Communication = require('../models/Communication');
 const PurchasedLead = require('../models/PurchasedLead');
 const socketService = require('./socketService');
@@ -26,7 +27,7 @@ const LOOKUP_TIMEOUT_MS = 5000;
  */
 async function broadcastLeadSMS(lead) {
   try {
-    const movers = await Lead.db.model('User').find({
+    const movers = await User.find({
       role:     'customer',
       smsNotif: true,
       phone:    { $exists: true, $nin: ['', null] },
