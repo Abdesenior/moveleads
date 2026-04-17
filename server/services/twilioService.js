@@ -7,6 +7,7 @@ const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
 const { sendAdminLeadNotification } = require('./emailService');
+const { sendMoverLeadSMS } = require('./smsService');
 
 // Twilio — used for SMS and warm-transfer calls only (not phone lookup)
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -18,6 +19,29 @@ const twilioClient = accountSid && authToken ? twilio(accountSid, authToken) : n
 const ABSTRACT_API_KEY = process.env.ABSTRACT_API_KEY;
 
 const LOOKUP_TIMEOUT_MS = 5000;
+
+/**
+ * Broadcast SMS to all movers who have smsNotif enabled and a phone number on file.
+ * Non-blocking — errors are logged but never propagate.
+ */
+async function broadcastLeadSMS(lead) {
+  try {
+    const movers = await Lead.db.model('User').find({
+      role:     'customer',
+      smsNotif: true,
+      phone:    { $exists: true, $nin: ['', null] },
+    }).select('phone companyName').lean();
+
+    if (!movers.length) return;
+    console.log(`[SMS] Broadcasting to ${movers.length} mover(s) with SMS enabled`);
+
+    for (const mover of movers) {
+      sendMoverLeadSMS(mover.phone, lead).catch(() => {});
+    }
+  } catch (err) {
+    console.error('[SMS] broadcastLeadSMS error:', err.message);
+  }
+}
 
 /**
  * Look up a phone number via Abstract Phone Validation API.
@@ -103,6 +127,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       await lead.save();
       console.log(`[PhoneVerify] Mock PASS — Grade: ${mockScoring.grade}`);
       sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] mock path error:', err.message));
+      broadcastLeadSMS(lead);
       socketService.emitNewLead(lead);
       return;
     }
@@ -178,6 +203,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       }
 
       sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] real path error:', err.message));
+      broadcastLeadSMS(lead);
 
       socketService.emitNewLead(lead);
     } else {

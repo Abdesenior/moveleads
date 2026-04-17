@@ -145,6 +145,7 @@ export default function SettingsPage() {
 
   /* Profile */
   const [googleReviewLink, setGoogleReviewLink] = useState(user?.googleReviewLink || '');
+  const [profilePhone, setProfilePhone]         = useState(user?.phone || '');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg]       = useState('');
 
@@ -155,7 +156,7 @@ export default function SettingsPage() {
       const res = await fetch(`${API_URL}/users/${user._id}`, {
         method: 'PUT',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ googleReviewLink: googleReviewLink.trim() }),
+        body: JSON.stringify({ googleReviewLink: googleReviewLink.trim(), phone: profilePhone.trim() }),
       });
       if (!res.ok) throw new Error('Failed to save');
       await refreshUser();
@@ -200,6 +201,7 @@ export default function SettingsPage() {
     setEmailNotif(user.emailNotif ?? true);
     setSmsNotif(user.smsNotif ?? false);
     setReceiveLiveTransfers(user.receiveLiveTransfers ?? false);
+    setProfilePhone(user.phone || '');
     didInit.current = true;
   }, [user?._id]); // eslint-disable-line
 
@@ -568,6 +570,21 @@ export default function SettingsPage() {
               </div>
 
               <div style={{ padding: '24px' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  SMS Alert Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={profilePhone}
+                  onChange={e => setProfilePhone(e.target.value)}
+                  placeholder="e.g. (555) 867-5309"
+                  className="input-field"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, marginBottom: 24 }}>
+                  Enter your mobile number to receive SMS alerts when new leads match your area. Enable <strong>SMS Notifications</strong> in the Notifications tab to activate.
+                </p>
+
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
                   Google Review Link
                 </label>
