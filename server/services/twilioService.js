@@ -6,6 +6,7 @@ const PurchasedLead = require('../models/PurchasedLead');
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
+const { sendAdminLeadNotification } = require('./emailService');
 
 // Twilio — used for SMS and warm-transfer calls only (not phone lookup)
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -101,6 +102,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
       await lead.save();
       console.log(`[PhoneVerify] Mock PASS — Grade: ${mockScoring.grade}`);
+      sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] mock path error:', err.message));
       socketService.emitNewLead(lead);
       return;
     }
@@ -174,6 +176,8 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
           url:  `${serverUrl}/api/voice/customer-answered?leadId=${lead._id}`
         }).catch(err => console.error('[WarmTransfer] Call failed:', err.message));
       }
+
+      sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] real path error:', err.message));
 
       socketService.emitNewLead(lead);
     } else {

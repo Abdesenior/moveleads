@@ -544,4 +544,74 @@ async function sendAuctionWonEmail({ toEmail, companyName, finalPrice, lead, das
   if (error) throw new Error(`Resend error: ${error.message}`);
 }
 
-module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail, sendAuctionWonEmail };
+/**
+ * Notify admin when a new verified lead is ready on the marketplace.
+ * Only called after phone verification PASS — failed/rejected leads never trigger this.
+ */
+async function sendAdminLeadNotification(lead) {
+  const resend = getResend();
+  const moveDateStr = lead.moveDate
+    ? new Date(lead.moveDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Not specified';
+
+  const { error } = await resend.emails.send({
+    from: 'MoveLeads <noreply@moveleads.cloud>',
+    to: 'admin@moveleads.cloud',
+    subject: `🔥 New Lead: ${lead.homeSize} | ${lead.originCity} → ${lead.destinationCity} | $${lead.price}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1a2744; padding: 24px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: #FF6B35; margin: 0; font-size: 24px;">🔥 New Lead Submitted</h1>
+          <p style="color: rgba(255,255,255,0.7); margin: 8px 0 0;">MoveLeads.cloud — Live Marketplace</p>
+        </div>
+        <div style="background: #fff; padding: 24px; border: 1px solid #e5e7eb; border-radius: 0 0 12px 12px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px; width: 40%;">Customer Name</td>
+              <td style="padding: 10px 0; font-weight: 600; color: #111827;">${lead.customerName}</td>
+            </tr>
+            <tr style="background: #f9fafb;">
+              <td style="padding: 10px 8px; color: #6b7280; font-size: 14px;">Phone</td>
+              <td style="padding: 10px 8px; font-weight: 600; color: #111827;">${lead.customerPhone}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Email</td>
+              <td style="padding: 10px 0; font-weight: 600; color: #111827;">${lead.customerEmail || '—'}</td>
+            </tr>
+            <tr style="background: #f9fafb;">
+              <td style="padding: 10px 8px; color: #6b7280; font-size: 14px;">Route</td>
+              <td style="padding: 10px 8px; font-weight: 600; color: #111827;">${lead.originCity} (${lead.originZip}) → ${lead.destinationCity} (${lead.destinationZip})</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Home Size</td>
+              <td style="padding: 10px 0; font-weight: 600; color: #111827;">${lead.homeSize}</td>
+            </tr>
+            <tr style="background: #f9fafb;">
+              <td style="padding: 10px 8px; color: #6b7280; font-size: 14px;">Move Date</td>
+              <td style="padding: 10px 8px; font-weight: 600; color: #111827;">${moveDateStr}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Distance</td>
+              <td style="padding: 10px 0; font-weight: 600; color: #111827;">${lead.distance} (${lead.miles} miles)</td>
+            </tr>
+            <tr style="background: #f9fafb;">
+              <td style="padding: 10px 8px; color: #6b7280; font-size: 14px;">Grade</td>
+              <td style="padding: 10px 8px; font-weight: 700; color: #FF6B35; font-size: 18px;">${lead.grade}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Buy Now Price</td>
+              <td style="padding: 10px 0; font-weight: 700; color: #111827; font-size: 20px;">$${lead.price}</td>
+            </tr>
+          </table>
+          <div style="margin-top: 24px; text-align: center;">
+            <a href="https://moveleads.cloud/admin" style="background: #FF6B35; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View in Admin Panel →</a>
+          </div>
+        </div>
+      </div>
+    `
+  });
+
+  if (error) console.error('[AdminNotify] Failed to send admin lead notification:', error.message);
+}
+
+module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail, sendAuctionWonEmail, sendAdminLeadNotification };
