@@ -26,6 +26,7 @@ const LOOKUP_TIMEOUT_MS = 5000;
  * Non-blocking — errors are logged but never propagate.
  */
 async function broadcastLeadSMS(lead) {
+  console.log('[SMS] Attempting to notify movers for lead:', lead._id);
   try {
     const movers = await User.find({
       role:     'customer',
@@ -33,8 +34,9 @@ async function broadcastLeadSMS(lead) {
       phone:    { $exists: true, $nin: ['', null] },
     }).select('phone companyName').lean();
 
+    console.log(`[SMS] Found ${movers.length} mover(s) with smsNotif=true and a phone number`);
     if (!movers.length) return;
-    console.log(`[SMS] Broadcasting to ${movers.length} mover(s) with SMS enabled`);
+    console.log(`[SMS] Broadcasting to: ${movers.map(m => m.companyName || m.phone).join(', ')}`);
 
     for (const mover of movers) {
       sendMoverLeadSMS(mover.phone, lead).catch(() => {});
