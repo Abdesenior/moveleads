@@ -29,12 +29,13 @@ async function broadcastLeadSMS(lead) {
   console.log('[SMS] Attempting to notify movers for lead:', lead._id);
   try {
     const movers = await User.find({
-      role:     'customer',
+      role:     'mover',
       smsNotif: true,
       phone:    { $exists: true, $nin: ['', null] },
-    }).select('phone companyName').lean();
+    }).select('phone companyName smsNotif').lean();
 
     console.log(`[SMS] Found ${movers.length} mover(s) with smsNotif=true and a phone number`);
+    movers.forEach(m => console.log(`[SMS Debug] Mover: ${m.companyName} smsNotif: ${m.smsNotif} phone: ${m.phone}`));
     if (!movers.length) return;
     console.log(`[SMS] Broadcasting to: ${movers.map(m => m.companyName || m.phone).join(', ')}`);
 
