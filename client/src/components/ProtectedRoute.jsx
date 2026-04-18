@@ -9,10 +9,10 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
 
   if (!token) return <Navigate to="/login" replace />;
 
-  // Block unverified customer accounts from reaching the dashboard
-  if (user && user.isEmailVerified === false && user.role === 'customer') {
-    return <Navigate to="/login" replace />;
-  }
+  // Let unverified users enter, they will see the VerificationBanner inside the DashboardLayout
+  // if (user && user.isEmailVerified === false && user.role === 'customer') {
+  //   return <Navigate to="/login" replace />;
+  // }
 
   if (requireAdmin && user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
 

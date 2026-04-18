@@ -224,10 +224,10 @@ export default function SettingsPage() {
     setCoverageSaving(true);
     setCoverageMsg('');
     try {
-      const res = await fetch(`${API_URL}/users/${user._id}`, {
+      const res = await fetch(`${API_URL}/routing/coverage/mine`, {
         method: 'PUT',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceAreas: nextZips }),
+        body: JSON.stringify({ zipCodes: nextZips }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.msg || 'Failed to save');
