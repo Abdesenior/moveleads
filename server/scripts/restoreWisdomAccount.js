@@ -42,9 +42,9 @@ async function run() {
 
   // ── Step 2: Check whether account already exists (idempotent) ─────────────
   const existing = await db.collection('users')
-    .findOne({ email: 'contact@wisdomiptv.com' });
+    .findOne({ email: 'contact@wisdomiptv.net' });
   if (existing) {
-    console.log(`\nAccount contact@wisdomiptv.com already exists (_id=${existing._id}). Skipping creation.`);
+    console.log(`\nAccount contact@wisdomiptv.net already exists (_id=${existing._id}). Skipping creation.`);
     await relink(db, oldOid, existing._id);
     return;
   }
@@ -54,13 +54,13 @@ async function run() {
   const now = new Date();
   const insertResult = await db.collection('users').insertOne({
     companyName:        'Wisdom',
-    email:              'contact@wisdomiptv.com',
+    email:              'contact@wisdomiptv.net',
     password:           passwordHash,
     role:               'mover',
     balance:            0,
     isVerified:         true,
     isSuspended:        false,
-    serviceArea:        [],
+    serviceAreas:       [],
     notificationPrefs:  { email: true, sms: false },
     createdAt:          now,
     updatedAt:          now,
@@ -94,7 +94,7 @@ async function relink(db, oldOid, newOid) {
   console.log(`Relinked communications:   ${commResult.modifiedCount} updated`);
 
   console.log('\nRestore complete.');
-  console.log('  Email:    contact@wisdomiptv.com');
+  console.log('  Email:    contact@wisdomiptv.net');
   console.log('  Password: Wisdom2026!');
   console.log('  Role:     mover');
   await mongoose.disconnect();
