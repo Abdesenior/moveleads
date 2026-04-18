@@ -212,7 +212,7 @@ export default function Contact() {
 
               {[
                 { icon: <Mail size={20} />, c: '#3b82f6', bg: '#eff6ff', label: 'Email us', value: 'support@moveleads.cloud', sub: 'Responses within 2–4 hours' },
-                { icon: <Phone size={20} />, c: '#22c55e', bg: '#f0fdf4', label: 'Call us', value: '+1 (888) 555-0192', sub: 'Mon–Fri, 9am–6pm EST' },
+                { icon: <Phone size={20} />, c: '#22c55e', bg: '#f0fdf4', label: 'Call us', value: '+1 (307) 204-4792', sub: 'Mon–Fri, 9am–6pm EST' },
                 { icon: <Clock size={20} />, c: ORANGE, bg: '#fff7ed', label: 'Business hours', value: 'Mon – Fri, 9am – 6pm EST', sub: 'Chat support 24/7 in-app' },
                 { icon: <MapPin size={20} />, c: '#8b5cf6', bg: '#f5f3ff', label: 'Headquarters', value: 'Austin, TX', sub: 'Serving all 50 states' },
               ].map((item, i) => (
