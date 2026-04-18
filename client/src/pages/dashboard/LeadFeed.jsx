@@ -8,6 +8,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './LeadFeed.css';
+import { playNewLeadSound } from '../../utils/sound';
 
 const FEED_STATUSES = new Set(['Available', 'READY_FOR_DISTRIBUTION']);
 const isDistributable = (l) =>
@@ -291,7 +292,7 @@ export default function LeadFeed() {
   const [search, setSearch]             = useState('');
   const [distFilter, setDistFilter]     = useState('all');
   const [outbidToast, setOutbidToast]   = useState(''); // "you were outbid" banner
-  const audioRef  = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
+  const audioRef  = useRef(null); // kept for compatibility; sound now via playNewLeadSound()
   const pollRef   = useRef(null);
   const myBidsRef = useRef(new Set()); // lead IDs the current user has bid on
 
@@ -324,7 +325,7 @@ export default function LeadFeed() {
     socket.on('connect_error', () => { setSocketStatus('reconnecting'); startPolling(); });
     socket.on('NEW_LEAD_AVAILABLE', (lead) => {
       if (!isDistributable(lead)) return;
-      audioRef.current.play().catch(() => {});
+      playNewLeadSound();
       setLeads(prev => [lead, ...prev.filter(l => (l._id||l.id) !== (lead._id||lead.id))]);
     });
     socket.on('bid_update', (d) => {

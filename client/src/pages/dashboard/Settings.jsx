@@ -119,6 +119,7 @@ export default function SettingsPage() {
   /* Notifications */
   const [emailNotif, setEmailNotif] = useState(user?.emailNotif ?? true);
   const [smsNotif, setSmsNotif]     = useState(user?.smsNotif ?? false);
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('soundEnabled') !== 'false');
   const [saving, setSaving]         = useState(false);
 
   /* Coverage Areas (ZIPs) */
@@ -372,6 +373,15 @@ export default function SettingsPage() {
                   label: 'SMS Notifications',
                   desc: 'Get a text message for high-value priority leads.',
                   value: smsNotif, onChange: setSmsNotif,
+                },
+                {
+                  label: 'Sound Notifications',
+                  desc: 'Play a chime when new leads arrive in your Live Leads feed.',
+                  value: soundEnabled,
+                  onChange: (val) => {
+                    setSoundEnabled(val);
+                    localStorage.setItem('soundEnabled', val ? 'true' : 'false');
+                  },
                 },
               ].map(row => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #f1f5f9', gap: 20 }}>
