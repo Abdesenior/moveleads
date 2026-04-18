@@ -203,7 +203,7 @@ export default function Privacy() {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 100, background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', marginBottom: 22 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 1.8 }}>Legal</span>
           </div>
-          <h1 style={{ fontFamily: F, fontSize: 48, fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.03em', color: '#fff', marginBottom: 16 }}>
+          <h1 className="pv-hero-h1" style={{ fontFamily: F, fontSize: 48, fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.03em', color: '#fff', marginBottom: 16 }}>
             Privacy Policy
           </h1>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7 }}>
@@ -217,10 +217,10 @@ export default function Privacy() {
 
       {/* CONTENT */}
       <section style={{ padding: '80px 0 100px', background: '#fff' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 28px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 52, alignItems: 'start' }}>
+        <div className="pv-content-grid" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 28px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 52, alignItems: 'start' }}>
 
           {/* Sticky TOC */}
-          <div style={{ position: 'sticky', top: 86 }}>
+          <div className="pv-toc" style={{ position: 'sticky', top: 86 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 14 }}>Contents</p>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {SECTIONS.map(s => (
@@ -280,6 +280,18 @@ export default function Privacy() {
           </div>
         </div>
       </section>
+      <style>{`
+        @media (max-width: 767px) {
+          .pv-hero-h1 { font-size: 32px !important; }
+          .pv-content-grid { grid-template-columns: 1fr !important; gap: 0 !important; }
+          .pv-toc { position: static !important; margin-bottom: 32px; border-bottom: 1px solid rgba(15,23,42,0.08); padding-bottom: 24px; }
+          .pv-toc nav { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        }
+        @media (min-width: 768px) and (max-width: 900px) {
+          .pv-hero-h1 { font-size: 38px !important; }
+          .pv-content-grid { grid-template-columns: 180px 1fr !important; gap: 32px !important; }
+        }
+      `}</style>
     </MarketingLayout>
   );
 }

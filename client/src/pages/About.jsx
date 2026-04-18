@@ -64,7 +64,7 @@ export default function About() {
             </div>
           </Reveal>
           <Reveal delay={0.07}>
-            <h1 style={{ fontFamily: F, fontSize: 54, fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.03em', color: '#fff', marginBottom: 20 }}>
+            <h1 className="ab-hero-h1" style={{ fontFamily: F, fontSize: 54, fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.03em', color: '#fff', marginBottom: 20 }}>
               We built the platform<br />we wished existed.
             </h1>
           </Reveal>
@@ -79,7 +79,7 @@ export default function About() {
       {/* MISSION SPLIT */}
       <section style={{ padding: '100px 0', background: '#fff' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
+          <div className="ab-mission-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
             <Reveal>
               <div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 100, background: '#f1f5f9', marginBottom: 20 }}>
@@ -139,7 +139,7 @@ export default function About() {
               <p style={{ fontSize: 16, color: '#64748b', maxWidth: 440, margin: '0 auto' }}>The principles that drive every decision we make.</p>
             </div>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+          <div className="ab-vals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
             {VALUES.map((v, i) => (
               <Reveal key={i} delay={i * 0.07}>
                 <div style={{
@@ -172,7 +172,7 @@ export default function About() {
               <p style={{ fontSize: 16, color: '#64748b', maxWidth: 420, margin: '0 auto' }}>People obsessed with helping moving companies grow.</p>
             </div>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
+          <div className="ab-team-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
             {TEAM.map((m, i) => (
               <Reveal key={i} delay={i * 0.07}>
                 <div style={{
@@ -197,7 +197,7 @@ export default function About() {
       <section style={{ padding: '80px 0', background: '#f8fafc', borderTop: `1px solid ${BL}` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <Reveal>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, textAlign: 'center' }}>
+            <div className="ab-press-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, textAlign: 'center' }}>
               {[
                 { v: '2022', l: 'Year founded', icon: '🚀' },
                 { v: '50 states', l: 'Lead coverage', icon: '🗺️' },
@@ -234,6 +234,21 @@ export default function About() {
           </Reveal>
         </div>
       </section>
+      <style>{`
+        @media (max-width: 640px) {
+          .ab-hero-h1 { font-size: 32px !important; }
+          .ab-mission-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+          .ab-vals-grid { grid-template-columns: 1fr !important; }
+          .ab-team-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
+          .ab-press-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
+        }
+        @media (min-width: 641px) and (max-width: 900px) {
+          .ab-hero-h1 { font-size: 40px !important; }
+          .ab-mission-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
+          .ab-team-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .ab-press-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
     </MarketingLayout>
   );
 }

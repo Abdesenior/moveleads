@@ -69,7 +69,7 @@ export default function Contact() {
             </div>
           </Reveal>
           <Reveal delay={0.07}>
-            <h1 style={{ fontFamily: F, fontSize: 52, fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.03em', color: '#fff', marginBottom: 18 }}>
+            <h1 className="ct-hero-h1" style={{ fontFamily: F, fontSize: 52, fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.03em', color: '#fff', marginBottom: 18 }}>
               We'd love to hear from you.
             </h1>
           </Reveal>
@@ -84,7 +84,7 @@ export default function Contact() {
       {/* CONTACT GRID */}
       <section style={{ padding: '100px 0', background: '#fff' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: 60, alignItems: 'start' }}>
+          <div className="ct-main-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: 60, alignItems: 'start' }}>
 
             {/* FORM */}
             <Reveal>
@@ -109,7 +109,7 @@ export default function Contact() {
                     <h2 style={{ fontFamily: F, fontSize: 24, fontWeight: 800, color: NAVY, marginBottom: 6, letterSpacing: '-0.02em' }}>Send us a message</h2>
                     <p style={{ fontSize: 14, color: '#64748b', marginBottom: 28 }}>We respond to every message within one business day.</p>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div className="ct-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: NAVY, marginBottom: 6, fontFamily: F }}>Your name *</label>
                         <input
@@ -134,7 +134,7 @@ export default function Contact() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div className="ct-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: NAVY, marginBottom: 6, fontFamily: F }}>Company name</label>
                         <input
@@ -266,7 +266,7 @@ export default function Contact() {
               <p style={{ fontSize: 15, color: '#64748b' }}>Quick answers before you reach out.</p>
             </div>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+          <div className="ct-faq-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
             {[
               { q: 'How fast will you respond?', a: 'Email responses within 2–4 hours on business days. In-app chat is available 24/7.' },
               { q: 'Is there a demo I can book?', a: 'Yes — email us with "demo" in the subject line and we\'ll schedule a 20-minute walkthrough.' },
@@ -284,7 +284,18 @@ export default function Contact() {
         </div>
       </section>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 767px) {
+          .ct-hero-h1 { font-size: 34px !important; }
+          .ct-main-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+          .ct-form-row { grid-template-columns: 1fr !important; }
+          .ct-faq-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (min-width: 768px) and (max-width: 900px) {
+          .ct-hero-h1 { font-size: 42px !important; }
+        }
+      `}</style>
     </MarketingLayout>
   );
 }
