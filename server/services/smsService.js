@@ -38,24 +38,31 @@ async function sendMoverLeadSMS(toPhone, lead) {
     `Grade: ${lead.grade} | Price: $${lead.buyNowPrice}\n` +
     `Claim now: moveleads.cloud/login`;
 
-  console.log(`[SMS] Sending to ${e164}...`);
+  // Vonage SMS API wants the number WITHOUT the leading '+' (MSISDN format)
+  const msisdn = e164.replace('+', '');
+  const fromId = process.env.VONAGE_FROM_NUMBER || 'MoveLeads';
+
+  console.log(`[SMS] Sending to ${msisdn} from "${fromId}"...`);
 
   try {
     const vonage = getVonage();
     const resp = await vonage.sms.send({
-      to:   e164,
-      from: process.env.VONAGE_FROM_NUMBER || 'MoveLeads',
+      to:   msisdn,
+      from: fromId,
       text: message,
     });
 
+    console.log('[SMS] Full Vonage response:', JSON.stringify(resp));
+
     const status = resp?.messages?.[0];
     if (status?.status === '0') {
-      console.log(`[SMS] Sent to ${e164} — message-id: ${status['message-id']}`);
+      console.log(`[SMS] Sent to ${msisdn} — message-id: ${status['message-id']}`);
     } else {
-      console.warn(`[SMS] Vonage returned non-zero status for ${e164}:`, status?.['error-text'] || JSON.stringify(status));
+      console.error(`[SMS] Vonage rejected message to ${msisdn} — status: ${status?.status} error: ${status?.['error-text']} (full: ${JSON.stringify(status)})`);
     }
   } catch (err) {
-    console.error(`[SMS] Failed to send to ${e164}:`, err.message);
+    console.error(`[SMS] Exception sending to ${msisdn}:`, err.message);
+    console.error('[SMS] Full exception:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
   }
 }
 
