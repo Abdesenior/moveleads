@@ -40,8 +40,8 @@ router.put('/:id', auth, async (req, res) => {
     user = await User.findByIdAndUpdate(req.params.id, { $set: safeBody }, { returnDocument: 'after' }).select('-password');
     res.json(user);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('[PUT /users/:id]', err.message);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 

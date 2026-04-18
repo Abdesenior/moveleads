@@ -229,11 +229,13 @@ export default function SettingsPage() {
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ serviceAreas: nextZips }),
       });
-      if (!res.ok) throw new Error('Failed to save');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.msg || 'Failed to save');
+      await refreshUser();
       setCoverageMsg('Coverage areas saved.');
       setTimeout(() => setCoverageMsg(''), 3000);
     } catch (err) {
-      setCoverageMsg(err.message || 'Failed to save.');
+      setCoverageMsg('Failed to save: ' + (err.message || 'unknown error'));
     } finally {
       setCoverageSaving(false);
     }
