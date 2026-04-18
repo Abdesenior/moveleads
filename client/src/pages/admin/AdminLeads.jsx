@@ -459,8 +459,8 @@ export default function AdminLeads() {
                   <span style={{
                     padding: '5px 14px', borderRadius: 100, fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
                     textTransform: 'uppercase',
-                    background: lead.status === 'Available' ? '#eff6ff' : lead.status === 'Purchased' ? '#f0fdf4' : '#fef2f2',
-                    color: lead.status === 'Available' ? '#2563eb' : lead.status === 'Purchased' ? '#16a34a' : '#dc2626'
+                    background: lead.status === 'Available' ? '#eff6ff' : lead.status === 'Purchased' ? '#f0fdf4' : lead.status === 'READY_FOR_DISTRIBUTION' ? '#f0fdf4' : lead.status === 'REJECTED_FAKE' || lead.status === 'PENDING_MANUAL_REVIEW' ? '#fef2f2' : '#f1f5f9',
+                    color: lead.status === 'Available' ? '#2563eb' : lead.status === 'Purchased' ? '#16a34a' : lead.status === 'READY_FOR_DISTRIBUTION' ? '#15803d' : lead.status === 'REJECTED_FAKE' || lead.status === 'PENDING_MANUAL_REVIEW' ? '#dc2626' : '#64748b'
                   }}>{lead.status}</span>
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: 24 }}>
