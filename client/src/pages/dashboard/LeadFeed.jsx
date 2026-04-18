@@ -324,6 +324,7 @@ export default function LeadFeed() {
     socket.on('disconnect',    () => { setSocketStatus('reconnecting'); startPolling(); });
     socket.on('connect_error', () => { setSocketStatus('reconnecting'); startPolling(); });
     socket.on('NEW_LEAD_AVAILABLE', (lead) => {
+      console.log('[Sound] NEW_LEAD_AVAILABLE received, distributable:', isDistributable(lead));
       if (!isDistributable(lead)) return;
       playNewLeadSound();
       setLeads(prev => [lead, ...prev.filter(l => (l._id||l.id) !== (lead._id||lead.id))]);
