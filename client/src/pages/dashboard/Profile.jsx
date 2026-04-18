@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { Building2, Mail, Hash, Phone, Shield, MapPin, Lock, Key, Save } from 'lucide-react';
+import { Building2, Mail, Hash, Phone, Shield, Lock, Key, Save, MapPin } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -23,9 +23,6 @@ export default function Profile() {
   const [cpError, setCpError] = useState('');
   const [cpSuccess, setCpSuccess] = useState('');
 
-  const [serviceAreas, setServiceAreas] = useState(user?.serviceAreas || []);
-  const [serviceSaving, setServiceSaving] = useState(false);
-  const [serviceMsg, setServiceMsg] = useState('');
 
   const handleInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
 
@@ -88,29 +85,6 @@ export default function Profile() {
     }
   };
 
-  const updateServiceAreas = async (nextAreas) => {
-    setServiceSaving(true);
-    setServiceMsg('');
-    try {
-      const unique = Array.from(new Set(nextAreas.map((s) => String(s).trim()).filter(Boolean)));
-      const res = await fetch(`${API_URL}/users/${user._id}`, {
-        method: 'PUT',
-        headers: {
-          'x-auth-token': token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ serviceAreas: unique })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.msg || 'Failed to update service areas');
-      setServiceAreas(unique);
-      setServiceMsg('Service areas updated.');
-    } catch (err) {
-      setServiceMsg(err.message || 'Failed to update service areas');
-    } finally {
-      setServiceSaving(false);
-    }
-  };
 
   const initials = user?.companyName
     ? user.companyName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -186,63 +160,26 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="settings-section">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid #f1f5f9' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <MapPin size={18} color="#22c55e" />
-          </div>
-          <h3 style={{ margin: 0, padding: 0, border: 'none', fontSize: 18 }}>Service Areas</h3>
+      {/* Coverage area redirect notice */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 14,
+        padding: '18px 20px', borderRadius: 14,
+        background: '#f0fdf4', border: '1px solid #bbf7d0',
+        marginBottom: 24,
+      }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+          <MapPin size={18} color="#16a34a" />
         </div>
-        <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '16px' }}>Define the states where you actively operate to get matched with relevant leads.</p>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-          {serviceAreas.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>No service areas yet. Add a state to start receiving matching leads.</p>
-          ) : (
-            serviceAreas.map((st) => (
-              <span
-                key={st}
-                style={{
-                  display: 'flex', gap: 8, alignItems: 'center',
-                  padding: '8px 16px', fontSize: 13,
-                  background: '#f0fdf4', color: '#16a34a', borderRadius: 100,
-                  fontWeight: 600
-                }}
-              >
-                {st}
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => updateServiceAreas(serviceAreas.filter((x) => x !== st))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') updateServiceAreas(serviceAreas.filter((x) => x !== st));
-                  }}
-                  style={{ cursor: 'pointer', fontSize: '16px', lineHeight: 1, opacity: 0.7 }}
-                  aria-label={`Remove ${st}`}
-                >
-                  ×
-                </span>
-              </span>
-            ))
-          )}
-          <button
-            className="secondary-btn"
-            style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '100px' }}
-            onClick={() => {
-              const next = window.prompt('Enter a state name (e.g. New York):');
-              if (!next) return;
-              updateServiceAreas([...serviceAreas, next]);
-            }}
-            disabled={serviceSaving}
-            type="button"
-          >
-            {serviceSaving ? 'Updating...' : '+ Add State'}
-          </button>
-        </div>
-        {serviceMsg && (
-          <div style={{ marginTop: 8, padding: 14, borderRadius: 12, background: '#dcfce7', color: '#16a34a', fontWeight: 700, fontSize: 14 }}>
-            ✓ {serviceMsg}
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#15803d', marginBottom: 4 }}>
+            Set your coverage ZIP codes in Settings
           </div>
-        )}
+          <p style={{ margin: 0, fontSize: 13, color: '#166534', lineHeight: 1.55 }}>
+            Leads are routed based on your <strong>Coverage ZIP codes</strong>, not this profile page.
+            Go to <strong>Settings → Coverage Areas</strong> to add or update the ZIP codes where you want to receive leads.
+            You will only be matched to leads whose origin or destination ZIP code is in your list.
+          </p>
+        </div>
       </div>
 
       <div className="settings-section">
