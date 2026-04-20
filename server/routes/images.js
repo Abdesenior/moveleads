@@ -19,6 +19,13 @@ const FALLBACKS = {
 
 const imageCache = new Map();
 
+router.get('/clear-cache', (_req, res) => {
+  const count = imageCache.size;
+  imageCache.clear();
+  console.log(`[Image] Cache cleared (${count} entries removed)`);
+  res.json({ success: true, message: `Cache cleared — ${count} image(s) removed` });
+});
+
 router.get('/generate/:type', async (req, res) => {
   const type = req.params.type;
   const prompt = PROMPTS[type];

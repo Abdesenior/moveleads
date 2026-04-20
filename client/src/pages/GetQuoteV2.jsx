@@ -4,12 +4,10 @@ import { DemoWidget } from './WidgetPage';
 import './GetQuoteV2.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
-
+const _V = Date.now();
 const IMG = {
-  hero:   `${API_URL}/api/images/generate/hero`,
-  movers: `${API_URL}/api/images/generate/movers`,
-  couple: `${API_URL}/api/images/generate/couple`,
-  truck:  `${API_URL}/api/images/generate/truck`,
+  hero:   `${API_URL}/api/images/generate/hero?v=${_V}`,
+  movers: `${API_URL}/api/images/generate/movers?v=${_V}`,
 };
 
 const ACTIVITIES = [
