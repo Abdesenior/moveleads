@@ -78,6 +78,7 @@ app.use('/api/public', require('./routes/public'));
 app.use('/api/voice', require('./routes/voice'));
 app.use('/api/bids', require('./routes/bids'));
 app.use('/api/complaints', require('./routes/complaints'));
+app.use('/api/images', require('./routes/images'));
 
 require('./jobs/settleAuctions');
 require('./jobs/requestFeedback');
