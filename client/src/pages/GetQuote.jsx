@@ -222,287 +222,13 @@ function SummaryCard({ data }) {
   );
 }
 
-/* ── Main Quote Form ─────────────────────────────────────────── */
-function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [serverError, setServerError] = useState('');
-
-  // Collected data object
-  const [data, setData] = useState({
-    homeSize: '', originZip: prefillOriginZip, destZip: prefillDestZip,
-    originCity: '', destCity: '', originCoords: null, destCoords: null, miles: 0,
-    moveDate: '', access: '', parking: '', specialInstructions: '',
-    name: '', email: '', phone: '',
-  });
-
-  useCanonical('/get-quote');
-  useEffect(() => { document.title = 'Get a Free Moving Quote — MoveLeads.cloud'; }, []);
-
-  // Zip resolution
-  const [zipError, setZipError] = useState('');
-  useEffect(() => {
-    const { originZip, destZip } = data;
-    if (originZip.length === 5 && destZip.length === 5) {
-      const oc = geocodeZip(originZip), dc = geocodeZip(destZip);
-      if (!oc) { setZipError(`Invalid origin zip "${originZip}"`); setData(p => ({ ...p, originCoords: null })); return; }
-      if (!dc) { setZipError(`Invalid destination zip "${destZip}"`); setData(p => ({ ...p, destCoords: null })); return; }
-      setZipError('');
-      const mi = haversine(oc.lat, oc.lon, dc.lat, dc.lon);
-      setData(p => ({ ...p, originCoords: oc, destCoords: dc, originCity: oc.city, destCity: dc.city, miles: mi }));
-    } else {
-      setData(p => ({ ...p, originCoords: null, destCoords: null, originCity: '', destCity: '', miles: 0 }));
-      setZipError('');
-    }
-  }, [data.originZip, data.destZip]); // eslint-disable-line
-
-  const set = (key, val) => setData(p => ({ ...p, [key]: val }));
-
-  const canNext = () => {
-    if (step === 1) return !!data.homeSize;
-    if (step === 2) return !!(data.originCoords && data.destCoords);
-    if (step === 3) return !!data.moveDate;
-    if (step === 4) return !!(data.access && data.parking);
-    if (step === 5) return !!(data.name && data.email && data.phone && data.phone.replace(/\D/g, '').length === 10);
-    return false;
-  };
-
-  const handleNext = () => {
-    if (step === 2 && !data.originCoords) { setZipError('Please enter valid zip codes for both locations.'); return; }
-    if (step < 5) { setStep(s => s + 1); return; }
-    submitLead();
-  };
-
-  const submitLead = async () => {
-    setSubmitting(true); setServerError('');
-    const _base = (import.meta.env.VITE_API_URL || 'http://localhost:5005').replace(/\/api$/, '');
-    const payload = {
-      customerName: data.name,
-      customerEmail: data.email,
-      customerPhone: data.phone.replace(/\D/g, ''),
-      originZip: data.originZip,
-      destinationZip: data.destZip,
-      originCity: data.originCity,
-      destinationCity: data.destCity,
-      homeSize: data.homeSize,
-      moveDate: new Date(data.moveDate).toISOString(),
-      distance: data.miles > 100 ? 'Long Distance' : 'Local',
-      miles: data.miles,
-      specialInstructions: `Access: ${data.access}. Parking: ${data.parking}. ${data.specialInstructions}`.trim()
-    };
-    try {
-      const res = await fetch(`${_base}/api/leads/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || 'Submission failed. Please try again.');
-      if (typeof window.gtag === 'function') {
-        window.gtag('event', 'conversion', { send_to: 'AW-18096682129', value: 1.0, currency: 'USD' });
-      }
-      navigate('/thank-you', { state: { homeSize: data.homeSize, originZip: data.originZip, destZip: data.destZip } });
-    } catch (err) { setServerError(err.message); }
-    finally { setSubmitting(false); }
-  };
-
-  const progress = ((step - 1) / (STEPS.length - 1)) * 100;
-  const isLong = data.miles > 100;
-
-  const inputSt = (err) => ({
-    className: `gq-input${err ? ' gq-input--error' : ''}`
-  });
-
-  return (
-    <div>
-      {/* Card */}
-      <div className="gq-card">
-        <div className="gq-card-header">
-          <div className="gq-card-header-icon"><Home size={17} /></div>
-          <div>
-            <div className="gq-card-header-title">Free Moving Quote</div>
-            <div className="gq-card-header-sub">Licensed carriers only · No brokers · No spam</div>
-          </div>
-        </div>
-        <div className="gq-progress-bar"><div className="gq-progress-fill" style={{ width: `${progress}%` }} /></div>
-        <StepPills current={step} />
-
-        {/* ══ STEP 1: Home Size ══ */}
-        {step === 1 && (
-          <div className="gq-step-body">
-            <div className="gq-step-title">What size is your home?</div>
-            <div className="gq-step-sub">Select the option that best describes where you're moving from.</div>
-            <div className="gq-size-grid">
-              {HOME_SIZES.map(s => (
-                <button key={s.label} type="button"
-                  className={`gq-size-btn${data.homeSize === s.label ? ' gq-size-btn--selected' : ''}`}
-                  onClick={() => set('homeSize', s.label)}>
-                  <Truck size={20} />
-                  <span>{s.label}</span>
-                  <span className="gq-vol">{s.vol}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ══ STEP 2: Locations ══ */}
-        {step === 2 && (
-          <div className="gq-step-body">
-            <div className="gq-step-title">Where are you moving?</div>
-            <div className="gq-step-sub">Enter your 5-digit zip codes — the route will appear on the map.</div>
-
-            <div className="gq-zip-grid">
-              <div className="gq-field">
-                <label className="gq-label" style={{ color: '#2563eb' }}>📦 Moving From (ZIP)</label>
-                <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
-                  placeholder="e.g. 75201" value={data.originZip}
-                  onChange={e => set('originZip', e.target.value.replace(/\D/g, '').slice(0, 5))}
-                  style={{ borderColor: data.originCoords ? '#2563eb' : undefined }} />
-                {data.originCoords && <div className="gq-zip-found" style={{ color: '#2563eb' }}>✓ {data.originCoords.city}, {data.originCoords.state}</div>}
-              </div>
-              <div className="gq-field">
-                <label className="gq-label" style={{ color: '#16a34a' }}>🏠 Moving To (ZIP)</label>
-                <input className="gq-input" type="text" inputMode="numeric" maxLength={5}
-                  placeholder="e.g. 90210" value={data.destZip}
-                  onChange={e => set('destZip', e.target.value.replace(/\D/g, '').slice(0, 5))}
-                  style={{ borderColor: data.destCoords ? '#16a34a' : undefined }} />
-                {data.destCoords && <div className="gq-zip-found" style={{ color: '#16a34a' }}>✓ {data.destCoords.city}, {data.destCoords.state}</div>}
-              </div>
-            </div>
-
-            {zipError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '9px 13px', fontSize: 12, color: '#dc2626', marginBottom: 12 }}>{zipError}</div>}
-
-            {data.originCoords && data.destCoords && (
-              <>
-                <MapArc origin={data.originCoords} destination={data.destCoords} />
-                <div className={`gq-dist-pill gq-dist-pill--${isLong ? 'long' : 'local'}`}>
-                  <span>{isLong ? '🚛 Long Distance Move' : '📍 Local Move'}</span>
-                  <span style={{ fontWeight: 500, fontSize: 12 }}>{data.originCoords.city} → {data.destCoords.city} · {data.miles.toLocaleString()} mi</span>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ══ STEP 3: Move Date ══ */}
-        {step === 3 && (
-          <div className="gq-step-body">
-            <div className="gq-step-title">When are you moving?</div>
-            <div className="gq-step-sub">Weekdays and off-peak months give you the best rates.</div>
-            <SmartCalendar value={data.moveDate} onChange={v => set('moveDate', v)} />
-            {data.moveDate && (() => {
-              const d = demandLevel(new Date(data.moveDate + 'T00:00:00'));
-              const msgs = { low: ['🟢', 'Great choice! This is a low-demand date.'], med: ['🟡', 'Moderate demand — slight price increase.'], high: ['🔴', 'High demand date — peak pricing applies.'] };
-              const [icon, text] = msgs[d];
-              return (
-                <div style={{ marginTop: 12, padding: '9px 14px', borderRadius: 10, background: DEMAND_COLORS[d].bg, color: DEMAND_COLORS[d].fg, fontSize: 13, fontWeight: 600 }}>
-                  {icon} {text}
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
-        {/* ══ STEP 4: Move Details ══ */}
-        {step === 4 && (
-          <div className="gq-step-body">
-            <div className="gq-step-title">A few more details</div>
-            <div className="gq-step-sub">These help movers provide an accurate quote.</div>
-
-            <div className="gq-field">
-              <label className="gq-label"><Building size={12} style={{ display: 'inline', marginRight: 5 }} />Building Access at Pickup</label>
-              <div className="gq-toggle-row">
-                {ACCESS_OPTIONS.map(o => (
-                  <button key={o} type="button" className={`gq-toggle-btn${data.access === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('access', o)}>{o}</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="gq-field">
-              <label className="gq-label"><ParkingCircle size={12} style={{ display: 'inline', marginRight: 5 }} />Truck Parking at Pickup</label>
-              <div className="gq-toggle-row">
-                {PARKING_OPTIONS.map(o => (
-                  <button key={o} type="button" className={`gq-toggle-btn${data.parking === o ? ' gq-toggle-btn--active' : ''}`} onClick={() => set('parking', o)}>{o}</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="gq-field">
-              <label className="gq-label">Special instructions (optional)</label>
-              <textarea className="gq-input" rows={3}
-                placeholder="e.g. Grand piano, fragile artwork, storage unit pickup…"
-                style={{ resize: 'vertical' }}
-                value={data.specialInstructions}
-                onChange={e => set('specialInstructions', e.target.value)} />
-            </div>
-          </div>
-        )}
-
-        {/* ══ STEP 5: Contact Info ══ */}
-        {step === 5 && (
-          <div className="gq-step-body">
-            <div className="gq-step-title">Who should movers contact?</div>
-            <div className="gq-step-sub">Your info is shared only with the licensed mover matched to your route.</div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="gq-field">
-                <label className="gq-label"><User size={11} style={{ display: 'inline', marginRight: 4 }} />First Name</label>
-                <input {...inputSt(!data.name)} type="text" placeholder="Jane" value={data.name} onChange={e => set('name', e.target.value)} autoComplete="given-name" />
-              </div>
-              <div className="gq-field">
-                <label className="gq-label"><Phone size={11} style={{ display: 'inline', marginRight: 4 }} />Phone Number</label>
-                <input {...inputSt(data.phone && data.phone.replace(/\D/g, '').length !== 10)} type="tel" placeholder="(555) 867-5309" value={data.phone} onChange={e => set('phone', e.target.value)} autoComplete="tel" />
-                {data.phone && data.phone.replace(/\D/g, '').length !== 10 && data.phone.length > 5 && <p className="gq-error">Must be a 10-digit US number</p>}
-              </div>
-            </div>
-
-            <div className="gq-field">
-              <label className="gq-label"><Mail size={11} style={{ display: 'inline', marginRight: 4 }} />Email Address</label>
-              <input {...inputSt(!data.email.includes('@'))} type="email" placeholder="jane@example.com" value={data.email} onChange={e => set('email', e.target.value)} autoComplete="email" />
-            </div>
-
-            {/* One-mover promise */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: 'var(--blue-l)', borderRadius: 12, border: '1px solid #bfdbfe', marginBottom: 4 }}>
-              <Shield size={16} style={{ color: 'var(--blue)', flexShrink: 0, marginTop: 2 }} />
-              <p style={{ fontSize: 12, color: 'var(--blue)', lineHeight: 1.55, margin: 0 }}>
-                <strong>No more than 1 licensed mover</strong> will contact you. We prioritise quality over quantity — no spam, no broker middlemen.
-              </p>
-            </div>
-
-            {serverError && <div className="gq-server-error">{serverError}</div>}
-
-            <p className="gq-privacy">
-              By submitting you agree to our <Link to="/privacy" target="_blank">Privacy Policy</Link>. We never sell your data.
-            </p>
-          </div>
-        )}
-
-        {/* ── Navigation ── */}
-        <div className="gq-nav-row">
-          {step > 1 && (
-            <button type="button" className="gq-btn-back" onClick={() => setStep(s => s - 1)}>
-              <ArrowLeft size={15} /> Back
-            </button>
-          )}
-          <button type="button" className="gq-btn-next" disabled={!canNext() || submitting} onClick={handleNext}>
-            {submitting
-              ? <span className="gq-spinner" />
-              : step < 5
-                ? <>Next Step <ArrowRight size={15} /></>
-                : <>Get My Free Quote <CheckCircle size={15} /></>
-            }
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── FAQ accordion ───────────────────────────────────────────── */
+/* ── FAQ Items ──────────────────────────────────────────────── */
 const FAQ_ITEMS = [
-  { q: 'Will I get calls from multiple companies?', a: 'No. We match you with 1–3 verified movers who service your exact route. We never sell your information to multiple companies. You\'ll only hear from movers who are genuinely available for your move.' },
-  { q: 'Is this service free?', a: 'Yes, completely free for you. You fill out one form, we match you with a verified licensed mover, and you pay nothing to use MoveLeads. The moving company pays a small fee only if you\'re matched to them.' },
-  { q: 'How fast will movers respond?', a: 'Most customers receive a call or text within 15 minutes during business hours. For off-hours submissions, expect a response by the next morning. We notify movers immediately when a new lead comes in.' },
-  { q: 'Are the movers licensed and insured?', a: 'Yes. Every mover on our network is FMCSA-licensed and carries full liability insurance. We verify USDOT numbers and licenses before any mover is admitted to our network. Unlicensed brokers are never admitted.' },
-  { q: 'What if I have a bad experience with a mover?', a: 'We have a built-in Resolution Center. If a mover is unresponsive, unprofessional, or fails to honor their quote, you can report the issue directly through your dashboard. We investigate every complaint and remove bad actors from our network.' },
+  { q: 'Is this free?', a: 'Yes, completely free for homeowners and renters. You fill out one form, we match you with a verified licensed mover, and you pay nothing to use MoveLeads. The moving company pays a small fee only if they are matched to you.' },
+  { q: 'Will I get spam calls?', a: 'No. We send your information to no more than 1–3 licensed movers who actively service your exact route. We never sell your data to lead brokers or third parties. You will only hear from movers who are genuinely available for your move.' },
+  { q: 'How fast will movers respond?', a: 'Within 15 minutes on average during business hours. For after-hours submissions, expect a response by the next morning. We notify movers the instant a new matching lead arrives.' },
+  { q: 'Are movers licensed?', a: 'Yes. Every mover on our network is FMCSA-licensed and carries full liability insurance. We verify USDOT numbers and licenses before any mover is admitted to our platform. Unlicensed brokers are never allowed.' },
+  { q: 'What if something goes wrong?', a: 'Use our Resolution Center (available in your dashboard after submitting) to report any issue — unresponsive movers, pricing disputes, or damage claims. We investigate every complaint and remove bad actors from our network.' },
 ];
 
 /* ── Sidebar ─────────────────────────────────────────────────── */
@@ -549,7 +275,6 @@ function Sidebar({ data }) {
 ═══════════════════════════════════════════════════════════════ */
 function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, heroSub }) {
   const [faqOpen, setFaqOpen] = useState(null);
-  // We hold data at page level so Sidebar can read it
   const [data, setData] = useState({
     homeSize: '', originZip: prefillOriginZip, destZip: prefillDestZip,
     originCity: '', destCity: '', originCoords: null, destCoords: null, miles: 0,
@@ -559,193 +284,224 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
+  // Intersection Observer — fade-in animations as sections enter view
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('gq2-visible'); }),
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+    const els = document.querySelectorAll('.gq2-animate');
+    els.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   const scrollToWidget = () => document.getElementById('quote-widget')?.scrollIntoView({ behavior: 'smooth' });
 
   return (
     <div className="gq-page">
-      {/* ─── STICKY NAV ─── */}
+
+      {/* ── STICKY NAV ── */}
       <nav className="gq-nav">
         <Link to="/" className="gq-logo">MoveLeads<span>.cloud</span></Link>
         <div className="gq-nav-links">
-          <a href="#quote-widget" onClick={e => { e.preventDefault(); scrollToWidget(); }} className="gq-nav-link">Get Quote</a>
-          <a href="#how-it-works" onClick={e => { e.preventDefault(); document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">How It Works</a>
-          <a href="#why-moveleads" onClick={e => { e.preventDefault(); document.getElementById('why-moveleads')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">Why Us</a>
-          <a href="#reviews" onClick={e => { e.preventDefault(); document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">Reviews</a>
-          <a href="#faq" onClick={e => { e.preventDefault(); document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }); }} className="gq-nav-link">FAQ</a>
+          {[
+            { label: 'Get Quote',    id: 'quote-widget' },
+            { label: 'How It Works', id: 'how-it-works' },
+            { label: 'Why Us',       id: 'why-moveleads' },
+            { label: 'Reviews',      id: 'reviews' },
+            { label: 'FAQ',          id: 'faq' },
+          ].map(({ label, id }) => (
+            <a key={id} href={`#${id}`}
+              onClick={e => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}
+              className="gq-nav-link">{label}</a>
+          ))}
         </div>
       </nav>
 
-      {/* ─── HERO ─── */}
-      <div className="gq-hero">
-        <div className="gq-hero-eyebrow">
-          <Shield size={12} /> Licensed Movers Only — No Brokers
-        </div>
-        <h1>{heroTitle || <>Get Matched With a Verified <em>Mover</em> in 60 Seconds</>}</h1>
-        <p className="gq-hero-sub">{heroSub || "One verified mover for your route. Transparent pricing. No spam, ever."}</p>
-        <div className="gq-hero-cta-wrap">
-          <button className="gq-hero-cta" onClick={scrollToWidget}>Get Matched Now <ArrowRight size={16} /></button>
-          <span className="gq-hero-cta-note">It's free. No obligation.</span>
-        </div>
-        <div className="gq-trust-row">
-          {[
-            { icon: <CheckCircle size={13} />, text: 'Matched to your exact route' },
-            { icon: <Shield size={13} />, text: '1 verified mover, not 8 strangers' },
-            { icon: <Star size={13} />, text: 'Transparent, upfront pricing' },
-          ].map((b, i) => <div key={i} className="gq-trust-chip">{b.icon} {b.text}</div>)}
-        </div>
+      {/* ════════════════════════════════════════════
+          1. HERO — full-width photo + widget
+      ════════════════════════════════════════════ */}
+      <section
+        className="gq2-hero"
+        style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=1800&q=80&auto=format&fit=crop)' }}
+      >
+        <div className="gq2-hero-overlay" />
+        <div className="gq2-hero-inner">
 
-        {/* Trust badge row — like MoveSafe's FMCSA/BBB row but better */}
-        <div className="gq-badge-row">
-          {[
-            { icon: <Shield size={20} />, title: 'Licensed movers only', sub: 'Direct carrier connections — no brokers' },
-            { icon: <Award size={20} />, title: 'Free — no obligation', sub: 'Get matched for free in under 60 seconds' },
-            { icon: <CheckCircle size={20} />, title: 'Your info is never sold', sub: 'Privacy first — we never sell your data' },
-          ].map((b, i) => (
-            <div key={i} className="gq-badge">
-              <div className="gq-badge-icon">{b.icon}</div>
-              <div className="gq-badge-title">{b.title}</div>
-              <div className="gq-badge-sub">{b.sub}</div>
+          {/* Left: headline + trust chips */}
+          <div className="gq2-hero-left">
+            <div className="gq2-hero-eyebrow">
+              <Shield size={13} /> Licensed &amp; verified movers only
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── WIDGET ─── */}
-      <div id="quote-widget" className="gq-body">
-        <QuoteFormStateful prefillOriginZip={prefillOriginZip} prefillDestZip={prefillDestZip} data={data} setData={setData} />
-        <Sidebar data={data} />
-      </div>
-
-      {/* ─── HOW IT WORKS ─── */}
-      <section id="how-it-works" className="gq-how-section">
-        <div className="gq-section-inner">
-          <div className="gq-section-center">
-            <div className="gq-section-eyebrow">HOW IT WORKS</div>
-            <h2 className="gq-section-h2">Three steps to your matched mover</h2>
-            <p className="gq-section-sub-center">No browsing. No callbacks. Three steps to your matched mover.</p>
-          </div>
-          <div className="gq-how-grid">
-            {[
-              { n: '1', title: 'Tell us about your move (60 seconds)', body: 'Enter your destination, home size, and move date. Takes just 60 seconds.' },
-              { n: '2', title: 'We match you with verified movers', body: 'Our algorithm finds the best licensed carrier for your specific route and area.' },
-              { n: '3', title: 'Movers contact you — you choose', body: 'Get a call within minutes with their best price. You choose the one that fits.' },
-            ].map((s, i) => (
-              <div key={i} className="gq-how-card">
-                <div className="gq-how-num-orange">{s.n}</div>
-                <div className="gq-how-title">{s.title}</div>
-                <div className="gq-how-body">{s.body}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── WHY MOVELEADS ─── */}
-      <section id="why-moveleads" className="gq-why-section">
-        <div className="gq-section-inner">
-          {/* Header — left-aligned like MoveSafe */}
-          <div className="gq-why-header">
-            <h2 className="gq-section-h2-lg">MoveLeads is not another quote site.<br /><em>It's a smarter way to move.</em></h2>
-            <p className="gq-why-header-sub">Other sites sell your info and disappear. We match you with one verified mover — and stay with you until the last box is delivered.</p>
-          </div>
-
-          {/* Top row — 2 cards */}
-          <div className="gq-feature-grid">
-            <div className="gq-feature-card">
-              <div className="gq-feature-tag">MATCHING</div>
-              <h3 className="gq-feature-title">One matched mover, not five strangers</h3>
-              <p className="gq-feature-body">Other sites sell your info to 5–8 companies who all call at once. We match you with one verified mover who actually services your route.</p>
-            </div>
-            <div className="gq-feature-card">
-              <div className="gq-feature-tag">TRUST</div>
-              <h3 className="gq-feature-title">Licensed carriers only — no brokers, ever</h3>
-              <p className="gq-feature-body">Every company in our network is an actual moving carrier — licensed by the FMCSA, fully insured, and phone-verified. No brokers outsourcing to random subcontractors.</p>
-            </div>
-          </div>
-
-          {/* Featured dark card — full width */}
-          <div className="gq-feature-dark">
-            <div className="gq-feature-dark-left">
-              <div className="gq-feature-dark-label">What sets us apart</div>
-              <h3 className="gq-feature-dark-title">We follow up on your move until it's done</h3>
-              <p className="gq-feature-dark-body">A dedicated follow-up agent is assigned to your move from booking to delivery — monitoring pickup, transit, and drop-off. If anything goes wrong, we step in.</p>
-            </div>
-            <div className="gq-feature-dark-right">
-              {['Pickup confirmed', 'In transit', 'Delivered safely'].map((s, i) => (
-                <span key={i} className="gq-followup-step"><CheckCircle size={15} /> {s}</span>
+            <h1 className="gq2-hero-h1">
+              {heroTitle || <>Get Free Moving<br />Quotes in 60 Seconds</>}
+            </h1>
+            <p className="gq2-hero-sub">
+              {heroSub || 'Compare quotes from licensed movers in your area. Free, no obligation, no spam.'}
+            </p>
+            <div className="gq2-hero-trust">
+              {['Licensed & verified movers', 'Free — no credit card', 'Get quotes in minutes'].map((t, i) => (
+                <div key={i} className="gq2-hero-trust-item">
+                  <span className="gq2-check-dot">✓</span> {t}
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Bottom row — 2 cards */}
-          <div className="gq-feature-grid">
-            <div className="gq-feature-card">
-              <div className="gq-feature-tag">PRICING</div>
-              <h3 className="gq-feature-title">Matched on price, not just proximity</h3>
-              <p className="gq-feature-body">Our algorithm compares real rates across all verified companies on your route and matches you with the best value for your move size and service level.</p>
-            </div>
-            <div className="gq-feature-card">
-              <div className="gq-feature-tag">SPEED</div>
-              <h3 className="gq-feature-title">15-minute response time</h3>
-              <p className="gq-feature-body">Your matched mover connects with you almost instantly. No waiting hours or days for someone to call back.</p>
-            </div>
+          {/* Right: the widget */}
+          <div id="quote-widget" className="gq2-hero-widget">
+            <QuoteFormStateful
+              prefillOriginZip={prefillOriginZip}
+              prefillDestZip={prefillDestZip}
+              data={data}
+              setData={setData}
+            />
           </div>
         </div>
       </section>
 
-      {/* ─── COMPARISON TABLE ─── */}
-      <section className="gq-compare-section">
-        <div className="gq-section-inner gq-section-narrow">
-          <div className="gq-section-center">
-            <div className="gq-section-eyebrow">THE DIFFERENCE</div>
-            <h2 className="gq-section-h2">One perfect match vs. a flood of strangers</h2>
+      {/* ════════════════════════════════════════════
+          2. SOCIAL PROOF BAR
+      ════════════════════════════════════════════ */}
+      <div className="gq2-proof-bar">
+        {[
+          { num: '10,000+', label: 'Moves completed' },
+          { num: '4.9★',    label: 'Average rating' },
+          { num: '15 min',  label: 'Avg response time' },
+        ].map((s, i) => (
+          <div key={i} className="gq2-proof-stat">
+            <span className="gq2-proof-num">{s.num}</span>
+            <span className="gq2-proof-label">{s.label}</span>
           </div>
-          <table className="gq-compare-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th className="gq-col-us">MoveLeads</th>
-                <th className="gq-col-them">Other sites</th>
-              </tr>
-            </thead>
-            <tbody>
+        ))}
+      </div>
+
+      {/* ════════════════════════════════════════════
+          3. HOW IT WORKS
+      ════════════════════════════════════════════ */}
+      <section id="how-it-works" className="gq2-sec gq2-sec--gray">
+        <div className="gq2-inner">
+          <div className="gq2-animate gq2-sec-hd">
+            <p className="gq2-eyebrow">HOW IT WORKS</p>
+            <h2 className="gq2-h2">Simple. Fast. Free.</h2>
+            <p className="gq2-sec-sub">No browsing. No spam. Three steps to quotes from real, licensed movers.</p>
+          </div>
+
+          <div className="gq2-how-layout">
+            <div className="gq2-how-steps">
               {[
-                ['Phone verified movers', 'Yes',            'Rarely'],
-                ['Your info sold',           'Never',          'Always'],
-                ['Fake numbers blocked',     'Yes',            'No'],
-                ['Response time',            'Under 15 min',   'Hours'],
-                ['Cost to get a quote',      'Free',           'Free'],
-              ].map(([feat, us, them], i) => (
-                <tr key={i}>
-                  <td>{feat}</td>
-                  <td className="gq-col-us">{us}</td>
-                  <td className="gq-col-them">{them}</td>
-                </tr>
+                { emoji: '📋', n: 1, title: 'Tell us about your move', body: '60 seconds to fill out. Home size, route, and move date — that\'s it.' },
+                { emoji: '🔍', n: 2, title: 'We match you with movers', body: 'Verified, licensed movers in your area get notified and review your request instantly.' },
+                { emoji: '📞', n: 3, title: 'Movers contact you', body: 'Get quotes and choose the best offer. No pressure, zero obligation.' },
+              ].map((s, i) => (
+                <div key={i} className="gq2-animate gq2-how-card" style={{ transitionDelay: `${i * 0.12}s` }}>
+                  <div className="gq2-how-emoji">{s.emoji}</div>
+                  <div>
+                    <p className="gq2-how-step-lbl">Step {s.n}</p>
+                    <h3 className="gq2-how-title">{s.title}</h3>
+                    <p className="gq2-how-body">{s.body}</p>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="gq2-animate gq2-how-photo-wrap">
+              <img
+                src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=700&q=75&auto=format&fit=crop"
+                alt="Couple packing boxes for their move"
+                className="gq2-how-photo"
+                loading="lazy"
+              />
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 44 }}>
+            <button className="gq2-btn-orange" onClick={scrollToWidget}>
+              Start My Free Quote <ArrowRight size={15} />
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* ─── TESTIMONIALS ─── */}
-      <section id="reviews" className="gq-test-section">
-        <div className="gq-section-inner">
-          <div className="gq-section-center">
-            <div className="gq-section-eyebrow">CUSTOMER REVIEWS</div>
-            <h2 className="gq-section-h2">Families matched, moves completed</h2>
+      {/* ════════════════════════════════════════════
+          4. WHY CHOOSE US
+      ════════════════════════════════════════════ */}
+      <section id="why-moveleads" className="gq2-sec gq2-sec--white">
+        <div className="gq2-inner">
+          <div className="gq2-why-layout">
+
+            <div className="gq2-animate gq2-why-photo-wrap">
+              <img
+                src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=700&q=75&auto=format&fit=crop"
+                alt="Professional movers carrying furniture"
+                className="gq2-why-photo"
+                loading="lazy"
+              />
+            </div>
+
+            <div className="gq2-animate gq2-why-content">
+              <p className="gq2-eyebrow">WHY CHOOSE US</p>
+              <h2 className="gq2-h2" style={{ textAlign: 'left', marginBottom: 32 }}>
+                Moving done right,<br />every time.
+              </h2>
+              {[
+                { title: 'All movers are phone-verified and licensed', body: 'Every carrier in our network is FMCSA-licensed and passes our phone verification process before they can receive leads.' },
+                { title: 'Your info is never sold to third parties', body: 'Unlike other quote sites, we never sell your data. Your information is shared only with matched movers on your route.' },
+                { title: 'No spam calls — only matched movers contact you', body: 'We send your info to 1–3 movers max who actively service your exact route. No cold calls from random brokers.' },
+                { title: 'Free resolution center if anything goes wrong', body: 'Report any issue through our Resolution Center. We investigate every complaint and remove bad actors.' },
+              ].map((b, i) => (
+                <div key={i} className="gq2-why-bullet">
+                  <div className="gq2-why-check">✓</div>
+                  <div>
+                    <p className="gq2-why-bullet-title">{b.title}</p>
+                    <p className="gq2-why-bullet-body">{b.body}</p>
+                  </div>
+                </div>
+              ))}
+              <button className="gq2-btn-orange" style={{ marginTop: 28 }} onClick={scrollToWidget}>
+                Get My Free Quotes <ArrowRight size={15} />
+              </button>
+            </div>
           </div>
-          <div className="gq-test-grid-3col">
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════
+          5. TESTIMONIALS
+      ════════════════════════════════════════════ */}
+      <section id="reviews" className="gq2-sec gq2-sec--gray">
+        <div className="gq2-inner">
+          <div className="gq2-animate gq2-sec-hd">
+            <p className="gq2-eyebrow">REAL REVIEWS</p>
+            <h2 className="gq2-h2">Thousands of happy movers</h2>
+          </div>
+          <div className="gq2-test-grid">
             {[
-              { stars: 5, q: '"Got 3 quotes within 10 minutes. Saved $400 on my move."', name: 'Sarah M.', loc: 'Dallas, TX' },
-              { stars: 5, q: '"So easy. One form and a mover called me in 15 minutes."', name: 'James T.', loc: 'Chicago, IL' },
-              { stars: 5, q: '"Finally a site that doesn\'t spam you with 10 calls."', name: 'Maria L.', loc: 'Miami, FL' },
+              {
+                name: 'Sarah M.', loc: 'Dallas, TX',
+                quote: '"Got 3 quotes in 10 minutes. Saved $400 on my move and the mover was incredibly professional!"',
+                img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&q=80&auto=format&fit=crop&crop=face',
+              },
+              {
+                name: 'James T.', loc: 'Chicago, IL',
+                quote: '"One form, one call, done. No spam from 10 different companies. This is exactly how it should work."',
+                img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&q=80&auto=format&fit=crop&crop=face',
+              },
+              {
+                name: 'Maria L.', loc: 'Miami, FL',
+                quote: '"Finally a moving site that doesn\'t sell your number to everyone. Got a great quote in minutes!"',
+                img: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=80&h=80&q=80&auto=format&fit=crop&crop=face',
+              },
             ].map((t, i) => (
-              <div key={i} className="gq-test-card">
-                <div className="gq-test-stars">{'★'.repeat(t.stars)}</div>
-                <p className="gq-test-quote">{t.q}</p>
-                <div className="gq-test-footer">
-                  <div className="gq-test-name">{t.name}</div>
-                  <div className="gq-test-loc">{t.loc}</div>
+              <div key={i} className="gq2-animate gq2-test-card" style={{ transitionDelay: `${i * 0.12}s` }}>
+                <div className="gq2-test-stars">★★★★★</div>
+                <p className="gq2-test-q">{t.quote}</p>
+                <div className="gq2-test-footer">
+                  <img src={t.img} alt={t.name} className="gq2-test-img" loading="lazy" />
+                  <div>
+                    <p className="gq2-test-name">{t.name}</p>
+                    <p className="gq2-test-loc">{t.loc}</p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -753,45 +509,67 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         </div>
       </section>
 
-      {/* ─── FAQ ─── */}
-      <section id="faq" className="gq-faq-section">
-        <div className="gq-section-inner gq-section-narrow">
-          <div className="gq-section-center">
-            <div className="gq-section-eyebrow">FAQ</div>
-            <h2 className="gq-section-h2">Common questions</h2>
+      {/* ════════════════════════════════════════════
+          6. MOVING TIPS
+      ════════════════════════════════════════════ */}
+      <section className="gq2-sec gq2-sec--white">
+        <div className="gq2-inner">
+          <div className="gq2-animate gq2-sec-hd">
+            <p className="gq2-eyebrow">EXPERT ADVICE</p>
+            <h2 className="gq2-h2">Moving tips from our experts</h2>
           </div>
-          <div className="gq-faq-list">
-            {FAQ_ITEMS.map((item, i) => (
-              <div key={i} className={`gq-faq-item${faqOpen === i ? ' gq-faq-item--open' : ''}`}>
-                <button className="gq-faq-q" onClick={() => setFaqOpen(faqOpen === i ? null : i)}>
-                  <span>{item.q}</span>
-                  <ChevronDown size={18} className={`gq-faq-icon${faqOpen === i ? ' gq-faq-icon--open' : ''}`} />
-                </button>
-                {faqOpen === i && <div className="gq-faq-a">{item.a}</div>}
+          <div className="gq2-tips-grid">
+            {[
+              { emoji: '📅', tip: 'Book your mover 4–6 weeks in advance for the best rates and to lock in your preferred move date.' },
+              { emoji: '☀️', tip: 'Moving in summer? Expect 20–30% higher prices. Book early to secure off-peak rates before they spike.' },
+              { emoji: '🔍', tip: 'Always verify your mover\'s license on FMCSA.dot.gov before signing anything or paying a deposit.' },
+            ].map((t, i) => (
+              <div key={i} className="gq2-animate gq2-tip-card" style={{ transitionDelay: `${i * 0.12}s` }}>
+                <div className="gq2-tip-emoji">{t.emoji}</div>
+                <p className="gq2-tip-text">{t.tip}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── BOTTOM CTA ─── */}
-      <section className="gq-cta-section">
-        <div className="gq-cta-inner">
-          <h2 className="gq-cta-h2">Your mover is one form away — it's free and takes 60 seconds.</h2>
-          <p className="gq-cta-sub">Tell us your route. Our algorithm matches you with the best verified mover for your specific needs, instantly.</p>
-          <div className="gq-hero-cta-wrap">
-            <button className="gq-hero-cta" onClick={scrollToWidget}>Get Matched Now <ArrowRight size={16} /></button>
-            <span className="gq-hero-cta-note">It's free. Takes 60 seconds. No spam, ever.</span>
+      {/* ════════════════════════════════════════════
+          7. FAQ
+      ════════════════════════════════════════════ */}
+      <section id="faq" className="gq2-sec gq2-sec--gray">
+        <div className="gq2-inner gq2-inner--narrow">
+          <div className="gq2-animate gq2-sec-hd">
+            <p className="gq2-eyebrow">FAQ</p>
+            <h2 className="gq2-h2">Common questions</h2>
           </div>
-          <div className="gq-cta-trust">
-            <span><CheckCircle size={14} /> Only FMCSA-verified movers</span>
-            <span><Lock size={14} /> Your info stays with us, never sold</span>
-            <span><Zap size={14} /> Matched in under 60 seconds</span>
+          <div className="gq2-faq">
+            {FAQ_ITEMS.map((item, i) => (
+              <div key={i} className={`gq2-faq-row${faqOpen === i ? ' gq2-faq-row--open' : ''}`}>
+                <button className="gq2-faq-q" onClick={() => setFaqOpen(faqOpen === i ? null : i)}>
+                  <span>{item.q}</span>
+                  <ChevronDown size={18} className={`gq-faq-icon${faqOpen === i ? ' gq-faq-icon--open' : ''}`} />
+                </button>
+                {faqOpen === i && <div className="gq2-faq-a">{item.a}</div>}
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ─── FOOTER ─── */}
+      {/* ════════════════════════════════════════════
+          8. BOTTOM CTA
+      ════════════════════════════════════════════ */}
+      <section className="gq2-cta-sec">
+        <div className="gq2-cta-inner">
+          <h2 className="gq2-cta-h2">Ready to get moving?<br />It's free and takes 60 seconds</h2>
+          <p className="gq2-cta-sub">One form. Licensed movers. No spam. No obligation.</p>
+          <button className="gq2-cta-white-btn" onClick={scrollToWidget}>
+            Get My Free Quotes Now →
+          </button>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
       <footer className="gq-footer">
         <div className="gq-footer-inner">
           <p className="gq-footer-tagline">We match you with the right mover for your route. Verified companies, real prices, one perfect match.</p>
@@ -818,69 +596,311 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
         </div>
       </footer>
 
-      {/* ─── STICKY BOTTOM BAR ─── */}
+      {/* ── STICKY BOTTOM BAR ── */}
       <div className="gq-sticky-bar">
         <span className="gq-sticky-text"><Zap size={14} /> Matched with a verified mover in 60 seconds</span>
-        <button className="gq-sticky-btn" onClick={scrollToWidget}>Get Matched Now — It's Free</button>
+        <button className="gq-sticky-btn" onClick={scrollToWidget}>Get Free Quotes — It's Free</button>
       </div>
 
+      {/* ════════════════════════════════════════════
+          GQ2 STYLES — scoped to this page
+      ════════════════════════════════════════════ */}
       <style>{`
+        /* ── Hero ──────────────────────────────────── */
+        .gq2-hero {
+          position: relative;
+          background-size: cover;
+          background-position: center top;
+          background-repeat: no-repeat;
+          padding-top: 64px;
+        }
+        .gq2-hero-overlay {
+          position: absolute; inset: 0;
+          background: linear-gradient(120deg,rgba(26,39,68,0.83) 0%,rgba(26,39,68,0.62) 55%,rgba(26,39,68,0.48) 100%);
+        }
+        .gq2-hero-inner {
+          position: relative; z-index: 1;
+          max-width: 1240px; margin: 0 auto;
+          padding: 60px 32px 72px;
+          display: grid;
+          grid-template-columns: 1fr 500px;
+          gap: 52px;
+          align-items: start;
+        }
+        .gq2-hero-left { padding-top: 28px; }
+        .gq2-hero-eyebrow {
+          display: inline-flex; align-items: center; gap: 7px;
+          background: rgba(255,255,255,0.14); color: #fff;
+          padding: 7px 16px; border-radius: 100px;
+          font-size: 12px; font-weight: 600; margin-bottom: 22px;
+          border: 1px solid rgba(255,255,255,0.22);
+          backdrop-filter: blur(6px);
+        }
+        .gq2-hero-h1 {
+          font-size: 54px; font-weight: 900; color: #fff;
+          line-height: 1.08; margin: 0 0 18px;
+          font-family: 'Poppins', sans-serif;
+        }
+        .gq2-hero-sub {
+          font-size: 18px; color: rgba(255,255,255,0.88);
+          line-height: 1.6; margin: 0 0 30px;
+        }
+        .gq2-hero-trust { display: flex; flex-direction: column; gap: 11px; }
+        .gq2-hero-trust-item {
+          display: flex; align-items: center; gap: 10px;
+          color: rgba(255,255,255,0.92); font-size: 15px; font-weight: 500;
+        }
+        .gq2-check-dot {
+          width: 22px; height: 22px; border-radius: 50%;
+          background: #FF6B35; color: #fff;
+          display: inline-flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: 900; flex-shrink: 0;
+        }
+
+        /* ── Social proof bar ──────────────────────── */
+        .gq2-proof-bar {
+          background: #FFF7F0; border-bottom: 1px solid #fde8d6;
+          display: flex; justify-content: center;
+        }
+        .gq2-proof-stat {
+          display: flex; flex-direction: column; align-items: center;
+          padding: 22px 60px; gap: 4px;
+          border-right: 1px solid #fde8d6;
+        }
+        .gq2-proof-stat:last-child { border-right: none; }
+        .gq2-proof-num {
+          font-size: 30px; font-weight: 900; color: #FF6B35;
+          font-family: 'Poppins', sans-serif; line-height: 1;
+        }
+        .gq2-proof-label { font-size: 13px; color: #64748b; }
+
+        /* ── Sections ───────────────────────────────── */
+        .gq2-sec { padding: 88px 0; }
+        .gq2-sec--gray { background: #F8FAFC; }
+        .gq2-sec--white { background: #fff; }
+        .gq2-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        .gq2-inner--narrow { max-width: 780px; }
+        .gq2-sec-hd { text-align: center; margin-bottom: 52px; }
+        .gq2-eyebrow {
+          font-size: 11px; font-weight: 800; letter-spacing: 1.6px;
+          color: #FF6B35; text-transform: uppercase; margin: 0 0 10px;
+        }
+        .gq2-h2 {
+          font-size: 38px; font-weight: 800; color: #1a2744; margin: 0;
+          font-family: 'Poppins', sans-serif; line-height: 1.15; text-align: center;
+        }
+        .gq2-sec-sub {
+          font-size: 16px; color: #64748b; margin: 12px 0 0; line-height: 1.55;
+        }
+
+        /* ── Scroll animations ─────────────────────── */
+        .gq2-animate {
+          opacity: 0; transform: translateY(28px);
+          transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .gq2-visible { opacity: 1 !important; transform: translateY(0) !important; }
+
+        /* ── How it works ──────────────────────────── */
+        .gq2-how-layout {
+          display: grid; grid-template-columns: 1fr 420px;
+          gap: 56px; align-items: center;
+        }
+        .gq2-how-steps { display: flex; flex-direction: column; gap: 16px; }
+        .gq2-how-card {
+          background: #fff; border-radius: 16px; padding: 22px 24px;
+          border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          display: flex; align-items: flex-start; gap: 18px;
+        }
+        .gq2-how-emoji { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+        .gq2-how-step-lbl {
+          font-size: 10px; font-weight: 800; color: #FF6B35;
+          text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px;
+        }
+        .gq2-how-title {
+          font-size: 16px; font-weight: 700; color: #1a2744;
+          font-family: 'Poppins', sans-serif; margin: 0 0 5px;
+        }
+        .gq2-how-body { font-size: 13px; color: #64748b; line-height: 1.55; margin: 0; }
+        .gq2-how-photo-wrap {
+          border-radius: 20px; overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.14);
+        }
+        .gq2-how-photo { width: 100%; height: 440px; object-fit: cover; display: block; }
+
+        /* ── Why choose us ─────────────────────────── */
+        .gq2-why-layout {
+          display: grid; grid-template-columns: 1fr 1fr;
+          gap: 64px; align-items: center;
+        }
+        .gq2-why-photo-wrap {
+          border-radius: 20px; overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+        }
+        .gq2-why-photo { width: 100%; height: 520px; object-fit: cover; display: block; }
+        .gq2-why-bullet {
+          display: flex; gap: 14px; align-items: flex-start; margin-bottom: 20px;
+        }
+        .gq2-why-bullet:last-of-type { margin-bottom: 0; }
+        .gq2-why-check {
+          width: 26px; height: 26px; border-radius: 50%;
+          background: #FF6B35; color: #fff;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 12px; font-weight: 900; flex-shrink: 0; margin-top: 3px;
+        }
+        .gq2-why-bullet-title { font-size: 15px; font-weight: 700; color: #1a2744; margin: 0 0 3px; }
+        .gq2-why-bullet-body { font-size: 13px; color: #64748b; line-height: 1.5; margin: 0; }
+
+        /* ── Orange button ─────────────────────────── */
+        .gq2-btn-orange {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 13px 26px; border-radius: 100px; border: none;
+          background: #FF6B35; color: #fff;
+          font-size: 14px; font-weight: 700; cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+          box-shadow: 0 8px 24px rgba(255,107,53,0.32);
+          transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .gq2-btn-orange:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(255,107,53,0.42); }
+
+        /* ── Testimonials ──────────────────────────── */
+        .gq2-test-grid {
+          display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+        }
+        .gq2-test-card {
+          background: #fff; border-radius: 18px; padding: 28px;
+          border: 1px solid #e2e8f0; box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+        }
+        .gq2-test-stars { color: #f59e0b; font-size: 18px; margin-bottom: 14px; }
+        .gq2-test-q {
+          font-size: 14px; color: #334155; line-height: 1.65;
+          margin: 0 0 22px; font-style: italic;
+        }
+        .gq2-test-footer { display: flex; align-items: center; gap: 12px; }
+        .gq2-test-img {
+          width: 46px; height: 46px; border-radius: 50%;
+          object-fit: cover; flex-shrink: 0; border: 2px solid #f1f5f9;
+        }
+        .gq2-test-name { font-size: 14px; font-weight: 700; color: #1a2744; margin: 0; }
+        .gq2-test-loc  { font-size: 12px; color: #94a3b8; margin: 0; }
+
+        /* ── Moving tips ───────────────────────────── */
+        .gq2-tips-grid {
+          display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+        }
+        .gq2-tip-card {
+          background: #FFF7F0; border: 1px solid #fde8d6;
+          border-radius: 18px; padding: 30px 24px; text-align: center;
+        }
+        .gq2-tip-emoji { font-size: 36px; margin-bottom: 14px; }
+        .gq2-tip-text { font-size: 15px; color: #1a2744; line-height: 1.6; margin: 0; font-weight: 500; }
+
+        /* ── FAQ ───────────────────────────────────── */
+        .gq2-faq {
+          border: 1px solid #e2e8f0; border-radius: 16px;
+          overflow: hidden; background: #fff;
+        }
+        .gq2-faq-row { border-bottom: 1px solid #f1f5f9; }
+        .gq2-faq-row:last-child { border-bottom: none; }
+        .gq2-faq-q {
+          width: 100%; text-align: left; background: none; border: none;
+          padding: 20px 24px; font-size: 15px; font-weight: 600;
+          color: #1a2744; cursor: pointer;
+          display: flex; justify-content: space-between;
+          align-items: center; gap: 16px; font-family: inherit;
+          transition: background 0.15s;
+        }
+        .gq2-faq-q:hover { background: #fafbfc; }
+        .gq2-faq-row--open .gq2-faq-q { color: #FF6B35; background: #FFF7F0; }
+        .gq2-faq-a { padding: 0 24px 20px; font-size: 14px; color: #64748b; line-height: 1.65; }
+
+        /* ── Bottom CTA ────────────────────────────── */
+        .gq2-cta-sec { background: #FF6B35; padding: 84px 24px; }
+        .gq2-cta-inner { max-width: 680px; margin: 0 auto; text-align: center; }
+        .gq2-cta-h2 {
+          font-size: 38px; font-weight: 900; color: #fff;
+          margin: 0 0 16px; font-family: 'Poppins', sans-serif; line-height: 1.15;
+        }
+        .gq2-cta-sub {
+          color: rgba(255,255,255,0.88); font-size: 17px; margin: 0 0 34px; line-height: 1.5;
+        }
+        .gq2-cta-white-btn {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 16px 38px; border-radius: 100px; border: none;
+          background: #fff; color: #FF6B35;
+          font-size: 16px; font-weight: 800; cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+          transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .gq2-cta-white-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.2); }
+
+        /* ── RESPONSIVE ────────────────────────────── */
         @media (max-width: 960px) {
+          /* Keep existing widget mobile fixes */
           .gq-body {
-            display: flex !important;
-            flex-direction: column !important;
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            padding: 20px !important;
-            gap: 40px;
+            display: flex !important; flex-direction: column !important;
+            height: auto !important; min-height: auto !important;
+            overflow: visible !important; padding: 20px !important; gap: 40px;
           }
           .gq-card, .gq-sidebar {
-            width: 100% !important;
-            max-width: 100% !important;
-            min-width: 100% !important;
-            margin: 0 !important;
+            width: 100% !important; max-width: 100% !important;
+            min-width: 100% !important; margin: 0 !important;
           }
           .gq-card { order: 1; }
-          .gq-sidebar { 
-            order: 2; 
-            padding: 15px !important;
-            margin-top: -20px !important; 
+          .gq-sidebar { order: 2; padding: 15px !important; margin-top: -20px !important; }
+          .gq-nav-links { display: none; }
+          .gq-sticky-bar .gq-sticky-text { display: none; }
+          .gq-sticky-bar { justify-content: center; }
+          .gq-how-grid, .gq-feature-grid, .gq-test-grid-3col { grid-template-columns: 1fr !important; }
+          .gq-badge-row, .gq-trust-row { display: flex !important; flex-direction: column !important; align-items: center; gap: 12px; }
+          .gq-zip-grid { grid-template-columns: 1fr !important; }
+          .gq-feature-dark { flex-direction: column !important; }
+
+          /* New hero */
+          .gq2-hero-inner { grid-template-columns: 1fr; gap: 28px; padding: 88px 16px 40px; }
+          .gq2-hero-h1 { font-size: 34px; }
+          .gq2-hero-sub { font-size: 16px; }
+          .gq2-hero-left { padding-top: 0; }
+
+          /* Proof bar */
+          .gq2-proof-bar { flex-wrap: wrap; }
+          .gq2-proof-stat {
+            padding: 16px 24px; flex: 1; min-width: 130px;
+            border-right: none; border-bottom: 1px solid #fde8d6;
           }
-          .gq-sidebar-card {
-            box-shadow: none !important;
-            border: 1px solid var(--blue-l) !important;
-          }
-          .gq-nav-links {
-            display: none;
-          }
-          .gq-hero h1 {
-            font-size: 34px !important;
-          }
-          .gq-hero {
-            padding: 40px 20px !important;
-          }
-          .gq-sticky-bar .gq-sticky-text {
-            display: none;
-          }
-          .gq-sticky-bar {
-            justify-content: center;
-          }
-          .gq-how-grid, .gq-feature-grid, .gq-test-grid-3col {
-            grid-template-columns: 1fr !important;
-          }
-          .gq-badge-row, .gq-trust-row {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center;
-            gap: 12px;
-          }
-          .gq-zip-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .gq-feature-dark {
-            flex-direction: column !important;
-          }
+          .gq2-proof-stat:last-child { border-bottom: none; }
+          .gq2-proof-num { font-size: 24px; }
+
+          /* Sections */
+          .gq2-sec { padding: 60px 0; }
+          .gq2-h2 { font-size: 28px; }
+          .gq2-sec-hd { margin-bottom: 36px; }
+
+          /* How it works */
+          .gq2-how-layout { grid-template-columns: 1fr; gap: 32px; }
+          .gq2-how-photo-wrap { order: -1; }
+          .gq2-how-photo { height: 220px; }
+
+          /* Why choose us */
+          .gq2-why-layout { grid-template-columns: 1fr; gap: 36px; }
+          .gq2-why-photo { height: 260px; }
+
+          /* Testimonials */
+          .gq2-test-grid { grid-template-columns: 1fr; }
+
+          /* Tips */
+          .gq2-tips-grid { grid-template-columns: 1fr; }
+
+          /* CTA */
+          .gq2-cta-h2 { font-size: 26px; }
+          .gq2-cta-sub { font-size: 15px; }
+        }
+
+        @media (max-width: 600px) {
+          .gq2-hero-h1 { font-size: 28px; }
+          .gq2-proof-stat { flex: 0 0 50%; }
+          .gq2-proof-num { font-size: 22px; }
+          .gq2-cta-white-btn { font-size: 14px; padding: 14px 28px; }
         }
       `}</style>
     </div>
