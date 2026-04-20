@@ -131,4 +131,32 @@ router.delete('/coverage/:id', [auth, admin], async (req, res) => {
   }
 });
 
+// @route   POST /api/admin/users/:id/balance
+// @desc    Admin: Add or deduct balance for any user
+// @access  Private (Admin)
+router.post('/users/:id/balance', [auth, admin], async (req, res) => {
+  const { amount, note } = req.body;
+  const parsed = parseFloat(amount);
+
+  if (!Number.isFinite(parsed) || parsed === 0) {
+    return res.status(400).json({ msg: 'amount must be a non-zero number' });
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { balance: parsed } },
+      { new: true }
+    ).select('-password');
+
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    console.log(`[Admin] Balance adjusted for ${user.email}: ${parsed >= 0 ? '+' : ''}${parsed} → new balance $${user.balance.toFixed(2)}${note ? ` (${note})` : ''}`);
+    res.json({ success: true, newBalance: user.balance });
+  } catch (err) {
+    console.error('[Admin] Balance adjust error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 module.exports = router;

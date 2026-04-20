@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { ShieldAlert, Trash2, Search, Users, UserCheck, UserX, UserPlus } from 'lucide-react';
+import { ShieldAlert, Trash2, Search, Users, UserCheck, UserX, UserPlus, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -16,6 +16,11 @@ export default function AdminUsers() {
   const [selectedUserName, setSelectedUserName] = useState('');
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [suspending, setSuspending] = useState(false);
+  const [balanceModal, setBalanceModal] = useState(null); // { id, companyName, currentBalance }
+  const [balanceAmount, setBalanceAmount] = useState('');
+  const [balanceNote, setBalanceNote] = useState('');
+  const [balanceSaving, setBalanceSaving] = useState(false);
+  const [balanceError, setBalanceError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -59,6 +64,34 @@ export default function AdminUsers() {
       alert(err.message);
     } finally {
       setSuspending(false);
+    }
+  };
+
+  const handleAdjustBalance = async (positive) => {
+    const parsed = parseFloat(balanceAmount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setBalanceError('Enter a valid positive amount.');
+      return;
+    }
+    const amount = positive ? parsed : -parsed;
+    setBalanceSaving(true);
+    setBalanceError('');
+    try {
+      const res = await fetch(`${API_URL}/admin/users/${balanceModal.id}/balance`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, note: balanceNote.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to adjust balance');
+      setUsers(prev => prev.map(u => u._id === balanceModal.id ? { ...u, balance: data.newBalance } : u));
+      setBalanceModal(null);
+      setBalanceAmount('');
+      setBalanceNote('');
+    } catch (err) {
+      setBalanceError(err.message);
+    } finally {
+      setBalanceSaving(false);
     }
   };
 
@@ -258,6 +291,13 @@ export default function AdminUsers() {
                         <UserPlus size={13} /> Impersonate
                       </button>
                     )}
+                    <button
+                      title="Adjust Balance"
+                      onClick={() => { setBalanceModal({ id: u._id, companyName: u.companyName || u.email, currentBalance: u.balance }); setBalanceAmount(''); setBalanceNote(''); setBalanceError(''); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid #bbf7d0', color: '#16a34a', background: '#f0fdf4', cursor: 'pointer', transition: 'all 0.2s' }}
+                    >
+                      <DollarSign size={13} /> Balance
+                    </button>
                     <button onClick={() => { setSelectedUserId(u._id); setSelectedUserName(u.companyName || u.email); setDeleteConfirmInput(''); setShowConfirm(true); }}
                       style={{ width: 34, height: 34, borderRadius: 8, background: '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', transition: 'all 0.2s' }}
                       title="Delete"><Trash2 size={14} /></button>
@@ -276,6 +316,81 @@ export default function AdminUsers() {
           </div>
         )}
       </div>
+
+      {/* ── Adjust Balance Modal ── */}
+      {balanceModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <DollarSign size={20} color="#16a34a" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 17, color: '#0f172a' }}>Adjust Balance</div>
+                <div style={{ fontSize: 13, color: '#64748b' }}>{balanceModal.companyName}</div>
+              </div>
+            </div>
+
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 13, color: '#475569' }}>
+              Current balance: <strong style={{ color: '#16a34a' }}>${Number(balanceModal.currentBalance).toFixed(2)}</strong>
+            </div>
+
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+              Amount ($)
+            </label>
+            <input
+              autoFocus
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={balanceAmount}
+              onChange={e => { setBalanceAmount(e.target.value); setBalanceError(''); }}
+              placeholder="e.g. 50"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${balanceError ? '#ef4444' : '#e2e8f0'}`, fontSize: 14, marginBottom: 14, outline: 'none' }}
+            />
+
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+              Note (optional)
+            </label>
+            <input
+              type="text"
+              value={balanceNote}
+              onChange={e => setBalanceNote(e.target.value)}
+              placeholder="e.g. Promotional credit, refund..."
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 14, marginBottom: 20, outline: 'none' }}
+            />
+
+            {balanceError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>
+                {balanceError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { setBalanceModal(null); setBalanceAmount(''); setBalanceNote(''); setBalanceError(''); }}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#64748b' }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={balanceSaving}
+                onClick={() => handleAdjustBalance(false)}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#fef2f2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+              >
+                {balanceSaving ? '…' : '− Deduct'}
+              </button>
+              <button
+                disabled={balanceSaving}
+                onClick={() => handleAdjustBalance(true)}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(22,163,74,0.25)' }}
+              >
+                {balanceSaving ? '…' : '+ Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showConfirm && (
         <div style={{
