@@ -195,15 +195,19 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
 
       console.log(`[PhoneVerify] PASS — Type: ${lineType} Grade: ${scoring.grade} Price: $${finalPricing.buyNowPrice}`);
 
-      // Warm transfer for Grade A leads (still uses Twilio calling)
+      // Warm transfer for Grade A leads
       if (scoring.grade === 'A' && twilioClient) {
-        const serverUrl = process.env.SERVER_URL || 'https://api.moveleads.cloud';
-        console.log(`[PhoneVerify] Triggering warm-transfer call for lead ${lead._id}`);
+        console.log(`[WarmTransfer] Initiating call for lead ${lead._id} → ${lead.customerPhone}`);
         twilioClient.calls.create({
-          to:   lead.customerPhone,
-          from: fromPhone,
-          url:  `${serverUrl}/api/voice/customer-answered?leadId=${lead._id}`
-        }).catch(err => console.error('[WarmTransfer] Call failed:', err.message));
+          to:                  lead.customerPhone,
+          from:                fromPhone,
+          url:                 `https://api.moveleads.cloud/api/voice/customer-answered?leadId=${lead._id}`,
+          statusCallback:      'https://api.moveleads.cloud/api/twilio/voice/status',
+          statusCallbackMethod: 'POST',
+          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+        })
+        .then(call => console.log(`[WarmTransfer] Call initiated: ${call.sid}`))
+        .catch(err => console.error('[WarmTransfer] Call failed:', err.message));
       }
 
       sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] real path error:', err.message));
