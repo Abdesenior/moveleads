@@ -27,7 +27,15 @@ const FALLBACKS = {
 
 const imageCache = new Map();
 
+/* Allow cross-origin <img> tags from any origin */
+function setCorsHeaders(res) {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.set('Cross-Origin-Embedder-Policy', 'unsafe-none');
+}
+
 router.get('/clear-cache', (_req, res) => {
+  setCorsHeaders(res);
   const count = imageCache.size;
   imageCache.clear();
   console.log(`[Image] Cache cleared (${count} entries removed)`);
@@ -35,6 +43,7 @@ router.get('/clear-cache', (_req, res) => {
 });
 
 router.get('/generate/:type', async (req, res) => {
+  setCorsHeaders(res);
   const type = req.params.type;
   const prompt = PROMPTS[type];
   if (!prompt) return res.status(400).json({ error: 'Invalid image type' });
