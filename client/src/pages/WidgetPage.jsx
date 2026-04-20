@@ -186,7 +186,7 @@ function SmartCalendar({ value, onChange }) {
 }
 
 /* ─── MapArc ─────────────────────────────────────────────── */
-function MapArc({ origin, destination, fixedCoords, onRouteLoaded }) {
+function MapArc({ origin, destination }) {
     const containerRef = useRef(null);
     const mapRef = useRef(null);
     const [loading, setLoading] = useState(true);
@@ -194,7 +194,7 @@ function MapArc({ origin, destination, fixedCoords, onRouteLoaded }) {
     useEffect(() => {
         if (!origin || !destination || !containerRef.current) return;
         if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
-        setLoading(true);
+        // No longer needed as we use 'key' to reset component state on coordinates change
 
         // Safety timeout: don't let the spinner stay forever if Mapbox fails (e.g. bad token)
         const timer = setTimeout(() => setLoading(false), 6000);
@@ -266,9 +266,9 @@ function MapArc({ origin, destination, fixedCoords, onRouteLoaded }) {
 
             // Animation Loop
             let step = 0;
-            let dashOffset = 0;
+            // dashOffset is unused, previously set to 0 here
 
-            const animate = (t) => {
+            const animate = () => {
                 if (!mapRef.current) return;
 
                 // Smooth Line Drawing Animation
@@ -335,9 +335,9 @@ export function DemoWidget({ companyId }) {
     const [originCoords, setOriginCoords] = useState(null);
     const [destCoords, setDestCoords] = useState(null);
     const [miles, setMiles] = useState(0);
-    const [routeMiles, setRouteMiles] = useState(0);
-    const [routeHours, setRouteHours] = useState(0);
-    const [routeCoords, setRouteCoords] = useState(null);
+    // These were previously updated by MapArc but are now derived from direct ZIP distance
+    const effectiveMiles = miles;
+    const effectiveHours = miles / 55;
     const [zipError, setZipError] = useState('');
     const [moveDate, setMoveDate] = useState('');
     const [name, setName] = useState('');
@@ -351,8 +351,6 @@ export function DemoWidget({ companyId }) {
         window.parent.postMessage({ type: 'resize', height }, '*');
     }, [step]);
 
-    const effectiveMiles = routeMiles || miles;
-    const effectiveHours = routeHours || miles / 55;
     const mapReady = !!(originCoords && destCoords);
     const canProceed2 = mapReady && !zipError && !!moveDate;
     const q = smartQuote(size, effectiveMiles, moveDate);
@@ -367,16 +365,13 @@ export function DemoWidget({ companyId }) {
             setZipError('');
             setOriginCoords(oc); setDestCoords(dc);
             setMiles(haversine(oc.lat, oc.lon, dc.lat, dc.lon));
-            setRouteMiles(0); setRouteHours(0); setRouteCoords(null);
         } else {
             setOriginCoords(null); setDestCoords(null);
-            setMiles(0); setRouteMiles(0); setRouteHours(0); setRouteCoords(null); setZipError('');
+            setMiles(0); setZipError('');
         }
     }, [originZip, destZip]);
 
-    const handleRouteLoaded = ({ miles: rm, hours: rh, coords: rc }) => {
-        setRouteMiles(rm); setRouteHours(rh); setRouteCoords(rc);
-    };
+
 
     const handleSubmit = async () => {
         if (!name || !phone) return;
@@ -425,7 +420,6 @@ export function DemoWidget({ companyId }) {
     const handleReset = () => {
         setStep(1); setSize(''); setOriginZip(''); setDestZip('');
         setOriginCoords(null); setDestCoords(null); setMiles(0);
-        setRouteMiles(0); setRouteHours(0); setRouteCoords(null);
         setZipError(''); setMoveDate(''); setName(''); setPhone(''); setEmail('');
     };
 
@@ -500,7 +494,11 @@ export function DemoWidget({ companyId }) {
 
                         {mapReady && (
                             <>
-                                <MapArc origin={originCoords} destination={destCoords} onRouteLoaded={handleRouteLoaded} />
+                                <MapArc 
+                                    key={`${originCoords.lat}-${originCoords.lon}-${destCoords.lat}-${destCoords.lon}`}
+                                    origin={originCoords} 
+                                    destination={destCoords} 
+                                />
                                 <DistancePill miles={effectiveMiles} hours={effectiveHours} origin={originCoords} destination={destCoords} />
 
                                 {/* Smart calendar */}
@@ -540,7 +538,11 @@ export function DemoWidget({ companyId }) {
 
                         {mapReady && (
                             <>
-                                <MapArc origin={originCoords} destination={destCoords} fixedCoords={routeCoords} onRouteLoaded={handleRouteLoaded} />
+                                <MapArc 
+                                    key={`${originCoords.lat}-${originCoords.lon}-${destCoords.lat}-${destCoords.lon}`}
+                                    origin={originCoords} 
+                                    destination={destCoords} 
+                                />
                                 <DistancePill miles={effectiveMiles} hours={effectiveHours} origin={originCoords} destination={destCoords} />
                             </>
                         )}
@@ -622,7 +624,13 @@ export function DemoWidget({ companyId }) {
                                 </p>
                             </div>
 
-                            {mapReady && <MapArc origin={originCoords} destination={destCoords} fixedCoords={routeCoords} onRouteLoaded={handleRouteLoaded} />}
+                            {mapReady && (
+                                <MapArc 
+                                    key={`${originCoords.lat}-${originCoords.lon}-${destCoords.lat}-${destCoords.lon}`}
+                                    origin={originCoords} 
+                                    destination={destCoords} 
+                                />
+                            )}
 
                             <div style={{ background: '#f0fdf4', borderRadius: 11, padding: '11px 14px', textAlign: 'center', marginBottom: 18 }}>
                                 <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
