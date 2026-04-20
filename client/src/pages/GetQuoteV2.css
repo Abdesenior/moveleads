@@ -381,17 +381,36 @@
    ══════════════════════════════════════════════════════════ */
 .gqv2-how {
   padding: 72px 60px;
+  background: #fff;
+}
+
+.gqv2-how-inner {
   max-width: 1100px;
   margin: 0 auto;
-  text-align: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+.gqv2-how-right {
+  width: 100%;
+}
+
+.gqv2-how-photo {
+  width: 100%;
+  height: 480px;
+  object-fit: cover;
+  border-radius: 24px;
+  display: block;
+  box-shadow: 0 24px 64px rgba(0,0,0,.12);
 }
 
 .gqv2-steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 32px;
-  margin-top: 48px;
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 32px;
 }
 
 .gqv2-step-anim { display: flex; }
@@ -433,14 +452,45 @@
   line-height: 1.7;
 }
 
-.gqv2-step-connector {
+/* ══════════════════════════════════════════════════════════
+   FULL-WIDTH BANNER
+   ══════════════════════════════════════════════════════════ */
+.gqv2-banner {
+  position: relative;
+  height: 320px;
+  overflow: hidden;
+}
+
+.gqv2-banner-img {
   position: absolute;
-  top: 44px;
-  right: -20px;
-  width: 40px;
-  height: 2px;
-  background: #FFD4BC;
-  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gqv2-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26,39,68,.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.gqv2-banner-h2 {
+  font-size: clamp(22px, 4vw, 36px);
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 10px;
+}
+
+.gqv2-banner-sub {
+  font-size: 16px;
+  color: rgba(255,255,255,.75);
+  margin: 0 0 4px;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -643,9 +693,25 @@
    BOTTOM CTA
    ══════════════════════════════════════════════════════════ */
 .gqv2-cta-section {
+  position: relative;
+  overflow: hidden;
   background: #1a2744;
-  padding: 80px 60px;
   text-align: center;
+}
+
+.gqv2-cta-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gqv2-cta-overlay {
+  position: relative;
+  z-index: 1;
+  background: rgba(26,39,68,.85);
+  padding: 80px 60px;
 }
 
 .gqv2-cta-title {
@@ -836,8 +902,11 @@
     padding: 40px 24px 56px;
     gap: 32px;
   }
+  .gqv2-how-inner { grid-template-columns: 1fr; gap: 40px; }
+  .gqv2-how-photo { height: 300px; }
   .gqv2-why-inner { grid-template-columns: 1fr; gap: 40px; }
   .gqv2-why-photo { height: 320px; }
+  .gqv2-banner { height: 240px; }
   .gqv2-review-cards { grid-template-columns: 1fr; max-width: 540px; margin-left: auto; margin-right: auto; }
   .gqv2-steps { grid-template-columns: 1fr; max-width: 480px; margin-left: auto; margin-right: auto; }
   .gqv2-step-connector { display: none; }
@@ -852,8 +921,11 @@
   .gqv2-hero-h1 { font-size: clamp(28px, 8vw, 36px); }
   .gqv2-hero-stats { gap: 16px; }
   .gqv2-stat-num { font-size: 20px; }
-  .gqv2-how, .gqv2-reviews, .gqv2-faq, .gqv2-cta-section, .gqv2-why, .gqv2-estimator-section { padding: 56px 20px; }
+  .gqv2-how, .gqv2-reviews, .gqv2-faq, .gqv2-why, .gqv2-estimator-section { padding: 56px 20px; }
+  .gqv2-cta-overlay { padding: 56px 20px; }
   .gqv2-estimator { padding: 28px 20px; }
+  .gqv2-banner { height: 200px; }
+  .gqv2-banner-h2 { font-size: 20px; }
   .gqv2-proof-bar { padding: 16px 20px; }
   .gqv2-proof-inner { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .gqv2-review-cards { grid-template-columns: 1fr; }
