@@ -116,7 +116,7 @@ router.post('/confirm-payment', auth, async (req, res) => {
 // @route   POST /api/billing/webhook
 // @desc    Stripe Webhook Listener
 // @access  Public (Stripe Signature Verification)
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
