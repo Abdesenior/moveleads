@@ -245,6 +245,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
   useEffect(() => {
     const { originZip, destZip } = data;
     if (originZip.length === 5 && destZip.length === 5) {
+      if (originZip === destZip) { setZipError('Origin and destination zip codes cannot be the same. Please enter your current and new address.'); setData(p => ({ ...p, originCoords: null, destCoords: null })); return; }
       const oc = geocodeZip(originZip), dc = geocodeZip(destZip);
       if (!oc) { setZipError(`Invalid origin zip "${originZip}"`); setData(p => ({ ...p, originCoords: null })); return; }
       if (!dc) { setZipError(`Invalid destination zip "${destZip}"`); setData(p => ({ ...p, destCoords: null })); return; }
@@ -269,6 +270,7 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
   };
 
   const handleNext = () => {
+    if (step === 2 && data.originZip === data.destZip && data.originZip.length === 5) { setZipError('Origin and destination zip codes cannot be the same. Please enter your current and new address.'); return; }
     if (step === 2 && !data.originCoords) { setZipError('Please enter valid zip codes for both locations.'); return; }
     if (step < 5) { setStep(s => s + 1); return; }
     submitLead();
@@ -901,6 +903,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
   useEffect(() => {
     const { originZip, destZip } = data;
     if (originZip.length === 5 && destZip.length === 5) {
+      if (originZip === destZip) { setZipError('Origin and destination zip codes cannot be the same. Please enter your current and new address.'); setData(p => ({ ...p, originCoords: null, destCoords: null })); return; }
       const oc = geocodeZip(originZip), dc = geocodeZip(destZip);
       if (!oc) { setZipError(`Invalid origin zip "${originZip}"`); setData(p => ({ ...p, originCoords: null, originCity: '' })); return; }
       if (!dc) { setZipError(`Invalid destination zip "${destZip}"`); setData(p => ({ ...p, destCoords: null, destCity: '' })); return; }
@@ -924,6 +927,7 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
   const isLong = data.miles > 100;
 
   const handleNext = () => {
+    if (step === 2 && data.originZip === data.destZip && data.originZip.length === 5) { setZipError('Origin and destination zip codes cannot be the same. Please enter your current and new address.'); return; }
     if (step === 2 && !data.originCoords) { setZipError('Please enter valid zip codes for both locations.'); return; }
     if (step < 5) { setStep(s => s + 1); return; }
     submitLead();

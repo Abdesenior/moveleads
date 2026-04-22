@@ -358,6 +358,7 @@ export function DemoWidget({ companyId }) {
     // Instant ZIP lookup from bundled data
     useEffect(() => {
         if (originZip.length === 5 && destZip.length === 5) {
+            if (originZip === destZip) { setZipError('Origin and destination zip codes cannot be the same. Please enter your current and new address.'); setOriginCoords(null); setDestCoords(null); return; }
             const oc = geocodeZip(originZip);
             const dc = geocodeZip(destZip);
             if (!oc) { setZipError(`Couldn't find "${originZip}". Please check and try again.`); setOriginCoords(null); setDestCoords(null); return; }
@@ -371,9 +372,8 @@ export function DemoWidget({ companyId }) {
         }
     }, [originZip, destZip]);
 
-
-
     const handleSubmit = async () => {
+        if (originZip === destZip && originZip.length === 5) { setZipError('Origin and destination zip codes cannot be the same. Please enter your current and new address.'); return; }
         if (!name || !phone) return;
         setSubmitting(true);
         try {
