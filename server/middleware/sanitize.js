@@ -1,6 +1,7 @@
 const { exec } = require('child_process');
 
 function sanitizeInput(req, res, next) {
+  if (Buffer.isBuffer(req.body)) return next();
   const sanitize = (obj) => {
     if (typeof obj === 'string') {
       return obj
