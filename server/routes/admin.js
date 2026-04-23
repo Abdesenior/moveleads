@@ -26,12 +26,13 @@ function milesFromZips(originZip, destinationZip) {
 
 const HOME_SIZE_NORM = {
   'studio': 'Studio',
-  '1 bedroom': '1 Bedroom', '1bedroom': '1 Bedroom',
-  '2 bedroom': '2 Bedroom', '2bedroom': '2 Bedroom',
-  '3 bedroom': '3 Bedroom', '3bedroom': '3 Bedroom',
-  '4 bedroom': '4 Bedroom', '4bedroom': '4 Bedroom',
+  '1 bedroom': '1 Bedroom', '1bedroom': '1 Bedroom', '1_bedroom': '1 Bedroom',
+  '2 bedroom': '2 Bedroom', '2bedroom': '2 Bedroom', '2_bedroom': '2 Bedroom',
+  '3 bedroom': '3 Bedroom', '3bedroom': '3 Bedroom', '3_bedroom': '3 Bedroom',
+  '4 bedroom': '4 Bedroom', '4bedroom': '4 Bedroom', '4_bedroom': '4 Bedroom',
+  '5 bedroom': '5+ Bedroom', '5bedroom': '5+ Bedroom', '5_bedroom': '5+ Bedroom',
   '5+ bedroom': '5+ Bedroom', '5+bedroom': '5+ Bedroom',
-  '4+ bedroom': '4+ Bedroom',
+  '4+ bedroom': '4+ Bedroom', '4+bedroom': '4+ Bedroom', '4+_bedroom': '4+ Bedroom',
 };
 
 // @route   POST /api/admin/impersonate/:id
