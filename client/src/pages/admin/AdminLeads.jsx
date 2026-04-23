@@ -263,6 +263,7 @@ export default function AdminLeads() {
       moveSize: r.moveSize,
       moveDate: r.moveDate,
     }));
+    console.log('[Import] Sending', validRows.length, 'leads to', `${API_URL}/admin/leads/import`);
     setImporting(true);
     try {
       const res = await fetch(`${API_URL}/admin/leads/import`, {
@@ -271,9 +272,11 @@ export default function AdminLeads() {
         body: JSON.stringify({ leads: validRows })
       });
       const data = await res.json();
+      console.log('[Import] Response:', data);
       setImportResult(data);
       if (data.imported > 0) fetchLeads();
     } catch (err) {
+      console.error('[Import] Error:', err);
       setImportResult({ error: err.message });
     } finally {
       setImporting(false);
