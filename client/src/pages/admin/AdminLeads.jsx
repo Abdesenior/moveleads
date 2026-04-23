@@ -207,22 +207,13 @@ export default function AdminLeads() {
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
 
-  const col = (row, ...names) => {
-    for (const n of names) {
-      const v = row[n] ?? row[n.toLowerCase()] ?? row[n.toUpperCase()];
-      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
-    }
-    return '';
-  };
 
   const validateRow = (row) => {
-    const errors = [];
-    if (!col(row, 'first name', 'firstName', 'first_name') && !col(row, 'last name', 'lastName', 'last_name')) errors.push('Missing name');
-    if (!col(row, 'phone')) errors.push('Missing phone');
-    if (!col(row, 'email')) errors.push('Missing email');
-    if (!col(row, 'origin zip', 'originZip', 'origin_zip')) errors.push('Missing origin zip');
-    if (!col(row, 'destination zip', 'destinationZip', 'destination_zip')) errors.push('Missing destination zip');
-    return errors;
+    if (!row['Phone'] && !row['phone']) return 'Missing phone';
+    if (!row['Email'] && !row['email']) return 'Missing email';
+    if (!row['Origin Zip'] && !row['origin zip'] && !row['originZip']) return 'Missing origin zip';
+    if (!row['Destination Zip'] && !row['destination zip'] && !row['destinationZip']) return 'Missing destination zip';
+    return null;
   };
 
   const handleFileSelect = (e) => {
@@ -233,24 +224,23 @@ export default function AdminLeads() {
       const wb = XLSX.read(evt.target.result, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      const preview = rows.map((row) => {
-        const errors = validateRow(row);
-        const firstName = col(row, 'first name', 'firstName', 'first_name');
-        const lastName = col(row, 'last name', 'lastName', 'last_name');
-        return {
-          _raw: row,
-          name: `${firstName} ${lastName}`.trim() || 'Unknown',
-          phone: col(row, 'phone'),
-          email: col(row, 'email'),
-          originCity: col(row, 'origin city', 'originCity', 'origin_city'),
-          destinationCity: col(row, 'destination city', 'destinationCity', 'destination_city'),
-          homeSize: col(row, 'move size', 'moveSize', 'move_size', 'home size', 'homeSize'),
-          moveDate: col(row, 'move date', 'moveDate', 'move_date'),
-          errors,
-          valid: errors.length === 0
-        };
-      });
-      setImportPreview(preview);
+      const parsed = rows.map(row => ({
+        firstName: row['First Name'] || row['first name'] || row['firstName'] || '',
+        lastName: row['Last Name'] || row['last name'] || row['lastName'] || '',
+        email: row['Email'] || row['email'] || '',
+        phone: row['Phone'] || row['phone'] || '',
+        originCity: row['Origin City'] || row['origin city'] || '',
+        originState: row['Origin State'] || row['origin state'] || '',
+        originZip: row['Origin Zip'] || row['origin zip'] || row['originZip'] || '',
+        destinationCity: row['Destination City'] || row['destination city'] || '',
+        destinationState: row['Destination State'] || row['destination state'] || '',
+        destinationZip: row['Destination Zip'] || row['destination zip'] || row['destinationZip'] || '',
+        moveType: row['Move Type'] || row['move type'] || 'Long Distance',
+        moveSize: row['Move Size'] || row['move size'] || '2 Bedroom',
+        moveDate: row['Move Date'] || row['move date'] || '',
+        error: validateRow(row)
+      }));
+      setImportPreview(parsed);
       setImportResult(null);
     };
     reader.readAsArrayBuffer(file);
@@ -258,20 +248,20 @@ export default function AdminLeads() {
   };
 
   const handleImport = async () => {
-    const validRows = importPreview.filter(r => r.valid).map(r => ({
-      firstName: col(r._raw, 'first name', 'firstName', 'first_name'),
-      lastName: col(r._raw, 'last name', 'lastName', 'last_name'),
-      phone: col(r._raw, 'phone'),
-      email: col(r._raw, 'email'),
-      originCity: col(r._raw, 'origin city', 'originCity', 'origin_city'),
-      originState: col(r._raw, 'origin state', 'originState', 'origin_state'),
-      originZip: col(r._raw, 'origin zip', 'originZip', 'origin_zip'),
-      destinationCity: col(r._raw, 'destination city', 'destinationCity', 'destination_city'),
-      destinationState: col(r._raw, 'destination state', 'destinationState', 'destination_state'),
-      destinationZip: col(r._raw, 'destination zip', 'destinationZip', 'destination_zip'),
-      moveType: col(r._raw, 'move type', 'moveType', 'move_type'),
-      moveSize: col(r._raw, 'move size', 'moveSize', 'move_size', 'home size', 'homeSize'),
-      moveDate: col(r._raw, 'move date', 'moveDate', 'move_date'),
+    const validRows = importPreview.filter(r => !r.error).map(r => ({
+      firstName: r.firstName,
+      lastName: r.lastName,
+      phone: r.phone,
+      email: r.email,
+      originCity: r.originCity,
+      originState: r.originState,
+      originZip: r.originZip,
+      destinationCity: r.destinationCity,
+      destinationState: r.destinationState,
+      destinationZip: r.destinationZip,
+      moveType: r.moveType,
+      moveSize: r.moveSize,
+      moveDate: r.moveDate,
     }));
     setImporting(true);
     try {
@@ -865,9 +855,9 @@ export default function AdminLeads() {
                 </button>
                 {importPreview.length > 0 && (
                   <span style={{ fontSize: 13, color: '#64748b' }}>
-                    {importPreview.length} rows found — <span style={{ color: '#16a34a', fontWeight: 700 }}>{importPreview.filter(r => r.valid).length} valid</span>
-                    {importPreview.filter(r => !r.valid).length > 0 && (
-                      <>, <span style={{ color: '#dc2626', fontWeight: 700 }}>{importPreview.filter(r => !r.valid).length} with errors</span></>
+                    {importPreview.length} rows found — <span style={{ color: '#16a34a', fontWeight: 700 }}>{importPreview.filter(r => !r.error).length} valid</span>
+                    {importPreview.filter(r => !!r.error).length > 0 && (
+                      <>, <span style={{ color: '#dc2626', fontWeight: 700 }}>{importPreview.filter(r => !!r.error).length} with errors</span></>
                     )}
                   </span>
                 )}
@@ -907,17 +897,17 @@ export default function AdminLeads() {
                     </thead>
                     <tbody>
                       {importPreview.map((row, i) => (
-                        <tr key={i} style={{ background: row.valid ? '#f0fdf4' : '#fef2f2', borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '9px 14px', fontWeight: 600, color: '#0f172a' }}>{row.name}</td>
+                        <tr key={i} style={{ background: !row.error ? '#f0fdf4' : '#fef2f2', borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '9px 14px', fontWeight: 600, color: '#0f172a' }}>{`${row.firstName} ${row.lastName}`.trim() || '—'}</td>
                           <td style={{ padding: '9px 14px', color: '#475569' }}>{row.phone || '—'}</td>
                           <td style={{ padding: '9px 14px', color: '#475569', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.email || '—'}</td>
                           <td style={{ padding: '9px 14px', color: '#475569' }}>{row.originCity && row.destinationCity ? `${row.originCity} → ${row.destinationCity}` : '—'}</td>
-                          <td style={{ padding: '9px 14px', color: '#475569' }}>{row.homeSize || '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#475569' }}>{row.moveSize || '—'}</td>
                           <td style={{ padding: '9px 14px', color: '#475569' }}>{row.moveDate || '—'}</td>
                           <td style={{ padding: '9px 14px' }}>
-                            {row.valid
+                            {!row.error
                               ? <span style={{ color: '#16a34a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={12} /> Ready</span>
-                              : <span style={{ color: '#dc2626', fontSize: 11 }} title={row.errors.join(', ')}><AlertCircle size={12} style={{ verticalAlign: 'middle', marginRight: 3 }} />{row.errors[0]}</span>
+                              : <span style={{ color: '#dc2626', fontSize: 11 }} title={row.error}><AlertCircle size={12} style={{ verticalAlign: 'middle', marginRight: 3 }} />{row.error}</span>
                             }
                           </td>
                         </tr>
@@ -936,7 +926,7 @@ export default function AdminLeads() {
               }}>
                 {importResult?.imported > 0 ? 'Close' : 'Cancel'}
               </button>
-              {importPreview.filter(r => r.valid).length > 0 && !importResult?.imported && (
+              {importPreview.filter(r => !r.error).length > 0 && !importResult?.imported && (
                 <button
                   onClick={handleImport}
                   disabled={importing}
@@ -951,7 +941,7 @@ export default function AdminLeads() {
                   {importing ? (
                     <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Importing...</>
                   ) : (
-                    <><CheckCircle size={14} /> Import {importPreview.filter(r => r.valid).length} Valid Lead{importPreview.filter(r => r.valid).length !== 1 ? 's' : ''}</>
+                    <><CheckCircle size={14} /> Import {importPreview.filter(r => !r.error).length} Valid Lead{importPreview.filter(r => !r.error).length !== 1 ? 's' : ''}</>
                   )}
                 </button>
               )}
