@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const PricingRuleSchema = new mongoose.Schema({
   category: {
     type: String,
-    enum: ['HOME_SIZE', 'DISTANCE', 'BASE'],
+    enum: ['HOME_SIZE', 'DISTANCE', 'BASE', 'MOVE_DATE'],
     required: true
   },
   matchValue: {
