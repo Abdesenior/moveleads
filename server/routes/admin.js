@@ -226,10 +226,12 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       const miles = milesFromZips(originZip, destinationZip);
       const distance = miles > 100 ? 'Long Distance' : 'Local';
 
-      let moveDate = row.moveDate ? new Date(row.moveDate) : new Date(Date.now() + 30 * 86400000);
-      if (isNaN(moveDate.getTime())) throw new Error('Invalid move date');
-      // Past move dates are invisible to movers (feed filters moveDate >= now) — push them 30 days out
-      if (moveDate < new Date()) moveDate = new Date(Date.now() + 30 * 86400000);
+      const THIRTY_DAYS = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      let moveDate = (row.moveDate && !isNaN(new Date(row.moveDate)))
+        ? new Date(row.moveDate)
+        : THIRTY_DAYS;
+      // Past dates are invisible to movers (feed filters moveDate >= now) — push forward
+      if (moveDate < new Date()) moveDate = THIRTY_DAYS;
 
       // Normalize phone to E.164
       const digits = String(row.phone || '').replace(/\D/g, '');
@@ -270,20 +272,7 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       });
 
       await lead.save();
-      emitNewLead(lead);
-
-      sendAdminLeadNotification({
-        leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone,
-        customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity,
-        originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize,
-        moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles,
-        grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt,
-      }).catch(e => console.error('[Import] Admin notify error:', e.message));
-
-      User.find({ role: 'mover', smsNotif: true, phone: { $exists: true, $nin: ['', null] } })
-        .select('phone').lean()
-        .then(movers => movers.forEach(m => sendMoverLeadSMS(m.phone, lead).catch(() => {})))
-        .catch(() => {});
+      emitNewLead(lead); // socket-only — no email/SMS spam for bulk imports
 
       imported++;
     } catch (err) {
