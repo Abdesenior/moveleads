@@ -221,6 +221,17 @@ router.get('/', auth, async (req, res) => {
       };
     }
 
+    // Heal bulk-imported leads that were saved with past move dates — push them 30 days out
+    // so they become visible in the mover feed (which filters moveDate >= now).
+    await Lead.updateMany(
+      {
+        status: 'READY_FOR_DISTRIBUTION',
+        moveDate: { $lt: new Date() },
+        $or: [{ buyers: { $size: 0 } }, { buyers: { $exists: false } }]
+      },
+      { $set: { moveDate: new Date(Date.now() + 30 * 86400000) } }
+    );
+
     // Ensure every available, unbought lead with a future move date has an active auction.
     // This catches:
     //   - 'expired' leads (24h window lapsed but no buyer yet)

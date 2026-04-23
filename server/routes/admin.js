@@ -226,8 +226,10 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       const miles = milesFromZips(originZip, destinationZip);
       const distance = miles > 100 ? 'Long Distance' : 'Local';
 
-      const moveDate = row.moveDate ? new Date(row.moveDate) : new Date(Date.now() + 30 * 86400000);
+      let moveDate = row.moveDate ? new Date(row.moveDate) : new Date(Date.now() + 30 * 86400000);
       if (isNaN(moveDate.getTime())) throw new Error('Invalid move date');
+      // Past move dates are invisible to movers (feed filters moveDate >= now) — push them 30 days out
+      if (moveDate < new Date()) moveDate = new Date(Date.now() + 30 * 86400000);
 
       // Normalize phone to E.164
       const digits = String(row.phone || '').replace(/\D/g, '');
