@@ -43,6 +43,8 @@ const LeadSchema = new mongoose.Schema({
   ],
   maxBuyers:      { type: Number, default: 1 },
   sourceCompany:  { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+  source:         { type: String },
+  verifiedBy:     { type: String },
   isWarmTransfer: { type: Boolean, default: false },
   createdAt:      { type: Date, default: Date.now },
 

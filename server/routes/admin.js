@@ -221,48 +221,48 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
 
   for (const row of rows) {
     try {
-      const homeSize = HOME_SIZE_NORM[(row.moveSize || '').toLowerCase().trim()] || row.moveSize || '2 Bedroom';
-      const originZip = String(row.originZip || '').replace(/\D/g, '').slice(0, 5);
-      const destinationZip = String(row.destinationZip || '').replace(/\D/g, '').slice(0, 5);
-      const miles = milesFromZips(originZip, destinationZip);
+      const customerEmail = (row.email || '').trim();
+      if (!customerEmail) throw new Error('Missing email');
+
+      const digits = String(row.phone || '').replace(/\D/g, '');
+      const customerPhone = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : digits;
+      if (!customerPhone) throw new Error('Missing phone number');
+
+      const homeSize = HOME_SIZE_NORM[(row.moveSize || '').toLowerCase().trim()] || '2 Bedroom';
+      const originZip = String(row.originZip || '').trim();
+      const destinationZip = String(row.destinationZip || '').trim();
+      const miles = milesFromZips(originZip, destinationZip) || 0;
       const distance = miles > 100 ? 'Long Distance' : 'Local';
+      const grade = miles > 500 ? 'A' : miles > 100 ? 'B' : 'C';
 
       const THIRTY_DAYS = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       let moveDate = (row.moveDate && !isNaN(new Date(row.moveDate)))
         ? new Date(row.moveDate)
         : THIRTY_DAYS;
-      // Past dates are invisible to movers (feed filters moveDate >= now) — push forward
       if (moveDate < new Date()) moveDate = THIRTY_DAYS;
 
-      // Normalize phone to E.164
-      const digits = String(row.phone || '').replace(/\D/g, '');
-      const customerPhone = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : digits;
-      if (!customerPhone) throw new Error('Missing phone number');
-
-      const customerEmail = (row.email || '').trim();
-      if (!customerEmail) throw new Error('Missing email');
-
-      const scoring = calculateLeadScore({ homeSize, miles, moveDate }, miles, 'mobile', moveDate);
-      const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade: scoring.grade });
+      const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade });
 
       const lead = new Lead({
         customerName: `${row.firstName || ''} ${row.lastName || ''}`.trim() || 'Unknown',
         customerEmail,
         customerPhone,
         originCity: row.originCity || '',
+        originState: row.originState || '',
         originZip,
         destinationCity: row.destinationCity || '',
+        destinationState: row.destinationState || '',
         destinationZip,
         homeSize,
         moveDate,
         distance,
         miles,
+        grade,
         route: `${row.originCity || ''} → ${row.destinationCity || ''}`,
         status: 'READY_FOR_DISTRIBUTION',
         isVerified: true,
-        grade: scoring.grade,
-        score: scoring.score,
-        scoreFactors: scoring.scoreFactors,
+        verifiedBy: 'admin',
+        source: 'bulk_import',
         buyNowPrice: pricing.buyNowPrice,
         startingBidPrice: pricing.startingBidPrice,
         currentBidPrice: pricing.startingBidPrice,
@@ -273,7 +273,7 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       });
 
       await lead.save();
-      emitNewLead(lead); // socket-only — no email/SMS spam for bulk imports
+      emitNewLead(lead); // socket-only — no email, no SMS
 
       imported++;
     } catch (err) {
