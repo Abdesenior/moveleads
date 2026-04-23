@@ -43,7 +43,7 @@ router.post('/', auth, async (req, res) => {
     res.json(dispute);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -60,7 +60,7 @@ router.get('/admin', [auth, admin], async (req, res) => {
     res.json(disputes);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -139,7 +139,7 @@ router.post('/admin/:id/resolve', [auth, admin], async (req, res) => {
     }
   } catch (err) {
     console.error('DISPUTE RESOLUTION ERROR:', err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 

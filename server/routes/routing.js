@@ -23,7 +23,7 @@ router.get('/eligible', [auth, admin], async (req, res) => {
     });
   } catch (err) {
     console.error('ROUTING ERROR:', err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -36,7 +36,7 @@ router.get('/coverage/:companyId', [auth, admin], async (req, res) => {
     res.json(areas);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -72,7 +72,7 @@ router.post('/coverage', [auth, admin], async (req, res) => {
     res.json(area);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -108,7 +108,7 @@ router.post('/coverage/bulk', [auth, admin], async (req, res) => {
     res.json({ msg: `${inserted} coverage areas added`, count: inserted });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -157,7 +157,7 @@ router.delete('/coverage/:id', [auth, admin], async (req, res) => {
     res.json({ msg: 'Coverage area removed' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 

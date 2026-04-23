@@ -63,10 +63,12 @@ async function calculateAuctionPrice(lead) {
   try {
     const distance = miles > 100 ? 'Long Distance' : 'Local';
     const rules = await PricingRule.find({ isActive: true });
-    console.log(`[Pricing] miles=${miles} distance=${distance} homeSize=${homeSize} grade=${grade} | active rules: ${rules.length} | ${rules.map(r => `${r.category}:${r.matchValue}:${r.multiplier}`).join(', ')}`);
+    const urgencyLabel = days <= 7 ? 'Urgent' : days <= 14 ? 'Soon' : 'Standard';
+    console.log(`[Pricing] miles=${miles} distance=${distance} homeSize=${homeSize} grade=${grade} urgency=${urgencyLabel} | active rules: ${rules.length} | ${rules.map(r => `${r.category}:${r.matchValue}:${r.multiplier}`).join(', ')}`);
     for (const rule of rules) {
       if (rule.category === 'HOME_SIZE'  && homeSize === rule.matchValue) dbMult *= rule.multiplier;
       if (rule.category === 'DISTANCE'   && distance === rule.matchValue) dbMult *= rule.multiplier;
+      if (rule.category === 'MOVE_DATE'  && urgencyLabel === rule.matchValue) dbMult *= rule.multiplier;
     }
     // Also apply base price from platform settings if set
     const settings = await PlatformSettings.findOne();

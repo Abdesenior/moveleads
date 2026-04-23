@@ -195,8 +195,8 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
 
       console.log(`[PhoneVerify] PASS — Type: ${lineType} Grade: ${scoring.grade} Price: $${finalPricing.buyNowPrice}`);
 
-      // Warm transfer for Grade A leads
-      if (scoring.grade === 'A' && twilioClient) {
+      // Warm transfer for Grade A mobile leads only (landlines can't receive transfers)
+      if (scoring.grade === 'A' && twilioClient && lineType !== 'landline') {
         console.log(`[WarmTransfer] Initiating call for lead ${lead._id} → ${lead.customerPhone}`);
         twilioClient.calls.create({
           to:                  lead.customerPhone,

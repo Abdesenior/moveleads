@@ -43,7 +43,7 @@ router.post('/impersonate/:id', [auth, superAdmin], async (req, res) => {
     );
   } catch (err) {
     console.error('IMPERSONATION ERROR:', err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -96,7 +96,7 @@ router.get('/stats', [auth, admin], async (req, res) => {
     });
   } catch (err) {
     console.error('ADMIN STATS ERROR:', err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -114,7 +114,7 @@ router.post('/coverage', [auth, admin], async (req, res) => {
     res.status(201).json(area);
   } catch (err) {
     console.error('COVERAGE CREATE ERROR:', err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -127,7 +127,7 @@ router.delete('/coverage/:id', [auth, admin], async (req, res) => {
     res.json({ msg: 'Coverage area deleted' });
   } catch (err) {
     console.error('COVERAGE DELETE ERROR:', err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 

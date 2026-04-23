@@ -51,8 +51,8 @@ const LeadIngestSchema = z.object({
     .regex(/^\d{5}$/, 'Destination zip must be a valid 5-digit zip code'),
 
   homeSize: z.enum(
-    ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4+ Bedroom'],
-    { errorMap: () => ({ message: 'Home size must be one of: Studio, 1 Bedroom, 2 Bedroom, 3 Bedroom, 4+ Bedroom' }) }
+    ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom', '5+ Bedroom', '4+ Bedroom'],
+    { errorMap: () => ({ message: 'Home size must be one of: Studio, 1 Bedroom, 2 Bedroom, 3 Bedroom, 4 Bedroom, 5+ Bedroom' }) }
   ),
 
   moveDate: z
@@ -97,7 +97,10 @@ const LeadIngestSchema = z.object({
   sourceCompany: z
     .string()
     .optional()
-});
+}).refine(
+  (data) => data.originZip !== data.destinationZip,
+  { message: 'Origin and destination zip codes cannot be the same location', path: ['destinationZip'] }
+);
 
 /**
  * Validate an incoming lead payload using Zod.

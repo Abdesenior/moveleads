@@ -68,7 +68,7 @@ function MapArc({ origin, destination }) {
   useEffect(() => {
     if (!origin || !destination || !ref.current) return;
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
-    setLoading(true);
+    // Loading state resets via 'key' prop in parent — no synchronous setState needed here
     const t = setTimeout(() => setLoading(false), 5000);
     const map = new mapboxgl.Map({ container: ref.current, style: 'mapbox://styles/mapbox/light-v11', center: [-98.58, 39.83], zoom: 2.5, interactive: false, attributionControl: false });
     mapRef.current = map;
@@ -374,7 +374,11 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
 
             {data.originCoords && data.destCoords && (
               <>
-                <MapArc origin={data.originCoords} destination={data.destCoords} />
+                <MapArc
+                  key={`${data.originCoords.lat}-${data.originCoords.lon}-${data.destCoords.lat}-${data.destCoords.lon}`}
+                  origin={data.originCoords}
+                  destination={data.destCoords}
+                />
                 <div className={`gq-dist-pill gq-dist-pill--${isLong ? 'long' : 'local'}`}>
                   <span>{isLong ? '🚛 Long Distance Move' : '📍 Local Move'}</span>
                   <span style={{ fontWeight: 500, fontSize: 12 }}>{data.originCoords.city} → {data.destCoords.city} · {data.miles.toLocaleString()} mi</span>
@@ -890,7 +894,7 @@ function QuotePage({ prefillOriginZip = '', prefillDestZip = '', heroTitle, hero
 }
 
 /* Stateful form that syncs to parent data */
-function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) {
+function QuoteFormStateful({ data, setData }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -1014,7 +1018,11 @@ function QuoteFormStateful({ prefillOriginZip, prefillDestZip, data, setData }) 
           {zipError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '9px 13px', fontSize: 12, color: '#dc2626', marginBottom: 12 }}>{zipError}</div>}
           {data.originCoords && data.destCoords && (
             <>
-              <MapArc origin={data.originCoords} destination={data.destCoords} />
+              <MapArc
+                key={`${data.originCoords.lat}-${data.originCoords.lon}-${data.destCoords.lat}-${data.destCoords.lon}`}
+                origin={data.originCoords}
+                destination={data.destCoords}
+              />
               <div className={`gq-dist-pill gq-dist-pill--${isLong ? 'long' : 'local'}`}>
                 <span>{isLong ? '🚛 Long Distance Move' : '📍 Local Move'}</span>
                 <span style={{ fontWeight: 500, fontSize: 12 }}>{data.originCoords.city} → {data.destCoords.city} · {data.miles.toLocaleString()} mi</span>
