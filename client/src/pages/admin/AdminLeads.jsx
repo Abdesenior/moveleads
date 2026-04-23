@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search } from 'lucide-react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search, Upload, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -69,31 +70,24 @@ const CITY_ZIPS = {
 
 /* ── Custom city autocomplete with auto ZIP lookup ── */
 function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
-  const [query, setQuery] = useState(value || '');
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
-  const [autoZip, setAutoZip] = useState('');
   const wrapRef = useRef(null);
 
-  // sync query if parent resets form
-  useEffect(() => { setQuery(value || ''); if (!value) setAutoZip(''); }, [value]);
+  // Fully controlled: both query and autoZip are derived from the prop — no local state to sync
+  const query   = value || '';
+  const autoZip = CITY_ZIPS[value] || '';
 
   const filtered = query.length > 0
     ? CITIES.filter(c => c.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
     : [];
 
   const select = (city) => {
-    setQuery(city);
     onChange(city);
     setOpen(false);
-
-    // Auto-fill ZIP from lookup map
     if (onZipFound) {
       const zip = CITY_ZIPS[city];
-      if (zip) {
-        setAutoZip(zip);
-        onZipFound(zip);
-      }
+      if (zip) onZipFound(zip);
     }
   };
 
@@ -126,7 +120,7 @@ function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
           autoComplete="off"
           required
           style={{ ...inputStyle, paddingLeft: 34 }}
-          onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); setHighlighted(0); setAutoZip(''); }}
+          onChange={e => { onChange(e.target.value); setOpen(true); setHighlighted(0); }}
           onFocus={() => { setOpen(true); setHighlighted(0); }}
           onKeyDown={handleKey}
           onBlur={e => {
@@ -206,14 +200,110 @@ export default function AdminLeads() {
 
   const [formData, setFormData] = useState(emptyForm);
 
-  useEffect(() => { fetchLeads(); }, []);
+  // Import state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importPreview, setImportPreview] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const fileInputRef = useRef(null);
 
-  const fetchLeads = async () => {
+  const col = (row, ...names) => {
+    for (const n of names) {
+      const v = row[n] ?? row[n.toLowerCase()] ?? row[n.toUpperCase()];
+      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+  };
+
+  const validateRow = (row) => {
+    const errors = [];
+    if (!col(row, 'first name', 'firstName', 'first_name') && !col(row, 'last name', 'lastName', 'last_name')) errors.push('Missing name');
+    if (!col(row, 'phone')) errors.push('Missing phone');
+    if (!col(row, 'email')) errors.push('Missing email');
+    if (!col(row, 'origin zip', 'originZip', 'origin_zip')) errors.push('Missing origin zip');
+    if (!col(row, 'destination zip', 'destinationZip', 'destination_zip')) errors.push('Missing destination zip');
+    return errors;
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const wb = XLSX.read(evt.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const preview = rows.map((row) => {
+        const errors = validateRow(row);
+        const firstName = col(row, 'first name', 'firstName', 'first_name');
+        const lastName = col(row, 'last name', 'lastName', 'last_name');
+        return {
+          _raw: row,
+          name: `${firstName} ${lastName}`.trim() || 'Unknown',
+          phone: col(row, 'phone'),
+          email: col(row, 'email'),
+          originCity: col(row, 'origin city', 'originCity', 'origin_city'),
+          destinationCity: col(row, 'destination city', 'destinationCity', 'destination_city'),
+          homeSize: col(row, 'move size', 'moveSize', 'move_size', 'home size', 'homeSize'),
+          moveDate: col(row, 'move date', 'moveDate', 'move_date'),
+          errors,
+          valid: errors.length === 0
+        };
+      });
+      setImportPreview(preview);
+      setImportResult(null);
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
+  const handleImport = async () => {
+    const validRows = importPreview.filter(r => r.valid).map(r => ({
+      firstName: col(r._raw, 'first name', 'firstName', 'first_name'),
+      lastName: col(r._raw, 'last name', 'lastName', 'last_name'),
+      phone: col(r._raw, 'phone'),
+      email: col(r._raw, 'email'),
+      originCity: col(r._raw, 'origin city', 'originCity', 'origin_city'),
+      originState: col(r._raw, 'origin state', 'originState', 'origin_state'),
+      originZip: col(r._raw, 'origin zip', 'originZip', 'origin_zip'),
+      destinationCity: col(r._raw, 'destination city', 'destinationCity', 'destination_city'),
+      destinationState: col(r._raw, 'destination state', 'destinationState', 'destination_state'),
+      destinationZip: col(r._raw, 'destination zip', 'destinationZip', 'destination_zip'),
+      moveType: col(r._raw, 'move type', 'moveType', 'move_type'),
+      moveSize: col(r._raw, 'move size', 'moveSize', 'move_size', 'home size', 'homeSize'),
+      moveDate: col(r._raw, 'move date', 'moveDate', 'move_date'),
+    }));
+    setImporting(true);
+    try {
+      const res = await fetch(`${API_URL}/admin/leads/import`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leads: validRows })
+      });
+      const data = await res.json();
+      setImportResult(data);
+      if (data.imported > 0) fetchLeads();
+    } catch (err) {
+      setImportResult({ error: err.message });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const closeImportModal = () => {
+    setShowImportModal(false);
+    setImportPreview([]);
+    setImportResult(null);
+  };
+
+  const fetchLeads = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/leads`, { headers: { 'x-auth-token': token } });
       setLeads(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [API_URL, token]);
+
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
   const handleInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
 
@@ -329,17 +419,29 @@ export default function AdminLeads() {
           <h1 style={{ fontFamily: 'Poppins' }}>Manage Leads</h1>
           <p>Create, edit, and manage all marketplace leads</p>
         </header>
-        <button onClick={() => { setEditingId(null); setFormData(emptyForm); setShowModal(true); }} 
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            color: '#fff', border: 'none', borderRadius: 14, padding: '14px 24px',
-            fontSize: 14, fontWeight: 700, fontFamily: "'Poppins', sans-serif",
-            cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
-            transition: 'all 0.2s'
-          }}>
-          <Plus size={18} /> Add New Lead
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => setShowImportModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: '#fff', color: '#374151', border: '1.5px solid #e2e8f0',
+              borderRadius: 14, padding: '14px 20px',
+              fontSize: 14, fontWeight: 600, fontFamily: "'Poppins', sans-serif",
+              cursor: 'pointer', transition: 'all 0.2s'
+            }}>
+            <Upload size={16} /> Import CSV/Excel
+          </button>
+          <button onClick={() => { setEditingId(null); setFormData(emptyForm); setShowModal(true); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: '#fff', border: 'none', borderRadius: 14, padding: '14px 24px',
+              fontSize: 14, fontWeight: 700, fontFamily: "'Poppins', sans-serif",
+              cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
+              transition: 'all 0.2s'
+            }}>
+            <Plus size={18} /> Add New Lead
+          </button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -689,6 +791,171 @@ export default function AdminLeads() {
             </form>
 
 
+          </div>
+        </div>
+      )}
+
+      {/* IMPORT CSV/EXCEL MODAL */}
+      {showImportModal && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(10,20,40,0.65)',
+          backdropFilter: 'blur(14px)',
+          zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          animation: 'fadeIn 0.25s ease'
+        }}>
+          <div style={{
+            background: '#fff', width: '100%', maxWidth: 860, borderRadius: 28,
+            boxShadow: '0 40px 100px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.12)',
+            maxHeight: '92vh', overflowY: 'auto',
+            animation: 'scaleIn 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+            display: 'flex', flexDirection: 'column'
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              borderRadius: '28px 28px 0 0', padding: '28px 32px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Upload size={22} color="#fff" />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, color: '#fff', fontSize: 20, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>Import Leads from CSV / Excel</h2>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>Upload a spreadsheet to bulk-import leads into the marketplace</p>
+                </div>
+              </div>
+              <button onClick={closeImportModal} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {/* Template download + file picker */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <a
+                  href={`${API_URL}/admin/leads/import/template`}
+                  download="moveleads-template.csv"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    background: '#f1f5f9', color: '#334155', textDecoration: 'none', border: '1px solid #e2e8f0'
+                  }}
+                >
+                  <Download size={14} /> Download Template
+                </a>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', border: 'none', cursor: 'pointer'
+                  }}
+                >
+                  <Upload size={14} /> Choose File
+                </button>
+                {importPreview.length > 0 && (
+                  <span style={{ fontSize: 13, color: '#64748b' }}>
+                    {importPreview.length} rows found — <span style={{ color: '#16a34a', fontWeight: 700 }}>{importPreview.filter(r => r.valid).length} valid</span>
+                    {importPreview.filter(r => !r.valid).length > 0 && (
+                      <>, <span style={{ color: '#dc2626', fontWeight: 700 }}>{importPreview.filter(r => !r.valid).length} with errors</span></>
+                    )}
+                  </span>
+                )}
+              </div>
+
+              {/* Result banner */}
+              {importResult && (
+                <div style={{
+                  padding: '14px 18px', borderRadius: 12,
+                  background: importResult.error ? '#fef2f2' : '#f0fdf4',
+                  border: `1px solid ${importResult.error ? '#fca5a5' : '#bbf7d0'}`,
+                  display: 'flex', alignItems: 'center', gap: 10
+                }}>
+                  {importResult.error
+                    ? <AlertCircle size={18} color="#dc2626" />
+                    : <CheckCircle size={18} color="#16a34a" />
+                  }
+                  <span style={{ fontSize: 13, fontWeight: 600, color: importResult.error ? '#dc2626' : '#15803d' }}>
+                    {importResult.error
+                      ? `Import failed: ${importResult.error}`
+                      : `Successfully imported ${importResult.imported} lead${importResult.imported !== 1 ? 's' : ''}${importResult.skipped > 0 ? ` (${importResult.skipped} skipped)` : ''}`
+                    }
+                  </span>
+                </div>
+              )}
+
+              {/* Preview table */}
+              {importPreview.length > 0 && (
+                <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        {['Name', 'Phone', 'Email', 'Route', 'Size', 'Move Date', 'Status'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.map((row, i) => (
+                        <tr key={i} style={{ background: row.valid ? '#f0fdf4' : '#fef2f2', borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '9px 14px', fontWeight: 600, color: '#0f172a' }}>{row.name}</td>
+                          <td style={{ padding: '9px 14px', color: '#475569' }}>{row.phone || '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#475569', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.email || '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#475569' }}>{row.originCity && row.destinationCity ? `${row.originCity} → ${row.destinationCity}` : '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#475569' }}>{row.homeSize || '—'}</td>
+                          <td style={{ padding: '9px 14px', color: '#475569' }}>{row.moveDate || '—'}</td>
+                          <td style={{ padding: '9px 14px' }}>
+                            {row.valid
+                              ? <span style={{ color: '#16a34a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={12} /> Ready</span>
+                              : <span style={{ color: '#dc2626', fontSize: 11 }} title={row.errors.join(', ')}><AlertCircle size={12} style={{ verticalAlign: 'middle', marginRight: 3 }} />{row.errors[0]}</span>
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '0 32px 28px', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button onClick={closeImportModal} style={{
+                padding: '12px 24px', borderRadius: 12, border: '1.5px solid #e2e8f0',
+                background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151'
+              }}>
+                {importResult?.imported > 0 ? 'Close' : 'Cancel'}
+              </button>
+              {importPreview.filter(r => r.valid).length > 0 && !importResult?.imported && (
+                <button
+                  onClick={handleImport}
+                  disabled={importing}
+                  style={{
+                    padding: '12px 24px', borderRadius: 12, border: 'none',
+                    background: importing ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #15803d)',
+                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: importing ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    fontFamily: "'Poppins', sans-serif"
+                  }}
+                >
+                  {importing ? (
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Importing...</>
+                  ) : (
+                    <><CheckCircle size={14} /> Import {importPreview.filter(r => r.valid).length} Valid Lead{importPreview.filter(r => r.valid).length !== 1 ? 's' : ''}</>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
