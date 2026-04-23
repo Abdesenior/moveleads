@@ -1,4 +1,5 @@
 require('dotenv').config();
+console.log('SERVER VERSION: import-fix-v4', new Date().toISOString());
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -50,6 +51,7 @@ app.get('/api/health', async (req, res) => {
     const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     res.json({
       status: 'ok',
+      version: 'import-fix-v4',
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
       database: dbState,
