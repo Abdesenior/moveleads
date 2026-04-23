@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const zipcodes = require('zipcodes');
 const Lead = require('../models/Lead');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
-const { calculateLeadScore } = require('../services/scoringService');
 
 function milesFromZips(a, b) {
   const o = zipcodes.lookup(String(a)), d = zipcodes.lookup(String(b));
@@ -139,8 +138,8 @@ async function run() {
       const customerPhone = normPhone(row.phone);
       const customerEmail = row.email.trim();
 
-      const scoring = calculateLeadScore({ homeSize, miles, moveDate }, miles, 'mobile', moveDate);
-      const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade: scoring.grade });
+      const grade = miles > 500 ? 'A' : miles > 100 ? 'B' : 'C';
+      const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade });
 
       const lead = new Lead({
         customerName: `${row.firstName} ${row.lastName}`.trim(),
@@ -154,12 +153,12 @@ async function run() {
         moveDate,
         distance,
         miles,
+        grade,
         route: `${row.originCity} → ${row.destinationCity}`,
         status: 'READY_FOR_DISTRIBUTION',
         isVerified: true,
-        grade: scoring.grade,
-        score: scoring.score,
-        scoreFactors: scoring.scoreFactors,
+        verifiedBy: 'admin',
+        source: 'bulk_import',
         buyNowPrice: pricing.buyNowPrice,
         startingBidPrice: pricing.startingBidPrice,
         currentBidPrice: pricing.startingBidPrice,

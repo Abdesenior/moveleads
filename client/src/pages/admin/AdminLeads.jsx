@@ -221,9 +221,20 @@ export default function AdminLeads() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const wb = XLSX.read(evt.target.result, { type: 'array' });
+      const wb = XLSX.read(evt.target.result, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      const parseDate = (raw) => {
+        if (!raw) return '';
+        if (raw instanceof Date) return raw.toISOString().split('T')[0];
+        if (typeof raw === 'number') {
+          const d = new Date(Math.round((raw - 25569) * 864e5));
+          return d.toISOString().split('T')[0];
+        }
+        return String(raw).trim();
+      };
+
       const parsed = rows.map(row => ({
         firstName: row['First Name'] || row['first name'] || row['firstName'] || '',
         lastName: row['Last Name'] || row['last name'] || row['lastName'] || '',
@@ -237,7 +248,7 @@ export default function AdminLeads() {
         destinationZip: row['Destination Zip'] || row['destination zip'] || row['destinationZip'] || '',
         moveType: row['Move Type'] || row['move type'] || 'Long Distance',
         moveSize: row['Move Size'] || row['move size'] || '2 Bedroom',
-        moveDate: row['Move Date'] || row['move date'] || '',
+        moveDate: parseDate(row['Move Date'] || row['move date'] || ''),
         error: validateRow(row)
       }));
       setImportPreview(parsed);
