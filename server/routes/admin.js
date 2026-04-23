@@ -7,6 +7,32 @@ const User = require('../models/User');
 const Lead = require('../models/Lead');
 const CoverageArea = require('../models/CoverageArea');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const zipcodes = require('zipcodes');
+const { calculateAuctionPrice } = require('../utils/pricingEngine');
+const { calculateLeadScore } = require('../services/scoringService');
+const { emitNewLead } = require('../services/socketService');
+const { sendAdminLeadNotification } = require('../services/emailService');
+const { sendMoverLeadSMS } = require('../services/smsService');
+
+// ── Helpers for bulk import ───────────────────────────────────────────────────
+function milesFromZips(originZip, destinationZip) {
+  const o = zipcodes.lookup(String(originZip));
+  const d = zipcodes.lookup(String(destinationZip));
+  if (!o || !d) return 0;
+  const R = 3959, dLat = (d.latitude - o.latitude) * Math.PI / 180, dLon = (d.longitude - o.longitude) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(o.latitude * Math.PI / 180) * Math.cos(d.latitude * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+const HOME_SIZE_NORM = {
+  'studio': 'Studio',
+  '1 bedroom': '1 Bedroom', '1bedroom': '1 Bedroom',
+  '2 bedroom': '2 Bedroom', '2bedroom': '2 Bedroom',
+  '3 bedroom': '3 Bedroom', '3bedroom': '3 Bedroom',
+  '4 bedroom': '4 Bedroom', '4bedroom': '4 Bedroom',
+  '5+ bedroom': '5+ Bedroom', '5+bedroom': '5+ Bedroom',
+  '4+ bedroom': '4+ Bedroom',
+};
 
 // @route   POST /api/admin/impersonate/:id
 // @desc    Super Admin: Impersonate a user (generate delegated JWT)
@@ -157,6 +183,116 @@ router.post('/users/:id/balance', [auth, admin], async (req, res) => {
     console.error('[Admin] Balance adjust error:', err.message);
     res.status(500).json({ msg: 'Server error' });
   }
+});
+
+// @route   GET /api/admin/leads/import/template
+// @desc    Download a CSV template for bulk lead import
+// @access  Private (Admin)
+router.get('/leads/import/template', [auth, admin], (_req, res) => {
+  const headers = [
+    'first name', 'last name', 'email', 'phone',
+    'origin city', 'origin state', 'origin zip',
+    'destination city', 'destination state', 'destination zip',
+    'move type', 'move size', 'move date',
+  ].join(',');
+  const example = [
+    'John', 'Smith', 'john@gmail.com', '2125559980',
+    'Dallas', 'TX', '75201',
+    'Los Angeles', 'CA', '90210',
+    'Long Distance', '2 Bedroom', '2026-06-15',
+  ].join(',');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=moveleads-template.csv');
+  res.send(`${headers}\n${example}`);
+});
+
+// @route   POST /api/admin/leads/import
+// @desc    Bulk import leads from parsed CSV/Excel rows
+// @access  Private (Admin)
+router.post('/leads/import', [auth, admin], async (req, res) => {
+  const { leads: rows } = req.body;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ msg: 'No leads provided' });
+  }
+
+  let imported = 0, skipped = 0;
+  const errors = [];
+
+  for (const row of rows) {
+    try {
+      const homeSize = HOME_SIZE_NORM[(row.moveSize || '').toLowerCase().trim()] || row.moveSize || '2 Bedroom';
+      const originZip = String(row.originZip || '').replace(/\D/g, '').slice(0, 5);
+      const destinationZip = String(row.destinationZip || '').replace(/\D/g, '').slice(0, 5);
+      const miles = milesFromZips(originZip, destinationZip);
+      const distance = miles > 100 ? 'Long Distance' : 'Local';
+
+      const moveDate = row.moveDate ? new Date(row.moveDate) : new Date(Date.now() + 30 * 86400000);
+      if (isNaN(moveDate.getTime())) throw new Error('Invalid move date');
+
+      // Normalize phone to E.164
+      const digits = String(row.phone || '').replace(/\D/g, '');
+      const customerPhone = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : digits;
+      if (!customerPhone) throw new Error('Missing phone number');
+
+      const customerEmail = (row.email || '').trim();
+      if (!customerEmail) throw new Error('Missing email');
+
+      const scoring = calculateLeadScore({ homeSize, miles, moveDate }, miles, 'mobile', moveDate);
+      const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade: scoring.grade });
+
+      const lead = new Lead({
+        customerName: `${row.firstName || ''} ${row.lastName || ''}`.trim() || 'Unknown',
+        customerEmail,
+        customerPhone,
+        originCity: row.originCity || '',
+        originZip,
+        destinationCity: row.destinationCity || '',
+        destinationZip,
+        homeSize,
+        moveDate,
+        distance,
+        miles,
+        route: `${row.originCity || ''} → ${row.destinationCity || ''}`,
+        status: 'READY_FOR_DISTRIBUTION',
+        isVerified: true,
+        grade: scoring.grade,
+        score: scoring.score,
+        scoreFactors: scoring.scoreFactors,
+        buyNowPrice: pricing.buyNowPrice,
+        startingBidPrice: pricing.startingBidPrice,
+        currentBidPrice: pricing.startingBidPrice,
+        price: pricing.buyNowPrice,
+        auctionStatus: 'active',
+        auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        statusHistory: [{ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() }],
+      });
+
+      await lead.save();
+      emitNewLead(lead);
+
+      sendAdminLeadNotification({
+        leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone,
+        customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity,
+        originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize,
+        moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles,
+        grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt,
+      }).catch(e => console.error('[Import] Admin notify error:', e.message));
+
+      User.find({ role: 'mover', smsNotif: true, phone: { $exists: true, $nin: ['', null] } })
+        .select('phone').lean()
+        .then(movers => movers.forEach(m => sendMoverLeadSMS(m.phone, lead).catch(() => {})))
+        .catch(() => {});
+
+      imported++;
+    } catch (err) {
+      console.error(`[Import] Row error (${row.email || 'unknown'}):`, err.message);
+      errors.push({ row: row.email || 'unknown', error: err.message });
+      skipped++;
+    }
+  }
+
+  console.log(`[Import] Done — imported: ${imported}, skipped: ${skipped}`);
+  res.json({ success: true, imported, skipped, errors });
 });
 
 module.exports = router;
