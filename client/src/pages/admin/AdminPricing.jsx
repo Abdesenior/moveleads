@@ -5,7 +5,8 @@ import { AuthContext } from '../../context/AuthContext';
 
 const CATEGORIES = [
   { id: 'HOME_SIZE', label: 'Home Size' },
-  { id: 'DISTANCE', label: 'Distance' }
+  { id: 'DISTANCE', label: 'Distance' },
+  { id: 'MOVE_DATE', label: 'Move Date' },
 ];
 
 export default function AdminPricing() {
