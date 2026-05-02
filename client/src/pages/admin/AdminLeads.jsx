@@ -357,7 +357,8 @@ export default function AdminLeads() {
   const fetchLeads = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/leads`, { headers: { 'x-auth-token': token } });
-      setLeads(await res.json());
+      const data = await res.json();
+      setLeads(Array.isArray(data) ? data : []);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }, [API_URL, token]);
 
