@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
-import { useGoogleMaps } from '../../hooks/useGoogleMaps';
 import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search, Upload, Download, CheckCircle, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
@@ -71,42 +70,46 @@ const CITY_ZIPS = {
 
 /* ── Google Places city autocomplete (US only) ── */
 function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
-  const { ready, error: apiError } = useGoogleMaps();
   const inputRef = useRef(null);
-  const autocompleteRef = useRef(null);
+  const acRef = useRef(null);
+  const [ready, setReady] = useState(() => !!window.google?.maps?.places);
 
-  // Keep DOM input synced with controlled value (handles form reset & edit pre-fill)
+  // Poll until the deferred Maps script is available
   useEffect(() => {
-    if (inputRef.current) inputRef.current.value = value || '';
-  }, [value]);
+    if (ready) return;
+    const id = setInterval(() => {
+      if (window.google?.maps?.places) { setReady(true); clearInterval(id); }
+    }, 200);
+    return () => clearInterval(id);
+  }, [ready]);
 
+  // Initialise Places Autocomplete once the API is ready
   useEffect(() => {
-    if (!ready || !inputRef.current || autocompleteRef.current) return;
-
+    if (!ready || !inputRef.current || acRef.current) return;
     const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
       types: ['(cities)'],
       componentRestrictions: { country: 'us' },
       fields: ['address_components', 'name'],
     });
-
     ac.addListener('place_changed', () => {
       const place = ac.getPlace();
       if (!place?.address_components) return;
-
-      const get = (type) =>
-        place.address_components.find(c => c.types.includes(type))?.long_name || '';
-
+      const get = t => place.address_components.find(c => c.types.includes(t))?.long_name || '';
       const city = get('locality') || get('sublocality') || get('administrative_area_level_3') || place.name || '';
       onChange(city);
-
       const zip = CITY_ZIPS[city] || get('postal_code') || '';
       if (zip && onZipFound) onZipFound(zip);
     });
-
-    autocompleteRef.current = ac;
+    acRef.current = ac;
   }, [ready, onChange, onZipFound]);
 
-  if (apiError) {
+  // Sync controlled value to DOM input (form reset & edit pre-fill)
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.value = value || '';
+  }, [value]);
+
+  // Show hardcoded fallback until Google Maps loads (or if key is missing)
+  if (!ready) {
     return <FallbackCityAutocomplete label={label} value={value} onChange={onChange} onZipFound={onZipFound} placeholder={placeholder} />;
   }
 
@@ -121,7 +124,7 @@ function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
           ref={inputRef}
           type="text"
           defaultValue={value}
-          placeholder={ready ? placeholder : 'Loading…'}
+          placeholder={placeholder}
           autoComplete="new-password"
           style={{ ...inputStyle, paddingLeft: 34 }}
           onChange={e => onChange(e.target.value)}
