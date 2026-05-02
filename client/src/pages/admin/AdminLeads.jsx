@@ -275,9 +275,9 @@ export default function AdminLeads() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const wb = XLSX.read(evt.target.result, { type: 'array', cellDates: true });
+      const wb = XLSX.read(evt.target.result, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
 
       const parseDate = (raw) => {
         if (!raw) return '';

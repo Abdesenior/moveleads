@@ -265,6 +265,7 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       const distance = miles > 100 ? 'Long Distance' : 'Local';
       const grade = miles > 500 ? 'A' : miles > 100 ? 'B' : 'C';
 
+      console.log('[DATE DEBUG] raw:', row.moveDate, '| type:', typeof row.moveDate, '| parsed:', new Date(row.moveDate));
       const moveDate = parseMoveDate(row.moveDate);
 
       const today = new Date();
