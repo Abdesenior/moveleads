@@ -25,45 +25,40 @@ function milesFromZips(originZip, destinationZip) {
 }
 
 function parseMoveDate(dateStr) {
-  const THIRTY_DAYS = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  // Compare against midnight UTC today — not "now" — so same-day dates aren't rejected
   const todayUTC = new Date();
   todayUTC.setUTCHours(0, 0, 0, 0);
 
-  if (!dateStr) return THIRTY_DAYS;
+  if (!dateStr) return null;
 
-  // Already a JS Date object (cellDates:true from XLSX)
   if (dateStr instanceof Date) {
     dateStr.setUTCHours(12, 0, 0, 0);
-    return isNaN(dateStr) || dateStr < todayUTC ? THIRTY_DAYS : dateStr;
+    return isNaN(dateStr) || dateStr < todayUTC ? null : dateStr;
   }
 
-  // Excel serial number (e.g. 46185)
   if (typeof dateStr === 'number') {
     const d = new Date(new Date(1899, 11, 30).getTime() + dateStr * 86400000);
     d.setUTCHours(12, 0, 0, 0);
-    return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
+    return isNaN(d) || d < todayUTC ? null : d;
   }
 
   const str = String(dateStr).trim();
 
-  // MM/DD/YYYY — US spreadsheet format
+  // MM/DD/YYYY
   const slashParts = str.split('/');
   if (slashParts.length === 3) {
     const [month, day, year] = slashParts;
     const d = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`);
-    return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
+    return isNaN(d) || d < todayUTC ? null : d;
   }
 
-  // YYYY-MM-DD — force noon UTC so no timezone shifts the day
+  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const d = new Date(str + 'T12:00:00.000Z');
-    return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
+    return isNaN(d) || d < todayUTC ? null : d;
   }
 
-  // Full ISO string or other
   const d = new Date(str);
-  return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
+  return isNaN(d) || d < todayUTC ? null : d;
 }
 
 const HOME_SIZE_NORM = {
@@ -277,13 +272,12 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       const distance = miles > 100 ? 'Long Distance' : 'Local';
       const grade = miles > 500 ? 'A' : miles > 100 ? 'B' : 'C';
 
-      console.log('[DATE DEBUG] raw:', row.moveDate, '| type:', typeof row.moveDate, '| parsed:', new Date(row.moveDate));
+      console.log('[DATE DEBUG] raw:', row.moveDate, '| type:', typeof row.moveDate);
       const moveDate = parseMoveDate(row.moveDate);
+      console.log('[DATE PARSED]', moveDate);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (moveDate < today) {
-        errors.push({ row: customerEmail, error: 'Move date is in the past or today — skipped' });
+      if (!moveDate) {
+        errors.push({ row: customerEmail, error: `Move date missing, invalid, or in the past (raw: ${row.moveDate})` });
         skipped++;
         continue;
       }
