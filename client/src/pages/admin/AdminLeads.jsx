@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { useGoogleMaps } from '../../hooks/useGoogleMaps';
 import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search, Upload, Download, CheckCircle, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
@@ -68,13 +69,76 @@ const CITY_ZIPS = {
   "Clovis": "93611", "Lowell": "01851", "West Jordan": "84084", "Elgin": "60120", "Joliet": "60431"
 };
 
-/* ── Custom city autocomplete with auto ZIP lookup ── */
+/* ── Google Places city autocomplete (US only) ── */
 function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
+  const { ready, error: apiError } = useGoogleMaps();
+  const inputRef = useRef(null);
+  const autocompleteRef = useRef(null);
+
+  // Keep DOM input synced with controlled value (handles form reset & edit pre-fill)
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.value = value || '';
+  }, [value]);
+
+  useEffect(() => {
+    if (!ready || !inputRef.current || autocompleteRef.current) return;
+
+    const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+      types: ['(cities)'],
+      componentRestrictions: { country: 'us' },
+      fields: ['address_components', 'name'],
+    });
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place?.address_components) return;
+
+      const get = (type) =>
+        place.address_components.find(c => c.types.includes(type))?.long_name || '';
+
+      const city = get('locality') || get('sublocality') || get('administrative_area_level_3') || place.name || '';
+      onChange(city);
+
+      const zip = CITY_ZIPS[city] || get('postal_code') || '';
+      if (zip && onZipFound) onZipFound(zip);
+    });
+
+    autocompleteRef.current = ac;
+  }, [ready, onChange, onZipFound]);
+
+  if (apiError) {
+    return <FallbackCityAutocomplete label={label} value={value} onChange={onChange} onZipFound={onZipFound} placeholder={placeholder} />;
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+          <MapPin size={13} color="#94a3b8" />
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          defaultValue={value}
+          placeholder={ready ? placeholder : 'Loading…'}
+          autoComplete="new-password"
+          style={{ ...inputStyle, paddingLeft: 34 }}
+          onChange={e => onChange(e.target.value)}
+          onFocus={e => { e.target.style.borderColor = '#f97316'; e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)'; e.target.style.background = '#fff'; }}
+          onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafbfc'; }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── Fallback: hardcoded US cities (used when Google Maps API key is missing) ── */
+function FallbackCityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const wrapRef = useRef(null);
 
-  // Fully controlled: both query and autoZip are derived from the prop — no local state to sync
   const query   = value || '';
   const autoZip = CITY_ZIPS[value] || '';
 
@@ -91,7 +155,6 @@ function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
     }
   };
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
@@ -118,21 +181,12 @@ function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
           value={query}
           placeholder={placeholder}
           autoComplete="off"
-          required
           style={{ ...inputStyle, paddingLeft: 34 }}
           onChange={e => { onChange(e.target.value); setOpen(true); setHighlighted(0); }}
           onFocus={() => { setOpen(true); setHighlighted(0); }}
           onKeyDown={handleKey}
-          onBlur={e => {
-            e.target.style.borderColor = '#e2e8f0';
-            e.target.style.boxShadow = 'none';
-            e.target.style.background = '#fafbfc';
-          }}
-          onFocusCapture={e => {
-            e.target.style.borderColor = '#f97316';
-            e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)';
-            e.target.style.background = '#fff';
-          }}
+          onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafbfc'; }}
+          onFocusCapture={e => { e.target.style.borderColor = '#f97316'; e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)'; e.target.style.background = '#fff'; }}
         />
         {autoZip && (
           <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: '#dcfce7', color: '#16a34a', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 100, pointerEvents: 'none' }}>
@@ -141,28 +195,10 @@ function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
         )}
       </div>
       {open && filtered.length > 0 && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-          background: '#fff', border: '1.5px solid #e2e8f0',
-          borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-          zIndex: 99999, overflow: 'hidden', maxHeight: 260, overflowY: 'auto'
-        }}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 99999, overflow: 'hidden', maxHeight: 260, overflowY: 'auto' }}>
           {filtered.map((city, i) => (
-            <div
-              key={city}
-              onMouseDown={() => select(city)}
-              onMouseEnter={() => setHighlighted(i)}
-              style={{
-                padding: '10px 16px',
-                fontSize: 13,
-                fontWeight: i === highlighted ? 700 : 500,
-                color: i === highlighted ? '#0f172a' : '#475569',
-                background: i === highlighted ? '#f0f7ff' : 'transparent',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 8,
-                borderBottom: i < filtered.length - 1 ? '1px solid #f8fafc' : 'none'
-              }}
-            >
+            <div key={city} onMouseDown={() => select(city)} onMouseEnter={() => setHighlighted(i)}
+              style={{ padding: '10px 16px', fontSize: 13, fontWeight: i === highlighted ? 700 : 500, color: i === highlighted ? '#0f172a' : '#475569', background: i === highlighted ? '#f0f7ff' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: i < filtered.length - 1 ? '1px solid #f8fafc' : 'none' }}>
               <MapPin size={12} color={i === highlighted ? '#3b82f6' : '#cbd5e1'} />
               {city}
             </div>
