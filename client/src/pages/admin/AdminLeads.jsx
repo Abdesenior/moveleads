@@ -258,6 +258,15 @@ export default function AdminLeads() {
     if (!row['Email'] && !row['email']) return 'Missing email';
     if (!row['Origin Zip'] && !row['origin zip'] && !row['originZip']) return 'Missing origin zip';
     if (!row['Destination Zip'] && !row['destination zip'] && !row['destinationZip']) return 'Missing destination zip';
+
+    const rawDate = row['Move Date'] || row['move date'] || row['moveDate'];
+    if (rawDate) {
+      const d = new Date(rawDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (!isNaN(d) && d <= today) return 'Move date is today or in the past';
+    }
+
     return null;
   };
 

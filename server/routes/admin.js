@@ -265,9 +265,15 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       const distance = miles > 100 ? 'Long Distance' : 'Local';
       const grade = miles > 500 ? 'A' : miles > 100 ? 'B' : 'C';
 
-      console.log('[Import] Raw moveDate:', row.moveDate, '| Type:', typeof row.moveDate);
-      console.log('[Import] Parsed moveDate:', parseMoveDate(row.moveDate));
       const moveDate = parseMoveDate(row.moveDate);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (moveDate < today) {
+        errors.push({ row: customerEmail, error: 'Move date is in the past or today — skipped' });
+        skipped++;
+        continue;
+      }
 
       const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade });
 
