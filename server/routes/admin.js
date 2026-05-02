@@ -28,6 +28,11 @@ function parseMoveDate(dateStr) {
   const THIRTY_DAYS = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   if (!dateStr) return THIRTY_DAYS;
 
+  // Already a JS Date object (cellDates:true from XLSX)
+  if (dateStr instanceof Date) {
+    return isNaN(dateStr) || dateStr < new Date() ? THIRTY_DAYS : dateStr;
+  }
+
   // Excel serial number (e.g. 46185)
   if (typeof dateStr === 'number') {
     const d = new Date(new Date(1899, 11, 30).getTime() + dateStr * 86400000);
@@ -260,6 +265,8 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       const distance = miles > 100 ? 'Long Distance' : 'Local';
       const grade = miles > 500 ? 'A' : miles > 100 ? 'B' : 'C';
 
+      console.log('[Import] Raw moveDate:', row.moveDate, '| Type:', typeof row.moveDate);
+      console.log('[Import] Parsed moveDate:', parseMoveDate(row.moveDate));
       const moveDate = parseMoveDate(row.moveDate);
 
       const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade });
