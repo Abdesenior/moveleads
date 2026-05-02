@@ -219,7 +219,7 @@ router.post('/users/:id/balance', [auth, admin], async (req, res) => {
 // @route   GET /api/admin/leads/import/template
 // @desc    Download a CSV template for bulk lead import
 // @access  Private (Admin)
-router.get('/leads/import/template', [auth, admin], (_req, res) => {
+router.get('/leads/import/template', (_req, res) => {
   const headers = [
     'first name', 'last name', 'email', 'phone',
     'origin city', 'origin state', 'origin zip',
