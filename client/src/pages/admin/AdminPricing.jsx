@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { DollarSign, Plus, Trash2, Edit2, CheckCircle, XCircle, AlertCircle, Info, ArrowLeft, Loader } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -25,11 +25,7 @@ export default function AdminPricing() {
     description: ''
   });
 
-  useEffect(() => {
-    fetchRules();
-  }, []);
-
-  const fetchRules = async () => {
+  const fetchRules = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/admin/pricing`, {
         headers: { 'x-auth-token': token }
@@ -41,7 +37,11 @@ export default function AdminPricing() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, token]);
+
+  useEffect(() => {
+    fetchRules();
+  }, [fetchRules]);
 
   const saveRule = async (e) => {
     e.preventDefault();
@@ -205,7 +205,7 @@ export default function AdminPricing() {
             ) : rules.length === 0 ? (
               <tr><td colSpan="6" className="table-empty">No dynamic pricing rules set. Using global base price.</td></tr>
             ) : (
-              rules.map((rule, i) => (
+              rules.map((rule) => (
                 <tr key={rule._id} style={{ opacity: rule.isActive ? 1 : 0.6 }}>
                   <td style={{ paddingLeft: 24 }}>
                     <div style={{ fontWeight: 600, color: '#0f172a' }}>{rule.description || 'No description'}</div>
