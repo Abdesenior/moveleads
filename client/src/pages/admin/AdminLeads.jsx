@@ -413,7 +413,7 @@ export default function AdminLeads() {
   const pageSafe = Math.min(page, totalPages);
   const pagedLeads = sortedLeads.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
 
-  const availableCount = leads.filter(l => l.status === 'Available').length;
+  const availableCount = leads.filter(l => l.status === 'Available' || l.status === 'READY_FOR_DISTRIBUTION').length;
   const purchasedCount = leads.filter(l => l.status === 'Purchased').length;
 
   return (
