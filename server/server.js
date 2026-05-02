@@ -85,6 +85,7 @@ app.use('/api/images', require('./routes/images'));
 
 require('./jobs/settleAuctions');
 require('./jobs/requestFeedback');
+require('./jobs/cleanupExpiredLeads');
 
 app.use((req, res, next) => {
   res.status(404).json({ msg: 'Route not found' });

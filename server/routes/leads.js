@@ -287,8 +287,9 @@ router.put('/:id', [auth, admin], async (req, res) => {
     let lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
-    const update = req.body;
+    const update = { ...req.body };
     if (update.price && !update.buyNowPrice) update.buyNowPrice = update.price;
+    if (update.moveDate) update.moveDate = new Date(update.moveDate);
     lead = await Lead.findByIdAndUpdate(req.params.id, { $set: update }, { returnDocument: 'after' });
     res.json(lead);
   } catch (err) {

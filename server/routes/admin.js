@@ -24,6 +24,31 @@ function milesFromZips(originZip, destinationZip) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
+function parseMoveDate(dateStr) {
+  const THIRTY_DAYS = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  if (!dateStr) return THIRTY_DAYS;
+
+  // Excel serial number (e.g. 46185)
+  if (typeof dateStr === 'number') {
+    const d = new Date(new Date(1899, 11, 30).getTime() + dateStr * 86400000);
+    return isNaN(d) || d < new Date() ? THIRTY_DAYS : d;
+  }
+
+  const str = String(dateStr).trim();
+
+  // MM/DD/YYYY — US spreadsheet format
+  const parts = str.split('/');
+  if (parts.length === 3) {
+    const [month, day, year] = parts;
+    const d = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`);
+    return isNaN(d) || d < new Date() ? THIRTY_DAYS : d;
+  }
+
+  // YYYY-MM-DD or ISO string
+  const d = new Date(str);
+  return isNaN(d) || d < new Date() ? THIRTY_DAYS : d;
+}
+
 const HOME_SIZE_NORM = {
   'studio': 'Studio',
   '1 bedroom': '1 Bedroom', '1bedroom': '1 Bedroom', '1_bedroom': '1 Bedroom',
@@ -235,11 +260,7 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
       const distance = miles > 100 ? 'Long Distance' : 'Local';
       const grade = miles > 500 ? 'A' : miles > 100 ? 'B' : 'C';
 
-      const THIRTY_DAYS = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      let moveDate = (row.moveDate && !isNaN(new Date(row.moveDate)))
-        ? new Date(row.moveDate)
-        : THIRTY_DAYS;
-      if (moveDate < new Date()) moveDate = THIRTY_DAYS;
+      const moveDate = parseMoveDate(row.moveDate);
 
       const pricing = await calculateAuctionPrice({ homeSize, miles, moveDate, grade });
 
