@@ -26,32 +26,44 @@ function milesFromZips(originZip, destinationZip) {
 
 function parseMoveDate(dateStr) {
   const THIRTY_DAYS = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  // Compare against midnight UTC today — not "now" — so same-day dates aren't rejected
+  const todayUTC = new Date();
+  todayUTC.setUTCHours(0, 0, 0, 0);
+
   if (!dateStr) return THIRTY_DAYS;
 
   // Already a JS Date object (cellDates:true from XLSX)
   if (dateStr instanceof Date) {
-    return isNaN(dateStr) || dateStr < new Date() ? THIRTY_DAYS : dateStr;
+    dateStr.setUTCHours(12, 0, 0, 0);
+    return isNaN(dateStr) || dateStr < todayUTC ? THIRTY_DAYS : dateStr;
   }
 
   // Excel serial number (e.g. 46185)
   if (typeof dateStr === 'number') {
     const d = new Date(new Date(1899, 11, 30).getTime() + dateStr * 86400000);
-    return isNaN(d) || d < new Date() ? THIRTY_DAYS : d;
+    d.setUTCHours(12, 0, 0, 0);
+    return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
   }
 
   const str = String(dateStr).trim();
 
   // MM/DD/YYYY — US spreadsheet format
-  const parts = str.split('/');
-  if (parts.length === 3) {
-    const [month, day, year] = parts;
+  const slashParts = str.split('/');
+  if (slashParts.length === 3) {
+    const [month, day, year] = slashParts;
     const d = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`);
-    return isNaN(d) || d < new Date() ? THIRTY_DAYS : d;
+    return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
   }
 
-  // YYYY-MM-DD or ISO string
+  // YYYY-MM-DD — force noon UTC so no timezone shifts the day
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const d = new Date(str + 'T12:00:00.000Z');
+    return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
+  }
+
+  // Full ISO string or other
   const d = new Date(str);
-  return isNaN(d) || d < new Date() ? THIRTY_DAYS : d;
+  return isNaN(d) || d < todayUTC ? THIRTY_DAYS : d;
 }
 
 const HOME_SIZE_NORM = {

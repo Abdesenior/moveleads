@@ -144,7 +144,7 @@ export default function ResolutionCenter() {
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{selected.customerName}</h3>
                 <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 13, color: '#64748b', flexWrap: 'wrap' }}>
                   {selected.lead?.moveDate
-                    ? <span><strong>Move Date:</strong> {new Date(selected.lead.moveDate).toLocaleDateString()}</span>
+                    ? <span><strong>Move Date:</strong> {new Date(selected.lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</span>
                     : null}
                   {(selected.lead?.route || (selected.lead?.originCity && selected.lead?.destinationCity))
                     ? <span><strong>Route:</strong> {selected.lead.route || `${selected.lead.originCity} → ${selected.lead.destinationCity}`}</span>

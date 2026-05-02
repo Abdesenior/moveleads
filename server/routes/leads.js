@@ -289,7 +289,13 @@ router.put('/:id', [auth, admin], async (req, res) => {
 
     const update = { ...req.body };
     if (update.price && !update.buyNowPrice) update.buyNowPrice = update.price;
-    if (update.moveDate) update.moveDate = new Date(update.moveDate);
+    if (update.moveDate) {
+      // Treat plain YYYY-MM-DD as noon UTC so no timezone shifts the calendar day
+      const raw = String(update.moveDate).trim();
+      update.moveDate = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+        ? new Date(raw + 'T12:00:00.000Z')
+        : new Date(raw);
+    }
     lead = await Lead.findByIdAndUpdate(req.params.id, { $set: update }, { returnDocument: 'after' });
     res.json(lead);
   } catch (err) {

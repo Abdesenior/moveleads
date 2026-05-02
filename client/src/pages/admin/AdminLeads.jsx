@@ -613,7 +613,7 @@ export default function AdminLeads() {
                   <div style={{ fontSize: 11, color: '#94a3b8' }}>{lead.customerPhone}</div>
                 </td>
                 <td><span style={{ fontSize: 12, color: '#475569' }}>{lead.homeSize}</span></td>
-                <td><span style={{ fontSize: 12, color: '#475569' }}>{new Date(lead.moveDate).toLocaleDateString()}</span></td>
+                <td><span style={{ fontSize: 12, color: '#475569' }}>{new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })}</span></td>
                 <td><strong style={{ color: '#0f172a' }}>${lead.price.toFixed(2)}</strong></td>
                 <td>
                   <span style={{
@@ -713,7 +713,7 @@ export default function AdminLeads() {
                 </span>
                 {formData.moveDate && (
                   <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>
-                    📅 {new Date(formData.moveDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    📅 {new Date(formData.moveDate + 'T12:00:00.000Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                 )}
               </div>

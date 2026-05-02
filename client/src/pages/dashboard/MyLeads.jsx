@@ -187,7 +187,7 @@ function LeadRow({ purchase, onUpdate }) {
   if (!lead) return null;
 
   const status = purchase.crmStatus || 'New';
-  const moveDate = lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const moveDate = lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   return (
     <>

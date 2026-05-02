@@ -400,7 +400,7 @@ export default function Dashboard() {
                       </div>
                     </td>
                     <td style={{ padding: '13px 16px', color: '#64748b' }}>
-                      {lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                      {lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' }) : '—'}
                     </td>
                     <td style={{ padding: '13px 16px' }}>
                       {badge ? (

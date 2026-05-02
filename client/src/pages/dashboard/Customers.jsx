@@ -391,7 +391,7 @@ export default function Customers() {
                     <td style={{ padding: '14px 12px', fontSize: 12, color: '#64748b' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         <Calendar size={12} color="#94a3b8" />
-                        {p.lead?.moveDate ? new Date(p.lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                        {p.lead?.moveDate ? new Date(p.lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                       </div>
                     </td>
 
@@ -539,7 +539,7 @@ export default function Customers() {
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}>Move Details</div>
                 {[
                   { icon: <MapPin size={12} />, label: 'Route', value: `${detailLead.lead?.originCity || '—'} → ${detailLead.lead?.destinationCity || '—'}` },
-                  { icon: <Calendar size={12} />, label: 'Move Date', value: detailLead.lead?.moveDate ? new Date(detailLead.lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A' },
+                  { icon: <Calendar size={12} />, label: 'Move Date', value: detailLead.lead?.moveDate ? new Date(detailLead.lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A' },
                   { icon: <Truck size={12} />, label: 'Home Size', value: detailLead.lead?.homeSize || '—' },
                   { icon: <FileText size={12} />, label: 'Price Paid', value: `$${detailLead.pricePaid?.toFixed(2) || '—'}` },
                 ].map((item, i) => (

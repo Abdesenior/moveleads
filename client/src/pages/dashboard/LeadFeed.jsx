@@ -147,7 +147,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
         <div className="modal-body" style={{ padding: '22px 28px' }}>
           {/* Lead details */}
           <Row label="Home Size"  value={lead.homeSize || '—'} />
-          <Row label="Move Date"  value={lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'} />
+          <Row label="Move Date"  value={lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'} />
           <Row label="Distance"   value={isLD ? 'Long Distance' : 'Local'} />
           {lead.miles > 0 && <Row label="Miles" value={`${lead.miles} mi`} />}
           {lead.grade && <Row label="Lead Grade" value={lead.grade === 'A' ? '⭐ A — Premium' : lead.grade} />}
@@ -265,7 +265,7 @@ function SuccessModal({ data, onClose, onNavigate }) {
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
 const fmtDate = (d) => d
-  ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  ? new Date(d).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })
   : 'TBD';
 
 const timeAgo = (d) => {
