@@ -68,76 +68,8 @@ const CITY_ZIPS = {
   "Clovis": "93611", "Lowell": "01851", "West Jordan": "84084", "Elgin": "60120", "Joliet": "60431"
 };
 
-/* ── Google Places city autocomplete (US only) ── */
+/* ── City autocomplete with hardcoded US city list ── */
 function CityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
-  const inputRef = useRef(null);
-  const acRef = useRef(null);
-  const [ready, setReady] = useState(() => !!window.google?.maps?.places);
-
-  // Poll until the deferred Maps script is available
-  useEffect(() => {
-    if (ready) return;
-    const id = setInterval(() => {
-      if (window.google?.maps?.places) { setReady(true); clearInterval(id); }
-    }, 200);
-    return () => clearInterval(id);
-  }, [ready]);
-
-  // Initialise Places Autocomplete once the API is ready
-  useEffect(() => {
-    if (!ready || !inputRef.current || acRef.current) return;
-    const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
-      types: ['(cities)'],
-      componentRestrictions: { country: 'us' },
-      fields: ['address_components', 'name'],
-    });
-    ac.addListener('place_changed', () => {
-      const place = ac.getPlace();
-      if (!place?.address_components) return;
-      const get = t => place.address_components.find(c => c.types.includes(t))?.long_name || '';
-      const city = get('locality') || get('sublocality') || get('administrative_area_level_3') || place.name || '';
-      onChange(city);
-      const zip = CITY_ZIPS[city] || get('postal_code') || '';
-      if (zip && onZipFound) onZipFound(zip);
-    });
-    acRef.current = ac;
-  }, [ready, onChange, onZipFound]);
-
-  // Sync controlled value to DOM input (form reset & edit pre-fill)
-  useEffect(() => {
-    if (inputRef.current) inputRef.current.value = value || '';
-  }, [value]);
-
-  // Show hardcoded fallback until Google Maps loads (or if key is missing)
-  if (!ready) {
-    return <FallbackCityAutocomplete label={label} value={value} onChange={onChange} onZipFound={onZipFound} placeholder={placeholder} />;
-  }
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <label style={labelStyle}>{label}</label>
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1, display: 'flex', alignItems: 'center' }}>
-          <MapPin size={13} color="#94a3b8" />
-        </div>
-        <input
-          ref={inputRef}
-          type="text"
-          defaultValue={value}
-          placeholder={placeholder}
-          autoComplete="new-password"
-          style={{ ...inputStyle, paddingLeft: 34 }}
-          onChange={e => onChange(e.target.value)}
-          onFocus={e => { e.target.style.borderColor = '#f97316'; e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.12)'; e.target.style.background = '#fff'; }}
-          onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafbfc'; }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ── Fallback: hardcoded US cities (used when Google Maps API key is missing) ── */
-function FallbackCityAutocomplete({ label, value, onChange, onZipFound, placeholder }) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const wrapRef = useRef(null);
