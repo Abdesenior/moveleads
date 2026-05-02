@@ -291,6 +291,9 @@ export default function LeadFeed() {
   const [claimingId, setClaimingId]     = useState(null);
   const [search, setSearch]             = useState('');
   const [distFilter, setDistFilter]     = useState('all');
+  const [dateFilter, setDateFilter]     = useState('all');
+  const [customDate, setCustomDate]     = useState('');
+  const [sortBy, setSortBy]             = useState('listed');
   const [outbidToast, setOutbidToast]   = useState(''); // "you were outbid" banner
   const audioRef  = useRef(null); // kept for compatibility; sound now via playNewLeadSound()
   const pollRef   = useRef(null);
@@ -428,18 +431,48 @@ export default function LeadFeed() {
     } finally { setClaimingId(null); }
   };
 
-  // Client-side filter
+  // Client-side filters + sort
   const q = search.toLowerCase();
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+
   const visible = leads.filter(l => {
     if (distFilter === 'local' && l.distance !== 'Local') return false;
     if (distFilter === 'long'  && l.distance !== 'Long Distance') return false;
-    if (!q) return true;
-    return (
+    if (q && !(
       l.originCity?.toLowerCase().includes(q) ||
       l.destinationCity?.toLowerCase().includes(q) ||
       l.originZip?.includes(q) ||
       l.destinationZip?.includes(q)
-    );
+    )) return false;
+
+    if (dateFilter !== 'all' && l.moveDate) {
+      const d = new Date(l.moveDate);
+      if (dateFilter === 'today') {
+        if (d.toDateString() !== todayMidnight.toDateString()) return false;
+      } else if (dateFilter === '3days') {
+        const cap = new Date(todayMidnight); cap.setDate(cap.getDate() + 3);
+        if (d < todayMidnight || d > cap) return false;
+      } else if (dateFilter === 'week') {
+        const cap = new Date(todayMidnight); cap.setDate(cap.getDate() + 7);
+        if (d < todayMidnight || d > cap) return false;
+      } else if (dateFilter === 'month') {
+        const cap = new Date(todayMidnight); cap.setMonth(cap.getMonth() + 1);
+        if (d < todayMidnight || d > cap) return false;
+      } else if (dateFilter === 'custom') {
+        if (!customDate) return true;
+        const custom = new Date(customDate + 'T12:00:00.000Z');
+        if (d.toDateString() !== custom.toDateString()) return false;
+      }
+    }
+    return true;
+  });
+
+  const displayedLeads = [...visible].sort((a, b) => {
+    if (sortBy === 'moveDate_asc')  return new Date(a.moveDate) - new Date(b.moveDate);
+    if (sortBy === 'moveDate_desc') return new Date(b.moveDate) - new Date(a.moveDate);
+    if (sortBy === 'price_asc')     return (a.buyNowPrice || a.price || 0) - (b.buyNowPrice || b.price || 0);
+    if (sortBy === 'price_desc')    return (b.buyNowPrice || b.price || 0) - (a.buyNowPrice || a.price || 0);
+    return 0; // 'listed' = API order preserved
   });
 
   const balance = user?.balance || 0;
@@ -459,9 +492,9 @@ export default function LeadFeed() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {visible.length > 0 && (
+            {displayedLeads.length > 0 && (
               <div style={{ background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', borderRadius: 20, padding: '7px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Zap size={13} /> {visible.length} Available
+                <Zap size={13} /> {displayedLeads.length} Available
               </div>
             )}
             <div className={`connection-badge ${socketStatus === 'connected' ? 'online' : socketStatus === 'reconnecting' ? 'reconnecting' : 'offline'}`}>
@@ -472,8 +505,8 @@ export default function LeadFeed() {
         </div>
 
         {/* ── Search + filter bar ── */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: 180, position: 'relative' }}>
             <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input
               value={search}
@@ -494,16 +527,47 @@ export default function LeadFeed() {
               <option value="long">Long Distance</option>
             </select>
           </div>
+          <select
+            value={dateFilter}
+            onChange={e => { setDateFilter(e.target.value); setCustomDate(''); }}
+            style={{ height: 42, paddingLeft: 14, paddingRight: 16, border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 14, color: '#0f172a', outline: 'none', background: 'white', cursor: 'pointer', appearance: 'none', minWidth: 140 }}
+          >
+            <option value="all">All Dates</option>
+            <option value="today">Today</option>
+            <option value="3days">Next 3 Days</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="custom">Custom Date</option>
+          </select>
+          {dateFilter === 'custom' && (
+            <input
+              type="date"
+              value={customDate}
+              onChange={e => setCustomDate(e.target.value)}
+              style={{ height: 42, paddingLeft: 14, paddingRight: 14, border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 14, color: '#0f172a', outline: 'none', background: 'white' }}
+            />
+          )}
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            style={{ height: 42, paddingLeft: 14, paddingRight: 16, border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 14, color: '#0f172a', outline: 'none', background: 'white', cursor: 'pointer', appearance: 'none', minWidth: 170 }}
+          >
+            <option value="listed">Recently Listed</option>
+            <option value="moveDate_asc">Move Date (Soonest)</option>
+            <option value="moveDate_desc">Move Date (Latest)</option>
+            <option value="price_asc">Price (Low → High)</option>
+            <option value="price_desc">Price (High → Low)</option>
+          </select>
         </div>
 
         {/* ── Table ── */}
         {loading ? (
           <div className="feed-loading"><div className="spinner" /><span>Scanning for live opportunities…</span></div>
-        ) : visible.length === 0 ? (
+        ) : displayedLeads.length === 0 ? (
           <div className="empty-feed">
             <div className="empty-icon-box"><ZapOff size={32} /></div>
-            <h3>{search || distFilter !== 'all' ? 'No results match your filter' : 'No Live Leads Right Now'}</h3>
-            <p>{search || distFilter !== 'all' ? 'Try a different search or filter.' : "We'll notify you with a sound as soon as a new lead hits your territory."}</p>
+            <h3>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'No results match your filter' : 'No Live Leads Right Now'}</h3>
+            <p>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'Try a different search or filter.' : "We'll notify you with a sound as soon as a new lead hits your territory."}</p>
           </div>
         ) : (
           <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
@@ -525,7 +589,7 @@ export default function LeadFeed() {
                 </tr>
               </thead>
               <tbody>
-                {visible.map((lead, i) => {
+                {displayedLeads.map((lead, i) => {
                   const id        = (lead._id || lead.id)?.toString();
                   const isAuction = lead.auctionStatus === 'active';
                   const isLD      = lead.distance === 'Long Distance';
@@ -542,7 +606,7 @@ export default function LeadFeed() {
                   return (
                     <tr
                       key={id}
-                      style={{ borderBottom: i < visible.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.12s' }}
+                      style={{ borderBottom: i < displayedLeads.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.12s' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#fafbff'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
