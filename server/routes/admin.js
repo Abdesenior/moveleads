@@ -319,6 +319,7 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
         statusHistory: [{ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() }],
       });
 
+      console.log('[FINAL DATE]', lead.moveDate, '| raw input was:', row.moveDate);
       await lead.save();
       emitNewLead(lead); // socket-only — no email, no SMS
 
