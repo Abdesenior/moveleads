@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { ShieldAlert, Trash2, Search, Users, UserCheck, UserX, UserPlus, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
@@ -27,15 +27,15 @@ export default function AdminUsers() {
   const [sortKey, setSortKey] = useState('dateJoined');
   const [sortDir, setSortDir] = useState('desc');
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
   useEffect(() => { setPage(1); }, [searchTerm, sortKey, sortDir]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/users`, { headers: { 'x-auth-token': token } });
       setUsers(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [API_URL, token]);
 
   const handleDelete = async (id) => {
     try {

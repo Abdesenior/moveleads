@@ -2,7 +2,8 @@ import React, { useEffect, useState, useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CreditCard, User, Settings,
-  Menu, X, LogOut, Briefcase, Zap, Code, MessageSquareWarning
+  Menu, X, LogOut, Briefcase, Zap, Code, MessageSquareWarning,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
@@ -23,9 +24,16 @@ const NAV_ITEMS = [
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
   const [openComplaints, setOpenComplaints] = useState(0);
   const { user, logout, token, API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem('sidebarCollapsed', String(next));
+  };
 
   // Silently poll for open/in-progress complaints to drive the nav badge
   useEffect(() => {
@@ -84,7 +92,7 @@ export default function DashboardLayout({ children }) {
         />
 
         {/* ── Sidebar ── */}
-        <aside className="sidebar" aria-hidden={!sidebarOpen}>
+        <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-hidden={!sidebarOpen}>
 
           {/* Logo */}
           <div className="logo-container">
@@ -92,6 +100,8 @@ export default function DashboardLayout({ children }) {
               <span className="logo-move">Move</span><span className="logo-leads">Leads</span><span className="logo-cloud">.cloud</span>
             </span>
             <p className="logo-tagline">Moving leads marketplace</p>
+            {/* Collapsed icon fallback */}
+            <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#ea580c', fontFamily: 'Poppins, sans-serif' }}>M</span>
           </div>
 
           {/* Mobile close */}
@@ -111,14 +121,14 @@ export default function DashboardLayout({ children }) {
                 key={to}
                 to={to}
                 end={end}
+                title={collapsed ? label : undefined}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
               >
                 {icon}
-                <span>{label}</span>
-                {/* Badge for Resolution Center */}
+                <span className="nav-label">{label}</span>
                 {to === '/dashboard/resolution-center' && openComplaints > 0 && (
-                  <span style={{
+                  <span className="nav-badge" style={{
                     marginLeft: 'auto',
                     background: '#ef4444', color: '#fff',
                     fontSize: 10, fontWeight: 800,
@@ -133,6 +143,16 @@ export default function DashboardLayout({ children }) {
             ))}
           </nav>
 
+          {/* ── Collapse toggle (desktop only) ── */}
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+
           {/* ── User profile widget ── */}
           <div className="sidebar-user-section">
             <div className="sidebar-user-info">
@@ -144,7 +164,7 @@ export default function DashboardLayout({ children }) {
             </div>
 
             {/* Balance pill */}
-            <div style={{
+            <div className="balance-pill" style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '10px 14px', borderRadius: 12,
               background: balanceBg, marginBottom: 10,
@@ -156,7 +176,7 @@ export default function DashboardLayout({ children }) {
             </div>
 
             <button className="sidebar-logout-btn" onClick={handleLogout}>
-              <LogOut size={15} /> Sign Out
+              <LogOut size={15} /> <span className="btn-label">Sign Out</span>
             </button>
           </div>
         </aside>

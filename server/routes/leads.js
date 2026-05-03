@@ -11,7 +11,7 @@ const { deductLeadBalance, runAutoRecharge } = require('../services/billingServi
 const { sendSpeedToLeadSMS } = require('../services/twilioService');
 const PlatformSettings = require('../models/PlatformSettings');
 const { validateLeadPayload } = require('../validators/leadIngest');
-const { sendReviewRequestEmail } = require('../services/emailService');
+const { sendReviewRequestEmail, sendAdminNotification } = require('../services/emailService');
 const { verifyLeadPhone } = require('../services/twilioService');
 
 const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingEngine');
@@ -64,7 +64,23 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
   const data = validation.data;
 
   try {
-    // 2. Compute route string and real distance in miles
+    // 2. Duplicate check — same phone OR email submitted within the last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const duplicate = await Lead.findOne({
+      createdAt: { $gte: thirtyDaysAgo },
+      $or: [
+        { customerPhone: data.customerPhone },
+        { customerEmail: data.customerEmail }
+      ]
+    });
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have an active quote request. Please wait before submitting again.'
+      });
+    }
+
+    // 3. Compute route string and real distance in miles
     const route = `${data.originCity} → ${data.destinationCity}`;
 
     // Trust miles from the form (calculated client-side via haversine + zipcodes).
@@ -221,15 +237,14 @@ router.get('/', auth, async (req, res) => {
       };
     }
 
-    // Heal bulk-imported leads that were saved with past move dates — push them 30 days out
-    // so they become visible in the mover feed (which filters moveDate >= now).
+    // Expire bulk-imported leads whose move date has already passed.
     await Lead.updateMany(
       {
         status: 'READY_FOR_DISTRIBUTION',
         moveDate: { $lt: new Date() },
         $or: [{ buyers: { $size: 0 } }, { buyers: { $exists: false } }]
       },
-      { $set: { moveDate: new Date(Date.now() + 30 * 86400000) } }
+      { $set: { status: 'Expired', auctionStatus: 'expired' } }
     );
 
     // Ensure every available, unbought lead with a future move date has an active auction.
@@ -399,6 +414,22 @@ router.post('/:id/claim', auth, async (req, res) => {
     runAutoRecharge(req.user.id).catch(err => {
       console.error('[Auto-Recharge Background Error]', err.message);
     });
+
+    sendAdminNotification({
+      subject: `🎯 Lead Purchased — ${mover.companyName} bought a $${lead.price} lead`,
+      html: `
+        <h2>Lead Purchased</h2>
+        <p><strong>Company:</strong> ${mover.companyName}</p>
+        <p><strong>Email:</strong> ${mover.email}</p>
+        <p><strong>Lead:</strong> ${lead.originCity} → ${lead.destinationCity}</p>
+        <p><strong>Home Size:</strong> ${lead.homeSize}</p>
+        <p><strong>Move Date:</strong> ${new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</p>
+        <p><strong>Amount Charged:</strong> $${lead.price}</p>
+        <p><strong>Mover Balance After:</strong> $${newBalance.toFixed(2)}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
+        <a href="https://moveleads.cloud/admin/leads">View in Admin Panel →</a>
+      `
+    }).catch(() => {});
 
     User.findById(req.user.id).then(company => {
       if (company) {

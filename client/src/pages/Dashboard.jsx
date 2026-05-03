@@ -372,7 +372,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {availableLeads.map((lead, i) => {
+              {availableLeads.map((lead) => {
                 const badge = urgencyBadge(lead.moveDate);
                 return (
                   <tr key={lead._id} style={{ borderTop: '1px solid #f1f5f9', transition: 'background 0.15s' }}

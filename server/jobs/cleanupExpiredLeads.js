@@ -1,8 +1,8 @@
 const cron = require('node-cron');
 const Lead = require('../models/Lead');
 
-// Run daily at midnight — expire leads whose move date has passed
-cron.schedule('0 0 * * *', async () => {
+// Run daily at 05:00 UTC (midnight US Eastern) — expire leads whose move date has passed
+cron.schedule('0 5 * * *', async () => {
   try {
     const result = await Lead.updateMany(
       {

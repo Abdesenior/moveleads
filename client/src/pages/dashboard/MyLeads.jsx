@@ -57,7 +57,7 @@ function StatusPill({ status }) {
   );
 }
 
-function ExpandedPanel({ purchase, onUpdate, onClose }) {
+function ExpandedPanel({ purchase, onUpdate }) {
   const [notes, setNotes]   = useState(purchase.crmNotes || '');
   const [status, setStatus] = useState(purchase.crmStatus || 'New');
   const [saving, setSaving] = useState(false);
@@ -435,7 +435,7 @@ export default function MyLeads() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((purchase, idx) => (
+                {filtered.map((purchase) => (
                   <LeadRow
                     key={purchase._id}
                     purchase={purchase}

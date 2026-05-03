@@ -1,5 +1,5 @@
 (function() {
-  const scriptTag = document.currentScript;
+  const _scriptTag = document.currentScript;
   const targetId = 'moveleads-widget';
   const target = document.getElementById(targetId);
 

@@ -26,7 +26,14 @@ router.post('/', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Purchase record not found for this lead' });
     }
 
-    // 2. Check for existing dispute
+    // 2. Enforce 24-hour dispute window
+    const purchasedAt = purchasedLead.purchasedAt || purchasedLead.createdAt;
+    const hoursSincePurchase = (Date.now() - new Date(purchasedAt).getTime()) / (1000 * 60 * 60);
+    if (hoursSincePurchase > 24) {
+      return res.status(400).json({ msg: 'Dispute window has closed. Disputes must be submitted within 24 hours of purchase.' });
+    }
+
+    // 3. Check for existing dispute
     const existing = await Dispute.findOne({ company: req.user.id, purchasedLead: purchasedLead._id });
     if (existing) {
       return res.status(400).json({ msg: 'A dispute for this lead already exists' });

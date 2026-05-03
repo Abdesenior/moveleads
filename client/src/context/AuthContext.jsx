@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }) => {
       }
     };
     fetchUser();
-  }, [token]);
+  }, [token, API_URL]);
 
   const login = (jwtToken, userData) => {
     localStorage.setItem('token', jwtToken);

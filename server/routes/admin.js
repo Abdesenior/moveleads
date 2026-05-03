@@ -25,20 +25,22 @@ function milesFromZips(originZip, destinationZip) {
 }
 
 function parseMoveDate(dateStr) {
-  const todayUTC = new Date();
-  todayUTC.setUTCHours(0, 0, 0, 0);
+  // Use noon UTC as cutoff — all dates are stored at noon UTC.
+  // "today noon <= today noon" correctly rejects today; midnight UTC would let today slip through.
+  const todayNoon = new Date();
+  todayNoon.setUTCHours(12, 0, 0, 0);
 
   if (!dateStr) return null;
 
   if (dateStr instanceof Date) {
     dateStr.setUTCHours(12, 0, 0, 0);
-    return isNaN(dateStr) || dateStr < todayUTC ? null : dateStr;
+    return isNaN(dateStr) || dateStr <= todayNoon ? null : dateStr;
   }
 
   if (typeof dateStr === 'number') {
     const d = new Date(new Date(1899, 11, 30).getTime() + dateStr * 86400000);
     d.setUTCHours(12, 0, 0, 0);
-    return isNaN(d) || d < todayUTC ? null : d;
+    return isNaN(d) || d <= todayNoon ? null : d;
   }
 
   const str = String(dateStr).trim();
@@ -48,17 +50,19 @@ function parseMoveDate(dateStr) {
   if (slashParts.length === 3) {
     const [month, day, year] = slashParts;
     const d = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`);
-    return isNaN(d) || d < todayUTC ? null : d;
+    return isNaN(d) || d <= todayNoon ? null : d;
   }
 
   // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const d = new Date(str + 'T12:00:00.000Z');
-    return isNaN(d) || d < todayUTC ? null : d;
+    return isNaN(d) || d <= todayNoon ? null : d;
   }
 
   const d = new Date(str);
-  return isNaN(d) || d < todayUTC ? null : d;
+  if (isNaN(d.getTime())) return null;
+  d.setUTCHours(12, 0, 0, 0);
+  return d <= todayNoon ? null : d;
 }
 
 const HOME_SIZE_NORM = {

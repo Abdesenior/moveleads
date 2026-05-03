@@ -1,5 +1,4 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Mail, X, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useToast } from './ui/Toast';

@@ -15,17 +15,13 @@ const NAV_LINKS = [
 ];
 
 export default function MarketingLayout({ children }) {
-  const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
 
-  useEffect(() => { window.scrollTo(0, 0); setMenuOpen(false); }, [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
 
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', fn);
-    return () => window.removeEventListener('scroll', fn);
-  }, []);
+
+
 
   // Prevent body scroll when menu open
   useEffect(() => {

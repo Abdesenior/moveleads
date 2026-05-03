@@ -1,14 +1,21 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Package, DollarSign, Settings, Menu, X, LogOut, Shield, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Users, Package, DollarSign, Settings, Menu, X, LogOut, Shield, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import '../dashboard.css';
 
 export default function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('adminSidebarCollapsed') === 'true');
   const [pendingDisputes, setPendingDisputes] = useState(0);
   const { user, logout, API_URL, token } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem('adminSidebarCollapsed', String(next));
+  };
 
   useEffect(() => {
     const fetchPendingCount = async () => {
@@ -57,13 +64,13 @@ export default function AdminLayout({ children }) {
         onClick={() => setSidebarOpen(false)}
       />
 
-      <aside className="sidebar" aria-hidden={!sidebarOpen}>
+      <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-hidden={!sidebarOpen}>
         <div className="logo-container">
           <div className="logo" style={{ fontSize: '24px', fontFamily: 'Poppins' }}>
             <span style={{ fontWeight: 800, color: '#0f172a' }}>MoveLeads</span>
             <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
           </div>
-          <div style={{
+          <div className="admin-portal-badge" style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             marginTop: 10, padding: '4px 12px', borderRadius: 6,
             background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)'
@@ -71,6 +78,7 @@ export default function AdminLayout({ children }) {
             <Shield size={12} color="#f97316" />
             <span style={{ fontSize: 10, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', letterSpacing: 1 }}>Admin Portal</span>
           </div>
+          <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#f97316', fontFamily: 'Poppins, sans-serif' }}>A</span>
         </div>
         <button
           type="button"
@@ -81,39 +89,46 @@ export default function AdminLayout({ children }) {
           <X size={22} />
         </button>
         <nav className="sidebar-nav">
-          <NavLink to="/admin" end onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <LayoutDashboard /> Dashboard
+          <NavLink to="/admin" end title={collapsed ? 'Dashboard' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <LayoutDashboard size={18} /> <span className="nav-label">Dashboard</span>
           </NavLink>
-          <NavLink to="/admin/users" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <Users /> Users
+          <NavLink to="/admin/users" title={collapsed ? 'Users' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Users size={18} /> <span className="nav-label">Users</span>
           </NavLink>
-          <NavLink to="/admin/leads" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <Package /> Leads
+          <NavLink to="/admin/leads" title={collapsed ? 'Leads' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Package size={18} /> <span className="nav-label">Leads</span>
           </NavLink>
-          <NavLink to="/admin/revenue" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <DollarSign /> Revenue
+          <NavLink to="/admin/revenue" title={collapsed ? 'Revenue' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <DollarSign size={18} /> <span className="nav-label">Revenue</span>
           </NavLink>
-          <NavLink to="/admin/disputes" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <AlertCircle size={18} /> Disputes
-              </div>
-              {pendingDisputes > 0 && (
-                <span style={{ 
-                  background: '#ef4444', color: '#fff', fontSize: 10, 
-                  fontWeight: 800, padding: '2px 6px', borderRadius: 10,
-                  minWidth: 18, textAlign: 'center'
-                }}>{pendingDisputes}</span>
-              )}
-            </div>
+          <NavLink to="/admin/disputes" title={collapsed ? 'Disputes' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <AlertCircle size={18} />
+            <span className="nav-label">Disputes</span>
+            {pendingDisputes > 0 && (
+              <span className="nav-badge" style={{
+                marginLeft: 'auto', background: '#ef4444', color: '#fff',
+                fontSize: 10, fontWeight: 800, padding: '2px 6px',
+                borderRadius: 10, minWidth: 18, textAlign: 'center'
+              }}>{pendingDisputes}</span>
+            )}
           </NavLink>
-          <NavLink to="/admin/pricing" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <DollarSign /> Pricing Rules
+          <NavLink to="/admin/pricing" title={collapsed ? 'Pricing Rules' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <DollarSign size={18} /> <span className="nav-label">Pricing Rules</span>
           </NavLink>
-          <NavLink to="/admin/settings" onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <Settings /> Settings
+          <NavLink to="/admin/settings" title={collapsed ? 'Settings' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Settings size={18} /> <span className="nav-label">Settings</span>
           </NavLink>
         </nav>
+
+        {/* Collapse toggle (desktop only) */}
+        <button
+          type="button"
+          className="sidebar-collapse-btn"
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
 
         <div className="sidebar-user-section">
           <div className="sidebar-user-info">
@@ -126,7 +141,7 @@ export default function AdminLayout({ children }) {
             </div>
           </div>
           <button className="sidebar-logout-btn" onClick={handleLogout}>
-            <LogOut size={16} /> Sign Out
+            <LogOut size={16} /> <span className="btn-label">Sign Out</span>
           </button>
         </div>
       </aside>

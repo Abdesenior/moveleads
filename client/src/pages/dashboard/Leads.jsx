@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
   ArrowRight, Truck, Clock, Search, ShoppingBag,
   X, CheckCircle, User, Phone as PhoneIcon, MapPin,
@@ -282,10 +282,10 @@ export default function Leads() {
   const [sortKey, setSortKey]           = useState('createdAt');
   const [sortDir, setSortDir]           = useState('desc');
 
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useEffect(() => { setPage(1); }, [searchTerm, distanceFilter, sortKey, sortDir]);
 
-  const fetchLeads = async () => {
+  const fetchLeads = useCallback(async () => {
     try {
       const res  = await fetch(`${API_URL}/leads`, { headers: { 'x-auth-token': token } });
       const data = await res.json();
@@ -293,7 +293,7 @@ export default function Leads() {
         setLeads(data.filter(l => l.status === 'Available' || l.status === 'READY_FOR_DISTRIBUTION'));
       }
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [API_URL, token]);
 
   const purchaseLead = async (lead) => {
     setPurchasing(true);

@@ -318,14 +318,15 @@ export default function SettingsPage() {
 
         {/* ── Left: vertical tab menu ── */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-          {TABS.map(({ id, label, icon: Icon }, i) => {
-            const active = activeTab === id;
-            const isDanger = id === 'danger';
+          {TABS.map((tab, idx) => {
+            const active   = activeTab === tab.id;
+            const isDanger = tab.id === 'danger';
+            const TabIcon  = tab.icon;
             return (
               <button
-                key={id}
+                key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(id)}
+                onClick={() => setActiveTab(tab.id)}
                 style={{
                   width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 10,
@@ -335,12 +336,12 @@ export default function SettingsPage() {
                   fontWeight: active ? 700 : 500, fontSize: 13,
                   fontFamily: 'inherit',
                   borderLeft: active ? `3px solid ${isDanger ? '#ef4444' : '#ea580c'}` : '3px solid transparent',
-                  borderBottom: i < TABS.length - 1 ? '1px solid #f1f5f9' : 'none',
+                  borderBottom: idx < TABS.length - 1 ? '1px solid #f1f5f9' : 'none',
                   transition: 'all 0.15s',
                 }}
               >
-                <Icon size={15} />
-                {label}
+                <TabIcon size={15} />
+                {tab.label}
               </button>
             );
           })}

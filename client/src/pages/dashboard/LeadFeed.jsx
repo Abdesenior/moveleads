@@ -31,7 +31,6 @@ function TimeLeftTag({ endsAt }) {
 
   const [t, setT] = useState(calc);
   useEffect(() => {
-    setT(calc());
     const iv = setInterval(() => setT(calc()), 1000);
     return () => clearInterval(iv);
   }, [calc]);
@@ -107,6 +106,16 @@ function BidModal({ lead, balance, onClose, onBid }) {
 /* ─── Shared price helper — single source of truth ─────────────────────────── */
 const getLeadPrice = (lead) => lead.buyNowPrice || lead.price || 0;
 
+/* ─── Shared detail row ─────────────────────────────────────────────────────── */
+function Row({ label, value }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+      <span style={{ color: '#64748b' }}>{label}</span>
+      <span style={{ fontWeight: 700, color: '#0f172a' }}>{value}</span>
+    </div>
+  );
+}
+
 /* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
 function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error }) {
   const isAuction   = lead.auctionStatus === 'active';
@@ -115,15 +124,9 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
   const displayPrice = isAuction
     ? (currentBid > 0 ? currentBid : lead.startingBidPrice || buyNowPrice)
     : buyNowPrice;
-  const isLD        = lead.distance === 'Long Distance';
-  const daysToMove  = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
-
-  const Row = ({ label, value }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
-      <span style={{ color: '#64748b' }}>{label}</span>
-      <span style={{ fontWeight: 700, color: '#0f172a' }}>{value}</span>
-    </div>
-  );
+  const isLD           = lead.distance === 'Long Distance';
+  const [openedAt]     = useState(() => Date.now());
+  const daysToMove     = lead.moveDate ? (new Date(lead.moveDate) - openedAt) / 86400000 : 99;
 
   return (
     <div className="modal-overlay">
@@ -295,7 +298,6 @@ export default function LeadFeed() {
   const [customDate, setCustomDate]     = useState('');
   const [sortBy, setSortBy]             = useState('listed');
   const [outbidToast, setOutbidToast]   = useState(''); // "you were outbid" banner
-  const audioRef  = useRef(null); // kept for compatibility; sound now via playNewLeadSound()
   const pollRef   = useRef(null);
   const myBidsRef = useRef(new Set()); // lead IDs the current user has bid on
 
@@ -370,7 +372,7 @@ export default function LeadFeed() {
       });
     });
     return () => { stopPolling(); socket.disconnect(); };
-  }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling]);
+  }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling, refreshUser, user?._id]);
 
   const handleBuyNow = async (lead) => {
     const id      = (lead._id || lead.id)?.toString();

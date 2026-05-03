@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import {
   Users, Search, Download, X, MapPin, Calendar, Phone, Mail,
   FileText, CheckCircle, AlertCircle, MessageSquare, Eye,
@@ -110,16 +110,16 @@ export default function Customers() {
   const [sortKey, setSortKey]       = useState('createdAt');
   const [sortDir, setSortDir]       = useState('desc');
 
-  useEffect(() => { fetchPurchases(); }, []);
+  useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
   useEffect(() => { setPage(1); }, [searchTerm, statusFilter, sortKey, sortDir]);
 
-  const fetchPurchases = async () => {
+  const fetchPurchases = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/purchases`, { headers: { 'x-auth-token': token } });
       const data = await res.json();
       if (Array.isArray(data)) setPurchases(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [API_URL, token]);
 
   /* Inline status update (from table row dropdown) */
   const updateStatusInline = async (purchaseId, leadId, newStatus) => {

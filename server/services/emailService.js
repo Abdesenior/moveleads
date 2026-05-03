@@ -614,4 +614,18 @@ async function sendAdminLeadNotification(lead) {
   if (error) console.error('[AdminNotify] Failed to send admin lead notification:', error.message);
 }
 
-module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail, sendAuctionWonEmail, sendAdminLeadNotification };
+async function sendAdminNotification({ subject, html }) {
+  try {
+    await getResend().emails.send({
+      from: 'MoveLeads <noreply@moveleads.cloud>',
+      to: 'admin@moveleads.cloud',
+      subject,
+      html
+    });
+    console.log('[AdminEmail] Sent:', subject);
+  } catch (err) {
+    console.error('[AdminEmail] Failed:', err.message);
+  }
+}
+
+module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail, sendAuctionWonEmail, sendAdminLeadNotification, sendAdminNotification };

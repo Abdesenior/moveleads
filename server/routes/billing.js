@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const stripeInit = () => require('stripe')(process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.trim() : '');
 const stripe = stripeInit();
+const { sendAdminNotification } = require('../services/emailService');
 
 // @route   GET /api/billing/balance
 // @desc    Get user balance
@@ -106,6 +107,19 @@ router.post('/confirm-payment', auth, async (req, res) => {
     });
     await transaction.save();
 
+    sendAdminNotification({
+      subject: `💰 New Balance Top-Up — ${user.companyName}`,
+      html: `
+        <h2>New Balance Top-Up</h2>
+        <p><strong>Company:</strong> ${user.companyName}</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <p><strong>Amount Added:</strong> $${Number(credits).toFixed(2)}</p>
+        <p><strong>New Balance:</strong> $${user.balance.toFixed(2)}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
+        <a href="https://moveleads.cloud/admin/users">View in Admin Panel →</a>
+      `
+    }).catch(() => {});
+
     res.json({ msg: 'Payment confirmed and credits added!', balance: user.balance });
   } catch (err) {
     console.error('PAYMENT CONFIRMATION ERROR:', err);
@@ -154,6 +168,19 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           description: `Credit Top Up +$${credits} (Session: ${session.id})`,
           status: 'Completed'
         }).save();
+
+        sendAdminNotification({
+          subject: `💰 New Balance Top-Up — ${user.companyName}`,
+          html: `
+            <h2>New Balance Top-Up</h2>
+            <p><strong>Company:</strong> ${user.companyName}</p>
+            <p><strong>Email:</strong> ${user.email}</p>
+            <p><strong>Amount Added:</strong> $${Number(credits).toFixed(2)}</p>
+            <p><strong>New Balance:</strong> $${user.balance.toFixed(2)}</p>
+            <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
+            <a href="https://moveleads.cloud/admin/users">View in Admin Panel →</a>
+          `
+        }).catch(() => {});
 
         console.log(`[Webhook] Added ${credits} credits to user ${userId}`);
       }

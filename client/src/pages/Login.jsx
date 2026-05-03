@@ -22,7 +22,7 @@ export default function Login() {
 
   useEffect(() => {
     if (location.state?.message) toast.success('Success', location.state.message);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e) => {
     e.preventDefault();

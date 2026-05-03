@@ -12,14 +12,111 @@
 
 /* ── White Sidebar ── */
 .sidebar {
-  width: 260px;
-  min-width: 260px;
+  width: 240px;
+  min-width: 240px;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 100;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Collapsed sidebar ── */
+.sidebar.collapsed {
+  width: 64px;
+  min-width: 64px;
+}
+
+.sidebar.collapsed .logo-container {
+  padding: 18px 0;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .logo-tagline,
+.sidebar.collapsed .admin-portal-badge {
+  display: none;
+}
+
+.sidebar.collapsed .logo-icon {
+  display: flex !important;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 10px 0;
+  gap: 0;
+  position: relative;
+}
+
+.sidebar.collapsed .nav-item .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item .nav-badge {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.sidebar.collapsed .sidebar-user-info {
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-user-info .sidebar-user-name,
+.sidebar.collapsed .sidebar-user-info .sidebar-user-role {
+  display: none;
+}
+
+.sidebar.collapsed .balance-pill,
+.sidebar.collapsed .sidebar-logout-btn .btn-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logout-btn {
+  justify-content: center;
+  padding: 9px 0;
+  gap: 0;
+}
+
+/* ── Sidebar collapse toggle button ── */
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 9px 0;
+  border: none;
+  border-top: 1px solid #f1f5f9;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-btn:hover {
+  background: #f8fafc;
+  color: #334155;
+}
+
+@media (max-width: 900px) {
+  .sidebar-collapse-btn {
+    display: none;
+  }
 }
 
 /* ── Logo ── */
