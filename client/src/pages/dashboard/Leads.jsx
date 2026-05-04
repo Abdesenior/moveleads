@@ -282,9 +282,6 @@ export default function Leads() {
   const [sortKey, setSortKey]           = useState('createdAt');
   const [sortDir, setSortDir]           = useState('desc');
 
-  useEffect(() => { fetchLeads(); }, [fetchLeads]);
-  useEffect(() => { setPage(1); }, [searchTerm, distanceFilter, sortKey, sortDir]);
-
   const fetchLeads = useCallback(async () => {
     try {
       const res  = await fetch(`${API_URL}/leads`, { headers: { 'x-auth-token': token } });
@@ -294,6 +291,9 @@ export default function Leads() {
       }
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }, [API_URL, token]);
+
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useEffect(() => { setPage(1); }, [searchTerm, distanceFilter, sortKey, sortDir]);
 
   const purchaseLead = async (lead) => {
     setPurchasing(true);

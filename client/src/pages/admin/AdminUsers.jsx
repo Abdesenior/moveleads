@@ -27,15 +27,15 @@ export default function AdminUsers() {
   const [sortKey, setSortKey] = useState('dateJoined');
   const [sortDir, setSortDir] = useState('desc');
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
-  useEffect(() => { setPage(1); }, [searchTerm, sortKey, sortDir]);
-
   const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/users`, { headers: { 'x-auth-token': token } });
       setUsers(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }, [API_URL, token]);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => { setPage(1); }, [searchTerm, sortKey, sortDir]);
 
   const handleDelete = async (id) => {
     try {

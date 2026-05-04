@@ -110,9 +110,6 @@ export default function Customers() {
   const [sortKey, setSortKey]       = useState('createdAt');
   const [sortDir, setSortDir]       = useState('desc');
 
-  useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
-  useEffect(() => { setPage(1); }, [searchTerm, statusFilter, sortKey, sortDir]);
-
   const fetchPurchases = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/purchases`, { headers: { 'x-auth-token': token } });
@@ -120,6 +117,9 @@ export default function Customers() {
       if (Array.isArray(data)) setPurchases(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }, [API_URL, token]);
+
+  useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
+  useEffect(() => { setPage(1); }, [searchTerm, statusFilter, sortKey, sortDir]);
 
   /* Inline status update (from table row dropdown) */
   const updateStatusInline = async (purchaseId, leadId, newStatus) => {
