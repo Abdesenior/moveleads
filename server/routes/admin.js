@@ -45,10 +45,11 @@ function parseMoveDate(dateStr) {
 
   const str = String(dateStr).trim();
 
-  // MM/DD/YYYY
+  // MM/DD/YYYY or MM/DD/YY
   const slashParts = str.split('/');
   if (slashParts.length === 3) {
-    const [month, day, year] = slashParts;
+    let [month, day, year] = slashParts;
+    if (year.length <= 2) year = `20${year.padStart(2, '0')}`; // 26 → 2026
     const d = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`);
     return isNaN(d) || d <= todayNoon ? null : d;
   }

@@ -286,7 +286,15 @@ export default function AdminLeads() {
           const d = new Date(Math.round((raw - 25569) * 864e5));
           return d.toISOString().split('T')[0];
         }
-        return String(raw).trim();
+        const str = String(raw).trim();
+        // Normalize MM/DD/YY or MM/DD/YYYY → YYYY-MM-DD before sending to server
+        const parts = str.split('/');
+        if (parts.length === 3) {
+          let [m, d, y] = parts;
+          if (y.length <= 2) y = `20${y.padStart(2, '0')}`;
+          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+        return str;
       };
 
       const parsed = rows.map(row => ({
