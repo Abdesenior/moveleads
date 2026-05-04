@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { Link } from 'react-router-dom';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
@@ -95,7 +94,7 @@ class ErrorBoundary extends Component {
                 Reload Page
               </button>
 
-              <Link to="/" style={{
+              <a href="/" style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
@@ -110,7 +109,7 @@ class ErrorBoundary extends Component {
               }}>
                 <Home size={16} />
                 Go Home
-              </Link>
+              </a>
             </div>
           </div>
         </div>
