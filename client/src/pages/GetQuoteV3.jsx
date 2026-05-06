@@ -5,12 +5,12 @@ const API = import.meta.env.VITE_API_URL || 'https://api.moveleads.cloud';
 // ── Design tokens ──────────────────────────────────────────────────────────
 const ACCENT = '#FF6A3D';
 const ACCENT_DARK = '#e0522a';
-const BG = '#0E0F13';
-const CARD = '#16181F';
-const CARD2 = '#1E2029';
-const BORDER = 'rgba(255,255,255,0.08)';
-const TEXT = '#F4F4F5';
-const MUTED = '#8B8D98';
+const BG = '#FFFFFF';
+const CARD = '#F8F8FA';
+const CARD2 = '#F0F0F4';
+const BORDER = 'rgba(0,0,0,0.08)';
+const TEXT = '#111114';
+const MUTED = '#6B6E7D';
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
@@ -39,7 +39,7 @@ const css = `
     position: fixed; top: 0; left: 0; right: 0; z-index: 99;
     padding: 14px 24px;
     display: flex; align-items: center; justify-content: space-between;
-    background: rgba(14,15,19,0.92);
+    background: rgba(255,255,255,0.92);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid ${BORDER};
   }
@@ -139,7 +139,7 @@ const css = `
     border-radius: 12px; color: ${TEXT};
     font-family: inherit; font-size: 14px; font-weight: 600;
     outline: none; transition: border-color 0.15s;
-    color-scheme: dark;
+    color-scheme: light;
   }
   .gqv3-date-input:focus { border-color: ${ACCENT}; }
   .gqv3-date-input::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.5); cursor: pointer; }
