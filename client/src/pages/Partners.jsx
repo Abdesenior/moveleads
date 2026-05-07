@@ -312,6 +312,145 @@ export default function Partners() {
           </div>
         </div>
       </section>
+
+      {/* ── Stats strip ── */}
+      <section className="stats-strip">
+        <div className="wrap">
+          <div className="stats-grid">
+            {STATS.map((s) => (
+              <div key={s.label} className="stat">
+                <div className="num">
+                  {s.accent
+                    ? <span className="accent">{s.num}</span>
+                    : s.num}
+                  {s.suffix && <span style={{ color: 'var(--muted)', fontSize: 14, fontWeight: 500, letterSpacing: 0 }}>{s.suffix}</span>}
+                </div>
+                <div className="label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ── */}
+      <section className="block" id="how">
+        <div className="wrap">
+          <div className="section-head center">
+            <div className="eyebrow">How it works</div>
+            <h2 className="section-h">From lead request to booked job in 4 steps</h2>
+            <p className="section-sub">Simple process. Real moving customers. You stay in control of every credit you spend.</p>
+          </div>
+
+          <div className="steps">
+            {STEPS.map((step) => (
+              <div key={step.n} className="step">
+                <div className="num">STEP {step.n}</div>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pain vs Solution ── */}
+      <section className="block pain-bg">
+        <div className="wrap">
+          <div className="section-head center">
+            <div className="eyebrow">Why MoveLeads</div>
+            <h2 className="section-h">Tired of paying for leads that never answer?</h2>
+            <p className="section-sub">Most moving lead providers sell the same junk lead to five companies. We don't.</p>
+          </div>
+
+          <div className="compare">
+            <div className="col bad">
+              <h3>
+                <span className="ic">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </span>
+                Common lead provider problems
+              </h3>
+              <ul>
+                {PAIN.map((item) => (
+                  <li key={item}>
+                    <span className="mark">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="col good">
+              <h3>
+                <span className="ic">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 12 10 18 20 6" />
+                  </svg>
+                </span>
+                How MoveLeads is different
+              </h3>
+              <ul>
+                {SOLN.map((item) => (
+                  <li key={item}>
+                    <span className="mark">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="4 12 10 18 20 6" />
+                      </svg>
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Credit offer ── */}
+      <section className="block offer-bg" id="offer">
+        <div className="wrap">
+          <div className="section-head center">
+            <div className="eyebrow">Limited offer</div>
+            <h2 className="section-h">Start with bonus credits</h2>
+            <p className="section-sub">For a limited time, get 50% extra buying power on your first credit purchase. Use credits to unlock leads directly from your dashboard.</p>
+          </div>
+
+          <div className="offer-card">
+            <div>
+              <span className="ribbon">First-purchase bonus</span>
+              <div className="big">
+                <span className="strike">$100</span>
+                <span className="new">$150</span>
+              </div>
+              <p className="support">Pay $100 once. Get $150 in credits dropped straight into your partner dashboard. Use them on whatever leads make sense for your crew.</p>
+              <p className="trust-note">Bonus offer applies to first purchase only. No subscription. No contract. Credits never expire.</p>
+            </div>
+            <div className="offer-rhs">
+              <ul>
+                {['No monthly subscription', 'No long-term contract', 'Only pay for the leads you choose', 'Credits never expire'].map((text) => (
+                  <li key={text}>
+                    <span className="check">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="4 12 10 18 20 6" />
+                      </svg>
+                    </span>
+                    {text}
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="btn btn-primary btn-lg btn-block" onClick={goToBilling}>Claim bonus credits &nbsp;→</button>
+              <div style={{ textAlign: 'center', marginTop: 12, fontSize: 12.5, color: '#64748b', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.04em' }}>
+                SECURE CHECKOUT · STRIPE
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
