@@ -19,6 +19,25 @@ export default function Register() {
 
   const handleInput = (e) => setFormData({...formData, [e.target.name]: e.target.value});
 
+  const handleNumericInput = (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+    setFormData(prev => ({ ...prev, [e.target.name]: digits }));
+  };
+
+  const formatPhone = (raw) => {
+    let d = (raw || '').replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+    d = d.slice(0, 10);
+    if (d.length === 0) return '';
+    if (d.length <= 3) return `(${d}`;
+    if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  };
+
+  const handlePhoneInput = (e) => {
+    setFormData(prev => ({ ...prev, phone: formatPhone(e.target.value) }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
@@ -29,6 +48,22 @@ export default function Register() {
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
       toast.warning('Password too short', 'Password must be at least 8 characters');
+      return;
+    }
+    if (formData.dotNumber && (formData.dotNumber.length < 5 || formData.dotNumber.length > 8)) {
+      setError('USDOT Number must be 5–8 digits');
+      toast.warning('Invalid USDOT Number', 'USDOT Number must be 5–8 digits');
+      return;
+    }
+    if (formData.mcNumber && (formData.mcNumber.length < 4 || formData.mcNumber.length > 8)) {
+      setError('MC Number must be 4–8 digits');
+      toast.warning('Invalid MC Number', 'MC Number must be 4–8 digits');
+      return;
+    }
+    const phoneDigits = (formData.phone || '').replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+      setError('Phone number must be a valid 10-digit US number');
+      toast.warning('Invalid phone number', 'Please enter a valid 10-digit US phone number');
       return;
     }
 
@@ -74,18 +109,58 @@ export default function Register() {
             <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, margin: 0 }}>Lead Marketplace Platform</p>
           </div>
 
-          <div style={{ marginBottom: 48 }}>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, marginBottom: 8 }}>Simple pricing</p>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 16 }}>
-              <span style={{ fontSize: 56, fontWeight: 800, color: '#fff', lineHeight: 1, fontFamily: "'Poppins', sans-serif" }}>$10</span>
-              <span style={{ paddingBottom: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500, fontSize: 16 }}>per lead</span>
+          <div style={{ marginBottom: 36 }}>
+            {/* Eyebrow with pulse dot */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, marginBottom: 22 }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: '#f97316',
+                boxShadow: '0 0 0 4px rgba(249,115,22,0.18)',
+              }} />
+              <span style={{
+                color: '#fb923c', fontSize: 12, fontWeight: 800,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+              }}>First-time mover bonus</span>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, lineHeight: 1.6, marginBottom: 0 }}>
-              No monthly fees. Only pay when you get a lead.
+
+            {/* Claim your free / $50 [FREE] / unlock credit — tight typographic stack */}
+            <p style={{
+              color: 'rgba(255,255,255,0.55)',
+              fontSize: 20, fontWeight: 500, lineHeight: 1.1,
+              margin: '0 0 4px',
+              fontFamily: "'Poppins', sans-serif",
+              letterSpacing: '-0.005em',
+            }}>
+              Claim your free
             </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4, flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: 68, fontWeight: 900, color: '#f97316',
+                lineHeight: 1, fontFamily: "'Poppins', sans-serif",
+                letterSpacing: '-0.04em',
+              }}>$50</span>
+              <span style={{
+                background: 'linear-gradient(180deg, #fb923c 0%, #f97316 100%)',
+                color: '#fff',
+                fontSize: 10.5, fontWeight: 800,
+                letterSpacing: '0.14em',
+                padding: '5px 9px',
+                borderRadius: 6,
+                boxShadow: '0 6px 18px rgba(249,115,22,0.35)',
+              }}>FREE</span>
+            </div>
+            <p style={{
+              color: '#fff', fontSize: 22, fontWeight: 700,
+              margin: '0 0 26px',
+              fontFamily: "'Poppins', sans-serif",
+              letterSpacing: '-0.01em', lineHeight: 1.2,
+            }}>
+              unlock credit
+            </p>
+
           </div>
 
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 32 }}>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 28 }}>
             <h3 style={{ fontSize: 18, color: '#fff', marginBottom: 24, fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}>What you get</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {[
@@ -179,17 +254,56 @@ export default function Register() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div className="form-group">
-                    <label>DOT Number</label>
-                    <input type="text" name="dotNumber" value={formData.dotNumber} onChange={handleInput} className="form-input" placeholder="123456" />
+                    <label>USDOT Number</label>
+                    <input
+                      type="text"
+                      name="dotNumber"
+                      value={formData.dotNumber}
+                      onChange={handleNumericInput}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={8}
+                      autoComplete="off"
+                      className="form-input"
+                      placeholder="1234567"
+                    />
+                    <small style={{ display: 'block', marginTop: 6, color: 'rgba(15,23,42,0.55)', fontSize: 12, lineHeight: 1.45 }}>
+                      Used to help verify licensed moving companies.
+                    </small>
                   </div>
                   <div className="form-group">
-                    <label>MC Number</label>
-                    <input type="text" name="mcNumber" value={formData.mcNumber} onChange={handleInput} className="form-input" placeholder="654321" />
+                    <label>MC Number <span style={{ color: 'rgba(15,23,42,0.45)', fontWeight: 500 }}>(optional)</span></label>
+                    <input
+                      type="text"
+                      name="mcNumber"
+                      value={formData.mcNumber}
+                      onChange={handleNumericInput}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={8}
+                      autoComplete="off"
+                      className="form-input"
+                      placeholder="654321"
+                    />
                   </div>
                 </div>
                 <div className="form-group">
                   <label>Phone Number</label>
-                  <input type="tel" name="phone" value={formData.phone} onChange={handleInput} required className="form-input" placeholder="+1 (555) 123-4567" />
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handlePhoneInput}
+                    required
+                    inputMode="tel"
+                    autoComplete="tel"
+                    maxLength={14}
+                    className="form-input"
+                    placeholder="(555) 123-4567"
+                  />
+                  <small style={{ display: 'block', marginTop: 6, color: 'rgba(15,23,42,0.55)', fontSize: 12, lineHeight: 1.45 }}>
+                    Used for account verification and move request notifications.
+                  </small>
                 </div>
                 <button type="submit" className="auth-btn">
                   Continue <ArrowRight size={18} />
