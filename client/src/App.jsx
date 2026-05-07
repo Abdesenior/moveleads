@@ -18,6 +18,8 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const GetQuote   = lazy(() => import('./pages/GetQuote'));
 const GetQuoteV2 = lazy(() => import('./pages/GetQuoteV2'));
 const GetQuoteV3 = lazy(() => import('./pages/GetQuoteV3'));
+const GetQuoteV4 = lazy(() => import('./pages/GetQuoteV4'));
+const Partners = lazy(() => import('./pages/Partners'));
 const ThankYou = lazy(() => import('./pages/ThankYou'));
 const ForMovers = lazy(() => import('./pages/ForMovers'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
@@ -75,6 +77,8 @@ function App() {
               <Route path="/get-quote" element={<GetQuote />} />
               <Route path="/get-quote-v2" element={<GetQuoteV2 />} />
               <Route path="/get-quote-v3" element={<GetQuoteV3 />} />
+              <Route path="/get-quote-v4" element={<GetQuoteV4 />} />
+              <Route path="/partners" element={<Partners />} />
               <Route path="/move/:originCity/:destCity" element={<MoveRoute />} />
               <Route path="/thank-you" element={<ThankYou />} />
               <Route path="/for-movers" element={<ForMovers />} />
