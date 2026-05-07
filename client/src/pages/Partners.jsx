@@ -451,6 +451,141 @@ export default function Partners() {
           </div>
         </div>
       </section>
+
+      {/* ── Sample leads ── */}
+      <section className="block" id="leads">
+        <div className="wrap">
+          <div className="section-head center">
+            <div className="eyebrow">Sample leads</div>
+            <h2 className="section-h">See the type of leads you can buy</h2>
+            <p className="section-sub">Preview every job's route, size, timeline, and verification status before you unlock the customer's phone number.</p>
+          </div>
+
+          <div className="leads-grid">
+            {LEADS.map((lead) => (
+              <LeadCard key={`${lead.from}-${lead.to}`} lead={lead} onBuy={goToSignup} />
+            ))}
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 36 }}>
+            <button type="button" className="btn btn-ghost-light btn-lg" onClick={goToSignup}>
+              See how unlocking works in dashboard &nbsp;→
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Who it's for ── */}
+      <section className="block pain-bg">
+        <div className="wrap">
+          <div className="section-head center">
+            <div className="eyebrow">Who it's for</div>
+            <h2 className="section-h">Built for movers who want more booked jobs</h2>
+            <p className="section-sub">Whether you run a two-truck local outfit or a long-haul interstate operation, you control every dollar you spend.</p>
+          </div>
+
+          <div className="who-grid">
+            {WHO.map((card) => (
+              <div key={card.title} className="who-card">
+                <div className="icon">{card.icon}</div>
+                <h3>{card.title}</h3>
+                <p>{card.body}</p>
+                <div className="tag">{card.tag}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* photo strip — intentionally omitted per spec Q4 = A */}
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="block faq-bg" id="faq">
+        <div className="wrap">
+          <div className="faq-grid">
+            <div className="faq-side">
+              <div className="eyebrow">FAQ</div>
+              <h2 className="section-h">Questions moving companies ask</h2>
+              <p className="section-sub">Straight answers. No fine print.</p>
+              <div className="helper">
+                <span className="lab">Talk to a partner rep</span>
+                <span className="val">Mon–Sat · 8am–8pm CT</span>
+                <a href={`tel:${PHONE}`}>{PHONE_DISPLAY} →</a>
+              </div>
+            </div>
+
+            <div className="faq-list">
+              {FAQS.map((faq) => (
+                <details key={faq.q} className="faq-item" open={!!faq.open}>
+                  <summary>{faq.q} <span className="plus">+</span></summary>
+                  <div className="answer">{faq.a}</div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Final CTA ── */}
+      <section className="final-cta" id="signup">
+        <div className="wrap">
+          <div className="final-cta-inner">
+            <h2>Ready to try real moving leads?</h2>
+            <p>Stop losing booked moves to faster competitors. Unlock only the jobs that fit your trucks and crews. No monthly fees. No contracts. Just real moving customers.</p>
+            <div className="ctas">
+              <button type="button" className="btn btn-primary btn-lg" onClick={goToSignup}>See live move requests &nbsp;→</button>
+              <a href="#leads" className="btn btn-ghost-dark btn-lg">See how unlocking works</a>
+            </div>
+            <div className="note">$100 = $150 IN CREDITS · FIRST-TIME PARTNERS ONLY</div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer>
+        <div className="wrap">
+          <div className="foot-grid">
+            <div>
+              <div className="brand" style={{ color: '#fff' }}>
+                <span className="mark">M</span>
+                <span>Move<span className="dot-cloud">Leads</span><span style={{ color: 'var(--orange)' }}>.cloud</span></span>
+              </div>
+              <p>Verified move requests, delivered live to your dashboard. Pay-as-you-go credits. No contracts. Built for working movers.</p>
+            </div>
+            <div>
+              <h4>Product</h4>
+              <ul>
+                <li><a href="#how">How it works</a></li>
+                <li><a href="#leads">Sample leads</a></li>
+                <li><a href="#offer">Pricing</a></li>
+                <li><a href="#faq">FAQ</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Company</h4>
+              <ul>
+                <li><a href="/about">About</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/privacy">Privacy</a></li>
+                <li><a href="/terms">Terms</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Account</h4>
+              <ul>
+                <li><a href="/login">Partner login</a></li>
+                <li><button type="button" onClick={goToSignup} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>See live moves</button></li>
+                <li><a href={`tel:${PHONE}`}>{PHONE_DISPLAY}</a></li>
+                <li><a href="mailto:partners@moveleads.cloud">partners@moveleads.cloud</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="foot-bottom">
+            <span>© 2026 MoveLeads.cloud · All rights reserved.</span>
+            <span>Made for moving companies in the USA</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
