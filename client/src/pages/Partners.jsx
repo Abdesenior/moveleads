@@ -119,8 +119,110 @@ const FAQS = [
 const PHONE = '+18005550199';
 const PHONE_DISPLAY = '+1 (800) 555-0199';
 
-// ── Sub-components (defined below) ──────────────────────────────────────────
-// HLOC and LeadCard are added in Task 4.
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+function HLOC({ onUnlock }) {
+  return (
+    <div className="hloc-shell">
+      <div className="hloc-glow" />
+      <svg className="hloc-route-bg" viewBox="0 0 500 360" fill="none" aria-hidden="true">
+        <path d="M40 280 Q 180 80 460 100" stroke="#f97316" strokeWidth="2" strokeDasharray="4 8" strokeLinecap="round" opacity="0.5" />
+        <circle cx="40" cy="280" r="6" fill="#f97316" opacity="0.7" />
+        <circle cx="460" cy="100" r="6" fill="#4ade80" opacity="0.7" />
+      </svg>
+
+      <div className="hloc">
+        <div className="hloc-top">
+          <span className="hloc-pill hloc-pill-live"><span className="hloc-pulse" />Live move request</span>
+          <span className="hloc-pill hloc-pill-verified">✓ Phone verified</span>
+        </div>
+
+        <div className="hloc-route">
+          <span>Dallas, TX</span><span className="hloc-arr">→</span><span>Austin, TX</span>
+        </div>
+
+        <div className="hloc-grid">
+          <div className="hloc-cell">
+            <div className="hloc-lab">Move size</div>
+            <div className="hloc-val">3 Bedroom</div>
+          </div>
+          <div className="hloc-cell">
+            <div className="hloc-lab">Timeline</div>
+            <div className="hloc-val">Needs movers this week</div>
+          </div>
+          <div className="hloc-cell">
+            <div className="hloc-lab">Service</div>
+            <div className="hloc-val">Move + packing</div>
+          </div>
+          <div className="hloc-cell">
+            <div className="hloc-lab">Phone</div>
+            <div className="hloc-val">Verified customer</div>
+          </div>
+        </div>
+
+        <div className="hloc-money">
+          <div className="hloc-money-est">
+            <div className="hloc-lab">Estimated move value</div>
+            <div className="hloc-money-val hloc-money-est-v">$4,200</div>
+          </div>
+          <div className="hloc-money-sep" />
+          <div className="hloc-money-cost">
+            <div className="hloc-lab">Unlock cost</div>
+            <div className="hloc-money-val hloc-money-cost-v">$32</div>
+          </div>
+        </div>
+
+        <button type="button" className="hloc-cta" onClick={onUnlock}>Unlock this move &nbsp;→</button>
+
+        <div className="hloc-microcopy">
+          <span className="hloc-livedot" />
+          Customer requested quotes 2 min ago · most book the first mover that responds
+        </div>
+
+        <div className="hloc-foot">3 moving companies viewing now · only pay if you unlock</div>
+      </div>
+
+      <div className="hloc-unlocked">
+        <div className="hloc-unlocked-lab">Just booked</div>
+        <div className="hloc-unlocked-val">+$2.4k job</div>
+      </div>
+    </div>
+  );
+}
+
+function LeadCard({ lead, onBuy }) {
+  return (
+    <div className="lead-card">
+      <div className="head">
+        <span className="kind">{lead.kind}</span>
+        <span className={`pill-l ${lead.pillKind}`}>{lead.pillText}</span>
+      </div>
+      <div className="route">
+        <span className="from">{lead.from}</span>
+        <span className="arr">→</span>
+        <span className="to">{lead.to}</span>
+      </div>
+      <div className="submitted">{lead.submitted}</div>
+      <dl>
+        {lead.rows.map(([dt, dd]) => (
+          <div key={dt}>
+            <dt>{dt}</dt>
+            <dd>{dd.startsWith('✓ ')
+              ? <><span className="ck">✓</span> {dd.slice(2)}</>
+              : dd}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="cta-row">
+        <div className="credits">
+          <span className="num">{lead.credits}</span>
+          <span className="lab">credits</span>
+        </div>
+        <button type="button" className="btn btn-primary" onClick={onBuy}>Buy lead</button>
+      </div>
+    </div>
+  );
+}
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function Partners() {
