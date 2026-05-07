@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import useCanonical from '../utils/useCanonical';
+import JsonLd from '../components/JsonLd';
 import './Partners.css';
 
 // ── Data ────────────────────────────────────────────────────────────────────
@@ -236,6 +237,27 @@ export default function Partners() {
 
   return (
     <div className="partners-page">
+      <title>MoveLeads — Buy verified moving leads. Pay-as-you-go.</title>
+      <meta name="description" content="Access live move requests from real customers. Unlock only the jobs you want. Pay-as-you-go credits, no monthly subscription. Built for moving companies." />
+      <JsonLd schema={{
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        name: 'MoveLeads Partner Marketplace',
+        serviceType: 'Lead generation for moving companies',
+        provider: {
+          '@type': 'Organization',
+          name: 'MoveLeads.cloud',
+          url: 'https://moveleads.cloud',
+        },
+        areaServed: 'United States',
+        description: 'Pay-as-you-go credits for verified moving leads. No subscription. No contract.',
+        offers: {
+          '@type': 'Offer',
+          description: 'First-purchase bonus: $100 = $150 in credits',
+          priceCurrency: 'USD',
+        },
+      }} />
+
       {/* ── Sticky offer bar ── */}
       <div className="offer-bar">
         <div className="inner">
