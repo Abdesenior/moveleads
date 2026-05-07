@@ -6,34 +6,62 @@ import JsonLd from '../components/JsonLd';
 import './Partners.css';
 
 // ── Data ────────────────────────────────────────────────────────────────────
-const STATS = [
-  { num: '240k+', accent: true,  label: 'Verified moving leads delivered' },
-  { num: '1,800+', accent: false, label: 'Moving companies on the platform' },
-  { num: '98%',   accent: false, label: 'Phone-verified before delivery' },
-  { num: '$0',    accent: false, label: 'Pay-as-you-go. Cancel any time.', suffix: ' / month' },
-];
-
 const STEPS = [
-  { n: '01', title: 'Customer requests a mover',     body: 'People looking for movers submit their move details through our ads, funnels and partner sites.' },
-  { n: '02', title: 'We qualify the lead',           body: 'We check move details, timeline, and phone quality. Junk and duplicates get filtered before delivery.' },
-  { n: '03', title: 'You buy the leads you want',    body: 'Use credits to unlock leads that fit your service area, job size and schedule. Skip the rest.' },
-  { n: '04', title: 'You call and close the job',    body: 'Contact the customer fast and turn real moving requests into booked jobs on your calendar.' },
+  {
+    n: '01', title: 'Customer requests movers',
+    body: 'They submit route, move size, timeline, and contact details.',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+        <path d="M5.45 5.11 L2 12 v6 a2 2 0 002 2 h16 a2 2 0 002-2 v-6 l-3.45-6.89 A2 2 0 0016.76 4 H7.24 a2 2 0 00-1.79 1.11 z" />
+      </svg>
+    ),
+  },
+  {
+    n: '02', title: 'We verify the customer',
+    body: 'We check phone quality, move details, timing, and duplicates.',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    n: '03', title: 'You unlock the jobs you want',
+    body: 'Choose by route, job size, urgency, and service area.',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 019.9-1" />
+      </svg>
+    ),
+  },
+  {
+    n: '04', title: 'Call first and book the move',
+    body: 'Contact the customer fast before competitors reach them.',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
+      </svg>
+    ),
+  },
 ];
 
 const PAIN = [
-  'Same lead sold to 4–5 movers at once',
-  'Wrong numbers, fake names, fake requests',
-  'Customers who never pick up the phone',
-  'Monthly fees before you see a single job',
-  'No control over what leads you buy',
+  'Dead numbers and fake names',
+  'Customers who never pick up',
+  'The same request sold to too many movers',
+  'Paying before seeing job details',
+  'No control over which jobs you get',
 ];
 
 const SOLN = [
-  'Every lead is checked before delivery',
-  'See full move details before you spend a credit',
-  'Fresh leads pushed to your dashboard fast',
-  'Pay-as-you-go credits — no subscription',
-  'You choose every single lead you unlock',
+  'Phone-checked move requests',
+  'Review route, size, and timing first',
+  'Unlock only jobs that fit your crews',
+  'No monthly subscription',
+  'Fresh requests pushed fast',
 ];
 
 const LEADS = [
@@ -50,7 +78,7 @@ const LEADS = [
     credits: 35,
   },
   {
-    kind: 'Long distance', pillKind: 'hot', pillText: 'Hot lead',
+    kind: 'Long distance', pillKind: 'hot', pillText: 'Hot move',
     from: 'Los Angeles, CA', to: 'Las Vegas, NV',
     submitted: 'SUBMITTED 2 MIN AGO · 270 MI',
     rows: [
@@ -77,44 +105,47 @@ const LEADS = [
 
 const WHO = [
   {
-    title: 'Local moving companies',
-    body:  'Find customers moving inside your service area. Filter by ZIP, distance, and job size before you spend a credit.',
-    tag:   '→ 25–60 credits per lead',
+    title: 'Fill local routes',
+    body:  'Find customers moving inside your service area and keep local crews busy.',
+    tag:   '→ 25–60 credits per move',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
       </svg>
     ),
   },
   {
-    title: 'Long-distance movers',
-    body:  'Unlock higher-value interstate and long-haul jobs with bigger ticket sizes and longer booking windows.',
-    tag:   '→ 60–120 credits per lead',
+    title: 'Win higher-ticket interstate jobs',
+    body:  'Unlock long-distance moves with bigger job values and stronger booking potential.',
+    tag:   '→ 60–120 credits per move',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
       </svg>
     ),
   },
   {
-    title: 'Growing crews',
-    body:  "Fill your calendar without committing to monthly contracts. Buy more credits when you have capacity, pause when you don't.",
+    title: 'Keep trucks and crews booked',
+    body:  'Add jobs when you have capacity without signing monthly contracts.',
     tag:   '→ Pay only for what fits',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M3 10h18M8 3v4M16 3v4" />
+        <path d="M9 15l2 2 4-4" />
       </svg>
     ),
   },
 ];
 
 const FAQS = [
-  { q: 'Do I need a monthly subscription?',     a: "No. MoveLeads runs on a simple credit system. You buy credits and use them to unlock leads — there's no recurring fee, no contract, and no minimum spend.", open: true },
-  { q: 'Can I choose which leads to buy?',      a: "Yes. You preview every move's route, size, timeline, service type and verification status before unlocking the customer's contact information. You're never charged credits for a lead you don't want." },
-  { q: 'Are the leads verified?',               a: 'Every lead is checked and scored before being pushed to the dashboard. Phone-verified leads are clearly marked, and high-intent or hot leads carry a separate badge so you know what you’re buying.' },
-  { q: 'What do I see before buying a lead?',   a: "You see the route, move size, timeline, service type (move only / move + pack), verification status, and the credit price. The customer's phone number and email are unlocked once you spend the credits." },
-  { q: 'What happens after I buy a lead?',      a: 'The customer’s contact details are unlocked instantly. You call them directly to qualify, quote, and close the job. Most partners reach the customer inside 5 minutes.' },
-  { q: 'Is there a contract?',                  a: "No long-term contract. Buy a credit pack, test the platform, and walk away if it doesn't work for your business. Credits never expire." },
+  { q: 'Do I need a monthly subscription?',           a: "No. MoveLeads runs on a simple credit system. You buy credits and use them to unlock moves — no recurring fee, no contract, no minimum spend.", open: true },
+  { q: 'Can I choose which move requests to unlock?', a: "Yes. You preview every move's route, size, timeline, service type and verification status before unlocking the customer's contact information. You're never charged credits for a move you don't want." },
+  { q: 'Are the customers phone-verified?',           a: 'Every move request is phone-checked and scored before being pushed to the dashboard. Verified requests are clearly marked, and high-intent or hot moves carry a separate badge.' },
+  { q: 'What do I see before unlocking a job?',       a: "You see the route, move size, timeline, service type (move only / move + pack), verification status, and the credit cost. The customer's phone number and email are unlocked once you spend the credits." },
+  { q: 'Is the same request sold to every mover?',    a: "No. We cap the number of movers who can unlock a single move so customers don't get bombarded and you don't compete with five other crews. First-mover advantage is real on this platform." },
+  { q: 'What happens after I unlock a request?',      a: "The customer's contact details are unlocked instantly. You call them directly to qualify, quote, and book the move. Most movers reach the customer inside 5 minutes." },
+  { q: 'Is there a contract?',                        a: "No long-term contract. Buy a credit pack, test the platform, and walk away if it doesn't work for your business. Credits never expire." },
 ];
 
 const PHONE = '+18005550199';
@@ -175,17 +206,12 @@ function HLOC({ onUnlock }) {
 
         <button type="button" className="hloc-cta" onClick={onUnlock}>Unlock this move &nbsp;→</button>
 
-        <div className="hloc-microcopy">
-          <span className="hloc-livedot" />
-          Customer requested quotes 2 min ago · most book the first mover that responds
-        </div>
-
         <div className="hloc-foot">3 moving companies viewing now · only pay if you unlock</div>
       </div>
 
       <div className="hloc-unlocked">
-        <div className="hloc-unlocked-lab">Just booked</div>
-        <div className="hloc-unlocked-val">+$2.4k job</div>
+        <div className="hloc-unlocked-lab">Just unlocked</div>
+        <div className="hloc-unlocked-val">Houston mover · 4m ago</div>
       </div>
     </div>
   );
@@ -217,9 +243,9 @@ function LeadCard({ lead, onBuy }) {
       <div className="cta-row">
         <div className="credits">
           <span className="num">{lead.credits}</span>
-          <span className="lab">credits</span>
+          <span className="lab">credits to unlock</span>
         </div>
-        <button type="button" className="btn btn-primary" onClick={onBuy}>Buy lead</button>
+        <button type="button" className="btn btn-primary" onClick={onBuy}>Unlock job</button>
       </div>
     </div>
   );
@@ -237,44 +263,58 @@ export default function Partners() {
 
   return (
     <div className="partners-page">
-      <title>MoveLeads — Buy verified moving leads. Pay-as-you-go.</title>
-      <meta name="description" content="Access live move requests from real customers. Unlock only the jobs you want. Pay-as-you-go credits, no monthly subscription. Built for moving companies." />
+      <title>MoveLeads — Verified move requests for moving companies. Pay-as-you-go.</title>
+      <meta name="description" content="See real customers requesting movers in your service area. Unlock only the moves you want, call first, and book more jobs before competitors do. Pay-as-you-go credits, no subscription." />
       <JsonLd schema={{
         '@context': 'https://schema.org',
         '@type': 'Service',
         name: 'MoveLeads Partner Marketplace',
-        serviceType: 'Lead generation for moving companies',
+        serviceType: 'Verified move-request marketplace for moving companies',
         provider: {
           '@type': 'Organization',
           name: 'MoveLeads.cloud',
           url: 'https://moveleads.cloud',
         },
         areaServed: 'United States',
-        description: 'Pay-as-you-go credits for verified moving leads. No subscription. No contract.',
+        description: 'Pay-as-you-go credits for verified move requests. No subscription. No contract.',
         offers: {
           '@type': 'Offer',
-          description: 'First-purchase bonus: $100 = $150 in credits',
+          description: 'Free $50 unlock credit + 50% extra buying power for first-time movers',
           priceCurrency: 'USD',
         },
       }} />
 
-      {/* ── Sticky offer bar ── */}
-      <div className="offer-bar">
+      {/* ── Sticky offer bar (dark, premium, clickable) ── */}
+      <a href="#offer" className="offer-bar">
         <div className="inner">
-          <span className="pill">LIMITED</span>
-          <span><strong>$100 = $150 in credits</strong> &nbsp;·&nbsp; First-time partners get 50% bonus on their first credit purchase</span>
-          <span className="dot" />
-          <a href="#offer" className="cta-link" onClick={(e) => { e.preventDefault(); goToBilling(); }}>Claim now →</a>
+          <div className="offer-bar-head">
+            <span className="offer-bar-pulse" aria-hidden="true" />
+            <span className="offer-bar-pill">LIMITED</span>
+          </div>
+
+          <span className="offer-bar-text-full">
+            Claim your <span className="offer-bar-accent">free $50 unlock credit</span> before onboarding closes in your area <span className="offer-bar-arrow" aria-hidden="true">→</span>
+          </span>
+
+          <div className="offer-bar-text-mobile">
+            <div className="offer-bar-line-main">
+              Claim your <span className="offer-bar-accent">free $50 unlock credit</span>
+            </div>
+            <div className="offer-bar-line-sub">
+              before onboarding closes in your area <span className="offer-bar-arrow" aria-hidden="true">→</span>
+            </div>
+          </div>
         </div>
-      </div>
+      </a>
 
       {/* ── Nav ── */}
       <div className="nav-shell">
         <div className="wrap">
           <nav className="nav">
             <div className="brand">
-              <span className="mark">M</span>
-              <span>Move<span className="dot-cloud">Leads</span><span style={{ color: 'var(--orange)' }}>.cloud</span></span>
+              <span style={{ color: '#fff' }}>Move</span>
+              <span style={{ color: 'var(--orange)' }}>Leads</span>
+              <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>.cloud</span>
             </div>
             <div className="nav-links">
               <a href="#how">How it works</a>
@@ -283,7 +323,6 @@ export default function Partners() {
               <a href="#faq">FAQ</a>
             </div>
             <div className="nav-cta">
-              <a className="btn btn-ghost-dark" href="/login">Partner login</a>
               <button type="button" className="btn btn-primary" onClick={goToSignup}>See live moves</button>
             </div>
           </nav>
@@ -295,19 +334,18 @@ export default function Partners() {
         <div className="wrap">
           <div className="hero-grid">
             <div>
-              <div className="badge badge-lg"><span className="pulse" />Live verified move requests · USA</div>
               <h1 className="hero-h">
-                Stop paying for move requests<br />that <span className="accent">never answer.</span>
+                Stop wasting dispatcher time on quote requests that <span className="accent">never answer.</span>
               </h1>
               <p className="hero-sub">
-                Access live customers actively requesting movers in your service area. Unlock only the jobs you want, call verified customers instantly, and keep your trucks and crews booked — without wasting dispatcher time.
+                See real customers actively looking for movers in your service area. Unlock the jobs you want, call customers fast, and keep your crews booked.
               </p>
               <ul className="hero-bullets">
                 {[
-                  'Verified move requests, real customers',
-                  'Only pay for jobs you unlock',
-                  'Real phone numbers with active move intent',
-                  'See live move requests in your service area',
+                  'Verified requests only',
+                  'No contracts',
+                  'No monthly fees',
+                  'Money-back guarantee',
                 ].map((text) => (
                   <li key={text}>
                     <span className="check">
@@ -320,36 +358,12 @@ export default function Partners() {
                 ))}
               </ul>
               <div className="hero-cta">
-                <button type="button" className="btn btn-primary btn-xl" onClick={goToSignup}>See live move requests &nbsp;→</button>
+                <button type="button" className="btn btn-primary btn-xl" onClick={goToSignup}>See available moves &nbsp;→</button>
                 <a href="#how" className="btn btn-ghost-dark btn-lg">Watch platform demo</a>
-              </div>
-              <div className="hero-trust">
-                <span><span className="tick">✓</span> Used by moving companies in major U.S. cities</span>
-                <span><span className="tick">✓</span> Only verified move requests</span>
-                <span><span className="tick">✓</span> Pay only for jobs you unlock</span>
               </div>
             </div>
 
             <HLOC onUnlock={goToSignup} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Stats strip ── */}
-      <section className="stats-strip">
-        <div className="wrap">
-          <div className="stats-grid">
-            {STATS.map((s) => (
-              <div key={s.label} className="stat">
-                <div className="num">
-                  {s.accent
-                    ? <span className="accent">{s.num}</span>
-                    : s.num}
-                  {s.suffix && <span style={{ color: 'var(--muted)', fontSize: 14, fontWeight: 500, letterSpacing: 0 }}>{s.suffix}</span>}
-                </div>
-                <div className="label">{s.label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -359,14 +373,17 @@ export default function Partners() {
         <div className="wrap">
           <div className="section-head center">
             <div className="eyebrow">How it works</div>
-            <h2 className="section-h">From lead request to booked job in 4 steps</h2>
-            <p className="section-sub">Simple process. Real moving customers. You stay in control of every credit you spend.</p>
+            <h2 className="section-h">From move request to booked job in 4 steps</h2>
+            <p className="section-sub">Real customers. Verified details. You control every credit you spend.</p>
           </div>
 
-          <div className="steps">
+          <div className="steps timeline">
             {STEPS.map((step) => (
               <div key={step.n} className="step">
-                <div className="num">STEP {step.n}</div>
+                <div className="step-iconwrap">{step.icon}</div>
+                <div className="step-num-row">
+                  <span className="step-pill">STEP {step.n}</span>
+                </div>
                 <h3>{step.title}</h3>
                 <p>{step.body}</p>
               </div>
@@ -380,8 +397,8 @@ export default function Partners() {
         <div className="wrap">
           <div className="section-head center">
             <div className="eyebrow">Why MoveLeads</div>
-            <h2 className="section-h">Tired of paying for leads that never answer?</h2>
-            <p className="section-sub">Most moving lead providers sell the same junk lead to five companies. We don't.</p>
+            <h2 className="section-h">Tired of quote requests that waste your dispatcher's time?</h2>
+            <p className="section-sub">Most quote sellers send the same request to too many movers. We focus on verified customers you can review before spending a credit.</p>
           </div>
 
           <div className="compare">
@@ -392,7 +409,7 @@ export default function Partners() {
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </span>
-                Common lead provider problems
+                What movers are tired of
               </h3>
               <ul>
                 {PAIN.map((item) => (
@@ -414,7 +431,7 @@ export default function Partners() {
                     <polyline points="4 12 10 18 20 6" />
                   </svg>
                 </span>
-                How MoveLeads is different
+                Why movers switch to MoveLeads
               </h3>
               <ul>
                 {SOLN.map((item) => (
@@ -433,28 +450,92 @@ export default function Partners() {
         </div>
       </section>
 
+      {/* ── Why speed matters ── */}
+      <section className="block">
+        <div className="wrap">
+          <div className="section-head center">
+            <div className="eyebrow">Why speed matters</div>
+            <h2 className="section-h">The first mover to call usually books the job.</h2>
+            <p className="section-sub">Fresh move requests lose value fast. Speed matters when customers are comparing quotes.</p>
+          </div>
+
+          <div className="speed-grid">
+            {[
+              {
+                title: 'Fresh requests move fast',
+                body: 'Customers are looking for movers right now, not next week.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l2.5 1.5" />
+                    <path d="M9 2h6" />
+                  </svg>
+                ),
+              },
+              {
+                title: 'Competitors are calling too',
+                body: 'Waiting gives another mover the chance to book first.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="8" width="11" height="8" />
+                    <path d="M12 11h4l3 3v2h-7z" />
+                    <circle cx="5" cy="18" r="1.6" />
+                    <circle cx="15" cy="18" r="1.6" />
+                    <path d="M16 4l3 2-3 2" />
+                  </svg>
+                ),
+              },
+              {
+                title: 'Unlock and call immediately',
+                body: 'See the job, unlock it, and get the customer on the phone.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
+                  </svg>
+                ),
+              },
+            ].map((card) => (
+              <div key={card.title} className="speed-card">
+                <div className="speed-card-ic" aria-hidden="true">{card.icon}</div>
+                <h3>{card.title}</h3>
+                <p>{card.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Credit offer ── */}
       <section className="block offer-bg" id="offer">
         <div className="wrap">
           <div className="section-head center">
-            <div className="eyebrow">Limited offer</div>
-            <h2 className="section-h">Start with bonus credits</h2>
-            <p className="section-sub">For a limited time, get 50% extra buying power on your first credit purchase. Use credits to unlock leads directly from your dashboard.</p>
+            <div className="eyebrow">Onboarding bonus</div>
+            <h2 className="section-h">Claim your free $50 unlock credit before your market fills up</h2>
+            <p className="section-sub">First-time moving companies receive 50% extra buying power to unlock verified move requests in their service area.</p>
           </div>
 
           <div className="offer-card">
             <div>
-              <span className="ribbon">First-purchase bonus</span>
-              <div className="big">
-                <span className="strike">$100</span>
-                <span className="new">$150</span>
+              <span className="offer-pill">Limited first-time mover credit</span>
+              <div className="offer-bonus">
+                <div className="offer-bonus-amount">
+                  <span className="offer-bonus-amount-currency">$</span>
+                  <span className="offer-bonus-amount-num">50</span>
+                  <span className="offer-bonus-amount-tag">FREE</span>
+                </div>
+                <div className="offer-bonus-label">unlock credit on us</div>
+                <div className="offer-bonus-plus">+ 50% extra buying power on your first top-up</div>
               </div>
-              <p className="support">Pay $100 once. Get $150 in credits dropped straight into your partner dashboard. Use them on whatever leads make sense for your crew.</p>
-              <p className="trust-note">Bonus offer applies to first purchase only. No subscription. No contract. Credits never expire.</p>
+              <p className="support">Drop straight into your partner dashboard. Use it to unlock the move requests that fit your crews — no obligation, no recurring fee.</p>
             </div>
             <div className="offer-rhs">
               <ul>
-                {['No monthly subscription', 'No long-term contract', 'Only pay for the leads you choose', 'Credits never expire'].map((text) => (
+                {[
+                  'Free $50 unlock credit',
+                  '+50% extra buying power on first top-up',
+                  'Onboarding open in your service area',
+                  'No monthly subscription, no contract',
+                ].map((text) => (
                   <li key={text}>
                     <span className="check">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -465,22 +546,29 @@ export default function Partners() {
                   </li>
                 ))}
               </ul>
-              <button type="button" className="btn btn-primary btn-lg btn-block" onClick={goToBilling}>Claim bonus credits &nbsp;→</button>
-              <div style={{ textAlign: 'center', marginTop: 12, fontSize: 12.5, color: '#64748b', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.04em' }}>
-                SECURE CHECKOUT · STRIPE
+              <button type="button" className="btn btn-primary btn-xl btn-block" onClick={goToBilling}>Claim my $50 credit &nbsp;→</button>
+              <div className="offer-trust-row">
+                <span>Secure checkout</span>
+                <span className="offer-trust-sep">·</span>
+                <span>No subscription</span>
+                <span className="offer-trust-sep">·</span>
+                <span>Credits never expire</span>
+              </div>
+              <div className="offer-microcopy">
+                Offer may close once your service area fills up. Limited to first-time movers.
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Sample leads ── */}
+      {/* ── Sample move requests ── */}
       <section className="block" id="leads">
         <div className="wrap">
           <div className="section-head center">
-            <div className="eyebrow">Sample leads</div>
-            <h2 className="section-h">See the type of leads you can buy</h2>
-            <p className="section-sub">Preview every job's route, size, timeline, and verification status before you unlock the customer's phone number.</p>
+            <div className="eyebrow">Sample move requests</div>
+            <h2 className="section-h">See the type of moves you can unlock</h2>
+            <p className="section-sub">Preview every move's route, size, timeline, and verification status before you unlock the customer's phone number.</p>
           </div>
 
           <div className="leads-grid">
@@ -489,7 +577,11 @@ export default function Partners() {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: 36 }}>
+          <div className="moves-microcopy">
+            Fresh requests lose value fast. The first mover to respond usually wins.
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
             <button type="button" className="btn btn-ghost-light btn-lg" onClick={goToSignup}>
               See how unlocking works in dashboard &nbsp;→
             </button>
@@ -500,10 +592,10 @@ export default function Partners() {
       {/* ── Who it's for ── */}
       <section className="block pain-bg">
         <div className="wrap">
-          <div className="section-head center">
+          <div className="section-head section-head-left">
             <div className="eyebrow">Who it's for</div>
             <h2 className="section-h">Built for movers who want more booked jobs</h2>
-            <p className="section-sub">Whether you run a two-truck local outfit or a long-haul interstate operation, you control every dollar you spend.</p>
+            <p className="section-sub">Whether you run two trucks or twenty, unlock only the moves that fit your crews and your calendar.</p>
           </div>
 
           <div className="who-grid">
@@ -552,27 +644,35 @@ export default function Partners() {
       <section className="final-cta" id="signup">
         <div className="wrap">
           <div className="final-cta-inner">
-            <h2>Ready to try real moving leads?</h2>
-            <p>Stop losing booked moves to faster competitors. Unlock only the jobs that fit your trucks and crews. No monthly fees. No contracts. Just real moving customers.</p>
+            <h2>Ready to stop losing booked moves to faster competitors?</h2>
+            <p>Unlock only the jobs that fit your trucks and crews. No contracts. No subscriptions. Just real moving customers.</p>
             <div className="ctas">
-              <button type="button" className="btn btn-primary btn-lg" onClick={goToSignup}>See live move requests &nbsp;→</button>
+              <button type="button" className="btn btn-primary btn-xl" onClick={goToSignup}>See available moves &nbsp;→</button>
               <a href="#leads" className="btn btn-ghost-dark btn-lg">See how unlocking works</a>
             </div>
-            <div className="note">$100 = $150 IN CREDITS · FIRST-TIME PARTNERS ONLY</div>
+            <div className="final-cta-urgency">
+              Claim your <strong>free $50 unlock credit</strong> while onboarding is open in your area.
+            </div>
+            <div className="note">$50 FREE UNLOCK CREDIT · FIRST-TIME MOVERS ONLY</div>
           </div>
         </div>
       </section>
 
-      {/* ── Footer ── */}
+      {/* ── Footer (matches homepage) ── */}
       <footer>
         <div className="wrap">
           <div className="foot-grid">
             <div>
-              <div className="brand" style={{ color: '#fff' }}>
-                <span className="mark">M</span>
-                <span>Move<span className="dot-cloud">Leads</span><span style={{ color: 'var(--orange)' }}>.cloud</span></span>
+              <div className="brand" style={{ marginBottom: 12 }}>
+                <span style={{ color: '#fff' }}>Move</span>
+                <span style={{ color: 'var(--orange)' }}>Leads</span>
+                <span style={{ color: 'rgba(255,255,255,0.28)', fontWeight: 600 }}>.cloud</span>
               </div>
-              <p>Verified move requests, delivered live to your dashboard. Pay-as-you-go credits. No contracts. Built for working movers.</p>
+              <p>Verified moving leads delivered instantly. Pay only for what you buy.</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 9, width: 'fit-content', marginTop: 18 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', animation: 'partnersFootPulse 2s infinite' }} />
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>Leads available now</span>
+              </div>
             </div>
             <div>
               <h4>Product</h4>
@@ -586,25 +686,24 @@ export default function Partners() {
             <div>
               <h4>Company</h4>
               <ul>
-                <li><a href="/about">About</a></li>
+                <li><a href="/about">About Us</a></li>
                 <li><a href="/contact">Contact</a></li>
-                <li><a href="/privacy">Privacy</a></li>
-                <li><a href="/terms">Terms</a></li>
+                <li><a href="/for-movers">For Movers</a></li>
+                <li><a href="/privacy">Privacy Policy</a></li>
               </ul>
             </div>
             <div>
               <h4>Account</h4>
               <ul>
-                <li><a href="/login">Partner login</a></li>
-                <li><button type="button" onClick={goToSignup} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>See live moves</button></li>
-                <li><a href={`tel:${PHONE}`}>{PHONE_DISPLAY}</a></li>
-                <li><a href="mailto:partners@moveleads.cloud">partners@moveleads.cloud</a></li>
+                <li><a href="/register">Sign up free</a></li>
+                <li><a href="/login">Log in</a></li>
+                <li><a href="/feedback">Feedback</a></li>
               </ul>
             </div>
           </div>
           <div className="foot-bottom">
-            <span>© 2026 MoveLeads.cloud · All rights reserved.</span>
-            <span>Made for moving companies in the USA</span>
+            <span>© 2026 MoveLeads.cloud. All rights reserved.</span>
+            <span>Built for the moving industry.</span>
           </div>
         </div>
       </footer>
