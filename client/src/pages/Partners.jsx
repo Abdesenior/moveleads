@@ -236,7 +236,82 @@ export default function Partners() {
 
   return (
     <div className="partners-page">
-      <h1>Partners (constants and handlers wired)</h1>
+      {/* ── Sticky offer bar ── */}
+      <div className="offer-bar">
+        <div className="inner">
+          <span className="pill">LIMITED</span>
+          <span><strong>$100 = $150 in credits</strong> &nbsp;·&nbsp; First-time partners get 50% bonus on their first credit purchase</span>
+          <span className="dot" />
+          <a href="#offer" className="cta-link" onClick={(e) => { e.preventDefault(); goToBilling(); }}>Claim now →</a>
+        </div>
+      </div>
+
+      {/* ── Nav ── */}
+      <div className="nav-shell">
+        <div className="wrap">
+          <nav className="nav">
+            <div className="brand">
+              <span className="mark">M</span>
+              <span>Move<span className="dot-cloud">Leads</span><span style={{ color: 'var(--orange)' }}>.cloud</span></span>
+            </div>
+            <div className="nav-links">
+              <a href="#how">How it works</a>
+              <a href="#leads">Sample leads</a>
+              <a href="#offer">Pricing</a>
+              <a href="#faq">FAQ</a>
+            </div>
+            <div className="nav-cta">
+              <a className="btn btn-ghost-dark" href="/login">Partner login</a>
+              <button type="button" className="btn btn-primary" onClick={goToSignup}>See live moves</button>
+            </div>
+          </nav>
+        </div>
+      </div>
+
+      {/* ── Hero ── */}
+      <section className="hero">
+        <div className="wrap">
+          <div className="hero-grid">
+            <div>
+              <div className="badge badge-lg"><span className="pulse" />Live verified move requests · USA</div>
+              <h1 className="hero-h">
+                Stop paying for move requests<br />that <span className="accent">never answer.</span>
+              </h1>
+              <p className="hero-sub">
+                Access live customers actively requesting movers in your service area. Unlock only the jobs you want, call verified customers instantly, and keep your trucks and crews booked — without wasting dispatcher time.
+              </p>
+              <ul className="hero-bullets">
+                {[
+                  'Verified move requests, real customers',
+                  'Only pay for jobs you unlock',
+                  'Real phone numbers with active move intent',
+                  'See live move requests in your service area',
+                ].map((text) => (
+                  <li key={text}>
+                    <span className="check">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="4 12 10 18 20 6" />
+                      </svg>
+                    </span>
+                    {text}
+                  </li>
+                ))}
+              </ul>
+              <div className="hero-cta">
+                <button type="button" className="btn btn-primary btn-xl" onClick={goToSignup}>See live move requests &nbsp;→</button>
+                <a href="#how" className="btn btn-ghost-dark btn-lg">Watch platform demo</a>
+              </div>
+              <div className="hero-trust">
+                <span><span className="tick">✓</span> Used by moving companies in major U.S. cities</span>
+                <span><span className="tick">✓</span> Only verified move requests</span>
+                <span><span className="tick">✓</span> Pay only for jobs you unlock</span>
+              </div>
+            </div>
+
+            <HLOC onUnlock={goToSignup} />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
