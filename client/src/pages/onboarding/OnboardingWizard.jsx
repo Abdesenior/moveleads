@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { AuthContext } from '../../context/AuthContext';
+import { useGoogleMaps } from '../../hooks/useGoogleMaps';
 import './Onboarding.css';
 
 const TOTAL_STEPS = 5; // Setup steps shown in the progress bar.
@@ -342,9 +343,9 @@ export default function OnboardingWizard({ onClose, initialStep }) {
                   type="button"
                   className="ow-skip-link"
                   onClick={skipWithDefaults}
-                  title="Apply defaults and continue — you can change this later from your dashboard."
+                  title="Apply smart defaults and continue — you can fine-tune this later from your dashboard."
                 >
-                  Customize later from your dashboard →
+                  Skip — use smart defaults →
                 </button>
               )}
             </div>
@@ -402,7 +403,34 @@ function isStepValid(step, a) {
 
 // ── Screen 1: Market coverage ─────────────────────────────────────────────────
 function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }) {
+  const { ready: gmapsReady } = useGoogleMaps();
+  const primaryMarketRef = useRef(null);
+  const primaryMarketAcRef = useRef(null);
   const [marketDraft, setMarketDraft] = useState('');
+
+  // Attach Google Places city autocomplete to the primary-market input. If
+  // the API key is missing or the script fails to load, we silently fall back
+  // to free-form text input.
+  useEffect(() => {
+    if (!gmapsReady || !primaryMarketRef.current || primaryMarketAcRef.current) return;
+    const ac = new window.google.maps.places.Autocomplete(primaryMarketRef.current, {
+      types: ['(cities)'],
+      componentRestrictions: { country: 'us' },
+      fields: ['address_components', 'name'],
+    });
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place?.address_components) return;
+      const get = (type) =>
+        place.address_components.find(c => c.types.includes(type))?.long_name || '';
+      const stateShort = place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '';
+      const city = get('locality') || get('sublocality') || place.name || '';
+      const formatted = [city, stateShort].filter(Boolean).join(', ');
+      if (formatted) setAnswer('primaryMarket', formatted);
+    });
+    primaryMarketAcRef.current = ac;
+  }, [gmapsReady, setAnswer]);
+
   function commitMarket() {
     const v = marketDraft.trim().replace(/,$/, '');
     if (!v) return;
@@ -421,8 +449,8 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
   }
 
   const greeting = companyName
-    ? `Hello ${companyName}, let's set up your request routing so we can match you with the right move opportunities.`
-    : `Welcome — let's set up your request routing so we can match you with the right move opportunities.`;
+    ? `${companyName} — let's get your dispatch live and start matching you with verified move opportunities.`
+    : `Let's get your dispatch live and start matching you with verified move opportunities.`;
 
   return (
     <>
@@ -434,10 +462,12 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
         <label className="ow-label" htmlFor="primaryMarket">Primary market</label>
         <input
           id="primaryMarket"
+          ref={primaryMarketRef}
           className="ow-input"
           placeholder="Houston, TX"
           value={answers.primaryMarket}
           onChange={e => setAnswer('primaryMarket', e.target.value)}
+          autoComplete="off"
         />
       </div>
 
@@ -828,31 +858,76 @@ function ScreenProcessing({ onDone, answers }) {
     'Account preferences set',
   ];
   const [done, setDone] = useState(0);
-  const [phase, setPhase] = useState('working'); // 'working' | 'transition'
+  const [phase, setPhase] = useState('working'); // 'working' | 'transition' | 'completeError'
   const completedRef = useRef(false);
 
+  // Try to mark onboarding complete server-side. Retry once on failure;
+  // surface a manual retry CTA if both attempts fail so we don't transition
+  // the user with stale server state (which would break the activation
+  // banner + recovery deep-links).
+  async function callComplete() {
+    const opts = {
+      method: 'POST',
+      headers: { 'x-auth-token': localStorage.getItem('token') || '' },
+    };
+    try {
+      const r = await fetch('/api/onboarding/complete', opts);
+      if (r.ok) return true;
+    } catch { /* fall through to retry */ }
+    try {
+      const r2 = await fetch('/api/onboarding/complete', opts);
+      return r2.ok;
+    } catch {
+      return false;
+    }
+  }
+
   useEffect(() => {
+    let cancelled = false;
     // Spread to ~5.4 seconds (within 4-7 sec target)
     const t1 = setTimeout(() => setDone(1), 900);
     const t2 = setTimeout(() => setDone(2), 1900);
     const t3 = setTimeout(() => setDone(3), 2900);
     const t4 = setTimeout(() => setDone(4), 3900);
-    const t5 = setTimeout(() => {
+    const t5 = setTimeout(async () => {
+      if (cancelled) return;
       setDone(5);
-      // Mark onboarding complete server-side
-      fetch('/api/onboarding/complete', {
-        method: 'POST',
-        headers: { 'x-auth-token': localStorage.getItem('token') || '' },
-      }).catch(() => {});
+      const ok = await callComplete();
+      if (cancelled) return;
+      // Hold ~800ms so the final check has visual time, then route.
+      setTimeout(() => {
+        if (cancelled) return;
+        setPhase(ok ? 'transition' : 'completeError');
+      }, 800);
     }, 5000);
-    const t6 = setTimeout(() => setPhase('transition'), 5800);
-    return () => { [t1, t2, t3, t4, t5, t6].forEach(clearTimeout); };
+    return () => { cancelled = true; [t1, t2, t3, t4, t5].forEach(clearTimeout); };
   }, []);
+
+  async function handleRetryComplete() {
+    setPhase('working');
+    const ok = await callComplete();
+    setPhase(ok ? 'transition' : 'completeError');
+  }
 
   function handleContinue() {
     if (completedRef.current) return;
     completedRef.current = true;
     onDone();
+  }
+
+  if (phase === 'completeError') {
+    return (
+      <div className="ow-processing ow-processing-transition">
+        <div className="ow-error-icon">!</div>
+        <h1 className="ow-h1">We couldn't finalize your setup.</h1>
+        <p className="ow-sub" style={{ marginBottom: 18 }}>
+          The connection dropped. Your answers are saved — just retry to continue to activation.
+        </p>
+        <button type="button" className="ow-next" onClick={handleRetryComplete}>
+          Retry →
+        </button>
+      </div>
+    );
   }
 
   if (phase === 'transition') {
@@ -864,7 +939,7 @@ function ScreenProcessing({ onDone, answers }) {
           Claim your <strong style={{ color: '#ea580c' }}>$50 FREE credit</strong> to start moving.
         </p>
         <button type="button" className="ow-next" onClick={handleContinue}>
-          Continue to activation →
+          Claim my $50 bonus →
         </button>
       </div>
     );
@@ -900,6 +975,9 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
     : 'Your dispatch setup is ready. Activate your balance to start unlocking verified move opportunities.';
   // Tier the user picked. Defaults to the $100 primary tier.
   const [tier, setTier] = useState(100);
+  // Tracks whether Stripe's iframe has had a chance to paint inside the mount.
+  // Used to fade out the spinner overlay once checkout is visible.
+  const [checkoutReady, setCheckoutReady] = useState(false);
   const [phase, setPhase] = useState('offer'); // 'offer' | 'loading' | 'checkout' | 'error'
   const [errMsg, setErrMsg] = useState('');
   const checkoutMountRef = useRef(null);
@@ -908,6 +986,7 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
   async function handleActivate() {
     setPhase('loading');
     setErrMsg('');
+    setCheckoutReady(false);
     try {
       const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
       if (!pubKey) {
@@ -933,10 +1012,13 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
       const checkout = await stripe.initEmbeddedCheckout({ clientSecret: data.clientSecret });
       stripeCheckoutRef.current = checkout;
       setPhase('checkout');
-      // Mount on next tick when DOM node exists
+      // Mount on next tick when DOM node exists. Hold the spinner for ~1.2s
+      // after mount() so the iframe has visible time to paint — Stripe's
+      // embed has no public "ready" callback, so we time-bound the overlay.
       setTimeout(() => {
         if (checkoutMountRef.current) {
           checkout.mount(checkoutMountRef.current);
+          setTimeout(() => setCheckoutReady(true), 1200);
         }
       }, 0);
     } catch (err) {
@@ -963,7 +1045,15 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
       <div className="ow-activate">
         <h1 className="ow-activate-h1">Complete your activation</h1>
         <p className="ow-activate-sub">{checkoutSub}</p>
-        <div ref={checkoutMountRef} className="ow-stripe-mount" />
+        <div className="ow-stripe-wrap">
+          <div ref={checkoutMountRef} className="ow-stripe-mount" />
+          {!checkoutReady && (
+            <div className="ow-stripe-loading" role="status" aria-live="polite">
+              <span className="ow-spinner" />
+              <span className="ow-stripe-loading-text">Loading secure checkout…</span>
+            </div>
+          )}
+        </div>
         <button type="button" className="ow-activate-skip" onClick={onSkip} style={{ marginTop: 12 }}>
           Cancel — I'll activate later
         </button>
@@ -1033,8 +1123,38 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
         </div>
       </div>
 
+      {/* Single testimonial — flips the moment from transactional to social proof */}
+      <div className="ow-testimonial">
+        <div className="ow-testimonial-stars">★★★★★</div>
+        <blockquote className="ow-testimonial-quote">
+          "Booked 11 jobs in our first month. The activation balance paid itself back in the first week."
+        </blockquote>
+        <div className="ow-testimonial-attr">
+          <span className="ow-testimonial-name">Mike R.</span>
+          <span className="ow-testimonial-co">Houston Movers</span>
+        </div>
+      </div>
+
+      {/* Trust bullets — promoted to point-of-payment real estate */}
+      <ul className="ow-activate-trust">
+        <li>Refundable unused balance</li>
+        <li>No subscription, no contract</li>
+        <li>Credits never expire</li>
+        <li>Secure Stripe payment</li>
+      </ul>
+
       {phase === 'error' && (
-        <div className="ow-activate-err">{errMsg}</div>
+        <div className="ow-activate-err">
+          <div className="ow-activate-err-msg">{errMsg}</div>
+          <div className="ow-activate-err-actions">
+            <button type="button" className="ow-activate-err-retry" onClick={handleActivate}>
+              Try again
+            </button>
+            <a className="ow-activate-err-link" href="mailto:support@moveleads.cloud?subject=Activation%20checkout%20failed">
+              Email support →
+            </a>
+          </div>
+        </div>
       )}
 
       <button
@@ -1046,14 +1166,6 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
         {ctaLabel}
       </button>
 
-      <ul className="ow-activate-trust">
-        <li>Refundable unused balance</li>
-        <li>No subscription</li>
-        <li>No contract</li>
-        <li>Credits never expire</li>
-        <li>Secure Stripe payment</li>
-      </ul>
-
       <button type="button" className="ow-activate-skip" onClick={onSkip}>
         I'll activate later
       </button>
@@ -1063,13 +1175,44 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
 
 // ── Screen 8: Activation success (post-payment) ─────────────────────────────
 function ScreenActivationSuccess({ onDone, answers }) {
+  const { API_URL } = useContext(AuthContext);
   const persona = buildPersona(answers || {});
-  const marketLine = persona.market !== 'your market'
-    ? `Market routing enabled for ${persona.market}`
-    : 'Market routing enabled';
+  const cityKey = (persona.market.split(',')[0] || '').trim().toLowerCase();
+  const [matchCount, setMatchCount] = useState(null);
+
+  // Fetch live leads once and count matches against the partner's primary
+  // market. If the call fails or the partner left market blank, the success
+  // bullet falls back to the generic "Market routing enabled" copy.
+  useEffect(() => {
+    if (!cityKey) return;
+    let alive = true;
+    fetch(`${API_URL}/leads`, {
+      headers: { 'x-auth-token': localStorage.getItem('token') || '' },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!alive || !Array.isArray(data)) return;
+        const count = data.filter(l => {
+          const o = (l.originCity || '').toLowerCase();
+          const d = (l.destinationCity || '').toLowerCase();
+          return o.includes(cityKey) || d.includes(cityKey);
+        }).length;
+        setMatchCount(count);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [API_URL, cityKey]);
+
+  const marketLine = matchCount && matchCount > 0
+    ? `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${persona.market}`
+    : (persona.market !== 'your market'
+        ? `Market routing enabled for ${persona.market}`
+        : 'Market routing enabled');
+
   const alertLine = persona.channelLabels.length
     ? `${persona.channelLabels.join(' + ')} alerts ready`
     : 'Dispatch alerts ready';
+
   return (
     <div className="ow-success">
       <div className="ow-success-icon">✓</div>
