@@ -31,9 +31,13 @@ export default function SidebarTooltip({ label, enabled, children }) {
 
   const hide = useCallback(() => setPos(null), []);
 
-  // Hide on scroll/resize so a stale tooltip doesn't drift away from its trigger.
+  // Hide on scroll/resize so a stale tooltip doesn't drift away from its
+  // trigger. Subscribe only when the tooltip is visible (pos is truthy),
+  // and depend only on visibility — NOT on the pos object — to avoid
+  // tearing down/setting up listeners every render.
+  const visible = !!pos;
   useEffect(() => {
-    if (!pos) return;
+    if (!visible) return;
     const onMove = () => setPos(null);
     window.addEventListener('scroll', onMove, true);
     window.addEventListener('resize', onMove);
@@ -41,14 +45,7 @@ export default function SidebarTooltip({ label, enabled, children }) {
       window.removeEventListener('scroll', onMove, true);
       window.removeEventListener('resize', onMove);
     };
-  }, [pos]);
-
-  // Re-measure if the trigger moves while still hovered (rare but cheap).
-  useEffect(() => {
-    if (!pos) return;
-    const id = requestAnimationFrame(measure);
-    return () => cancelAnimationFrame(id);
-  }, [pos, measure]);
+  }, [visible]);
 
   // Compose handlers so the child's existing onMouseEnter/Leave/Focus/Blur still fire.
   const childProps = children.props;
