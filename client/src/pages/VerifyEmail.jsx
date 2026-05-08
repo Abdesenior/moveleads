@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2, ArrowRight, RefreshCw, Mail } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import '../auth.css';
@@ -7,7 +7,8 @@ import '../auth.css';
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  const { API_URL } = useContext(AuthContext);
+  const { API_URL, login } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const [status, setStatus]       = useState('loading'); // 'loading' | 'success' | 'error' | 'resending' | 'resent'
   const [message, setMessage]     = useState('');
@@ -27,16 +28,22 @@ export default function VerifyEmail() {
         if (data.code) {
           setStatus('error');
           setMessage(data.msg || 'Verification failed. The link may be invalid or expired.');
-        } else {
-          setStatus('success');
-          setMessage(data.msg || 'Email verified successfully!');
+          return;
+        }
+        setStatus('success');
+        setMessage(data.msg || 'Email verified successfully!');
+        // Server now issues a JWT alongside verification. If we got one, log
+        // the user in and redirect to the marketplace.
+        if (data.token && data.user) {
+          login(data.token, data.user);
+          setTimeout(() => navigate('/dashboard/leads'), 800);
         }
       })
       .catch(() => {
         setStatus('error');
         setMessage('Something went wrong. Please try again later.');
       });
-  }, [token, API_URL]);
+  }, [token, API_URL, login, navigate]);
 
   const handleResend = async (e) => {
     e.preventDefault();

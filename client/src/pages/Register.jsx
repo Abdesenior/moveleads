@@ -87,6 +87,16 @@ export default function Register() {
         return;
       }
 
+      // Auto-login: backend now issues a JWT at register so the new partner
+      // lands straight in the wizard. Verification stays as an in-app banner.
+      if (data.token && data.user) {
+        login(data.token, data.user);
+        toast.success('Account created', 'Welcome — let’s set up your dispatch routing.');
+        navigate('/dashboard/leads');
+        return;
+      }
+
+      // Fallback (server still in old behavior): show check-your-email screen.
       setRegistrationSuccess(true);
       toast.success('Account created!', 'Please check your email to verify your account');
     } catch (err) {

@@ -80,10 +80,14 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     await user.save();
 
-    // All public registrations require email verification before login
+    // Send verification email asynchronously (banner reminds them in-app).
     sendVerificationEmail({ toEmail: email, companyName, token: verificationToken })
       .catch(err => console.error('[VerifyEmail] Failed to send:', err.message));
-    return res.status(201).json({ msg: 'Account created. Please check your email to verify before logging in.' });
+
+    // Auto-login at register: issue a JWT immediately so the new partner lands
+    // straight in the wizard. Verification is recoverable async via the banner
+    // and the verify-email link (which also auto-logs-in if they're logged out).
+    return issueJWT(user, res);
   } catch (err) {
     console.error('[Register]', err.message);
     res.status(500).json({ msg: 'Server error' });
@@ -155,7 +159,10 @@ router.get('/verify-email', async (req, res) => {
     user.emailVerificationExpires = undefined;
     await user.save();
 
-    res.json({ msg: 'Email verified successfully. You can now log in.' });
+    // Issue JWT alongside the verified flag so a returning user (different
+    // device, cleared cookies) lands authenticated and can be redirected
+    // straight into /dashboard/leads by the client.
+    return issueJWT(user, res);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
