@@ -251,3 +251,208 @@
   .ow-cards { grid-template-columns: 1fr; }
   .ow-activate-bonus-num { font-size: 56px; }
 }
+
+/* ── Reassurance line ─────────────────────────────────────────────────── */
+.ow-reassurance {
+  margin: 14px 0 0;
+  font-size: 12.5px; color: #94a3b8;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 500;
+}
+.ow-reassurance::before {
+  content: "ⓘ"; color: #cbd5e1; font-weight: 700; font-size: 13px;
+}
+
+.ow-helper {
+  margin: 6px 0 0;
+  font-size: 12px; color: #94a3b8; font-weight: 500;
+}
+
+/* ── Chip checkmark (selected state) ──────────────────────────────────── */
+.ow-chip-check {
+  margin-right: 4px;
+  color: #ea580c;
+  font-weight: 800;
+}
+.ow-chip.active { padding-left: 12px; }
+
+/* ── Multi-city chip input (Step 1) ───────────────────────────────────── */
+.ow-chip-input {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  min-height: 48px; padding: 6px 10px;
+  border: 1.5px solid #e2e8f0; border-radius: 12px;
+  background: #fff;
+  transition: border-color 160ms ease;
+  cursor: text;
+}
+.ow-chip-input:focus-within { border-color: #ff6a14; }
+.ow-input-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255, 106, 20, 0.08);
+  color: #ea580c;
+  border: 1px solid rgba(255, 106, 20, 0.32);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 13px; font-weight: 600;
+}
+.ow-input-chip-x {
+  background: none; border: none; padding: 0;
+  color: #ea580c; cursor: pointer;
+  font-size: 16px; line-height: 1; font-weight: 800;
+  font-family: inherit;
+}
+.ow-input-chip-x:hover { color: #c2410c; }
+.ow-chip-input-text {
+  flex: 1; min-width: 120px; height: 36px;
+  border: none; outline: none; background: transparent;
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  color: #0f172a;
+}
+
+/* ── Time range (Step 3) ──────────────────────────────────────────────── */
+.ow-time-range {
+  display: flex; align-items: center; gap: 10px;
+}
+.ow-time-input {
+  width: 140px;
+  font-variant-numeric: tabular-nums;
+}
+.ow-time-sep { color: #64748b; font-size: 14px; font-weight: 600; }
+
+/* ── Processing screen (Step 6) ───────────────────────────────────────── */
+.ow-processing {
+  padding: 20px 0 24px;
+}
+.ow-processing-list {
+  list-style: none; padding: 0; margin: 22px 0 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ow-processing-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 14.5px; font-weight: 500; color: #64748b;
+  transition: all 200ms ease;
+}
+.ow-processing-item.loading {
+  border-color: rgba(255, 106, 20, 0.35);
+  background: rgba(255, 106, 20, 0.04);
+  color: #0f172a;
+}
+.ow-processing-item.done {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.04);
+  color: #0f172a; font-weight: 600;
+}
+.ow-processing-icon {
+  width: 24px; height: 24px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.ow-processing-item.done .ow-processing-icon {
+  background: #22c55e; color: #fff; font-weight: 800; font-size: 13px;
+}
+.ow-processing-item.loading .ow-processing-icon {
+  background: rgba(255, 106, 20, 0.12);
+}
+.ow-processing-label { flex: 1; }
+.ow-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255, 106, 20, 0.25);
+  border-top-color: #ff6a14;
+  border-radius: 50%;
+  animation: owSpin 0.8s linear infinite;
+}
+@keyframes owSpin { to { transform: rotate(360deg); } }
+
+/* ── Activation step (Step 7) — full-width activation card ───────────── */
+.ow-activate { padding: 8px 0 12px; }
+.ow-activate-h1 {
+  font-size: 26px; font-weight: 800; letter-spacing: -0.02em;
+  color: #0f172a; margin: 0 0 8px; line-height: 1.2;
+}
+.ow-activate-sub {
+  font-size: 15px; color: #475569; line-height: 1.5; margin: 0 0 22px;
+}
+.ow-activate-card {
+  background: #07111f; color: #fff;
+  padding: 28px;
+  border-radius: 18px;
+  margin: 0;
+}
+.ow-activate-summary {
+  margin: 18px 0 16px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ow-activate-summary-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 14px; color: rgba(255, 255, 255, 0.7); font-weight: 500;
+}
+.ow-activate-summary-pay {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700; font-size: 18px;
+  letter-spacing: -0.005em;
+}
+.ow-activate-summary-receive {
+  color: #ff6a14;
+  font-weight: 800; font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.ow-activate-trust {
+  list-style: none; padding: 0; margin: 14px 0 0;
+  display: flex; flex-wrap: wrap; gap: 6px 14px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.ow-activate-trust li {
+  display: inline-flex; align-items: center;
+}
+.ow-activate-trust li::before {
+  content: "✓"; color: rgba(255, 255, 255, 0.4); margin-right: 4px; font-weight: 800;
+}
+.ow-activate-skip {
+  display: block; margin: 16px auto 0;
+  background: none; border: none;
+  color: #64748b; font-size: 13.5px; font-weight: 500;
+  cursor: pointer; text-align: center;
+  font-family: inherit;
+}
+.ow-activate-skip:hover { color: #0f172a; }
+
+/* ── Success screen (Step 8) ──────────────────────────────────────────── */
+.ow-success {
+  text-align: center;
+  padding: 28px 0 12px;
+}
+.ow-success-icon {
+  width: 64px; height: 64px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+  color: #fff;
+  font-size: 32px; font-weight: 800;
+  display: grid; place-items: center;
+  box-shadow: 0 14px 32px rgba(34, 197, 94, 0.35);
+}
+.ow-success-list {
+  list-style: none; padding: 0; margin: 18px auto 0; max-width: 360px;
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 14.5px; color: #475569;
+  text-align: left;
+}
+.ow-success-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.ow-success-list li::before {
+  content: "✓"; color: #22c55e; font-weight: 800; flex-shrink: 0;
+}
+.ow-success-list strong { color: #ea580c; font-weight: 800; }

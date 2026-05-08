@@ -43,28 +43,25 @@ export default function ActivationBanner() {
       fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
       fontSize: 14,
     }}>
-      <span style={{
-        background: '#ff6a14', color: '#fff',
-        padding: '4px 10px', borderRadius: 999,
-        fontSize: 11, fontWeight: 800, letterSpacing: '0.06em',
-      }}>LIMITED</span>
-      <span>
-        Claim your <strong style={{ color: '#ff6a14', fontWeight: 800 }}>free $50 unlock credit</strong>
-        {' · '}onboarding spots in your area are limited
-      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, lineHeight: 1.3 }}>
+        <span style={{ fontSize: 14, fontWeight: 800 }}>Your dispatch setup is ready</span>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.78)' }}>
+          Activate your <strong style={{ color: '#ff6a14', fontWeight: 800 }}>$150 onboarding balance</strong> to start unlocking verified move opportunities.
+        </span>
+      </div>
       <button
         type="button"
         onClick={handleActivate}
         disabled={loading}
         style={{
           background: '#ff6a14', color: '#fff', border: 'none',
-          height: 36, padding: '0 16px', borderRadius: 10,
+          height: 38, padding: '0 18px', borderRadius: 10,
           fontFamily: 'inherit', fontWeight: 800, fontSize: 13.5,
           cursor: loading ? 'wait' : 'pointer',
           boxShadow: '0 6px 18px rgba(255, 106, 20, 0.32)',
         }}
       >
-        {loading ? 'Opening…' : 'Activate $150 →'}
+        {loading ? 'Opening…' : 'Activate my balance →'}
       </button>
     </div>
   );
