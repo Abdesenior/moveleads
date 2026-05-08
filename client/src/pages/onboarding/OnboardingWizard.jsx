@@ -1075,7 +1075,11 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
       if (typeof stripe.createEmbeddedCheckoutPage !== 'function') {
         throw new Error('Stripe Embedded Checkout API not available. Try refreshing the page.');
       }
-      const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret: data.clientSecret });
+      // New API expects fetchClientSecret as a function returning a Promise<string>.
+      // Wrapping the already-fetched secret keeps the same single-session shape.
+      const checkout = await stripe.createEmbeddedCheckoutPage({
+        fetchClientSecret: async () => data.clientSecret,
+      });
       stripeCheckoutRef.current = checkout;
       setPhase('checkout');
       // Safety net: always reveal the iframe after at most 8s so the user is

@@ -78,10 +78,14 @@ router.post('/create-checkout-session', auth, async (req, res) => {
 
     let session;
     if (embedded) {
-      // Stripe Embedded Checkout — UI mounts inside our modal, redirects to return_url after payment
+      // Stripe Embedded Checkout — UI mounts inside our modal, redirects to return_url after payment.
+      // ui_mode must be 'embedded_page' to pair with the client's
+      // stripe.createEmbeddedCheckoutPage() call. The legacy 'embedded' value
+      // pairs with the removed initEmbeddedCheckout() API and silently fails
+      // when used with the new method.
       session = await stripe.checkout.sessions.create({
         ...baseConfig,
-        ui_mode: 'embedded',
+        ui_mode: 'embedded_page',
         return_url: `${clientUrl}/dashboard/leads?onboarding=success&session_id={CHECKOUT_SESSION_ID}`,
       });
       return res.json({
