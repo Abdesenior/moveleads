@@ -1,5 +1,7 @@
-// Onboarding recovery cron — fires recovery emails for movers who skipped activation.
-// Idempotent: each user only gets each touch once (sent12h/sent24h/sent72h flags).
+// Onboarding recovery cron — fires recovery emails for two segments:
+//   1) Post-skip: completed setup but didn't claim activation bonus.
+//   2) Mid-wizard: registered, started wizard, never reached Confirm.
+// Idempotent: each user only gets each touch once via per-segment flags.
 
 const cron = require('node-cron');
 const User = require('../models/User');
@@ -7,18 +9,18 @@ const {
   sendOnboardingRecovery12h,
   sendOnboardingRecovery24h,
   sendOnboardingRecovery72h,
+  sendOnboardingMidwizard12h,
+  sendOnboardingMidwizard24h,
+  sendOnboardingMidwizard72h,
 } = require('../services/emailService');
 
 const HOUR = 60 * 60 * 1000;
 
-async function runOnce() {
-  const now = Date.now();
-
-  // Candidates: completed onboarding (or skipped), no bonus claimed yet
+async function runPostSkipBatch(now) {
   const users = await User.find({
     'onboarding.complete': true,
     'onboarding.bonusClaimedAt': null,
-    role: { $in: ['customer', undefined] }, // skip admins
+    role: { $in: ['customer', undefined] },
     isSuspended: { $ne: true },
   }).select('email companyName onboarding createdAt');
 
@@ -46,12 +48,56 @@ async function runOnce() {
         sent12++;
       }
     } catch (err) {
-      console.error(`[OnboardingRecovery] failed for ${u._id}:`, err.message);
+      console.error(`[OnboardingRecovery] post-skip failed for ${u._id}:`, err.message);
     }
   }
+  return { sent12, sent24, sent72 };
+}
 
-  if (sent12 + sent24 + sent72 > 0) {
-    console.log(`[OnboardingRecovery] sent: 12h=${sent12} 24h=${sent24} 72h=${sent72}`);
+async function runMidwizardBatch(now) {
+  // Started wizard (currentStep > 0) but never reached Confirm (complete != true).
+  const users = await User.find({
+    'onboarding.complete': { $ne: true },
+    'onboarding.currentStep': { $gt: 0 },
+    role: { $in: ['customer', undefined] },
+    isSuspended: { $ne: true },
+  }).select('email companyName onboarding createdAt');
+
+  let sent12 = 0, sent24 = 0, sent72 = 0;
+
+  for (const u of users) {
+    // Window starts at registration time (no completedAt for abandoners).
+    const ageMs = now - new Date(u.createdAt).getTime();
+    const flags = u.onboarding?.recovery || {};
+
+    try {
+      if (ageMs >= 72 * HOUR && !flags.sentMidwizard72h) {
+        await sendOnboardingMidwizard72h(u);
+        await User.updateOne({ _id: u._id }, { $set: { 'onboarding.recovery.sentMidwizard72h': true } });
+        sent72++;
+      } else if (ageMs >= 24 * HOUR && !flags.sentMidwizard24h) {
+        await sendOnboardingMidwizard24h(u);
+        await User.updateOne({ _id: u._id }, { $set: { 'onboarding.recovery.sentMidwizard24h': true } });
+        sent24++;
+      } else if (ageMs >= 12 * HOUR && !flags.sentMidwizard12h) {
+        await sendOnboardingMidwizard12h(u);
+        await User.updateOne({ _id: u._id }, { $set: { 'onboarding.recovery.sentMidwizard12h': true } });
+        sent12++;
+      }
+    } catch (err) {
+      console.error(`[OnboardingRecovery] midwizard failed for ${u._id}:`, err.message);
+    }
+  }
+  return { sent12, sent24, sent72 };
+}
+
+async function runOnce() {
+  const now = Date.now();
+  const post = await runPostSkipBatch(now);
+  const mid  = await runMidwizardBatch(now);
+  const total = post.sent12 + post.sent24 + post.sent72 + mid.sent12 + mid.sent24 + mid.sent72;
+  if (total > 0) {
+    console.log(`[OnboardingRecovery] post-skip: 12h=${post.sent12} 24h=${post.sent24} 72h=${post.sent72} | midwizard: 12h=${mid.sent12} 24h=${mid.sent24} 72h=${mid.sent72}`);
   }
 }
 

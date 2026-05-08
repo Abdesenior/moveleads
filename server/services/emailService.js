@@ -698,9 +698,81 @@ async function sendOnboardingRecovery72h(user) {
   });
 }
 
+// ── Mid-wizard abandonment recovery (registered, started wizard, never reached Confirm) ──
+async function sendOnboardingMidwizard12h(user) {
+  const primary = user.onboarding?.answers?.primaryMarket || 'your area';
+  const html = `
+    <!DOCTYPE html>
+    <html><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:24px; color:#0f172a;">
+      <div style="max-width:560px; margin:0 auto; background:#fff; border-radius:14px; padding:32px; border:1px solid #e2e8f0;">
+        <p style="color:#ff6a14; font-size:11px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; margin:0 0 16px;">PICK UP WHERE YOU LEFT OFF</p>
+        <h1 style="font-size:26px; font-weight:800; line-height:1.2; margin:0 0 12px;">Hey ${user.companyName || 'there'} — your dispatch setup is half done.</h1>
+        <p style="color:#475569; font-size:15px; line-height:1.6;">You started setting up your routing for ${primary} but didn't finish. Pick up where you left off — it takes about 90 seconds, and your $50 onboarding credit is waiting at the end.</p>
+        <p style="margin:28px 0;">
+          <a href="https://moveleads.cloud/dashboard/leads?onboarding=resume" style="display:inline-block; background:#ff6a14; color:#fff; padding:14px 26px; border-radius:12px; font-weight:800; text-decoration:none;">Finish my setup →</a>
+        </p>
+        <p style="color:#94a3b8; font-size:13px; line-height:1.6;">No subscription. No contract. Credits never expire.</p>
+      </div>
+    </body></html>
+  `;
+  return getResend().emails.send({
+    from: 'MoveLeads <noreply@moveleads.cloud>',
+    to: user.email,
+    subject: `Your dispatch setup is half done, ${user.companyName || 'mover'}`,
+    html,
+  });
+}
+
+async function sendOnboardingMidwizard24h(user) {
+  const primary = user.onboarding?.answers?.primaryMarket || 'your service area';
+  const html = `
+    <!DOCTYPE html>
+    <html><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:24px; color:#0f172a;">
+      <div style="max-width:560px; margin:0 auto; background:#fff; border-radius:14px; padding:32px; border:1px solid #e2e8f0;">
+        <p style="color:#ff6a14; font-size:11px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; margin:0 0 16px;">SETUP IN PROGRESS</p>
+        <h1 style="font-size:26px; font-weight:800; line-height:1.2; margin:0 0 12px;">Verified moves are happening in ${primary}.</h1>
+        <p style="color:#475569; font-size:15px; line-height:1.6;">Finish your dispatch setup to start receiving alerts. Most movers complete it in under 2 minutes.</p>
+        <p style="margin:28px 0;">
+          <a href="https://moveleads.cloud/dashboard/leads?onboarding=resume" style="display:inline-block; background:#ff6a14; color:#fff; padding:14px 26px; border-radius:12px; font-weight:800; text-decoration:none;">Resume my setup →</a>
+        </p>
+        <p style="color:#94a3b8; font-size:13px; line-height:1.6;">Or start with the smaller $50 starting balance — no onboarding bonus, but a low-commitment way to test the marketplace.</p>
+      </div>
+    </body></html>
+  `;
+  return getResend().emails.send({
+    from: 'MoveLeads <noreply@moveleads.cloud>',
+    to: user.email,
+    subject: `Verified moves are happening in ${primary}`,
+    html,
+  });
+}
+
+async function sendOnboardingMidwizard72h(user) {
+  const html = `
+    <!DOCTYPE html>
+    <html><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:24px; color:#0f172a;">
+      <div style="max-width:560px; margin:0 auto; background:#fff; border-radius:14px; padding:32px; border:1px solid #e2e8f0;">
+        <h1 style="font-size:26px; font-weight:800; line-height:1.2; margin:0 0 12px;">Anything blocking you, ${user.companyName || 'there'}?</h1>
+        <p style="color:#475569; font-size:15px; line-height:1.6;">You started signing up but didn't finish your dispatch setup. If something was unclear or your service area isn't covered yet, reply to this email — a partner rep will help directly.</p>
+        <p style="margin:28px 0;">
+          <a href="https://moveleads.cloud/dashboard/leads?onboarding=resume" style="display:inline-block; background:#ff6a14; color:#fff; padding:14px 26px; border-radius:12px; font-weight:800; text-decoration:none;">Finish my setup →</a>
+        </p>
+        <p style="color:#94a3b8; font-size:13px; line-height:1.6;">Or reply to this email — partner reps Mon–Sat 8am–8pm CT.</p>
+      </div>
+    </body></html>
+  `;
+  return getResend().emails.send({
+    from: 'MoveLeads Partner Team <noreply@moveleads.cloud>',
+    to: user.email,
+    subject: `Anything blocking your setup, ${user.companyName || 'mover'}?`,
+    html,
+  });
+}
+
 module.exports = {
   sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail,
   sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail,
   sendAuctionWonEmail, sendAdminLeadNotification, sendAdminNotification,
   sendOnboardingRecovery12h, sendOnboardingRecovery24h, sendOnboardingRecovery72h,
+  sendOnboardingMidwizard12h, sendOnboardingMidwizard24h, sendOnboardingMidwizard72h,
 };

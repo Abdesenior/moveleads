@@ -55,20 +55,45 @@ export default function DashboardLayout({ children }) {
     setShowWizard(true);
   };
 
-  // Detect post-payment return from Stripe Embedded Checkout
+  // Detect post-payment return from Stripe Embedded Checkout AND deep-links
+  // from recovery emails (?onboarding=resume / ?activate=1).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('onboarding') === 'success') {
+    const onboardingParam = params.get('onboarding');
+    const activateParam = params.get('activate');
+
+    if (onboardingParam === 'success') {
       setShowActivationSuccess(true);
-      // Clear the param so refreshing doesn't re-trigger
       params.delete('onboarding');
       params.delete('session_id');
       const qs = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
-      // Pull fresh user state — webhook should have credited balance + bonusClaimedAt
       if (refreshUser) refreshUser();
+      return;
     }
-  }, [refreshUser]);
+
+    // Recovery email deep-links — only act once user is loaded.
+    if (!user) return;
+    if (user.role === 'admin' || user.role === 'super_admin') return;
+
+    if (onboardingParam === 'resume') {
+      // Mid-wizard abandoner: reopen at saved step (or 1 if missing).
+      const savedStep = user.onboarding?.currentStep || 1;
+      const target = !user.onboarding?.complete ? Math.min(Math.max(savedStep, 1), 5) : 7;
+      setWizardInitialStep(target);
+      setShowWizard(true);
+      params.delete('onboarding');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    } else if (activateParam === '1') {
+      // Post-skip recovery: jump to activation step.
+      setWizardInitialStep(7);
+      setShowWizard(true);
+      params.delete('activate');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, [refreshUser, user]);
 
   const handleCloseWizard = async () => {
     setShowWizard(false);

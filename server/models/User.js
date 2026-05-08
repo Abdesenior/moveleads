@@ -42,9 +42,14 @@ const UserSchema = new mongoose.Schema({
     currentStep: { type: Number, default: 0 },     // 0..5 (0=not started, 5=activation pending)
     bonusClaimedAt: { type: Date, default: null }, // set on first-purchase webhook
     recovery: {
+      // Post-skip cadence (completed setup, didn't claim bonus)
       sent12h: { type: Boolean, default: false },
       sent24h: { type: Boolean, default: false },
       sent72h: { type: Boolean, default: false },
+      // Mid-wizard cadence (started setup, never reached Confirm)
+      sentMidwizard12h: { type: Boolean, default: false },
+      sentMidwizard24h: { type: Boolean, default: false },
+      sentMidwizard72h: { type: Boolean, default: false },
     },
     answers: {
       primaryMarket:        { type: String, default: '' },           // "Houston, TX"
