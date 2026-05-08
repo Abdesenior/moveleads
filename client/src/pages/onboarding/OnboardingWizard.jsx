@@ -845,6 +845,7 @@ function formatTime12h(t) {
 
 // ── Screen 6: Processing (5 items, ~5.4s, then transition CTA) ───────────────
 function ScreenProcessing({ onDone, answers }) {
+  const { API_URL } = useContext(AuthContext);
   const persona = buildPersona(answers || {});
   const items = [
     `Configuring ${persona.market} service area`,
@@ -866,16 +867,17 @@ function ScreenProcessing({ onDone, answers }) {
   // the user with stale server state (which would break the activation
   // banner + recovery deep-links).
   async function callComplete() {
+    const url = `${API_URL}/onboarding/complete`;
     const opts = {
       method: 'POST',
       headers: { 'x-auth-token': localStorage.getItem('token') || '' },
     };
     try {
-      const r = await fetch('/api/onboarding/complete', opts);
+      const r = await fetch(url, opts);
       if (r.ok) return true;
     } catch { /* fall through to retry */ }
     try {
-      const r2 = await fetch('/api/onboarding/complete', opts);
+      const r2 = await fetch(url, opts);
       return r2.ok;
     } catch {
       return false;

@@ -44,6 +44,17 @@ export function useGoogleMaps() {
     loadState = 'loading';
     notify();
 
+    // Google's default behavior when an API key is invalid / not authorized
+    // for the requested library is to show a blocking JS alert. Defining
+    // gm_authFailure suppresses that alert and lets us silently fall back
+    // to whatever non-autocomplete UX the consumer renders.
+    if (typeof window !== 'undefined' && !window.gm_authFailure) {
+      window.gm_authFailure = () => {
+        loadState = 'error';
+        notify();
+      };
+    }
+
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
