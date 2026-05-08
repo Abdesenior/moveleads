@@ -35,10 +35,18 @@ export default function DashboardLayout({ children }) {
   const [showActivationSuccess, setShowActivationSuccess] = useState(false);
 
   // Show wizard once for partner users who haven't completed onboarding.
+  // Also auto-collapse the sidebar on first arrival so onboarding takes focus.
   useEffect(() => {
     if (!user) return;
     if (user.role === 'admin' || user.role === 'super_admin') return;
-    if (!user.onboarding?.complete) setShowWizard(true);
+    if (!user.onboarding?.complete) {
+      setShowWizard(true);
+      // First-time visit: no stored preference yet → start collapsed.
+      if (localStorage.getItem('sidebarCollapsed') === null) {
+        setCollapsed(true);
+        localStorage.setItem('sidebarCollapsed', 'true');
+      }
+    }
   }, [user]);
 
   // Banner CTA → reopen wizard at the activation step (step 7).
@@ -209,16 +217,23 @@ export default function DashboardLayout({ children }) {
               </div>
             </div>
 
-            {/* Balance pill */}
-            <div className="balance-pill" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 14px', borderRadius: 12,
-              background: balanceBg, marginBottom: 10,
-            }}>
+            {/* Balance — full pill when expanded, compact dot when collapsed */}
+            <div
+              className="balance-pill"
+              style={{ background: balanceBg, marginBottom: 10 }}
+            >
               <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Balance</span>
               <span style={{ fontSize: 14, fontWeight: 800, color: balanceColor, fontFamily: "'Poppins', sans-serif" }}>
                 ${balance.toFixed(2)}
               </span>
+            </div>
+            <div
+              className="balance-compact"
+              style={{ background: balanceBg, color: balanceColor }}
+              title={`Balance: $${balance.toFixed(2)}`}
+              aria-label={`Balance: $${balance.toFixed(2)}`}
+            >
+              ${Math.round(balance)}
             </div>
 
             <button className="sidebar-logout-btn" onClick={handleLogout}>
