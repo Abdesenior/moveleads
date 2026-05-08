@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CreditCard, User, Settings,
   Menu, X, LogOut, Briefcase, Zap, Code, MessageSquareWarning,
@@ -10,6 +10,7 @@ import ImpersonationBanner from './ImpersonationBanner';
 import VerificationBanner from './VerificationBanner';
 import ActivationBanner from './ActivationBanner';
 import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
+import SidebarTooltip from './SidebarTooltip';
 import '../dashboard.css';
 
 const NAV_ITEMS = [
@@ -173,15 +174,17 @@ export default function DashboardLayout({ children }) {
         {/* ── Sidebar ── */}
         <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-hidden={!sidebarOpen}>
 
-          {/* Logo */}
-          <div className="logo-container">
-            <span className="logo-text">
-              <span className="logo-move">Move</span><span className="logo-leads">Leads</span><span className="logo-cloud">.cloud</span>
-            </span>
-            <p className="logo-tagline">Moving leads marketplace</p>
-            {/* Collapsed icon fallback */}
-            <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#ea580c', fontFamily: 'Poppins, sans-serif' }}>M</span>
-          </div>
+          {/* Logo — clickable, routes to /dashboard/leads */}
+          <SidebarTooltip label="Go to Live Leads" enabled={collapsed}>
+            <Link to="/dashboard/leads" className="logo-container" aria-label="MoveLeads — Live Leads">
+              <span className="logo-text">
+                <span className="logo-move">Move</span><span className="logo-leads">Leads</span><span className="logo-cloud">.cloud</span>
+              </span>
+              <p className="logo-tagline">Moving leads marketplace</p>
+              {/* Collapsed icon fallback */}
+              <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#ea580c', fontFamily: 'Poppins, sans-serif' }}>M</span>
+            </Link>
+          </SidebarTooltip>
 
           {/* Mobile close */}
           <button
@@ -196,41 +199,46 @@ export default function DashboardLayout({ children }) {
           {/* Nav */}
           <nav className="sidebar-nav">
             {NAV_ITEMS.map(({ to, end, icon, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                title={collapsed ? label : undefined}
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-              >
-                {icon}
-                <span className="nav-label">{label}</span>
-                {to === '/dashboard/resolution-center' && openComplaints > 0 && (
-                  <span className="nav-badge" style={{
-                    marginLeft: 'auto',
-                    background: '#ef4444', color: '#fff',
-                    fontSize: 10, fontWeight: 800,
-                    padding: '2px 6px', borderRadius: 10,
-                    minWidth: 18, textAlign: 'center',
-                    lineHeight: '14px',
-                  }}>
-                    {openComplaints}
-                  </span>
-                )}
-              </NavLink>
+              <SidebarTooltip key={to} label={label} enabled={collapsed}>
+                <NavLink
+                  to={to}
+                  end={end}
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) => {
+                    const base = `nav-item${isActive ? ' active' : ''}`;
+                    return to === '/dashboard/leads' ? `${base} nav-item-leads` : base;
+                  }}
+                >
+                  {icon}
+                  <span className="nav-label">{label}</span>
+                  {to === '/dashboard/resolution-center' && openComplaints > 0 && (
+                    <span className="nav-badge" style={{
+                      marginLeft: 'auto',
+                      background: '#ef4444', color: '#fff',
+                      fontSize: 10, fontWeight: 800,
+                      padding: '2px 6px', borderRadius: 10,
+                      minWidth: 18, textAlign: 'center',
+                      lineHeight: '14px',
+                    }}>
+                      {openComplaints}
+                    </span>
+                  )}
+                </NavLink>
+              </SidebarTooltip>
             ))}
           </nav>
 
           {/* ── Collapse toggle (desktop only) ── */}
-          <button
-            type="button"
-            className="sidebar-collapse-btn"
-            onClick={toggleCollapsed}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
+          <SidebarTooltip label={collapsed ? 'Expand menu' : 'Collapse menu'} enabled={collapsed}>
+            <button
+              type="button"
+              className="sidebar-collapse-btn"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
+            >
+              {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+          </SidebarTooltip>
 
           {/* ── User profile widget ── */}
           <div className="sidebar-user-section">
@@ -252,18 +260,21 @@ export default function DashboardLayout({ children }) {
                 ${balance.toFixed(2)}
               </span>
             </div>
-            <div
-              className="balance-compact"
-              style={{ background: balanceBg, color: balanceColor }}
-              title={`Balance: $${balance.toFixed(2)}`}
-              aria-label={`Balance: $${balance.toFixed(2)}`}
-            >
-              ${Math.round(balance)}
-            </div>
+            <SidebarTooltip label={`Available balance · $${balance.toFixed(2)}`} enabled={collapsed}>
+              <div
+                className="balance-compact"
+                style={{ background: balanceBg, color: balanceColor }}
+                aria-label={`Available balance: $${balance.toFixed(2)}`}
+              >
+                ${Math.round(balance)}
+              </div>
+            </SidebarTooltip>
 
-            <button className="sidebar-logout-btn" onClick={handleLogout}>
-              <LogOut size={15} /> <span className="btn-label">Sign Out</span>
-            </button>
+            <SidebarTooltip label="Sign Out" enabled={collapsed}>
+              <button className="sidebar-logout-btn" onClick={handleLogout} aria-label="Sign Out">
+                <LogOut size={15} /> <span className="btn-label">Sign Out</span>
+              </button>
+            </SidebarTooltip>
           </div>
         </aside>
 
