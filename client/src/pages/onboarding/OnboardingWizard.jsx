@@ -1069,14 +1069,13 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
       const stripe = await loadStripe(pubKey);
       if (!stripe) throw new Error('Stripe failed to initialize');
 
-      // Stripe.js renamed initEmbeddedCheckout → createEmbeddedCheckoutPage.
-      // Keep a fallback for SDK versions that still expose the legacy method
-      // (older @stripe/stripe-js pinned in some build caches).
-      const initFn = stripe.createEmbeddedCheckoutPage || stripe.initEmbeddedCheckout;
-      if (typeof initFn !== 'function') {
-        throw new Error('Stripe Embedded Checkout API not available. Update @stripe/stripe-js.');
+      // Stripe.js v9 removed initEmbeddedCheckout in favor of
+      // createEmbeddedCheckoutPage. We call ONLY the new method — falling
+      // back to the legacy name lands on Stripe's throwing stub.
+      if (typeof stripe.createEmbeddedCheckoutPage !== 'function') {
+        throw new Error('Stripe Embedded Checkout API not available. Try refreshing the page.');
       }
-      const checkout = await initFn.call(stripe, { clientSecret: data.clientSecret });
+      const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret: data.clientSecret });
       stripeCheckoutRef.current = checkout;
       setPhase('checkout');
       // Mount on next tick when DOM node exists. Hold the spinner for ~1.2s
