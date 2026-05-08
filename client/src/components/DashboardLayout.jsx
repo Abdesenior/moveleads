@@ -31,6 +31,7 @@ export default function DashboardLayout({ children }) {
   const { user, logout, token, API_URL, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [showWizard, setShowWizard] = useState(false);
+  const [wizardInitialStep, setWizardInitialStep] = useState(null);
   const [showActivationSuccess, setShowActivationSuccess] = useState(false);
 
   // Show wizard once for partner users who haven't completed onboarding.
@@ -39,6 +40,12 @@ export default function DashboardLayout({ children }) {
     if (user.role === 'admin' || user.role === 'super_admin') return;
     if (!user.onboarding?.complete) setShowWizard(true);
   }, [user]);
+
+  // Banner CTA → reopen wizard at the activation step (step 7).
+  const openActivation = () => {
+    setWizardInitialStep(7);
+    setShowWizard(true);
+  };
 
   // Detect post-payment return from Stripe Embedded Checkout
   useEffect(() => {
@@ -57,6 +64,7 @@ export default function DashboardLayout({ children }) {
 
   const handleCloseWizard = async () => {
     setShowWizard(false);
+    setWizardInitialStep(null);
     if (refreshUser) await refreshUser();
   };
 
@@ -107,7 +115,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      <ActivationBanner />
+      <ActivationBanner onActivate={openActivation} />
       <ImpersonationBanner />
       <VerificationBanner />
 
@@ -223,7 +231,7 @@ export default function DashboardLayout({ children }) {
       </main>
       </div>
 
-      {showWizard && <OnboardingWizard onClose={handleCloseWizard} />}
+      {showWizard && <OnboardingWizard onClose={handleCloseWizard} initialStep={wizardInitialStep} />}
       {showActivationSuccess && <ActivationSuccessModal onClose={handleCloseActivationSuccess} />}
     </div>
   );

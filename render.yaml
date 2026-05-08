@@ -45,6 +45,9 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
 
+      # NOTE: STRIPE_PUBLISHABLE_KEY belongs on the CLIENT (Vercel), not here.
+      # The client uses VITE_STRIPE_PUBLISHABLE_KEY at build time for embedded checkout.
+
       - key: TWILIO_ACCOUNT_SID
         sync: false
 

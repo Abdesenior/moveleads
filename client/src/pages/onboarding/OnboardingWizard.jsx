@@ -59,9 +59,9 @@ const TRUST_TIPS = [
   'Average mover-to-customer connect time: 4–6 minutes',
 ];
 
-export default function OnboardingWizard({ onClose }) {
+export default function OnboardingWizard({ onClose, initialStep }) {
   const { API_URL, refreshUser, user } = useContext(AuthContext);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
     primaryMarket: '',
     coveragePreferences: [],
@@ -88,7 +88,8 @@ export default function OnboardingWizard({ onClose }) {
       .then(data => {
         if (!alive || !data?.onboarding) return;
         const ob = data.onboarding;
-        if (ob.currentStep && ob.currentStep > 0 && ob.currentStep <= TOTAL_STEPS) {
+        // If caller pinned the step (e.g. banner reopens at activation), don't override.
+        if (!initialStep && ob.currentStep && ob.currentStep > 0 && ob.currentStep <= TOTAL_STEPS) {
           setStep(ob.currentStep);
         }
         if (ob.answers) {
@@ -122,7 +123,7 @@ export default function OnboardingWizard({ onClose }) {
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [API_URL]);
+  }, [API_URL, initialStep]);
 
   const setAnswer = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }));
 
@@ -744,6 +745,11 @@ function ScreenActivation({ API_URL, onSkip }) {
     setPhase('loading');
     setErrMsg('');
     try {
+      const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      if (!pubKey) {
+        throw new Error('Checkout misconfigured (missing publishable key). Contact support.');
+      }
+
       const res = await fetch(`${API_URL}/billing/create-checkout-session`, {
         method: 'POST',
         headers: {
@@ -753,19 +759,11 @@ function ScreenActivation({ API_URL, onSkip }) {
         body: JSON.stringify({ amount: 100, embedded: true }),
       });
       const data = await res.json();
-      if (!data?.clientSecret || !data?.publishableKey) {
-        // Fallback: hosted checkout redirect
-        const fallback = await fetch(`${API_URL}/billing/create-checkout-session`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
-          body: JSON.stringify({ amount: 100 }),
-        });
-        const fb = await fallback.json();
-        if (fb?.url) { window.location.href = fb.url; return; }
+      if (!data?.clientSecret) {
         throw new Error(data?.msg || 'Could not start checkout');
       }
 
-      const stripe = await loadStripe(data.publishableKey);
+      const stripe = await loadStripe(pubKey);
       if (!stripe) throw new Error('Stripe failed to initialize');
 
       const checkout = await stripe.initEmbeddedCheckout({ clientSecret: data.clientSecret });

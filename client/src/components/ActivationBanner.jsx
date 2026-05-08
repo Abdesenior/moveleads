@@ -1,36 +1,14 @@
-import { useContext, useState } from 'react';
+import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-export default function ActivationBanner() {
-  const { API_URL, user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
+export default function ActivationBanner({ onActivate }) {
+  const { user } = useContext(AuthContext);
 
   // Show only for users who finished/skipped the wizard but haven't claimed bonus
   if (!user) return null;
   if (user.role === 'admin' || user.role === 'super_admin') return null;
   if (!user.onboarding?.complete) return null;
   if (user.onboarding?.bonusClaimedAt) return null;
-
-  async function handleActivate() {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/billing/create-checkout-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
-        body: JSON.stringify({ amount: 100 }),
-      });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        setLoading(false);
-        alert('Could not start checkout. Try again or contact support.');
-      }
-    } catch (err) {
-      console.error('[ActivationBanner] checkout failed', err);
-      setLoading(false);
-    }
-  }
 
   return (
     <div style={{
@@ -51,17 +29,16 @@ export default function ActivationBanner() {
       </div>
       <button
         type="button"
-        onClick={handleActivate}
-        disabled={loading}
+        onClick={onActivate}
         style={{
           background: '#ff6a14', color: '#fff', border: 'none',
           height: 38, padding: '0 18px', borderRadius: 10,
           fontFamily: 'inherit', fontWeight: 800, fontSize: 13.5,
-          cursor: loading ? 'wait' : 'pointer',
+          cursor: 'pointer',
           boxShadow: '0 6px 18px rgba(255, 106, 20, 0.32)',
         }}
       >
-        {loading ? 'Opening…' : 'Activate my balance →'}
+        Activate my balance →
       </button>
     </div>
   );
