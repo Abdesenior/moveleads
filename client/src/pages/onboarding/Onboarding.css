@@ -8,9 +8,9 @@
 
 .ow-blur {
   position: absolute; inset: 0;
-  background: rgba(15, 23, 42, 0.20);
-  backdrop-filter: blur(8px) saturate(115%);
-  -webkit-backdrop-filter: blur(8px) saturate(115%);
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
 }
 
 .ow-modal {
