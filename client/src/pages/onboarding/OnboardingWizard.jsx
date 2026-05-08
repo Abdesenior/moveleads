@@ -2,7 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { AuthContext } from '../../context/AuthContext';
-import { useGoogleMaps } from '../../hooks/useGoogleMaps';
+import { US_STATES, filterStates } from '../../data/usStates';
 import './Onboarding.css';
 
 const TOTAL_STEPS = 5; // Setup steps shown in the progress bar.
@@ -403,33 +403,67 @@ function isStepValid(step, a) {
 
 // ── Screen 1: Market coverage ─────────────────────────────────────────────────
 function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }) {
-  const { ready: gmapsReady } = useGoogleMaps();
   const primaryMarketRef = useRef(null);
-  const primaryMarketAcRef = useRef(null);
+  const dropdownRef = useRef(null);
   const [marketDraft, setMarketDraft] = useState('');
+  const [stateQuery, setStateQuery] = useState(answers.primaryMarket || '');
+  const [stateOpen, setStateOpen] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(0);
 
-  // Attach Google Places city autocomplete to the primary-market input. If
-  // the API key is missing or the script fails to load, we silently fall back
-  // to free-form text input.
+  // Keep local query in sync with the answer when external state changes
+  // (e.g. on resume from server-saved progress).
   useEffect(() => {
-    if (!gmapsReady || !primaryMarketRef.current || primaryMarketAcRef.current) return;
-    const ac = new window.google.maps.places.Autocomplete(primaryMarketRef.current, {
-      types: ['(cities)'],
-      componentRestrictions: { country: 'us' },
-      fields: ['address_components', 'name'],
-    });
-    ac.addListener('place_changed', () => {
-      const place = ac.getPlace();
-      if (!place?.address_components) return;
-      const get = (type) =>
-        place.address_components.find(c => c.types.includes(type))?.long_name || '';
-      const stateShort = place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '';
-      const city = get('locality') || get('sublocality') || place.name || '';
-      const formatted = [city, stateShort].filter(Boolean).join(', ');
-      if (formatted) setAnswer('primaryMarket', formatted);
-    });
-    primaryMarketAcRef.current = ac;
-  }, [gmapsReady, setAnswer]);
+    setStateQuery(answers.primaryMarket || '');
+  }, [answers.primaryMarket]);
+
+  const filtered = filterStates(stateQuery, 8);
+
+  function pickState(state) {
+    setAnswer('primaryMarket', state.name);
+    setStateQuery(state.name);
+    setStateOpen(false);
+    setHighlightIdx(0);
+  }
+
+  function handleStateInput(e) {
+    const v = e.target.value;
+    setStateQuery(v);
+    setStateOpen(true);
+    setHighlightIdx(0);
+    // If the user clears the field, also clear the saved answer.
+    if (!v.trim()) setAnswer('primaryMarket', '');
+  }
+
+  function handleStateBlur() {
+    // Defer so a click on a dropdown item still registers before close.
+    setTimeout(() => setStateOpen(false), 120);
+    // If they typed an exact match (case-insensitive), commit it.
+    const exact = US_STATES.find(s =>
+      s.name.toLowerCase() === stateQuery.trim().toLowerCase() ||
+      s.code.toLowerCase() === stateQuery.trim().toLowerCase()
+    );
+    if (exact) {
+      setAnswer('primaryMarket', exact.name);
+      setStateQuery(exact.name);
+    }
+  }
+
+  function handleStateKey(e) {
+    if (!stateOpen) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIdx(i => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const s = filtered[highlightIdx];
+      if (s) pickState(s);
+    } else if (e.key === 'Escape') {
+      setStateOpen(false);
+    }
+  }
 
   function commitMarket() {
     const v = marketDraft.trim().replace(/,$/, '');
@@ -458,17 +492,41 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
       <h1 className="ow-h1">Where should we send move opportunities?</h1>
       <p className="ow-sub">Set your primary market — we'll only route requests inside your service area.</p>
 
-      <div className="ow-field">
-        <label className="ow-label" htmlFor="primaryMarket">Primary market</label>
+      <div className="ow-field ow-state-field">
+        <label className="ow-label" htmlFor="primaryMarket">Primary state</label>
         <input
           id="primaryMarket"
           ref={primaryMarketRef}
           className="ow-input"
-          placeholder="Houston, TX"
-          value={answers.primaryMarket}
-          onChange={e => setAnswer('primaryMarket', e.target.value)}
+          placeholder="Start typing… e.g. Texas"
+          value={stateQuery}
+          onChange={handleStateInput}
+          onFocus={() => setStateOpen(true)}
+          onBlur={handleStateBlur}
+          onKeyDown={handleStateKey}
           autoComplete="off"
+          role="combobox"
+          aria-expanded={stateOpen}
+          aria-controls="ow-state-dropdown"
+          aria-autocomplete="list"
         />
+        {stateOpen && filtered.length > 0 && (
+          <ul id="ow-state-dropdown" ref={dropdownRef} className="ow-state-dropdown" role="listbox">
+            {filtered.map((s, i) => (
+              <li
+                key={s.code}
+                role="option"
+                aria-selected={i === highlightIdx}
+                className={`ow-state-option${i === highlightIdx ? ' active' : ''}`}
+                onMouseDown={(e) => { e.preventDefault(); pickState(s); }}
+                onMouseEnter={() => setHighlightIdx(i)}
+              >
+                <span className="ow-state-name">{s.name}</span>
+                <span className="ow-state-code">{s.code}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="ow-field">
@@ -1179,14 +1237,16 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
 function ScreenActivationSuccess({ onDone, answers }) {
   const { API_URL } = useContext(AuthContext);
   const persona = buildPersona(answers || {});
-  const cityKey = (persona.market.split(',')[0] || '').trim().toLowerCase();
+  // primaryMarket is now a US state name (e.g. "Texas"). We also match the
+  // 2-letter code so leads stored as "Houston, TX" still count toward the
+  // partner's selected state.
+  const stateName = (persona.market || '').trim();
+  const stateRecord = US_STATES.find(s => s.name.toLowerCase() === stateName.toLowerCase());
+  const stateCode = stateRecord?.code || '';
   const [matchCount, setMatchCount] = useState(null);
 
-  // Fetch live leads once and count matches against the partner's primary
-  // market. If the call fails or the partner left market blank, the success
-  // bullet falls back to the generic "Market routing enabled" copy.
   useEffect(() => {
-    if (!cityKey) return;
+    if (!stateName || stateName === 'your market') return;
     let alive = true;
     fetch(`${API_URL}/leads`, {
       headers: { 'x-auth-token': localStorage.getItem('token') || '' },
@@ -1194,16 +1254,22 @@ function ScreenActivationSuccess({ onDone, answers }) {
       .then(r => r.json())
       .then(data => {
         if (!alive || !Array.isArray(data)) return;
+        const nameLc = stateName.toLowerCase();
+        const codeLc = stateCode.toLowerCase();
         const count = data.filter(l => {
           const o = (l.originCity || '').toLowerCase();
           const d = (l.destinationCity || '').toLowerCase();
-          return o.includes(cityKey) || d.includes(cityKey);
+          // Match either the state name or the 2-letter code as a token.
+          return (
+            (nameLc && (o.includes(nameLc) || d.includes(nameLc))) ||
+            (codeLc && (o.match(new RegExp(`(?:^|[\\s,])${codeLc}(?:$|[\\s,])`)) || d.match(new RegExp(`(?:^|[\\s,])${codeLc}(?:$|[\\s,])`))))
+          );
         }).length;
         setMatchCount(count);
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [API_URL, cityKey]);
+  }, [API_URL, stateName, stateCode]);
 
   const marketLine = matchCount && matchCount > 0
     ? `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${persona.market}`

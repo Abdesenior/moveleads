@@ -6,15 +6,51 @@
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-/* Google Places Autocomplete renders its dropdown to document.body at
-   z-index 1000 — lift it above the wizard modal (z-index 9999). */
-.pac-container {
-  z-index: 10001 !important;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+/* US-state autocomplete dropdown for the primary-market input on Step 1.
+   Sits inside the modal (no portal/body mount), so no z-index dance. */
+.ow-state-field {
+  position: relative;
+}
+.ow-state-dropdown {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
-  border: 1px solid #e2e8f0;
-  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.ow-state-option {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.ow-state-option.active,
+.ow-state-option:hover {
+  background: rgba(255, 106, 20, 0.08);
+}
+.ow-state-name {
+  font-size: 14px; font-weight: 600; color: #0f172a;
+  letter-spacing: -0.005em;
+}
+.ow-state-code {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px; font-weight: 800; color: #94a3b8;
+  letter-spacing: 0.06em;
+}
+.ow-state-option.active .ow-state-code,
+.ow-state-option:hover .ow-state-code {
+  color: #ea580c;
 }
 
 .ow-blur {
