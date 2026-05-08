@@ -34,15 +34,27 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       throw new Error('STRIPE_SECRET_KEY is not defined in server environment');
     }
     const stripe = stripeInit();
-    console.log('Creating Stripe Session for user:', req.user.id, 'Amount:', amount);
+
+    // Detect first-time-mover bonus eligibility
+    const userDoc = await User.findById(req.user.id).select('onboarding');
+    const eligibleForBonus = !!userDoc && !userDoc.onboarding?.bonusClaimedAt;
+    const baseCredits = Number(amount);
+    const bonusCredits = eligibleForBonus ? Math.round(baseCredits * 0.5) : 0;
+    const totalCredits = baseCredits + bonusCredits;
+
+    console.log('Creating Stripe Session for user:', req.user.id, 'Amount:', amount, 'Bonus:', bonusCredits);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
           currency: 'usd',
           product_data: {
-            name: `${amount} Credits`,
-            description: `Purchase ${amount} credits for the MoveLeads platform`,
+            name: eligibleForBonus
+              ? `${baseCredits} Credits + ${bonusCredits} bonus`
+              : `${amount} Credits`,
+            description: eligibleForBonus
+              ? `First-time mover onboarding: $${baseCredits} = $${totalCredits} balance`
+              : `Purchase ${amount} credits for the MoveLeads platform`,
           },
           unit_amount: amount * 100, // Stripe uses cents
         },
@@ -53,7 +65,10 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard/billing?canceled=true`,
       metadata: {
         userId: req.user.id.toString(),
-        credits: amount.toString()
+        credits: String(totalCredits),
+        baseCredits: String(baseCredits),
+        bonusCredits: String(bonusCredits),
+        firstPurchaseBonus: eligibleForBonus ? 'true' : 'false',
       }
     });
 
@@ -161,11 +176,21 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         user.balance += Number(credits);
         await user.save();
 
+        // If this was the first-time-mover bonus purchase, record claim time
+        if (session.metadata.firstPurchaseBonus === 'true' && !user.onboarding?.bonusClaimedAt) {
+          await User.updateOne(
+            { _id: userId },
+            { $set: { 'onboarding.bonusClaimedAt': new Date() } }
+          );
+        }
+
         await new Transaction({
           user: userId,
           type: 'Credit Deposit',
           amount: Number(credits),
-          description: `Credit Top Up +$${credits} (Session: ${session.id})`,
+          description: session.metadata.firstPurchaseBonus === 'true'
+            ? `Onboarding Top Up +$${session.metadata.baseCredits} (+$${session.metadata.bonusCredits} bonus) (Session: ${session.id})`
+            : `Credit Top Up +$${credits} (Session: ${session.id})`,
           status: 'Completed'
         }).save();
 
