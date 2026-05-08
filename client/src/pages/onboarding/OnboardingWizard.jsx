@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useRef } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
 import { AuthContext } from '../../context/AuthContext';
 import './Onboarding.css';
 
@@ -592,29 +593,77 @@ function ScreenProcessing({ onDone }) {
   );
 }
 
-// ── Screen 7: Activation (Stripe redirect — embedded checkout is a follow-up) ─
+// ── Screen 7: Activation (with embedded Stripe checkout) ─────────────────────
 function ScreenActivation({ API_URL, onSkip }) {
-  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState('offer'); // 'offer' | 'loading' | 'checkout' | 'error'
+  const [errMsg, setErrMsg] = useState('');
+  const checkoutMountRef = useRef(null);
+  const stripeCheckoutRef = useRef(null);
 
   async function handleActivate() {
-    setLoading(true);
+    setPhase('loading');
+    setErrMsg('');
     try {
       const res = await fetch(`${API_URL}/billing/create-checkout-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
-        body: JSON.stringify({ amount: 100 }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': localStorage.getItem('token') || '',
+        },
+        body: JSON.stringify({ amount: 100, embedded: true }),
       });
       const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        setLoading(false);
-        alert('Could not start checkout. Try again or contact support.');
+      if (!data?.clientSecret || !data?.publishableKey) {
+        // Fallback: hosted checkout redirect
+        const fallback = await fetch(`${API_URL}/billing/create-checkout-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
+          body: JSON.stringify({ amount: 100 }),
+        });
+        const fb = await fallback.json();
+        if (fb?.url) { window.location.href = fb.url; return; }
+        throw new Error(data?.msg || 'Could not start checkout');
       }
+
+      const stripe = await loadStripe(data.publishableKey);
+      if (!stripe) throw new Error('Stripe failed to initialize');
+
+      const checkout = await stripe.initEmbeddedCheckout({ clientSecret: data.clientSecret });
+      stripeCheckoutRef.current = checkout;
+      setPhase('checkout');
+      // Mount on next tick when DOM node exists
+      setTimeout(() => {
+        if (checkoutMountRef.current) {
+          checkout.mount(checkoutMountRef.current);
+        }
+      }, 0);
     } catch (err) {
       console.error('[ActivationStep] checkout failed', err);
-      setLoading(false);
+      setErrMsg(err.message || 'Could not start checkout');
+      setPhase('error');
     }
+  }
+
+  // Clean up Stripe checkout on unmount
+  useEffect(() => {
+    return () => {
+      if (stripeCheckoutRef.current) {
+        try { stripeCheckoutRef.current.destroy(); } catch (e) { /* ignore */ }
+      }
+    };
+  }, []);
+
+  if (phase === 'checkout') {
+    return (
+      <div className="ow-activate">
+        <h1 className="ow-activate-h1">Complete your activation</h1>
+        <p className="ow-activate-sub">Pay $100 securely to receive a $150 balance ($50 onboarding bonus included).</p>
+        <div ref={checkoutMountRef} className="ow-stripe-mount" />
+        <button type="button" className="ow-activate-skip" onClick={onSkip} style={{ marginTop: 12 }}>
+          Cancel — I'll activate later
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -646,8 +695,17 @@ function ScreenActivation({ API_URL, onSkip }) {
           </div>
         </div>
 
-        <button type="button" className="ow-activate-cta" onClick={handleActivate} disabled={loading}>
-          {loading ? 'Opening checkout…' : 'Activate my $150 balance →'}
+        {phase === 'error' && (
+          <div className="ow-activate-err">{errMsg}</div>
+        )}
+
+        <button
+          type="button"
+          className="ow-activate-cta"
+          onClick={handleActivate}
+          disabled={phase === 'loading'}
+        >
+          {phase === 'loading' ? 'Loading checkout…' : 'Activate my $150 balance →'}
         </button>
 
         <ul className="ow-activate-trust">

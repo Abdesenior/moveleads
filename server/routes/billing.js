@@ -24,7 +24,7 @@ router.get('/balance', auth, async (req, res) => {
 // @desc    Create Stripe Checkout session
 // @access  Private
 router.post('/create-checkout-session', auth, async (req, res) => {
-  const { amount } = req.body;
+  const { amount, embedded } = req.body;
   if (![10, 50, 100, 200, 500].includes(amount)) {
     return res.status(400).json({ msg: 'Invalid amount selected' });
   }
@@ -42,8 +42,9 @@ router.post('/create-checkout-session', auth, async (req, res) => {
     const bonusCredits = eligibleForBonus ? Math.round(baseCredits * 0.5) : 0;
     const totalCredits = baseCredits + bonusCredits;
 
-    console.log('Creating Stripe Session for user:', req.user.id, 'Amount:', amount, 'Bonus:', bonusCredits);
-    const session = await stripe.checkout.sessions.create({
+    console.log('Creating Stripe Session for user:', req.user.id, 'Amount:', amount, 'Bonus:', bonusCredits, 'Embedded:', !!embedded);
+
+    const baseConfig = {
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
@@ -61,18 +62,37 @@ router.post('/create-checkout-session', auth, async (req, res) => {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard/billing?success=true&session_id={CHECKOUT_SESSION_ID}&amount=${amount}`,
-      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard/billing?canceled=true`,
       metadata: {
         userId: req.user.id.toString(),
         credits: String(totalCredits),
         baseCredits: String(baseCredits),
         bonusCredits: String(bonusCredits),
         firstPurchaseBonus: eligibleForBonus ? 'true' : 'false',
-      }
-    });
+      },
+    };
 
-    res.json({ url: session.url });
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+    let session;
+    if (embedded) {
+      // Stripe Embedded Checkout — UI mounts inside our modal, redirects to return_url after payment
+      session = await stripe.checkout.sessions.create({
+        ...baseConfig,
+        ui_mode: 'embedded',
+        return_url: `${clientUrl}/dashboard?onboarding=success&session_id={CHECKOUT_SESSION_ID}`,
+      });
+      return res.json({
+        clientSecret: session.client_secret,
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+      });
+    } else {
+      session = await stripe.checkout.sessions.create({
+        ...baseConfig,
+        success_url: `${clientUrl}/dashboard/billing?success=true&session_id={CHECKOUT_SESSION_ID}&amount=${amount}`,
+        cancel_url: `${clientUrl}/dashboard/billing?canceled=true`,
+      });
+      return res.json({ url: session.url });
+    }
   } catch (err) {
     console.error('STRIPE SESSION ERROR:', err);
     res.status(500).json({ msg: err.message });

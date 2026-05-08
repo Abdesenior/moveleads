@@ -31,6 +31,7 @@ export default function DashboardLayout({ children }) {
   const { user, logout, token, API_URL, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [showWizard, setShowWizard] = useState(false);
+  const [showActivationSuccess, setShowActivationSuccess] = useState(false);
 
   // Show wizard once for partner users who haven't completed onboarding.
   useEffect(() => {
@@ -39,9 +40,28 @@ export default function DashboardLayout({ children }) {
     if (!user.onboarding?.complete) setShowWizard(true);
   }, [user]);
 
+  // Detect post-payment return from Stripe Embedded Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('onboarding') === 'success') {
+      setShowActivationSuccess(true);
+      // Clear the param so refreshing doesn't re-trigger
+      params.delete('onboarding');
+      params.delete('session_id');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+      // Pull fresh user state — webhook should have credited balance + bonusClaimedAt
+      if (refreshUser) refreshUser();
+    }
+  }, [refreshUser]);
+
   const handleCloseWizard = async () => {
     setShowWizard(false);
     if (refreshUser) await refreshUser();
+  };
+
+  const handleCloseActivationSuccess = () => {
+    setShowActivationSuccess(false);
   };
 
   const toggleCollapsed = () => {
@@ -202,6 +222,80 @@ export default function DashboardLayout({ children }) {
       </main>
 
       {showWizard && <OnboardingWizard onClose={handleCloseWizard} />}
+      {showActivationSuccess && <ActivationSuccessModal onClose={handleCloseActivationSuccess} />}
+    </div>
+  );
+}
+
+function ActivationSuccessModal({ onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(7, 17, 31, 0.55)',
+      backdropFilter: 'blur(8px)',
+      display: 'grid', placeItems: 'center',
+      padding: 16,
+      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 22,
+        padding: '36px 32px',
+        maxWidth: 440, width: '100%',
+        boxShadow: '0 30px 80px rgba(0, 0, 0, 0.32)',
+        textAlign: 'center',
+      }}>
+        <div style={{
+          width: 64, height: 64, margin: '0 auto 20px',
+          borderRadius: '50%',
+          background: 'linear-gradient(180deg, #22c55e, #16a34a)',
+          color: '#fff', fontSize: 32, fontWeight: 800,
+          display: 'grid', placeItems: 'center',
+          boxShadow: '0 14px 32px rgba(34, 197, 94, 0.35)',
+        }}>✓</div>
+        <h1 style={{
+          fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em',
+          color: '#0f172a', margin: '0 0 8px', lineHeight: 1.2,
+        }}>Your $150 balance is active</h1>
+        <ul style={{
+          listStyle: 'none', padding: 0,
+          margin: '18px 0 0',
+          display: 'flex', flexDirection: 'column', gap: 8,
+          fontSize: 14.5, color: '#475569', textAlign: 'left',
+        }}>
+          {[
+            ['Onboarding bonus applied', '+$50'],
+            ['Dispatch alerts enabled', null],
+            ['Market coverage configured', null],
+          ].map(([label, value]) => (
+            <li key={label} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+              padding: '10px 14px',
+              background: '#f8fafc', border: '1px solid #e2e8f0',
+              borderRadius: 10,
+            }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ color: '#22c55e', fontWeight: 800 }}>✓</span>
+                {label}
+              </span>
+              {value && <strong style={{ color: '#ea580c', fontWeight: 800 }}>{value}</strong>}
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            marginTop: 22,
+            background: '#ff6a14', color: '#fff', border: 'none',
+            height: 48, padding: '0 24px', borderRadius: 12,
+            fontFamily: 'inherit', fontWeight: 800, fontSize: 15,
+            cursor: 'pointer',
+            boxShadow: '0 10px 26px rgba(255, 106, 20, 0.32)',
+          }}
+        >
+          Go to dashboard →
+        </button>
+      </div>
     </div>
   );
 }

@@ -456,3 +456,22 @@
   content: "✓"; color: #22c55e; font-weight: 800; flex-shrink: 0;
 }
 .ow-success-list strong { color: #ea580c; font-weight: 800; }
+
+/* ── Stripe Embedded Checkout mount ──────────────────────────────────── */
+.ow-stripe-mount {
+  min-height: 420px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.ow-activate-err {
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 13px; font-weight: 600;
+  line-height: 1.4;
+}
