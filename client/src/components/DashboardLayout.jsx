@@ -70,6 +70,7 @@ export default function DashboardLayout({ children }) {
 
   const handleCloseActivationSuccess = () => {
     setShowActivationSuccess(false);
+    navigate('/dashboard/leads');
   };
 
   const toggleCollapsed = () => {
@@ -303,7 +304,7 @@ function ActivationSuccessModal({ onClose }) {
             boxShadow: '0 10px 26px rgba(255, 106, 20, 0.32)',
           }}
         >
-          Go to dashboard →
+          View matching opportunities →
         </button>
       </div>
     </div>

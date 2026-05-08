@@ -579,8 +579,8 @@ export default function LeadFeed() {
         ) : displayedLeads.length === 0 ? (
           <div className="empty-feed">
             <div className="empty-icon-box"><ZapOff size={32} /></div>
-            <h3>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'No results match your filter' : 'No Live Leads Right Now'}</h3>
-            <p>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'Try a different search or filter.' : "We'll notify you with a sound as soon as a new lead hits your territory."}</p>
+            <h3>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'No results match your filter' : 'Your markets are active'}</h3>
+            <p>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'Try a different search or filter.' : "We'll alert you the moment a verified request matches your setup."}</p>
           </div>
         ) : (
           <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { AuthContext } from '../../context/AuthContext';
 import './Onboarding.css';
@@ -59,8 +60,44 @@ const TRUST_TIPS = [
   'Average mover-to-customer connect time: 4–6 minutes',
 ];
 
+// Setup-status tracker stages — one per setup step (1..5).
+const SETUP_STAGES = [
+  { id: 1, label: 'Coverage' },
+  { id: 2, label: 'Preferences' },
+  { id: 3, label: 'Routing' },
+  { id: 4, label: 'Flow' },
+  { id: 5, label: 'Confirm' },
+];
+
+// Build personalized phrasing fragments from the answers object.
+function buildPersona(answers, fallback = {}) {
+  const market = (answers.primaryMarket || '').trim();
+  const coverageLabels = (answers.coveragePreferences || [])
+    .map(id => COVERAGE_OPTIONS.find(o => o.id === id)?.label)
+    .filter(Boolean);
+  const moveLabels = (answers.moveTypes || [])
+    .map(id => SERVICE_TYPES.find(o => o.id === id)?.label.toLowerCase())
+    .filter(Boolean);
+  const channelLabels = (answers.alertChannels || [])
+    .map(id => ALERT_CHANNELS.find(o => o.id === id)?.label)
+    .filter(Boolean);
+  return {
+    market: market || fallback.market || 'your market',
+    coverageLabels,
+    moveLabels,
+    channelLabels,
+    moveSummary: moveLabels.length
+      ? (moveLabels.length <= 2 ? moveLabels.join(' and ') : `${moveLabels.slice(0, 2).join(', ')} and more`)
+      : (fallback.moveSummary || 'verified move'),
+    channelSummary: channelLabels.length
+      ? channelLabels.join(' and ')
+      : (fallback.channelSummary || 'your alert channels'),
+  };
+}
+
 export default function OnboardingWizard({ onClose, initialStep }) {
   const { API_URL, refreshUser, user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
     primaryMarket: '',
@@ -212,7 +249,8 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
   async function closeAfterSuccess() {
     if (refreshUser) await refreshUser();
-    onClose && onClose();
+    if (onClose) onClose();
+    navigate('/dashboard/leads');
   }
 
   const trustTip = TRUST_TIPS[(step - 1) % TRUST_TIPS.length];
@@ -222,23 +260,38 @@ export default function OnboardingWizard({ onClose, initialStep }) {
       <div className="ow-blur" />
       <div className="ow-modal">
         {step <= TOTAL_STEPS && (
-          <>
+          <div className="ow-header">
             <div className="ow-progress">
               <div className="ow-progress-fill" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
             </div>
             <div className="ow-progress-label">Step {step} of {TOTAL_STEPS} · {trustTip}</div>
-          </>
+            <div className="ow-stages" aria-label="Setup progress">
+              {SETUP_STAGES.map(stage => {
+                const state = stage.id < step ? 'done' : stage.id === step ? 'active' : 'future';
+                return (
+                  <span key={stage.id} className={`ow-stage ow-stage-${state}`}>
+                    <span className="ow-stage-dot">
+                      {state === 'done' ? '✓' : stage.id}
+                    </span>
+                    <span className="ow-stage-label">{stage.label}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         <div className="ow-body">
-          {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} companyName={user?.companyName} />}
-          {step === 2 && <ScreenServiceTypes answers={answers} toggleInArray={toggleInArray} />}
-          {step === 3 && <ScreenAlertRouting answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
-          {step === 4 && <ScreenRequestFlow answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
-          {step === 5 && <ScreenConfirmSetup answers={answers} />}
-          {step === 6 && <ScreenProcessing onDone={onProcessingDone} />}
-          {step === 7 && <ScreenActivation API_URL={API_URL} onDone={onActivationDone} onSkip={dismissSkip} />}
-          {step === 8 && <ScreenActivationSuccess onDone={closeAfterSuccess} />}
+          <div className="ow-step-anim" key={step}>
+            {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} companyName={user?.companyName} />}
+            {step === 2 && <ScreenServiceTypes answers={answers} toggleInArray={toggleInArray} />}
+            {step === 3 && <ScreenAlertRouting answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
+            {step === 4 && <ScreenRequestFlow answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
+            {step === 5 && <ScreenConfirmSetup answers={answers} />}
+            {step === 6 && <ScreenProcessing onDone={onProcessingDone} answers={answers} />}
+            {step === 7 && <ScreenActivation API_URL={API_URL} onDone={onActivationDone} onSkip={dismissSkip} answers={answers} />}
+            {step === 8 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
+          </div>
         </div>
 
         {step <= TOTAL_STEPS && (
@@ -260,6 +313,34 @@ export default function OnboardingWizard({ onClose, initialStep }) {
       </div>
     </div>
   );
+}
+
+function coverageFeedback(ids) {
+  const labels = ids
+    .map(id => COVERAGE_OPTIONS.find(o => o.id === id)?.label)
+    .filter(Boolean);
+  if (labels.length === 1) return `${labels[0]} routing prepared.`;
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]} routing prepared.`;
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]} routing prepared.`;
+}
+
+function moveTypeFeedback(ids) {
+  const n = ids.length;
+  if (n === 0) return '';
+  if (n === 1) {
+    const label = SERVICE_TYPES.find(o => o.id === ids[0])?.label.toLowerCase();
+    return `Prioritizing ${label} requests.`;
+  }
+  return `${n} service types enabled — we'll prioritize matches in these.`;
+}
+
+function alertFeedback(ids, urgent) {
+  if (!ids.length) return '';
+  const labels = ids.map(id => ALERT_CHANNELS.find(o => o.id === id)?.label).filter(Boolean);
+  const channelLine = labels.length === 1
+    ? `${labels[0]} alerts ready.`
+    : `${labels.join(' + ')} alerts ready.`;
+  return urgent ? `${channelLine} Urgent calls enabled.` : channelLine;
 }
 
 function isStepValid(step, a) {
@@ -336,6 +417,11 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
             );
           })}
         </div>
+        {answers.coveragePreferences.length > 0 && (
+          <p className="ow-feedback">
+            {coverageFeedback(answers.coveragePreferences)}
+          </p>
+        )}
       </div>
 
       <div className="ow-field">
@@ -391,6 +477,9 @@ function ScreenServiceTypes({ answers, toggleInArray }) {
             </button>
           ))}
         </div>
+        {answers.moveTypes.length > 0 && (
+          <p className="ow-feedback">{moveTypeFeedback(answers.moveTypes)}</p>
+        )}
       </div>
 
       <p className="ow-reassurance">{REASSURANCE}</p>
@@ -431,6 +520,9 @@ function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
             </button>
           ))}
         </div>
+        {(answers.alertChannels.length > 0 || answers.urgentCallEnabled) && (
+          <p className="ow-feedback">{alertFeedback(answers.alertChannels, answers.urgentCallEnabled)}</p>
+        )}
       </div>
 
       <div className="ow-field">
@@ -597,6 +689,17 @@ function ScreenRequestFlow({ answers, setAnswer, toggleInArray }) {
   );
 }
 
+function CoverageRecapSummary({ answers }) {
+  const persona = buildPersona(answers);
+  if (!answers.primaryMarket && !persona.coverageLabels.length) return null;
+  return (
+    <p className="ow-summary-tagline">
+      Your <strong>{persona.market}</strong> {persona.coverageLabels.length ? <>+ <strong>{persona.coverageLabels.join(', ').toLowerCase()}</strong> </> : null}
+      routing is ready.
+    </p>
+  );
+}
+
 // ── Screen 5: Confirm setup (no offer here) ──────────────────────────────────
 function ScreenConfirmSetup({ answers }) {
   const moveLabels = answers.moveTypes
@@ -623,6 +726,8 @@ function ScreenConfirmSetup({ answers }) {
     <>
       <h1 className="ow-h1">Confirm your dispatch setup</h1>
       <p className="ow-sub">Review your preferences before we activate your request routing.</p>
+
+      <CoverageRecapSummary answers={answers} />
 
       <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
         <div className="ow-summary-recap-h">Configured</div>
@@ -661,11 +766,16 @@ function formatTime12h(t) {
 }
 
 // ── Screen 6: Processing (5 items, ~5.4s, then transition CTA) ───────────────
-function ScreenProcessing({ onDone }) {
+function ScreenProcessing({ onDone, answers }) {
+  const persona = buildPersona(answers || {});
   const items = [
-    'Configuring service area',
-    'Preparing matching preferences',
-    'Enabling alert routing',
+    `Configuring ${persona.market} service area`,
+    persona.coverageLabels.length
+      ? `Preparing ${persona.coverageLabels.join(' + ').toLowerCase()} preferences`
+      : 'Preparing matching preferences',
+    persona.channelLabels.length
+      ? `Enabling ${persona.channelLabels.join(' + ')} alert routing`
+      : 'Enabling alert routing',
     'Calibrating request flow',
     'Account preferences set',
   ];
@@ -735,7 +845,11 @@ function ScreenProcessing({ onDone }) {
 }
 
 // ── Screen 7: Activation (light theme — native to onboarding modal) ──────────
-function ScreenActivation({ API_URL, onSkip }) {
+function ScreenActivation({ API_URL, onSkip, answers }) {
+  const persona = buildPersona(answers || {});
+  const personalSub = persona.market !== 'your market' || persona.moveLabels.length
+    ? `Activate your balance to start unlocking ${persona.moveSummary} opportunities in ${persona.market}.`
+    : 'Your dispatch setup is ready. Activate your balance to start unlocking verified move opportunities.';
   const [phase, setPhase] = useState('offer'); // 'offer' | 'loading' | 'checkout' | 'error'
   const [errMsg, setErrMsg] = useState('');
   const checkoutMountRef = useRef(null);
@@ -807,9 +921,7 @@ function ScreenActivation({ API_URL, onSkip }) {
   return (
     <div className="ow-activate">
       <h1 className="ow-activate-h1">Activate your onboarding balance</h1>
-      <p className="ow-activate-sub">
-        Your dispatch setup is ready. Activate your balance to start unlocking verified move opportunities.
-      </p>
+      <p className="ow-activate-sub">{personalSub}</p>
 
       <div className="ow-activate-card">
         <span className="ow-activate-pill">Limited first-time onboarding credit</span>
@@ -863,18 +975,25 @@ function ScreenActivation({ API_URL, onSkip }) {
 }
 
 // ── Screen 8: Activation success (post-payment) ─────────────────────────────
-function ScreenActivationSuccess({ onDone }) {
+function ScreenActivationSuccess({ onDone, answers }) {
+  const persona = buildPersona(answers || {});
+  const marketLine = persona.market !== 'your market'
+    ? `Market routing enabled for ${persona.market}`
+    : 'Market routing enabled';
+  const alertLine = persona.channelLabels.length
+    ? `${persona.channelLabels.join(' + ')} alerts ready`
+    : 'Dispatch alerts ready';
   return (
     <div className="ow-success">
       <div className="ow-success-icon">✓</div>
       <h1 className="ow-h1">Your $150 balance is active</h1>
       <ul className="ow-success-list">
         <li>Onboarding bonus applied: <strong>+$50</strong></li>
-        <li>Dispatch alerts enabled</li>
-        <li>Market coverage configured</li>
+        <li>{marketLine}</li>
+        <li>{alertLine}</li>
       </ul>
       <button type="button" className="ow-next" style={{ marginTop: 18 }} onClick={onDone}>
-        Go to dashboard →
+        View matching opportunities →
       </button>
     </div>
   );

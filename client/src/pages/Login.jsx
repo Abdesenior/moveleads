@@ -51,7 +51,7 @@ export default function Login() {
       
       login(data.token, data.user);
       toast.success('Welcome back!', 'Successfully signed in');
-      navigate(data.user.role === 'admin' ? '/admin' : '/dashboard');
+      navigate(data.user.role === 'admin' ? '/admin' : '/dashboard/leads');
     } catch (err) {
       setError(err.message);
       toast.error('Login failed', err.message);

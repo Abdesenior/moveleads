@@ -79,7 +79,7 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       session = await stripe.checkout.sessions.create({
         ...baseConfig,
         ui_mode: 'embedded',
-        return_url: `${clientUrl}/dashboard?onboarding=success&session_id={CHECKOUT_SESSION_ID}`,
+        return_url: `${clientUrl}/dashboard/leads?onboarding=success&session_id={CHECKOUT_SESSION_ID}`,
       });
       return res.json({
         clientSecret: session.client_secret,
