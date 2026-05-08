@@ -8,6 +8,8 @@ import {
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
 import VerificationBanner from './VerificationBanner';
+import ActivationBanner from './ActivationBanner';
+import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
 import '../dashboard.css';
 
 const NAV_ITEMS = [
@@ -26,8 +28,21 @@ export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
   const [openComplaints, setOpenComplaints] = useState(0);
-  const { user, logout, token, API_URL } = useContext(AuthContext);
+  const { user, logout, token, API_URL, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [showWizard, setShowWizard] = useState(false);
+
+  // Show wizard once for partner users who haven't completed onboarding.
+  useEffect(() => {
+    if (!user) return;
+    if (user.role === 'admin' || user.role === 'super_admin') return;
+    if (!user.onboarding?.complete) setShowWizard(true);
+  }, [user]);
+
+  const handleCloseWizard = async () => {
+    setShowWizard(false);
+    if (refreshUser) await refreshUser();
+  };
 
   const toggleCollapsed = () => {
     const next = !collapsed;
@@ -72,6 +87,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      <ActivationBanner />
       <ImpersonationBanner />
       <VerificationBanner />
 
@@ -184,6 +200,8 @@ export default function DashboardLayout({ children }) {
       <main className="dashboard-main">
         {children}
       </main>
+
+      {showWizard && <OnboardingWizard onClose={handleCloseWizard} />}
     </div>
   );
 }

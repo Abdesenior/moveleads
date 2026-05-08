@@ -79,6 +79,21 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const t = localStorage.getItem('token');
+    if (!t) return null;
+    try {
+      const res = await fetch(`${API_URL}/auth/me`, { headers: { 'x-auth-token': t } });
+      if (!res.ok) return null;
+      const data = await res.json();
+      setUser(data);
+      return data;
+    } catch (err) {
+      console.error('[Auth] refreshUser failed', err);
+      return null;
+    }
+  };
+
   const isImpersonating = !!localStorage.getItem('adminToken');
 
   return (
