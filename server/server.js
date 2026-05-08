@@ -74,6 +74,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/disputes', require('./routes/disputes'));
 app.use('/api/admin/pricing', require('./routes/pricing'));
 app.use('/api/billing', require('./routes/billing'));
+app.use('/api/onboarding', require('./routes/onboarding'));
 app.use('/api/purchases', require('./routes/purchases'));
 app.use('/api/routing', require('./routes/routing'));
 app.use('/api/public', require('./routes/public'));
