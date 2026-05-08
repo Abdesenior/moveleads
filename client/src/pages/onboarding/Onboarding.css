@@ -580,6 +580,89 @@
   line-height: 1.4;
 }
 
+/* ── Activation tier picker (primary $100 + secondary $50) ─────────────── */
+.ow-tier {
+  cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+.ow-tier:focus-visible {
+  outline: 2px solid #ff6a14;
+  outline-offset: 2px;
+}
+
+/* Primary card extends ow-activate-card (visual dominance) */
+.ow-tier-primary {
+  position: relative;
+}
+.ow-tier-primary.selected {
+  border-color: rgba(255, 106, 20, 0.55);
+  box-shadow: 0 16px 36px rgba(255, 106, 20, 0.18);
+}
+.ow-tier-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.ow-tier-head .ow-activate-pill {
+  margin-bottom: 0;
+}
+.ow-tier-radio {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+  position: relative;
+  flex-shrink: 0;
+  transition: border-color 160ms ease;
+}
+.ow-tier.selected .ow-tier-radio {
+  border-color: #ff6a14;
+}
+.ow-tier.selected .ow-tier-radio::after {
+  content: "";
+  position: absolute; inset: 3px;
+  border-radius: 50%;
+  background: #ff6a14;
+}
+
+/* Secondary card — flat, smaller, lower visual weight */
+.ow-tier-secondary {
+  margin-top: 12px;
+  padding: 14px 18px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+.ow-tier-secondary:hover { border-color: rgba(255, 106, 20, 0.35); }
+.ow-tier-secondary.selected {
+  border-color: #ff6a14;
+  background: rgba(255, 106, 20, 0.04);
+}
+.ow-tier-secondary-row {
+  display: flex; align-items: center; gap: 14px;
+}
+.ow-tier-secondary-text { flex: 1; min-width: 0; }
+.ow-tier-secondary-h {
+  font-size: 14.5px; font-weight: 800; color: #0f172a;
+  letter-spacing: -0.005em;
+}
+.ow-tier-secondary-sub {
+  font-size: 12.5px; color: #64748b; font-weight: 500;
+  margin-top: 2px;
+}
+.ow-tier-secondary-price {
+  font-family: 'Poppins', sans-serif;
+  font-size: 18px; font-weight: 800; color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+/* Move the CTA below both tiers */
+.ow-activate .ow-activate-cta {
+  margin-top: 16px;
+}
+.ow-activate .ow-activate-trust {
+  margin-top: 10px;
+}
+
 /* ── Dispatch hours: mode tabs + per-day rows ────────────────────────── */
 .ow-mode-row {
   display: flex; align-items: center; justify-content: space-between;

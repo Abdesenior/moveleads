@@ -850,6 +850,8 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
   const personalSub = persona.market !== 'your market' || persona.moveLabels.length
     ? `Activate your balance to start unlocking ${persona.moveSummary} opportunities in ${persona.market}.`
     : 'Your dispatch setup is ready. Activate your balance to start unlocking verified move opportunities.';
+  // Tier the user picked. Defaults to the $100 primary tier.
+  const [tier, setTier] = useState(100);
   const [phase, setPhase] = useState('offer'); // 'offer' | 'loading' | 'checkout' | 'error'
   const [errMsg, setErrMsg] = useState('');
   const checkoutMountRef = useRef(null);
@@ -870,7 +872,7 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
           'Content-Type': 'application/json',
           'x-auth-token': localStorage.getItem('token') || '',
         },
-        body: JSON.stringify({ amount: 100, embedded: true }),
+        body: JSON.stringify({ amount: tier, embedded: true }),
       });
       const data = await res.json();
       if (!data?.clientSecret) {
@@ -906,10 +908,13 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
   }, []);
 
   if (phase === 'checkout') {
+    const checkoutSub = tier === 100
+      ? 'Pay $100 securely to receive a $150 balance ($50 onboarding bonus included).'
+      : 'Pay $50 securely to receive a $50 starting balance.';
     return (
       <div className="ow-activate">
         <h1 className="ow-activate-h1">Complete your activation</h1>
-        <p className="ow-activate-sub">Pay $100 securely to receive a $150 balance ($50 onboarding bonus included).</p>
+        <p className="ow-activate-sub">{checkoutSub}</p>
         <div ref={checkoutMountRef} className="ow-stripe-mount" />
         <button type="button" className="ow-activate-skip" onClick={onSkip} style={{ marginTop: 12 }}>
           Cancel — I'll activate later
@@ -918,13 +923,28 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
     );
   }
 
+  const ctaLabel = phase === 'loading'
+    ? 'Loading checkout…'
+    : tier === 100 ? 'Activate my $150 balance →' : 'Start with a $50 balance →';
+
   return (
     <div className="ow-activate">
       <h1 className="ow-activate-h1">Activate your onboarding balance</h1>
       <p className="ow-activate-sub">{personalSub}</p>
 
-      <div className="ow-activate-card">
-        <span className="ow-activate-pill">Limited first-time onboarding credit</span>
+      {/* Primary tier — $100 → $150 with bonus. Visually dominant. */}
+      <div
+        className={`ow-activate-card ow-tier ow-tier-primary${tier === 100 ? ' selected' : ''}`}
+        role="radio"
+        aria-checked={tier === 100}
+        tabIndex={0}
+        onClick={() => setTier(100)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
+      >
+        <div className="ow-tier-head">
+          <span className="ow-activate-pill">Most movers start here</span>
+          <span className="ow-tier-radio" aria-hidden="true" />
+        </div>
 
         <div className="ow-activate-bonus">
           <span className="ow-activate-bonus-currency">$</span>
@@ -944,28 +964,47 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
             <span className="ow-activate-summary-receive">$150 total balance</span>
           </div>
         </div>
-
-        {phase === 'error' && (
-          <div className="ow-activate-err">{errMsg}</div>
-        )}
-
-        <button
-          type="button"
-          className="ow-activate-cta"
-          onClick={handleActivate}
-          disabled={phase === 'loading'}
-        >
-          {phase === 'loading' ? 'Loading checkout…' : 'Activate my $150 balance →'}
-        </button>
-
-        <ul className="ow-activate-trust">
-          <li>Refundable unused balance</li>
-          <li>No subscription</li>
-          <li>No contract</li>
-          <li>Credits never expire</li>
-          <li>Secure Stripe payment</li>
-        </ul>
       </div>
+
+      {/* Secondary tier — $50 starter, no bonus. Lower commitment. */}
+      <div
+        className={`ow-tier ow-tier-secondary${tier === 50 ? ' selected' : ''}`}
+        role="radio"
+        aria-checked={tier === 50}
+        tabIndex={0}
+        onClick={() => setTier(50)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
+      >
+        <div className="ow-tier-secondary-row">
+          <span className="ow-tier-radio" aria-hidden="true" />
+          <div className="ow-tier-secondary-text">
+            <div className="ow-tier-secondary-h">Start with $50</div>
+            <div className="ow-tier-secondary-sub">$50 starting balance · no onboarding bonus</div>
+          </div>
+          <div className="ow-tier-secondary-price">$50</div>
+        </div>
+      </div>
+
+      {phase === 'error' && (
+        <div className="ow-activate-err">{errMsg}</div>
+      )}
+
+      <button
+        type="button"
+        className="ow-activate-cta"
+        onClick={handleActivate}
+        disabled={phase === 'loading'}
+      >
+        {ctaLabel}
+      </button>
+
+      <ul className="ow-activate-trust">
+        <li>Refundable unused balance</li>
+        <li>No subscription</li>
+        <li>No contract</li>
+        <li>Credits never expire</li>
+        <li>Secure Stripe payment</li>
+      </ul>
 
       <button type="button" className="ow-activate-skip" onClick={onSkip}>
         I'll activate later

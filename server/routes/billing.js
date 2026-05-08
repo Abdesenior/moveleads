@@ -35,9 +35,12 @@ router.post('/create-checkout-session', auth, async (req, res) => {
     }
     const stripe = stripeInit();
 
-    // Detect first-time-mover bonus eligibility
+    // Detect first-time-mover bonus eligibility.
+    // Bonus only applies to the $100 activation tier — the $50 starter tier is
+    // a lower-commitment fallback for hesitant movers and gets no bonus.
     const userDoc = await User.findById(req.user.id).select('onboarding');
-    const eligibleForBonus = !!userDoc && !userDoc.onboarding?.bonusClaimedAt;
+    const isBonusTier = Number(amount) === 100;
+    const eligibleForBonus = !!userDoc && !userDoc.onboarding?.bonusClaimedAt && isBonusTier;
     const baseCredits = Number(amount);
     const bonusCredits = eligibleForBonus ? Math.round(baseCredits * 0.5) : 0;
     const totalCredits = baseCredits + bonusCredits;
