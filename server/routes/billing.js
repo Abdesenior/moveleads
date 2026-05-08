@@ -78,19 +78,15 @@ router.post('/create-checkout-session', auth, async (req, res) => {
 
     let session;
     if (embedded) {
-      // Stripe Embedded Checkout — UI mounts inside our modal, redirects to return_url after payment.
-      // ui_mode must be 'embedded_page' to pair with the client's
-      // stripe.createEmbeddedCheckoutPage() call. That value requires
-      // Stripe API version 2026-03-25.dahlia — pinned per-request so the
-      // rest of our integration keeps its default version.
-      session = await stripe.checkout.sessions.create(
-        {
-          ...baseConfig,
-          ui_mode: 'embedded_page',
-          return_url: `${clientUrl}/dashboard/leads?onboarding=success&session_id={CHECKOUT_SESSION_ID}`,
-        },
-        { apiVersion: '2026-03-25.dahlia' }
-      );
+      // Stripe Embedded Checkout — UI mounts inside our modal, redirects to
+      // return_url after payment. ui_mode 'embedded_page' pairs with the
+      // client's stripe.createEmbeddedCheckoutPage() call and is supported
+      // by the Stripe Node SDK's default API version (dahlia release).
+      session = await stripe.checkout.sessions.create({
+        ...baseConfig,
+        ui_mode: 'embedded_page',
+        return_url: `${clientUrl}/dashboard/leads?onboarding=success&session_id={CHECKOUT_SESSION_ID}`,
+      });
       return res.json({
         clientSecret: session.client_secret,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
