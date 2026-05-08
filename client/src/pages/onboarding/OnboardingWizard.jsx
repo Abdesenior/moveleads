@@ -1044,72 +1044,149 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
   const stripeCheckoutRef = useRef(null);
 
   async function handleActivate() {
+    // Verbose, label-prefixed logs so we can read the exact failure point
+    // from the browser console. (1) Activate clicked.
+    console.log('[Activate] click — tier:', tier);
+
+    // (2) Token presence before fetch.
+    const token = localStorage.getItem('token') || '';
+    console.log('[Activate] token present:', !!token, 'length:', token.length);
+
     setPhase('loading');
     setErrMsg('');
     setCheckoutReady(false);
-    try {
-      const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-      if (!pubKey) {
-        throw new Error('Checkout misconfigured (missing publishable key). Contact support.');
-      }
 
-      const res = await fetch(`${API_URL}/billing/create-checkout-session`, {
+    const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    console.log('[Activate] pubKey present:', !!pubKey, 'prefix:', pubKey ? pubKey.slice(0, 12) : '(missing)');
+    if (!pubKey) {
+      setErrMsg('Checkout misconfigured (missing publishable key). Contact support.');
+      setPhase('error');
+      return;
+    }
+
+    // (3) Immediately before POST.
+    const url = `${API_URL}/billing/create-checkout-session`;
+    const body = { amount: tier, embedded: true };
+    console.log('[Activate] POST →', url, 'body:', body);
+
+    let res;
+    try {
+      res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-auth-token': localStorage.getItem('token') || '',
+          'x-auth-token': token,
         },
-        body: JSON.stringify({ amount: tier, embedded: true }),
+        body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!data?.clientSecret) {
-        throw new Error(data?.msg || 'Could not start checkout');
-      }
+    } catch (fetchErr) {
+      // (11) catch with console.error.
+      console.error('[Activate] fetch threw (network/CORS/abort):', fetchErr);
+      setErrMsg(fetchErr?.message || 'Network error contacting checkout server');
+      setPhase('error');
+      return;
+    }
+    // (4) Immediately after POST.
+    console.log('[Activate] POST returned. ok:', res.ok);
+    // (5) Response status.
+    console.log('[Activate] response status:', res.status, res.statusText);
 
-      const stripe = await loadStripe(pubKey);
-      if (!stripe) throw new Error('Stripe failed to initialize');
+    let data;
+    try {
+      data = await res.json();
+    } catch (jsonErr) {
+      console.error('[Activate] response not JSON:', jsonErr);
+      setErrMsg(`Server returned a non-JSON response (status ${res.status}).`);
+      setPhase('error');
+      return;
+    }
+    // (6) Response JSON.
+    console.log('[Activate] response JSON:', data);
 
-      // Stripe.js v9 removed initEmbeddedCheckout in favor of
-      // createEmbeddedCheckoutPage. We call ONLY the new method — falling
-      // back to the legacy name lands on Stripe's throwing stub.
-      if (typeof stripe.createEmbeddedCheckoutPage !== 'function') {
-        throw new Error('Stripe Embedded Checkout API not available. Try refreshing the page.');
-      }
-      // New API expects fetchClientSecret as a function returning a Promise<string>.
-      // Wrapping the already-fetched secret keeps the same single-session shape.
-      const checkout = await stripe.createEmbeddedCheckoutPage({
+    if (!res.ok || !data?.clientSecret) {
+      console.error('[Activate] server rejected or missing clientSecret. status:', res.status, 'body:', data);
+      setErrMsg(data?.msg || `Could not start checkout (status ${res.status}).`);
+      setPhase('error');
+      return;
+    }
+
+    // (7) Before loadStripe.
+    console.log('[Activate] calling loadStripe(...)');
+    let stripe;
+    try {
+      stripe = await loadStripe(pubKey);
+    } catch (loadErr) {
+      console.error('[Activate] loadStripe threw:', loadErr);
+      setErrMsg('Could not load Stripe.js. Check your network or extensions.');
+      setPhase('error');
+      return;
+    }
+    // (8) After loadStripe.
+    console.log('[Activate] loadStripe returned. stripe is null?', stripe === null);
+    if (!stripe) {
+      setErrMsg('Stripe failed to initialize.');
+      setPhase('error');
+      return;
+    }
+    if (typeof stripe.createEmbeddedCheckoutPage !== 'function') {
+      console.error('[Activate] createEmbeddedCheckoutPage missing on stripe instance. Available keys:', Object.keys(stripe));
+      setErrMsg('Stripe Embedded Checkout API not available. Try a hard refresh.');
+      setPhase('error');
+      return;
+    }
+
+    // (9) Before createEmbeddedCheckoutPage.
+    console.log('[Activate] calling stripe.createEmbeddedCheckoutPage(...) with clientSecret prefix:', String(data.clientSecret).slice(0, 12));
+    let checkout;
+    try {
+      checkout = await stripe.createEmbeddedCheckoutPage({
         fetchClientSecret: async () => data.clientSecret,
       });
-      stripeCheckoutRef.current = checkout;
-      setPhase('checkout');
-      // Safety net: always reveal the iframe after at most 8s so the user is
-      // never stuck on the spinner if mount() throws inside a setTimeout (its
-      // throw can't escape to the outer try/catch).
-      const safetyTimer = setTimeout(() => setCheckoutReady(true), 8000);
-      setTimeout(() => {
-        if (!checkoutMountRef.current) return;
-        try {
-          checkout.mount(checkoutMountRef.current);
-          // Mount succeeded — hide spinner after ~1.2s once Stripe paints.
-          setTimeout(() => {
-            clearTimeout(safetyTimer);
-            setCheckoutReady(true);
-          }, 1200);
-        } catch (mountErr) {
-          console.error('[ActivationStep] mount() failed', mountErr);
-          clearTimeout(safetyTimer);
-          setErrMsg(mountErr?.message || 'Could not display checkout');
-          setPhase('error');
-        }
-      }, 0);
-    } catch (err) {
-      console.error('[ActivationStep] checkout failed', err);
-      setErrMsg(err.message || 'Could not start checkout');
+    } catch (createErr) {
+      console.error('[Activate] createEmbeddedCheckoutPage threw:', createErr);
+      setErrMsg(createErr?.message || 'Could not initialize secure checkout.');
       setPhase('error');
+      return;
     }
+    console.log('[Activate] createEmbeddedCheckoutPage returned. checkout truthy?', !!checkout);
+
+    stripeCheckoutRef.current = checkout;
+    setPhase('checkout');
+    // Actual mount happens in the effect below — that way we know React has
+    // rendered the new phase markup and checkoutMountRef.current is real.
   }
 
-  // Clean up Stripe checkout on unmount
+  // Mount the embedded checkout once we're in the 'checkout' phase AND React
+  // has committed the new DOM (so checkoutMountRef.current is non-null).
+  // No setTimeout / AbortController / preemptive route changes here —
+  // anything that could unmount the container before the POST finishes was
+  // explicitly removed.
+  useEffect(() => {
+    if (phase !== 'checkout') return;
+    const checkout = stripeCheckoutRef.current;
+    const target = checkoutMountRef.current;
+    if (!checkout || !target) {
+      console.error('[Activate] mount effect ran but refs missing:', { hasCheckout: !!checkout, hasTarget: !!target });
+      return;
+    }
+    // (10) Before mount.
+    console.log('[Activate] mounting checkout into DOM target');
+    try {
+      checkout.mount(target);
+      console.log('[Activate] mount() returned');
+    } catch (mountErr) {
+      console.error('[Activate] mount() threw:', mountErr);
+      setErrMsg(mountErr?.message || 'Could not display checkout.');
+      setPhase('error');
+      return;
+    }
+    // Reveal the iframe after a short paint window. Cleanup on phase change
+    // so we never call setState after the screen unmounts.
+    const t = setTimeout(() => setCheckoutReady(true), 1200);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  // Destroy the embedded checkout on unmount so we don't leak the iframe.
   useEffect(() => {
     return () => {
       if (stripeCheckoutRef.current) {
