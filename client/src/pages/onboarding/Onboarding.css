@@ -1,0 +1,253 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* All styles scoped under .onboarding-wizard so they don't leak */
+.onboarding-wizard {
+  position: fixed; inset: 0; z-index: 9999;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+.ow-blur {
+  position: absolute; inset: 0;
+  background: rgba(7, 17, 31, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.ow-modal {
+  position: relative;
+  max-width: 720px; width: calc(100% - 32px);
+  max-height: calc(100vh - 32px);
+  margin: 16px auto;
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+.ow-progress {
+  height: 4px; background: #e2e8f0;
+  position: relative;
+}
+.ow-progress-fill {
+  height: 100%; background: linear-gradient(90deg, #ff6a14, #fb923c);
+  transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ow-progress-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #94a3b8; padding: 12px 28px 0;
+}
+
+.ow-body {
+  padding: 22px 28px 28px;
+  overflow-y: auto;
+}
+
+.ow-h1 {
+  font-size: 26px; font-weight: 800; letter-spacing: -0.02em;
+  color: #0f172a; margin: 0 0 6px; line-height: 1.2;
+}
+.ow-sub {
+  font-size: 15px; color: #475569; line-height: 1.5; margin: 0 0 22px;
+}
+
+.ow-field { display: block; margin-bottom: 18px; }
+.ow-label {
+  display: block; font-size: 13px; font-weight: 700; color: #0f172a;
+  margin-bottom: 8px; letter-spacing: -0.005em;
+}
+.ow-input {
+  width: 100%; height: 48px; padding: 0 14px;
+  border: 1.5px solid #e2e8f0; border-radius: 12px;
+  font-size: 15px; font-weight: 500; color: #0f172a;
+  background: #fff;
+  outline: none; transition: border-color 160ms ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.ow-input:focus { border-color: #ff6a14; }
+
+.ow-cards {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
+.ow-card {
+  padding: 14px 16px;
+  border: 1.5px solid #e2e8f0; border-radius: 12px;
+  background: #fff; cursor: pointer; text-align: left;
+  font-family: inherit; font-size: 14px; font-weight: 600; color: #0f172a;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.ow-card:hover { border-color: rgba(255, 106, 20, 0.45); }
+.ow-card.active {
+  border-color: #ff6a14; background: rgba(255, 106, 20, 0.06);
+}
+
+.ow-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.ow-chip {
+  padding: 8px 14px; border-radius: 999px;
+  border: 1.5px solid #e2e8f0; background: #fff;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: #0f172a;
+  cursor: pointer; transition: all 160ms ease;
+}
+.ow-chip:hover { border-color: rgba(255, 106, 20, 0.4); }
+.ow-chip.active {
+  border-color: #ff6a14; background: rgba(255, 106, 20, 0.08);
+  color: #ea580c;
+}
+
+.ow-toggle {
+  display: inline-flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none;
+  background: none; border: none; padding: 0;
+  font-family: inherit;
+}
+.ow-toggle-track {
+  width: 44px; height: 26px; border-radius: 999px;
+  background: #cbd5e1; position: relative;
+  transition: background 160ms ease;
+  display: inline-block;
+}
+.ow-toggle-track::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: transform 160ms ease;
+}
+.ow-toggle.active .ow-toggle-track { background: #ff6a14; }
+.ow-toggle.active .ow-toggle-track::after { transform: translateX(18px); }
+
+.ow-footer {
+  padding: 18px 28px;
+  border-top: 1px solid #e2e8f0;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #f8fafc;
+}
+.ow-back {
+  background: none; border: none;
+  color: #475569; font-size: 14px; font-weight: 600;
+  cursor: pointer; padding: 8px 0;
+  font-family: inherit;
+}
+.ow-back:hover { color: #0f172a; }
+.ow-next {
+  background: #ff6a14; color: #fff;
+  border: none; height: 48px; padding: 0 22px;
+  border-radius: 12px;
+  font-family: inherit; font-size: 15px; font-weight: 800; letter-spacing: -0.005em;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 26px rgba(255, 106, 20, 0.28);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.ow-next:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.22) inset, 0 14px 32px rgba(255, 106, 20, 0.36);
+}
+.ow-next:disabled {
+  background: #e2e8f0; color: #94a3b8; cursor: not-allowed; box-shadow: none;
+}
+
+/* Activation screen styling */
+.ow-activate {
+  background: #07111f; color: #fff;
+  margin: 18px 0 0;
+  padding: 28px;
+  border-radius: 16px;
+}
+.ow-activate-pill {
+  display: inline-flex; align-items: center;
+  background: rgba(255, 106, 20, 0.16);
+  border: 1px solid rgba(255, 106, 20, 0.4);
+  color: #fdba74;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 11px; border-radius: 999px;
+  margin-bottom: 18px;
+}
+.ow-activate-bonus {
+  display: inline-flex; align-items: flex-start; gap: 8px;
+  margin-bottom: 4px;
+}
+.ow-activate-bonus-currency {
+  font-size: 24px; font-weight: 700; color: #ff6a14;
+  margin-top: 6px;
+}
+.ow-activate-bonus-num {
+  font-size: 64px; font-weight: 900; color: #ff6a14;
+  line-height: 1; letter-spacing: -0.04em;
+}
+.ow-activate-bonus-tag {
+  align-self: center; margin-top: 6px;
+  background: linear-gradient(180deg, #fb923c, #f97316);
+  color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.12em;
+  padding: 5px 9px; border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(249, 115, 22, 0.35);
+}
+.ow-activate-label { color: #cbd5e1; font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+.ow-activate-plus { color: #94a3b8; font-size: 13px; font-weight: 500; margin: 0 0 22px; }
+.ow-activate-cta {
+  width: 100%; height: 56px;
+  background: #ff6a14; color: #fff;
+  border: none; border-radius: 14px;
+  font-family: inherit; font-size: 16px; font-weight: 800; letter-spacing: -0.005em;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(255, 106, 20, 0.35);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+}
+.ow-activate-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(255, 106, 20, 0.44); }
+.ow-activate-cta:disabled { opacity: 0.7; cursor: wait; }
+.ow-activate-trust {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 14px; justify-content: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.ow-activate-urgency {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 16px;
+  font-size: 13px; color: #fdba74; font-weight: 600;
+}
+.ow-activate-urgency-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #ff6a14;
+  animation: owSoftPulse 2s ease-in-out infinite;
+}
+@keyframes owSoftPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+/* Setup summary split */
+.ow-summary-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.ow-summary-recap {
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 14px; padding: 18px;
+}
+.ow-summary-recap-h {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #94a3b8; margin: 0 0 10px;
+}
+.ow-summary-recap-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.ow-summary-recap-row + .ow-summary-recap-row { border-top: 1px solid #eef2f7; }
+.ow-summary-recap-label { color: #64748b; }
+.ow-summary-recap-value { color: #0f172a; font-weight: 600; text-align: right; }
+
+@media (min-width: 720px) {
+  .ow-summary-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 600px) {
+  .ow-modal { width: 100%; max-height: 100vh; margin: 0; border-radius: 0; }
+  .ow-h1 { font-size: 22px; }
+  .ow-cards { grid-template-columns: 1fr; }
+  .ow-activate-bonus-num { font-size: 56px; }
+}
