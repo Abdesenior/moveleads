@@ -220,6 +220,24 @@
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: #f8fafc;
 }
+.ow-footer-left {
+  display: flex; align-items: center; gap: 16px;
+  min-width: 0;
+}
+.ow-skip-link {
+  background: none; border: none; padding: 8px 0;
+  font-family: inherit;
+  font-size: 13px; font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  letter-spacing: -0.005em;
+  transition: color 160ms ease;
+}
+.ow-skip-link:hover { color: #ea580c; }
+@media (max-width: 600px) {
+  .ow-footer-left { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .ow-skip-link { font-size: 12px; padding: 4px 0; }
+}
 .ow-back {
   background: none; border: none;
   color: #475569; font-size: 14px; font-weight: 600;

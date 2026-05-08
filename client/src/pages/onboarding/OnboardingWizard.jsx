@@ -228,6 +228,43 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     if (step > 1 && step <= TOTAL_STEPS) setStep(step - 1);
   }
 
+  // Skip-with-defaults — only allowed on Step 2 (Service Types) and Step 4
+  // (Request Flow). Applies broad defaults the user can edit later from the
+  // dashboard; preserves the conversion path for movers who want to rush.
+  async function skipWithDefaults() {
+    let patched = answers;
+    if (step === 2) {
+      patched = { ...patched, moveTypes: patched.moveTypes?.length ? patched.moveTypes : ['home', 'apartment'] };
+    } else if (step === 4) {
+      patched = {
+        ...patched,
+        dailyRequestCapacity: patched.dailyRequestCapacity || '4-7',
+        preferredTiming: patched.preferredTiming?.length ? patched.preferredTiming : ['any'],
+      };
+    } else {
+      return;
+    }
+    setAnswers(patched);
+    // Save with the patched answers immediately, then advance.
+    try {
+      const dispatchHours = {};
+      for (const d of patched.dispatchDays || []) {
+        dispatchHours[d] = { open: patched.dispatchHoursOpen, close: patched.dispatchHoursClose };
+      }
+      await fetch(`${API_URL}/onboarding/save-step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
+        body: JSON.stringify({
+          step,
+          answers: { ...patched, dispatchHours },
+        }),
+      });
+    } catch (err) { /* swallow — UI can advance regardless */ }
+    if (step < TOTAL_STEPS) setStep(step + 1);
+    else if (step === TOTAL_STEPS) setStep(6);
+  }
+  const canSkipStep = step === 2 || step === 4;
+
   // Soft-skip — only used from activation step ("I'll activate later")
   async function dismissSkip() {
     try {
@@ -296,10 +333,21 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
         {step <= TOTAL_STEPS && (
           <div className="ow-footer">
-            {step > 1
-              ? <button className="ow-back" onClick={back} type="button">← Back</button>
-              : <span />
-            }
+            <div className="ow-footer-left">
+              {step > 1 && (
+                <button className="ow-back" onClick={back} type="button">← Back</button>
+              )}
+              {canSkipStep && (
+                <button
+                  type="button"
+                  className="ow-skip-link"
+                  onClick={skipWithDefaults}
+                  title="Apply defaults and continue — you can change this later from your dashboard."
+                >
+                  Customize later from your dashboard →
+                </button>
+              )}
+            </div>
             <button
               className="ow-next"
               onClick={next}
