@@ -111,6 +111,7 @@ export default function DashboardLayout({ children }) {
       <ImpersonationBanner />
       <VerificationBanner />
 
+      <div className="dashboard-shell">
       {/* Mobile hamburger */}
         <button
           type="button"
@@ -220,6 +221,7 @@ export default function DashboardLayout({ children }) {
       <main className="dashboard-main">
         {children}
       </main>
+      </div>
 
       {showWizard && <OnboardingWizard onClose={handleCloseWizard} />}
       {showActivationSuccess && <ActivationSuccessModal onClose={handleCloseActivationSuccess} />}

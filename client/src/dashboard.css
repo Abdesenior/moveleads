@@ -5,9 +5,18 @@
 /* ── Layout Shell ── */
 .dashboard-layout {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   background: #f8fafc;
   font-family: var(--font-body);
+}
+
+/* Inner row: sidebar + main. Banners render above this row. */
+.dashboard-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── White Sidebar ── */
