@@ -628,4 +628,79 @@ async function sendAdminNotification({ subject, html }) {
   }
 }
 
-module.exports = { sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail, sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail, sendAuctionWonEmail, sendAdminLeadNotification, sendAdminNotification };
+// ── Onboarding recovery emails ─────────────────────────────────────────────
+async function sendOnboardingRecovery12h(user) {
+  const html = `
+    <!DOCTYPE html>
+    <html><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:24px; color:#0f172a;">
+      <div style="max-width:560px; margin:0 auto; background:#fff; border-radius:14px; padding:32px; border:1px solid #e2e8f0;">
+        <p style="color:#ff6a14; font-size:11px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; margin:0 0 16px;">FIRST-TIME MOVER BONUS</p>
+        <h1 style="font-size:28px; font-weight:800; line-height:1.2; margin:0 0 12px;">Hey ${user.companyName || 'there'} — your $50 onboarding credit is still here.</h1>
+        <p style="color:#475569; font-size:15px; line-height:1.6;">You finished setting up your market coverage but didn't activate your balance. Verified move requests come into our system throughout the day — activate to start unlocking them in your service area.</p>
+        <p style="margin:28px 0;">
+          <a href="https://moveleads.cloud/dashboard?activate=1" style="display:inline-block; background:#ff6a14; color:#fff; padding:14px 26px; border-radius:12px; font-weight:800; text-decoration:none;">Claim my $50 credit →</a>
+        </p>
+        <p style="color:#94a3b8; font-size:13px; line-height:1.6;">Onboarding spots are limited per service area. No subscription. No contract. Credits never expire.</p>
+      </div>
+    </body></html>
+  `;
+  return getResend().emails.send({
+    from: 'MoveLeads <noreply@moveleads.cloud>',
+    to: user.email,
+    subject: `Your $50 onboarding credit is ready, ${user.companyName || 'mover'}`,
+    html,
+  });
+}
+
+async function sendOnboardingRecovery24h(user) {
+  const primary = user.onboarding?.answers?.primaryMarket || 'your area';
+  const html = `
+    <!DOCTYPE html>
+    <html><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:24px; color:#0f172a;">
+      <div style="max-width:560px; margin:0 auto; background:#fff; border-radius:14px; padding:32px; border:1px solid #e2e8f0;">
+        <p style="color:#ff6a14; font-size:11px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; margin:0 0 16px;">LIMITED ONBOARDING ACCESS</p>
+        <h1 style="font-size:26px; font-weight:800; line-height:1.2; margin:0 0 12px;">Movers in your area are unlocking jobs.</h1>
+        <p style="color:#475569; font-size:15px; line-height:1.6;">Onboarding remains open in your service area. Claim your free $50 unlock credit before spots fill up.</p>
+        <p style="margin:28px 0;">
+          <a href="https://moveleads.cloud/dashboard?activate=1" style="display:inline-block; background:#ff6a14; color:#fff; padding:14px 26px; border-radius:12px; font-weight:800; text-decoration:none;">Activate my $150 balance →</a>
+        </p>
+        <p style="color:#94a3b8; font-size:13px; line-height:1.6;">Refundable unused balance. No subscription. Credits never expire.</p>
+      </div>
+    </body></html>
+  `;
+  return getResend().emails.send({
+    from: 'MoveLeads <noreply@moveleads.cloud>',
+    to: user.email,
+    subject: `Movers in ${primary} are unlocking jobs`,
+    html,
+  });
+}
+
+async function sendOnboardingRecovery72h(user) {
+  const html = `
+    <!DOCTYPE html>
+    <html><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f7fa; padding:24px; color:#0f172a;">
+      <div style="max-width:560px; margin:0 auto; background:#fff; border-radius:14px; padding:32px; border:1px solid #e2e8f0;">
+        <h1 style="font-size:26px; font-weight:800; line-height:1.2; margin:0 0 12px;">Last call on your onboarding bonus.</h1>
+        <p style="color:#475569; font-size:15px; line-height:1.6;">Want help configuring your market or have questions before activating? Reply to this email and a partner rep will help directly.</p>
+        <p style="margin:28px 0;">
+          <a href="https://moveleads.cloud/dashboard?activate=1" style="display:inline-block; background:#ff6a14; color:#fff; padding:14px 26px; border-radius:12px; font-weight:800; text-decoration:none;">Activate my $150 balance →</a>
+        </p>
+        <p style="color:#94a3b8; font-size:13px; line-height:1.6;">Or reply to this email — partner reps Mon–Sat 8am–8pm CT.</p>
+      </div>
+    </body></html>
+  `;
+  return getResend().emails.send({
+    from: 'MoveLeads Partner Team <noreply@moveleads.cloud>',
+    to: user.email,
+    subject: `Need help activating, ${user.companyName || 'mover'}?`,
+    html,
+  });
+}
+
+module.exports = {
+  sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail,
+  sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail,
+  sendAuctionWonEmail, sendAdminLeadNotification, sendAdminNotification,
+  sendOnboardingRecovery12h, sendOnboardingRecovery24h, sendOnboardingRecovery72h,
+};
