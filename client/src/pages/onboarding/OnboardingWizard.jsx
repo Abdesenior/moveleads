@@ -1078,13 +1078,24 @@ function ScreenActivation({ API_URL, onSkip, answers }) {
       const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret: data.clientSecret });
       stripeCheckoutRef.current = checkout;
       setPhase('checkout');
-      // Mount on next tick when DOM node exists. Hold the spinner for ~1.2s
-      // after mount() so the iframe has visible time to paint — Stripe's
-      // embed has no public "ready" callback, so we time-bound the overlay.
+      // Safety net: always reveal the iframe after at most 8s so the user is
+      // never stuck on the spinner if mount() throws inside a setTimeout (its
+      // throw can't escape to the outer try/catch).
+      const safetyTimer = setTimeout(() => setCheckoutReady(true), 8000);
       setTimeout(() => {
-        if (checkoutMountRef.current) {
+        if (!checkoutMountRef.current) return;
+        try {
           checkout.mount(checkoutMountRef.current);
-          setTimeout(() => setCheckoutReady(true), 1200);
+          // Mount succeeded — hide spinner after ~1.2s once Stripe paints.
+          setTimeout(() => {
+            clearTimeout(safetyTimer);
+            setCheckoutReady(true);
+          }, 1200);
+        } catch (mountErr) {
+          console.error('[ActivationStep] mount() failed', mountErr);
+          clearTimeout(safetyTimer);
+          setErrMsg(mountErr?.message || 'Could not display checkout');
+          setPhase('error');
         }
       }, 0);
     } catch (err) {
