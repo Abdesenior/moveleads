@@ -31,7 +31,35 @@ const UserSchema = new mongoose.Schema({
   emailVerificationExpires: { type: Date },
   // ── Password reset ───────────────────────────────────────────────────────
   resetPasswordToken: { type: String },
-  resetPasswordExpires: { type: Date }
+  resetPasswordExpires: { type: Date },
+  // ──────────────────────────────────────────────────────────────
+  // Partner activation / onboarding state
+  // ──────────────────────────────────────────────────────────────
+  onboarding: {
+    complete: { type: Boolean, default: false },
+    skippedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    currentStep: { type: Number, default: 0 },     // 0..5 (0=not started, 5=activation pending)
+    bonusClaimedAt: { type: Date, default: null }, // set on first-purchase webhook
+    recovery: {
+      sent12h: { type: Boolean, default: false },
+      sent24h: { type: Boolean, default: false },
+      sent72h: { type: Boolean, default: false },
+    },
+    answers: {
+      primaryMarket:       { type: String, default: '' },           // "Houston, TX"
+      coveragePreference:  { type: String, default: '' },           // 'local'|'regional'|'longDistance'|'nationwide'
+      additionalMarkets:   { type: [String], default: [] },
+      moveTypes:           { type: [String], default: [] },         // ['apartment','home','office','longDistance','emergency','packing','laborOnly','storage']
+      avoidMoveTypes:      { type: [String], default: [] },
+      alertChannels:       { type: [String], default: [] },         // priority-ordered list of 'sms'|'call'|'email'
+      urgentCallEnabled:   { type: Boolean, default: false },
+      dispatchHours:       { type: mongoose.Schema.Types.Mixed, default: {} }, // { mon: {open:'07:00',close:'19:00'}, ... }
+      dailyRequestCapacity:{ type: String, default: '' },           // '1-3'|'4-7'|'8-15'|'15+'
+      preferredTiming:     { type: [String], default: [] },         // ['sameDay','within7Days','thisMonth','any']
+      crewCount:           { type: String, default: '' },           // '1'|'2-3'|'4-6'|'7+'
+    },
+  },
 });
 
 module.exports = mongoose.model('user', UserSchema);
