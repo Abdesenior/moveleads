@@ -202,7 +202,18 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
               </div>
             )}
 
-            {isAuction ? (
+            {balance < displayPrice ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button
+                  onClick={() => { window.location.href = '/dashboard/billing'; }}
+                  style={{ width: '100%', background: '#ff6a14', color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 800, cursor: 'pointer', boxShadow: '0 10px 26px rgba(255, 106, 20, 0.28)' }}>
+                  🔒 Activate balance to unlock →
+                </button>
+                <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
+                  Add funds (or claim your $50 onboarding credit) to unlock this lead.
+                </p>
+              </div>
+            ) : isAuction ? (
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   onClick={() => { onClose(); onBid(lead); }}

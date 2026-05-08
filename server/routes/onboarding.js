@@ -5,9 +5,10 @@ const User = require('../models/User');
 
 // Whitelisted answer keys to prevent setting arbitrary fields
 const ANSWER_KEYS = [
-  'primaryMarket', 'coveragePreference', 'additionalMarkets',
+  'primaryMarket', 'coveragePreference', 'coveragePreferences', 'additionalMarkets',
   'moveTypes', 'avoidMoveTypes',
-  'alertChannels', 'urgentCallEnabled', 'dispatchHours',
+  'alertChannels', 'urgentCallEnabled',
+  'dispatchHoursMode', 'dispatchDays', 'dispatchHoursOpen', 'dispatchHoursClose', 'dispatchHours',
   'dailyRequestCapacity', 'preferredTiming', 'crewCount',
 ];
 

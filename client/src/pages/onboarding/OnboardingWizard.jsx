@@ -60,18 +60,20 @@ const TRUST_TIPS = [
 ];
 
 export default function OnboardingWizard({ onClose }) {
-  const { API_URL, refreshUser } = useContext(AuthContext);
+  const { API_URL, refreshUser, user } = useContext(AuthContext);
   const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState({
     primaryMarket: '',
-    coveragePreference: '',
+    coveragePreferences: [],
     additionalMarkets: [],
     moveTypes: [],
     alertChannels: [],
     urgentCallEnabled: false,
+    dispatchHoursMode: 'default', // 'default' | 'advanced'
     dispatchDays: [],
     dispatchHoursOpen: '08:00',
     dispatchHoursClose: '19:00',
+    dispatchHoursPerDay: {}, // { mon: {open, close}, ... }
     dailyRequestCapacity: '',
     preferredTiming: [],
   });
@@ -90,24 +92,29 @@ export default function OnboardingWizard({ onClose }) {
           setStep(ob.currentStep);
         }
         if (ob.answers) {
-          // Migrate old per-day dispatchHours to new shape if present
           const a = ob.answers;
-          const dispatchDays = Array.isArray(a.dispatchDays)
+          // Migrate single coveragePreference → coveragePreferences[]
+          let coveragePrefs = Array.isArray(a.coveragePreferences) && a.coveragePreferences.length
+            ? a.coveragePreferences
+            : (a.coveragePreference ? [a.coveragePreference] : []);
+          // Build per-day hours from legacy shape if present
+          const perDay = (a.dispatchHours && typeof a.dispatchHours === 'object') ? a.dispatchHours : {};
+          const dispatchDays = Array.isArray(a.dispatchDays) && a.dispatchDays.length
             ? a.dispatchDays
-            : (a.dispatchHours && typeof a.dispatchHours === 'object'
-                ? Object.keys(a.dispatchHours)
-                : []);
+            : Object.keys(perDay);
           setAnswers(prev => ({
             ...prev,
             primaryMarket:        a.primaryMarket        ?? prev.primaryMarket,
-            coveragePreference:   a.coveragePreference   ?? prev.coveragePreference,
+            coveragePreferences:  coveragePrefs,
             additionalMarkets:    a.additionalMarkets    ?? prev.additionalMarkets,
             moveTypes:            a.moveTypes            ?? prev.moveTypes,
             alertChannels:        a.alertChannels        ?? prev.alertChannels,
             urgentCallEnabled:    a.urgentCallEnabled    ?? prev.urgentCallEnabled,
+            dispatchHoursMode:    a.dispatchHoursMode    || prev.dispatchHoursMode,
             dispatchDays,
             dispatchHoursOpen:    a.dispatchHoursOpen    ?? prev.dispatchHoursOpen,
             dispatchHoursClose:   a.dispatchHoursClose   ?? prev.dispatchHoursClose,
+            dispatchHoursPerDay:  perDay,
             dailyRequestCapacity: a.dailyRequestCapacity ?? prev.dailyRequestCapacity,
             preferredTiming:      a.preferredTiming      ?? prev.preferredTiming,
           }));
@@ -131,17 +138,41 @@ export default function OnboardingWizard({ onClose }) {
 
   async function saveStep(stepNum) {
     try {
-      // Server expects dispatchHours as {dayId: {open, close}}; build it from new shape
+      // Build dispatchHours object based on mode for backend storage
       const dispatchHours = {};
-      for (const d of answers.dispatchDays) {
-        dispatchHours[d] = { open: answers.dispatchHoursOpen, close: answers.dispatchHoursClose };
+      if (answers.dispatchHoursMode === 'advanced') {
+        for (const d of answers.dispatchDays) {
+          const perDay = answers.dispatchHoursPerDay[d] || {};
+          dispatchHours[d] = {
+            open: perDay.open || answers.dispatchHoursOpen,
+            close: perDay.close || answers.dispatchHoursClose,
+          };
+        }
+      } else {
+        for (const d of answers.dispatchDays) {
+          dispatchHours[d] = { open: answers.dispatchHoursOpen, close: answers.dispatchHoursClose };
+        }
       }
       await fetch(`${API_URL}/onboarding/save-step`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
         body: JSON.stringify({
           step: stepNum,
-          answers: { ...answers, dispatchHours },
+          answers: {
+            primaryMarket: answers.primaryMarket,
+            coveragePreferences: answers.coveragePreferences,
+            additionalMarkets: answers.additionalMarkets,
+            moveTypes: answers.moveTypes,
+            alertChannels: answers.alertChannels,
+            urgentCallEnabled: answers.urgentCallEnabled,
+            dispatchHoursMode: answers.dispatchHoursMode,
+            dispatchDays: answers.dispatchDays,
+            dispatchHoursOpen: answers.dispatchHoursOpen,
+            dispatchHoursClose: answers.dispatchHoursClose,
+            dispatchHours,
+            dailyRequestCapacity: answers.dailyRequestCapacity,
+            preferredTiming: answers.preferredTiming,
+          },
         }),
       });
     } catch (err) {
@@ -159,6 +190,7 @@ export default function OnboardingWizard({ onClose }) {
     if (step > 1 && step <= TOTAL_STEPS) setStep(step - 1);
   }
 
+  // Soft-skip — only used from activation step ("I'll activate later")
   async function dismissSkip() {
     try {
       await fetch(`${API_URL}/onboarding/skip`, {
@@ -170,10 +202,8 @@ export default function OnboardingWizard({ onClose }) {
     onClose && onClose();
   }
 
-  // After processing screen, advance to activation
   function onProcessingDone() { setStep(7); }
 
-  // After successful activation
   async function onActivationDone() {
     if (refreshUser) await refreshUser();
     setStep(8);
@@ -200,7 +230,7 @@ export default function OnboardingWizard({ onClose }) {
         )}
 
         <div className="ow-body">
-          {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
+          {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} companyName={user?.companyName} />}
           {step === 2 && <ScreenServiceTypes answers={answers} toggleInArray={toggleInArray} />}
           {step === 3 && <ScreenAlertRouting answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
           {step === 4 && <ScreenRequestFlow answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
@@ -214,7 +244,7 @@ export default function OnboardingWizard({ onClose }) {
           <div className="ow-footer">
             {step > 1
               ? <button className="ow-back" onClick={back} type="button">← Back</button>
-              : <button className="ow-back" onClick={dismissSkip} type="button">Skip setup</button>
+              : <span />
             }
             <button
               className="ow-next"
@@ -232,7 +262,7 @@ export default function OnboardingWizard({ onClose }) {
 }
 
 function isStepValid(step, a) {
-  if (step === 1) return !!a.primaryMarket && !!a.coveragePreference;
+  if (step === 1) return !!a.primaryMarket && a.coveragePreferences && a.coveragePreferences.length > 0;
   if (step === 2) return a.moveTypes && a.moveTypes.length > 0;
   if (step === 3) return a.alertChannels && a.alertChannels.length > 0;
   if (step === 4) return !!a.dailyRequestCapacity;
@@ -241,7 +271,7 @@ function isStepValid(step, a) {
 }
 
 // ── Screen 1: Market coverage ─────────────────────────────────────────────────
-function ScreenMarketCoverage({ answers, setAnswer, toggleInArray }) {
+function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }) {
   const [marketDraft, setMarketDraft] = useState('');
   function commitMarket() {
     const v = marketDraft.trim().replace(/,$/, '');
@@ -260,8 +290,13 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray }) {
     }
   }
 
+  const greeting = companyName
+    ? `Hello ${companyName}, let's set up your request routing so we can match you with the right move opportunities.`
+    : `Welcome — let's set up your request routing so we can match you with the right move opportunities.`;
+
   return (
     <>
+      <p className="ow-greeting">{greeting}</p>
       <h1 className="ow-h1">Where should we send move opportunities?</h1>
       <p className="ow-sub">Set your primary market — we'll only route requests inside your service area.</p>
 
@@ -277,24 +312,33 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray }) {
       </div>
 
       <div className="ow-field">
-        <label className="ow-label">Coverage preference</label>
+        <label className="ow-label">Coverage preference <span className="ow-label-hint">(select all that apply)</span></label>
         <div className="ow-cards">
-          {COVERAGE_OPTIONS.map(opt => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`ow-card${answers.coveragePreference === opt.id ? ' active' : ''}`}
-              onClick={() => setAnswer('coveragePreference', opt.id)}
-            >
-              <div style={{ fontWeight: 700 }}>{opt.label}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
-            </button>
-          ))}
+          {COVERAGE_OPTIONS.map(opt => {
+            const active = answers.coveragePreferences.includes(opt.id);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className={`ow-card${active ? ' active' : ''}`}
+                onClick={() => toggleInArray('coveragePreferences', opt.id)}
+                aria-pressed={active}
+              >
+                <div className="ow-card-row">
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{opt.label}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
+                  </div>
+                  {active && <span className="ow-card-check">✓</span>}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div className="ow-field">
-        <label className="ow-label">Additional markets <span style={{ color: '#94a3b8', fontWeight: 500 }}>(optional)</span></label>
+        <label className="ow-label">Additional markets <span className="ow-label-hint">(optional)</span></label>
         <div className="ow-chip-input">
           {answers.additionalMarkets.map(m => (
             <span key={m} className="ow-input-chip">
@@ -356,6 +400,16 @@ function ScreenServiceTypes({ answers, toggleInArray }) {
 // ── Screen 3: Alert routing ──────────────────────────────────────────────────
 function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
   const isToggleActive = answers.urgentCallEnabled;
+  const isAdvanced = answers.dispatchHoursMode === 'advanced';
+  const setPerDay = (dayId, field, value) => {
+    setAnswer('dispatchHoursPerDay', {
+      ...answers.dispatchHoursPerDay,
+      [dayId]: {
+        open:  field === 'open'  ? value : (answers.dispatchHoursPerDay[dayId]?.open  || answers.dispatchHoursOpen),
+        close: field === 'close' ? value : (answers.dispatchHoursPerDay[dayId]?.close || answers.dispatchHoursClose),
+      },
+    });
+  };
   return (
     <>
       <h1 className="ow-h1">How should we route requests to your team?</h1>
@@ -392,7 +446,7 @@ function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
       </div>
 
       <div className="ow-field">
-        <label className="ow-label">Dispatch days <span style={{ color: '#94a3b8', fontWeight: 500 }}>(optional)</span></label>
+        <label className="ow-label">Dispatch days <span className="ow-label-hint">(optional)</span></label>
         <div className="ow-chips">
           {DAYS.map(d => {
             const active = answers.dispatchDays.includes(d.id);
@@ -413,25 +467,82 @@ function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
 
       {answers.dispatchDays.length > 0 && (
         <div className="ow-field">
-          <label className="ow-label">Dispatch hours</label>
-          <div className="ow-time-range">
-            <input
-              type="time"
-              className="ow-input ow-time-input"
-              value={answers.dispatchHoursOpen}
-              onChange={e => setAnswer('dispatchHoursOpen', e.target.value)}
-              aria-label="Opens at"
-            />
-            <span className="ow-time-sep">to</span>
-            <input
-              type="time"
-              className="ow-input ow-time-input"
-              value={answers.dispatchHoursClose}
-              onChange={e => setAnswer('dispatchHoursClose', e.target.value)}
-              aria-label="Closes at"
-            />
+          <div className="ow-mode-row">
+            <label className="ow-label" style={{ marginBottom: 0 }}>Dispatch hours</label>
+            <div className="ow-mode-tabs" role="tablist" aria-label="Dispatch hours mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={!isAdvanced}
+                className={`ow-mode-tab${!isAdvanced ? ' active' : ''}`}
+                onClick={() => setAnswer('dispatchHoursMode', 'default')}
+              >
+                Same hours
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={isAdvanced}
+                className={`ow-mode-tab${isAdvanced ? ' active' : ''}`}
+                onClick={() => setAnswer('dispatchHoursMode', 'advanced')}
+              >
+                Per day
+              </button>
+            </div>
           </div>
-          <p className="ow-helper">We'll route requests to your team during these hours on selected days.</p>
+
+          {!isAdvanced ? (
+            <>
+              <div className="ow-time-range">
+                <input
+                  type="time"
+                  className="ow-input ow-time-input"
+                  value={answers.dispatchHoursOpen}
+                  onChange={e => setAnswer('dispatchHoursOpen', e.target.value)}
+                  aria-label="Opens at"
+                />
+                <span className="ow-time-sep">to</span>
+                <input
+                  type="time"
+                  className="ow-input ow-time-input"
+                  value={answers.dispatchHoursClose}
+                  onChange={e => setAnswer('dispatchHoursClose', e.target.value)}
+                  aria-label="Closes at"
+                />
+              </div>
+              <p className="ow-helper">We'll route requests to your team during these hours on selected days.</p>
+            </>
+          ) : (
+            <div className="ow-perday">
+              {answers.dispatchDays.map(dayId => {
+                const label = DAYS.find(d => d.id === dayId)?.label || dayId;
+                const perDay = answers.dispatchHoursPerDay[dayId] || {};
+                const open  = perDay.open  ?? answers.dispatchHoursOpen;
+                const close = perDay.close ?? answers.dispatchHoursClose;
+                return (
+                  <div key={dayId} className="ow-perday-row">
+                    <span className="ow-perday-label">{label}</span>
+                    <input
+                      type="time"
+                      className="ow-input ow-time-input"
+                      value={open}
+                      onChange={e => setPerDay(dayId, 'open', e.target.value)}
+                      aria-label={`${label} opens at`}
+                    />
+                    <span className="ow-time-sep">to</span>
+                    <input
+                      type="time"
+                      className="ow-input ow-time-input"
+                      value={close}
+                      onChange={e => setPerDay(dayId, 'close', e.target.value)}
+                      aria-label={`${label} closes at`}
+                    />
+                  </div>
+                );
+              })}
+              <p className="ow-helper">Set unique hours for each dispatch day.</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -495,9 +606,18 @@ function ScreenConfirmSetup({ answers }) {
     .map(id => TIMING_OPTIONS.find(o => o.id === id)?.label).filter(Boolean).join(', ') || '—';
   const dayLabels = answers.dispatchDays
     .map(id => DAYS.find(o => o.id === id)?.label).filter(Boolean).join(' · ') || '—';
-  const dispatchHoursLabel = answers.dispatchDays.length > 0
-    ? `${formatTime12h(answers.dispatchHoursOpen)} – ${formatTime12h(answers.dispatchHoursClose)}`
-    : '—';
+  const coverageLabels = answers.coveragePreferences
+    .map(id => COVERAGE_OPTIONS.find(o => o.id === id)?.label).filter(Boolean).join(', ') || '—';
+
+  let dispatchHoursLabel = '—';
+  if (answers.dispatchDays.length > 0) {
+    if (answers.dispatchHoursMode === 'advanced') {
+      dispatchHoursLabel = 'Custom per day';
+    } else {
+      dispatchHoursLabel = `${formatTime12h(answers.dispatchHoursOpen)} – ${formatTime12h(answers.dispatchHoursClose)}`;
+    }
+  }
+
   return (
     <>
       <h1 className="ow-h1">Confirm your dispatch setup</h1>
@@ -505,16 +625,16 @@ function ScreenConfirmSetup({ answers }) {
 
       <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
         <div className="ow-summary-recap-h">Configured</div>
-        <RecapRow label="Primary market"      value={answers.primaryMarket || '—'} />
-        <RecapRow label="Coverage"            value={COVERAGE_OPTIONS.find(o => o.id === answers.coveragePreference)?.label || '—'} />
-        <RecapRow label="Additional markets"  value={answers.additionalMarkets.join(', ') || '—'} />
-        <RecapRow label="Service types"       value={moveLabels} />
-        <RecapRow label="Alert channels"      value={channelLabels} />
-        <RecapRow label="Urgent call alerts"  value={answers.urgentCallEnabled ? 'On' : 'Off'} />
-        <RecapRow label="Dispatch days"       value={dayLabels} />
-        <RecapRow label="Dispatch hours"      value={dispatchHoursLabel} />
-        <RecapRow label="Daily request alerts" value={answers.dailyRequestCapacity || '—'} />
-        <RecapRow label="Most useful timing"  value={timingLabels} />
+        <RecapRow label="Primary market"        value={answers.primaryMarket || '—'} />
+        <RecapRow label="Coverage"              value={coverageLabels} />
+        <RecapRow label="Additional markets"    value={answers.additionalMarkets.join(', ') || '—'} />
+        <RecapRow label="Service types"         value={moveLabels} />
+        <RecapRow label="Alert channels"        value={channelLabels} />
+        <RecapRow label="Urgent call alerts"    value={answers.urgentCallEnabled ? 'On' : 'Off'} />
+        <RecapRow label="Dispatch days"         value={dayLabels} />
+        <RecapRow label="Dispatch hours"        value={dispatchHoursLabel} />
+        <RecapRow label="Daily request alerts"  value={answers.dailyRequestCapacity || '—'} />
+        <RecapRow label="Most useful timing"    value={timingLabels} />
       </div>
 
       <p className="ow-reassurance">{REASSURANCE}</p>
@@ -539,37 +659,57 @@ function formatTime12h(t) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-// ── Screen 6: Processing (operational checkmarks 3-5s) ───────────────────────
+// ── Screen 6: Processing (5 items, ~5.4s, then transition CTA) ───────────────
 function ScreenProcessing({ onDone }) {
   const items = [
     'Configuring service area',
     'Preparing matching preferences',
     'Enabling alert routing',
-    'Preparing onboarding balance',
+    'Calibrating request flow',
+    'Account preferences set',
   ];
   const [done, setDone] = useState(0);
+  const [phase, setPhase] = useState('working'); // 'working' | 'transition'
   const completedRef = useRef(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setDone(1), 700);
-    const t2 = setTimeout(() => setDone(2), 1500);
-    const t3 = setTimeout(() => setDone(3), 2400);
-    const t4 = setTimeout(() => {
-      setDone(4);
-      // Mark onboarding complete server-side, then advance
+    // Spread to ~5.4 seconds (within 4-7 sec target)
+    const t1 = setTimeout(() => setDone(1), 900);
+    const t2 = setTimeout(() => setDone(2), 1900);
+    const t3 = setTimeout(() => setDone(3), 2900);
+    const t4 = setTimeout(() => setDone(4), 3900);
+    const t5 = setTimeout(() => {
+      setDone(5);
+      // Mark onboarding complete server-side
       fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'x-auth-token': localStorage.getItem('token') || '' },
       }).catch(() => {});
-      setTimeout(() => {
-        if (!completedRef.current) {
-          completedRef.current = true;
-          onDone();
-        }
-      }, 800);
-    }, 3300);
-    return () => { [t1, t2, t3, t4].forEach(clearTimeout); };
-  }, [onDone]);
+    }, 5000);
+    const t6 = setTimeout(() => setPhase('transition'), 5800);
+    return () => { [t1, t2, t3, t4, t5, t6].forEach(clearTimeout); };
+  }, []);
+
+  function handleContinue() {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    onDone();
+  }
+
+  if (phase === 'transition') {
+    return (
+      <div className="ow-processing ow-processing-transition">
+        <div className="ow-success-icon ow-success-icon-sm">✓</div>
+        <h1 className="ow-h1">Your account preferences are set.</h1>
+        <p className="ow-sub" style={{ marginBottom: 18 }}>
+          Claim your <strong style={{ color: '#ea580c' }}>$50 FREE credit</strong> to start moving.
+        </p>
+        <button type="button" className="ow-next" onClick={handleContinue}>
+          Continue to activation →
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="ow-processing">
@@ -593,7 +733,7 @@ function ScreenProcessing({ onDone }) {
   );
 }
 
-// ── Screen 7: Activation (with embedded Stripe checkout) ─────────────────────
+// ── Screen 7: Activation (light theme — native to onboarding modal) ──────────
 function ScreenActivation({ API_URL, onSkip }) {
   const [phase, setPhase] = useState('offer'); // 'offer' | 'loading' | 'checkout' | 'error'
   const [errMsg, setErrMsg] = useState('');
