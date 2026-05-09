@@ -2,11 +2,21 @@ const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
-const { expandAll, regenerateCoverageForUser, VALID_RADII } = require('../utils/coverageExpansion');
+const {
+  expandAll,
+  regenerateCoverageForUser,
+  regenerateCoverageForUser_v2,
+  VALID_RADII,
+  NEAR_BASE_RADIUS_MILES,
+} = require('../utils/coverageExpansion');
+const { suggestPlaces } = require('../utils/placeAutocomplete');
+const zipcodes = require('zipcodes');
 
 // Whitelisted answer keys to prevent setting arbitrary fields
 const ANSWER_KEYS = [
-  // Step 1 — service area / coverage
+  // Step 1 — dispatch base + pickup + delivery (new model)
+  'dispatchBase', 'pickup', 'delivery',
+  // Step 1 — legacy (kept for resume back-compat)
   'primaryMarket', 'coverageRadius', 'additionalMarkets',
   // Step 2 — move preferences (also written to top-level User.{maxDistance, preferredHomeSizes})
   'maxDistance', 'preferredHomeSizes',
@@ -82,6 +92,18 @@ router.post('/save-step', auth, async (req, res) => {
           update['receiveLiveTransfers'] = answers.receiveLiveTransfers;
         }
       }
+
+      // ── Step 1 (new model): persist deliversNationwide flag at top level
+      //    so leadMatching + broadcastLeadSMS can short-circuit on it.
+      if (step === 1 && answers.delivery && typeof answers.delivery.mode === 'string') {
+        update['deliversNationwide'] = (answers.delivery.mode === 'nationwide');
+        // Derive a friendly primaryMarket string from the dispatchBase so
+        // recovery-email templates and any legacy reader still get the
+        // canonical "City, ST" label without needing to know the new shape.
+        if (answers.dispatchBase && answers.dispatchBase.city && answers.dispatchBase.state) {
+          update['onboarding.answers.primaryMarket'] = `${answers.dispatchBase.city}, ${answers.dispatchBase.state}`;
+        }
+      }
     }
     const user = await User.findByIdAndUpdate(
       req.user.id,
@@ -94,24 +116,30 @@ router.post('/save-step', auth, async (req, res) => {
     // true, the Settings → Coverage Areas editor is the source of truth and
     // we must NOT wipe whatever the partner has customized there.
     let coverageInfo = null;
-    if (
-      step === 1 &&
-      !user.onboarding?.complete &&
-      answers &&
-      typeof answers.primaryMarket === 'string' &&
-      answers.primaryMarket.trim() &&
-      answers.coverageRadius
-    ) {
+    if (step === 1 && !user.onboarding?.complete && answers) {
       try {
-        coverageInfo = await regenerateCoverageForUser(
-          req.user.id,
-          answers.primaryMarket,
-          answers.coverageRadius,
-          Array.isArray(answers.additionalMarkets) ? answers.additionalMarkets : []
-        );
-        console.log(`[Coverage] Regenerated ${coverageInfo.count} ZIPs for ${req.user.id} from onboarding step 1`);
+        // Prefer the new dispatchBase + pickup + delivery model. Fall back to
+        // the legacy primaryMarket + coverageRadius + additionalMarkets path
+        // for any client still sending the old shape (e.g. partners
+        // mid-resume on a stale tab).
+        if (answers.dispatchBase && answers.dispatchBase.zip) {
+          coverageInfo = await regenerateCoverageForUser_v2(
+            req.user.id,
+            answers.dispatchBase,
+            answers.pickup || { mode: 'near' },
+            answers.delivery || { mode: 'same' },
+          );
+          console.log(`[Coverage v2] ${req.user.id} both=${coverageInfo.counts.both} originOnly=${coverageInfo.counts.originOnly} destOnly=${coverageInfo.counts.destinationOnly} nationwide=${coverageInfo.nationwide}`);
+        } else if (typeof answers.primaryMarket === 'string' && answers.primaryMarket.trim() && answers.coverageRadius) {
+          coverageInfo = await regenerateCoverageForUser(
+            req.user.id,
+            answers.primaryMarket,
+            answers.coverageRadius,
+            Array.isArray(answers.additionalMarkets) ? answers.additionalMarkets : []
+          );
+          console.log(`[Coverage v1] Regenerated ${coverageInfo.count} ZIPs for ${req.user.id}`);
+        }
       } catch (covErr) {
-        // Non-fatal: surface the user-facing message but don't block save-step.
         console.error('[Coverage] regen failed', covErr.message);
         coverageInfo = { error: covErr.userMessage || covErr.message };
       }
@@ -123,6 +151,110 @@ router.post('/save-step', auth, async (req, res) => {
     return res.status(500).json({ msg: 'Server error' });
   }
 });
+
+// @route   GET /api/onboarding/place-suggest?q=Hou&limit=8
+// @desc    Local city/ZIP autocomplete. No external API. Powered by an
+//          in-memory index built from the bundled `zipcodes` package at
+//          server boot. Returns at most `limit` suggestions, ranked by
+//          population proxy + exact-match prefix.
+// @access  Private (requires JWT to keep the index from being scraped publicly)
+router.get('/place-suggest', auth, async (req, res) => {
+  try {
+    const q = String(req.query.q || '');
+    const limit = Math.max(1, Math.min(20, Number(req.query.limit) || 8));
+    if (q.trim().length < 2) return res.json({ suggestions: [] });
+    const suggestions = suggestPlaces(q, limit);
+    return res.json({ suggestions });
+  } catch (err) {
+    console.error('[Onboarding] place-suggest error', err);
+    return res.status(500).json({ suggestions: [] });
+  }
+});
+
+// @route   POST /api/onboarding/preview-coverage-v2
+// @desc    Live preview for the new dispatch-base + pickup + delivery flow.
+//          Computes typed coverage counts WITHOUT touching the DB. Powers
+//          the wizard's preview pill.
+// @access  Private
+router.post('/preview-coverage-v2', auth, async (req, res) => {
+  try {
+    const { dispatchBase, pickup, delivery } = req.body || {};
+    if (!dispatchBase || !dispatchBase.zip || !dispatchBase.state) {
+      return res.json({ ok: false, msg: 'dispatchBase required' });
+    }
+    // Reuse the v2 helpers without writing to the DB.
+    const { _zipsForPickup, _zipsForDelivery } = require('../utils/coverageExpansion')._test || {};
+    // Simpler: import the helpers directly via duplicate computation here.
+    const originRaw = computeOriginPreview(dispatchBase, pickup || { mode: 'near' });
+    const deliverRaw = computeDeliveryPreview(originRaw, dispatchBase, delivery || { mode: 'same' });
+    const nationwide = (delivery && delivery.mode === 'nationwide');
+
+    const originSet = new Set(originRaw);
+    const destSet   = deliverRaw === null ? new Set() : new Set(deliverRaw);
+    let bothCount = 0, originOnlyCount = 0, destOnlyCount = 0;
+    for (const z of originSet) (destSet.has(z) ? bothCount++ : originOnlyCount++);
+    for (const z of destSet) if (!originSet.has(z)) destOnlyCount++;
+
+    return res.json({
+      ok: true,
+      base: {
+        city: dispatchBase.city || '',
+        state: dispatchBase.state || '',
+        zip: dispatchBase.zip || '',
+      },
+      pickup: { mode: (pickup && pickup.mode) || 'near', states: (pickup && pickup.states) || [] },
+      delivery: { mode: (delivery && delivery.mode) || 'same', states: (delivery && delivery.states) || [] },
+      counts: {
+        both: bothCount,
+        originOnly: originOnlyCount,
+        destinationOnly: destOnlyCount,
+        total: bothCount + originOnlyCount + destOnlyCount,
+        // raw set sizes (pre-cap) so we can show the cap notice
+        rawOrigin: originRaw.length,
+        rawDestination: deliverRaw === null ? null : deliverRaw.length,
+      },
+      nationwide,
+      nearBaseRadiusMiles: NEAR_BASE_RADIUS_MILES,
+    });
+  } catch (err) {
+    console.error('[Onboarding] preview-coverage-v2 error', err);
+    return res.status(500).json({ ok: false, msg: 'Preview failed' });
+  }
+});
+
+// Local helpers (preview-only — duplicated from coverageExpansion.v2 so we
+// don't have to export the internals).
+function computeOriginPreview(dispatchBase, pickup) {
+  const mode = (pickup && pickup.mode) || 'near';
+  if (mode === 'near') {
+    if (!dispatchBase.zip) return [];
+    return zipcodes.radius(dispatchBase.zip, NEAR_BASE_RADIUS_MILES) || [];
+  }
+  if (mode === 'state') {
+    if (!dispatchBase.state) return [];
+    return (zipcodes.lookupByState(dispatchBase.state) || []).map(z => z.zip);
+  }
+  if (mode === 'states') {
+    const out = new Set();
+    for (const st of (pickup.states || [])) {
+      for (const r of (zipcodes.lookupByState(st) || [])) out.add(r.zip);
+    }
+    return Array.from(out);
+  }
+  return [];
+}
+function computeDeliveryPreview(originZips, dispatchBase, delivery) {
+  const mode = (delivery && delivery.mode) || 'same';
+  if (mode === 'same') return originZips.slice();
+  if (mode === 'states') {
+    const out = new Set();
+    for (const st of (delivery.states || [])) {
+      for (const r of (zipcodes.lookupByState(st) || [])) out.add(r.zip);
+    }
+    return Array.from(out);
+  }
+  return null; // nationwide
+}
 
 // @route   POST /api/onboarding/preview-coverage
 // @desc    Live preview for the wizard's Step 1 — returns the resolved

@@ -140,10 +140,121 @@ async function regenerateCoverageForUser(userId, primary, radius, additionalInpu
   return { count: result.zips.length, ...result };
 }
 
+// ── v2: typed coverage from dispatchBase + pickup + delivery answers ───────
+//
+// Builds an origin-zip set and a destination-zip set, then writes typed
+// CoverageArea documents:
+//   • intersection of origin ∩ destination → type:'both'
+//   • origin only                            → type:'origin'
+//   • destination only                       → type:'destination'
+//
+// Sets are independently capped at MAX_ZIPS_PER_USER (3000) to bound DB load.
+// Nationwide delivery is NOT expanded into ZIPs — the route handler also
+// flips User.deliversNationwide so the matching helper can short-circuit.
+
+const NEAR_BASE_RADIUS_MILES = 50; // "Local around my base" = ≈50mi
+
+function _zipsForPickup(dispatchBase, pickup) {
+  const mode = (pickup && pickup.mode) || 'near';
+  if (mode === 'near') {
+    if (!dispatchBase || !dispatchBase.zip) return [];
+    return zipcodes.radius(dispatchBase.zip, NEAR_BASE_RADIUS_MILES) || [];
+  }
+  if (mode === 'state') {
+    const st = (dispatchBase && dispatchBase.state) || '';
+    if (!st) return [];
+    return (zipcodes.lookupByState(st) || []).map(z => z.zip);
+  }
+  if (mode === 'states') {
+    const states = Array.isArray(pickup.states) ? pickup.states : [];
+    const out = new Set();
+    for (const st of states) {
+      if (!st) continue;
+      const arr = zipcodes.lookupByState(st) || [];
+      for (const r of arr) out.add(r.zip);
+    }
+    return Array.from(out);
+  }
+  return [];
+}
+
+function _zipsForDelivery(originZips, dispatchBase, delivery) {
+  const mode = (delivery && delivery.mode) || 'same';
+  if (mode === 'same') {
+    return originZips.slice(); // mirror — caller will collapse to type:'both'
+  }
+  if (mode === 'states') {
+    const states = Array.isArray(delivery.states) ? delivery.states : [];
+    const out = new Set();
+    for (const st of states) {
+      if (!st) continue;
+      const arr = zipcodes.lookupByState(st) || [];
+      for (const r of arr) out.add(r.zip);
+    }
+    return Array.from(out);
+  }
+  // 'nationwide' → no ZIP set; caller relies on User.deliversNationwide
+  return null;
+}
+
+async function regenerateCoverageForUser_v2(userId, dispatchBase, pickup, delivery) {
+  const originZipsRaw      = _zipsForPickup(dispatchBase, pickup);
+  const destinationZipsRaw = _zipsForDelivery(originZipsRaw, dispatchBase, delivery);
+  const nationwide         = (delivery && delivery.mode === 'nationwide');
+
+  // Cap each set independently before computing the typed split.
+  const originZips      = Array.from(new Set(originZipsRaw)).slice(0, MAX_ZIPS_PER_USER);
+  const destinationZips = destinationZipsRaw === null
+    ? null
+    : Array.from(new Set(destinationZipsRaw)).slice(0, MAX_ZIPS_PER_USER);
+
+  const originSet = new Set(originZips);
+  const destSet   = destinationZips === null ? new Set() : new Set(destinationZips);
+
+  const bothZips        = [];
+  const originOnlyZips  = [];
+  const destOnlyZips    = [];
+
+  for (const z of originSet) {
+    if (destSet.has(z)) bothZips.push(z);
+    else originOnlyZips.push(z);
+  }
+  for (const z of destSet) {
+    if (!originSet.has(z)) destOnlyZips.push(z);
+  }
+
+  const docs = [
+    ...bothZips.map(z       => ({ company: userId, zipCode: z, type: 'both',        radius: 0 })),
+    ...originOnlyZips.map(z => ({ company: userId, zipCode: z, type: 'origin',      radius: 0 })),
+    ...destOnlyZips.map(z   => ({ company: userId, zipCode: z, type: 'destination', radius: 0 })),
+  ];
+
+  await CoverageArea.deleteMany({ company: userId });
+  if (docs.length) {
+    await CoverageArea.insertMany(docs, { ordered: false });
+  }
+
+  return {
+    counts: {
+      both:            bothZips.length,
+      originOnly:      originOnlyZips.length,
+      destinationOnly: destOnlyZips.length,
+      total:           docs.length,
+    },
+    nationwide,
+    capped: {
+      origin:      originZipsRaw.length      > MAX_ZIPS_PER_USER,
+      destination: destinationZipsRaw !== null && destinationZipsRaw.length > MAX_ZIPS_PER_USER,
+    },
+  };
+}
+
 module.exports = {
   expandInputToZips,
   expandAll,
   regenerateCoverageForUser,
+  regenerateCoverageForUser_v2,
   VALID_RADII,
   MAX_ZIPS_PER_USER,
+  NEAR_BASE_RADIUS_MILES,
 };

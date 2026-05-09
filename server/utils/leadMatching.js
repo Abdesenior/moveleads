@@ -25,11 +25,18 @@ function doesLeadMatchMoverPreferences(lead, user, coverageZips) {
   if (!lead || !user) return false;
 
   // 1. Coverage area (origin OR destination must be in zip set).
+  // Special case: if the mover has User.deliversNationwide=true AND their
+  // coverage matches the lead's ORIGIN, we accept regardless of whether the
+  // destination ZIP is in their CoverageArea — they declared they'll deliver
+  // anywhere. (Warm transfers still require explicit destination coverage,
+  // enforced separately in findEligibleMovers — that's a money-safety
+  // boundary we're keeping.)
   const zipSet = coverageZips instanceof Set ? coverageZips : new Set(coverageZips || []);
   if (zipSet.size > 0) {
     const inOrigin = lead.originZip && zipSet.has(String(lead.originZip));
     const inDest   = lead.destinationZip && zipSet.has(String(lead.destinationZip));
-    if (!inOrigin && !inDest) return false;
+    const nationwidePass = user.deliversNationwide && inOrigin;
+    if (!inOrigin && !inDest && !nationwidePass) return false;
   }
   // If zipSet.size === 0, the mover has no coverage configured. We do NOT
   // filter on coverage in that case — we'd rather show a too-broad set than

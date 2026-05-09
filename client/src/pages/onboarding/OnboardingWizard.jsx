@@ -4,6 +4,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
+import PlaceAutocomplete from '../../components/PlaceAutocomplete';
+import StateMultiSelect from '../../components/StateMultiSelect';
 import './Onboarding.css';
 
 // Single Stripe.js loader memoized at module scope per @stripe/react-stripe-js docs.
@@ -71,21 +73,26 @@ const SETUP_STAGES = [
 
 // Build personalized phrasing fragments from the answers object.
 function buildPersona(answers, fallback = {}) {
-  const market = (answers.primaryMarket || '').trim();
-  const radius = answers.coverageRadius || '';
-  const radiusOption = RADIUS_OPTIONS.find(r => r.id === radius);
-  const radiusLabel = radiusOption?.label || '';
+  const db = answers.dispatchBase || {};
+  // Prefer the new dispatchBase city/state. Fall back to legacy primaryMarket
+  // string for partners who completed the old wizard.
+  const market = (db.city && db.state)
+    ? `${db.city}, ${db.state}`
+    : (answers.primaryMarket || '').trim() || fallback.market || 'your market';
   const distanceLabel = DISTANCE_OPTIONS.find(d => d.id === (answers.maxDistance || ''))?.label || '';
   const sizes = Array.isArray(answers.preferredHomeSizes) ? answers.preferredHomeSizes : [];
   return {
-    market: market || fallback.market || 'your market',
-    radius,
-    radiusLabel,
+    market,
+    base: db,
+    pickupMode:   answers.pickup?.mode   || 'near',
+    deliveryMode: answers.delivery?.mode || 'same',
     distanceLabel,
     sizes,
     sizesSummary: sizes.length
       ? (sizes.length <= 2 ? sizes.join(' and ') : `${sizes.slice(0, 2).join(', ')} and more`)
       : 'all home sizes',
+    // Legacy field kept so anything reading radiusLabel doesn't break.
+    radiusLabel: '',
   };
 }
 
@@ -94,7 +101,11 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
-    // Step 1
+    // Step 1 — new model
+    dispatchBase: { input: '', zip: '', city: '', state: '' },
+    pickup:   { mode: 'near', states: [] },
+    delivery: { mode: 'same', states: [] },
+    // Step 1 — legacy back-compat (resume only; not asked in new UI)
     primaryMarket: '',
     coverageRadius: '',
     additionalMarkets: [],
@@ -125,6 +136,9 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           const a = ob.answers;
           setAnswers(prev => ({
             ...prev,
+            dispatchBase:        (a.dispatchBase && a.dispatchBase.zip) ? a.dispatchBase : prev.dispatchBase,
+            pickup:              (a.pickup   && typeof a.pickup.mode === 'string')   ? { mode: a.pickup.mode,   states: Array.isArray(a.pickup.states)   ? a.pickup.states   : [] } : prev.pickup,
+            delivery:            (a.delivery && typeof a.delivery.mode === 'string') ? { mode: a.delivery.mode, states: Array.isArray(a.delivery.states) ? a.delivery.states : [] } : prev.delivery,
             primaryMarket:       a.primaryMarket       ?? prev.primaryMarket,
             coverageRadius:      a.coverageRadius      ?? prev.coverageRadius,
             additionalMarkets:   a.additionalMarkets   ?? prev.additionalMarkets,
@@ -164,7 +178,12 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         body: JSON.stringify({
           step: stepNum,
           answers: {
-            // Step 1
+            // Step 1 — new model (server runs regenerateCoverageForUser_v2 +
+            // flips deliversNationwide based on these)
+            dispatchBase: answers.dispatchBase,
+            pickup: answers.pickup,
+            delivery: answers.delivery,
+            // Step 1 — legacy fields (kept in body for resume continuity)
             primaryMarket: answers.primaryMarket,
             coverageRadius: answers.coverageRadius,
             additionalMarkets: answers.additionalMarkets,
@@ -296,8 +315,15 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 }
 
 function isStepValid(step, a) {
-  // Step 1: a primary service area + radius are required (writes CoverageArea)
-  if (step === 1) return !!(a.primaryMarket && a.primaryMarket.trim()) && !!a.coverageRadius;
+  // Step 1: dispatch base must be a real selection from autocomplete.
+  // Pickup mode 'states' requires at least one state. Delivery mode 'states'
+  // also requires at least one state.
+  if (step === 1) {
+    if (!a.dispatchBase || !a.dispatchBase.zip) return false;
+    if (a.pickup?.mode === 'states' && !(a.pickup.states && a.pickup.states.length)) return false;
+    if (a.delivery?.mode === 'states' && !(a.delivery.states && a.delivery.states.length)) return false;
+    return true;
+  }
   // Step 2: distance preference is always present ('' = Both/Any, valid).
   // Preferred sizes are optional. Step is always valid.
   if (step === 2) return true;
@@ -313,98 +339,99 @@ function isStepValid(step, a) {
 
 // ── Screen 1: Service area + dispatch radius ────────────────────────────────
 function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
-  const [marketDraft, setMarketDraft] = useState('');
-  const [preview, setPreview] = useState(null);   // { ok, primary, additional, zipCount, msg, capped }
+  const dispatchBase = answers.dispatchBase || {};
+  const pickup       = answers.pickup   || { mode: 'near', states: [] };
+  const delivery     = answers.delivery || { mode: 'same', states: [] };
+
+  const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
 
-  function commitMarket() {
-    const v = marketDraft.trim().replace(/,$/, '');
-    if (!v) return;
-    if (!answers.additionalMarkets.includes(v)) {
-      setAnswer('additionalMarkets', [...answers.additionalMarkets, v]);
-    }
-    setMarketDraft('');
-  }
-  function handleKey(e) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      commitMarket();
-    } else if (e.key === 'Backspace' && marketDraft === '' && answers.additionalMarkets.length > 0) {
-      setAnswer('additionalMarkets', answers.additionalMarkets.slice(0, -1));
-    }
-  }
-
-  // Debounced live preview — calls /api/onboarding/preview-coverage to surface
-  // the resolved metro and the number of ZIPs the wizard will actually write
-  // to CoverageArea. No DB writes here; the real generation happens on save.
+  // Debounced live preview against /preview-coverage-v2.
   useEffect(() => {
-    const market = (answers.primaryMarket || '').trim();
-    const radius = answers.coverageRadius;
-    if (!market || !radius) {
-      setPreview(null);
-      return;
-    }
+    if (!dispatchBase.zip) { setPreview(null); return; }
     setPreviewing(true);
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`${API_URL}/onboarding/preview-coverage`, {
+        const res = await fetch(`${API_URL}/onboarding/preview-coverage-v2`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'x-auth-token': localStorage.getItem('token') || '',
           },
-          body: JSON.stringify({
-            primaryMarket: market,
-            coverageRadius: radius,
-            additionalMarkets: answers.additionalMarkets,
-          }),
+          body: JSON.stringify({ dispatchBase, pickup, delivery }),
         });
-        const data = await res.json();
-        setPreview(data);
+        setPreview(await res.json());
       } catch {
-        setPreview({ ok: false, msg: 'Could not check coverage just now — your selection will still save.' });
+        setPreview({ ok: false, msg: 'Preview unavailable — your selection will still save.' });
       } finally {
         setPreviewing(false);
       }
     }, 500);
     return () => clearTimeout(t);
-  }, [API_URL, answers.primaryMarket, answers.coverageRadius, answers.additionalMarkets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API_URL, dispatchBase.zip, pickup.mode, pickup.states.join(','), delivery.mode, delivery.states.join(',')]);
+
+  // Disable invalid pickup/delivery modes when dispatchBase isn't resolved yet.
+  const baseReady = !!dispatchBase.zip;
+
+  function setPickupMode(mode)   { setAnswer('pickup',   { ...pickup,   mode }); }
+  function setPickupStates(s)    { setAnswer('pickup',   { ...pickup,   states: s }); }
+  function setDeliveryMode(mode) { setAnswer('delivery', { ...delivery, mode }); }
+  function setDeliveryStates(s)  { setAnswer('delivery', { ...delivery, states: s }); }
+
+  const PICKUP_OPTIONS = [
+    { id: 'near',   label: 'Local around my base',   desc: 'Best for nearby pickup jobs around your dispatch base. Local around my base uses roughly 50 miles.' },
+    { id: 'state',  label: 'Anywhere in my state',   desc: dispatchBase.state ? `Receive pickup opportunities across ${stateName(dispatchBase.state)}.` : 'Receive pickup opportunities across your main state.' },
+    { id: 'states', label: 'Multiple states',        desc: 'Choose the states where your crews can pick up moves.' },
+  ];
+  const DELIVERY_OPTIONS = [
+    { id: 'same',       label: 'Same as pickup',  desc: 'Best for local moves where pickup and delivery stay in your service area.' },
+    { id: 'states',     label: 'Multiple states', desc: 'Choose the states where your crews can deliver moves.' },
+    { id: 'nationwide', label: 'Nationwide',      desc: 'Receive long-distance delivery opportunities across the U.S.' },
+  ];
 
   const greeting = companyName
-    ? `${companyName} — let's get your dispatch live and start matching you with verified move opportunities.`
-    : `Let's get your dispatch live and start matching you with verified move opportunities.`;
+    ? `${companyName} — let's set up your dispatch.`
+    : `Let's set up your dispatch.`;
 
   return (
     <>
       <p className="ow-greeting">{greeting}</p>
-      <h1 className="ow-h1">Where should we send move opportunities?</h1>
-      <p className="ow-sub">Set your service area so we only route requests your crews can actually handle.</p>
+      <h1 className="ow-h1">Set up your dispatch area</h1>
+      <p className="ow-sub">Tell us where your crews start jobs and where they can move customers.</p>
 
+      {/* ── Question 1: Dispatch base ───────────────────────────────────── */}
       <div className="ow-field">
-        <label className="ow-label" htmlFor="primaryMarket">Primary service area</label>
-        <input
-          id="primaryMarket"
-          className="ow-input"
+        <label className="ow-label" htmlFor="dispatchBaseInput">Where are your crews based?</label>
+        <PlaceAutocomplete
+          id="dispatchBaseInput"
+          value={baseReady ? dispatchBase : null}
+          onSelect={(p) => setAnswer('dispatchBase', { input: p.label, zip: p.zip, city: p.city, state: p.state })}
+          onClear={() => setAnswer('dispatchBase', { input: '', zip: '', city: '', state: '' })}
           placeholder="Houston, TX or 77001"
-          value={answers.primaryMarket}
-          onChange={e => setAnswer('primaryMarket', e.target.value)}
-          autoComplete="off"
+          ariaLabel="Search dispatch base"
         />
-        <p className="ow-helper">Enter your dispatch base — city/state or a 5-digit ZIP.</p>
+        <p className="ow-helper">Choose your main dispatch base. You can fine-tune ZIPs later in Settings.</p>
+        {baseReady && (
+          <p className="ow-feedback">{dispatchBase.city}, {dispatchBase.state} selected as your dispatch base.</p>
+        )}
       </div>
 
-      <div className="ow-field">
-        <label className="ow-label">Service radius</label>
-        <div className="ow-cards ow-radius-cards">
-          {RADIUS_OPTIONS.map(opt => {
-            const active = answers.coverageRadius === opt.id;
+      {/* ── Question 2: Pickup ──────────────────────────────────────────── */}
+      <div className="ow-field" aria-disabled={!baseReady}>
+        <label className="ow-label">Where do your crews usually start jobs?</label>
+        <div className="ow-cards">
+          {PICKUP_OPTIONS.map(opt => {
+            const active = pickup.mode === opt.id;
             return (
               <button
                 key={opt.id}
                 type="button"
                 className={`ow-card${active ? ' active' : ''}`}
-                onClick={() => setAnswer('coverageRadius', opt.id)}
+                onClick={() => baseReady && setPickupMode(opt.id)}
                 aria-pressed={active}
+                disabled={!baseReady}
+                style={!baseReady ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
                 <div className="ow-card-row">
                   <div>
@@ -417,10 +444,61 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
             );
           })}
         </div>
+        {pickup.mode === 'states' && baseReady && (
+          <div style={{ marginTop: 10 }}>
+            <p className="ow-helper" style={{ marginTop: 0, marginBottom: 6 }}>Choose the states where your crews can start moves.</p>
+            <StateMultiSelect
+              value={pickup.states || []}
+              onChange={setPickupStates}
+              placeholder="Type a pickup state…"
+              ariaLabel="Select pickup states"
+            />
+          </div>
+        )}
       </div>
 
-      {/* Live coverage preview pill — sets expectation BEFORE save. */}
-      {(previewing || preview) && (
+      {/* ── Question 3: Delivery ────────────────────────────────────────── */}
+      <div className="ow-field" aria-disabled={!baseReady}>
+        <label className="ow-label">Where do you usually move customers to?</label>
+        <div className="ow-cards">
+          {DELIVERY_OPTIONS.map(opt => {
+            const active = delivery.mode === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className={`ow-card${active ? ' active' : ''}`}
+                onClick={() => baseReady && setDeliveryMode(opt.id)}
+                aria-pressed={active}
+                disabled={!baseReady}
+                style={!baseReady ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+              >
+                <div className="ow-card-row">
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{opt.label}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
+                  </div>
+                  {active && <span className="ow-card-check">✓</span>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {delivery.mode === 'states' && baseReady && (
+          <div style={{ marginTop: 10 }}>
+            <p className="ow-helper" style={{ marginTop: 0, marginBottom: 6 }}>Choose the states where your crews can deliver customers.</p>
+            <StateMultiSelect
+              value={delivery.states || []}
+              onChange={setDeliveryStates}
+              placeholder="Type a delivery state…"
+              ariaLabel="Select delivery states"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── Live preview pill — operational copy, ZIP count is secondary ─── */}
+      {(previewing || preview) && baseReady && (
         <div className={`ow-coverage-preview${preview && preview.ok === false ? ' err' : ''}`} role="status" aria-live="polite">
           {previewing && (
             <>
@@ -429,56 +507,68 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
             </>
           )}
           {!previewing && preview?.ok && (
-            <>
-              <span className="ow-coverage-preview-dot" aria-hidden="true" />
-              <span>
-                <strong>{preview.primary?.displayName || 'Primary area'}</strong>
-                {' • '}
-                Approx. <strong>{preview.zipCount.toLocaleString()} ZIPs</strong> covered
-                {preview.capped && <em style={{ color: '#94a3b8', marginLeft: 6 }}>(capped at 3,000)</em>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                <span className="ow-coverage-preview-dot" aria-hidden="true" />
+                <span>{previewMessage(preview)}</span>
+              </div>
+              <span style={{ fontSize: 11.5, color: '#94a3b8', fontWeight: 500, paddingLeft: 18 }}>
+                Internal coverage: {preview.counts.total.toLocaleString()} ZIP areas
+                {(preview.counts.rawOrigin > 3000 || (preview.counts.rawDestination !== null && preview.counts.rawDestination > 3000)) && ' · capped at 3,000'}
+                {' · Fine-tune ZIPs later in Settings.'}
               </span>
-            </>
+            </div>
           )}
           {!previewing && preview && preview.ok === false && (
             <span>{preview.msg || 'Could not resolve service area.'}</span>
           )}
         </div>
       )}
-      {!previewing && preview?.ok && preview.failedExtras && preview.failedExtras.length > 0 && (
-        <p className="ow-helper" style={{ color: '#b91c1c' }}>
-          Couldn't resolve: {preview.failedExtras.map(f => `"${f.input}"`).join(', ')}. They'll be skipped.
-        </p>
-      )}
-
-      <div className="ow-field">
-        <label className="ow-label">Additional service areas <span className="ow-label-hint">(optional)</span></label>
-        <div className="ow-chip-input">
-          {answers.additionalMarkets.map(m => (
-            <span key={m} className="ow-input-chip">
-              {m}
-              <button
-                type="button"
-                aria-label={`Remove ${m}`}
-                className="ow-input-chip-x"
-                onClick={() => setAnswer('additionalMarkets', answers.additionalMarkets.filter(x => x !== m))}
-              >×</button>
-            </span>
-          ))}
-          <input
-            className="ow-chip-input-text"
-            placeholder={answers.additionalMarkets.length ? 'Add another city or ZIP…' : 'Dallas, TX · 78701 · Austin, TX'}
-            value={marketDraft}
-            onChange={e => setMarketDraft(e.target.value)}
-            onKeyDown={handleKey}
-            onBlur={commitMarket}
-          />
-        </div>
-        <p className="ow-helper">Add neighboring metros or specific ZIPs your crews also cover. Press Enter or comma to add.</p>
-      </div>
 
       <p className="ow-reassurance">{REASSURANCE}</p>
     </>
   );
+}
+
+// Convert "TX" → "Texas" for friendlier helper text.
+function stateName(code) {
+  const found = US_STATES.find(s => s.code === code);
+  return found ? found.name : code;
+}
+
+// Operational preview-pill copy. ZIP count is intentionally secondary.
+function previewMessage(p) {
+  const baseCity = p.base?.city || 'Your dispatch base';
+  const baseState = p.base?.state || '';
+  const baseLabel = baseState ? `${baseCity}, ${baseState}` : baseCity;
+  const pmode = p.pickup?.mode;
+  const dmode = p.delivery?.mode;
+
+  if (p.nationwide) {
+    return (
+      <span><strong>{baseLabel}</strong> pickup · <strong>Nationwide</strong> delivery interest saved</span>
+    );
+  }
+  if (pmode === 'near' && dmode === 'same') {
+    return <span><strong>{baseLabel}</strong> local dispatch coverage ready</span>;
+  }
+  if (pmode === 'state' && dmode === 'same') {
+    return <span><strong>{stateName(baseState)}</strong> pickup + delivery coverage ready</span>;
+  }
+  if (pmode === 'states' && dmode === 'same') {
+    const list = (p.pickup.states || []).map(stateName).join(' · ');
+    return <span><strong>{list || 'Multi-state'}</strong> pickup + delivery coverage ready</span>;
+  }
+  if (dmode === 'states') {
+    const pLabel = pmode === 'near'
+      ? baseLabel
+      : pmode === 'state'
+        ? stateName(baseState)
+        : (p.pickup.states || []).map(stateName).join(' · ');
+    const dLabel = (p.delivery.states || []).map(stateName).join(' · ');
+    return <span><strong>{pLabel}</strong> pickup · <strong>{dLabel}</strong> delivery ready</span>;
+  }
+  return <span>Coverage ready</span>;
 }
 
 // ── Screen 2: Service types (multi-select only) ──────────────────────────────
@@ -630,22 +720,47 @@ function ScreenNotifications({ answers, setAnswer }) {
 
 function CoverageRecapSummary({ answers }) {
   const persona = buildPersona(answers);
-  if (!answers.primaryMarket && !persona.radiusLabel) return null;
+  const db = answers.dispatchBase || {};
+  if (!db.zip && !answers.primaryMarket) return null;
   return (
     <p className="ow-summary-tagline">
-      Your <strong>{persona.market}</strong>
-      {persona.radiusLabel ? <> service area (<strong>{persona.radiusLabel.toLowerCase()}</strong>)</> : null}
-      {' '}routing is ready.
+      Your <strong>{persona.market}</strong> dispatch setup is ready.
     </p>
   );
 }
 
+// Friendly label for pickup mode in the confirm recap.
+function pickupLabel(answers) {
+  const m = answers.pickup?.mode || 'near';
+  const db = answers.dispatchBase || {};
+  if (m === 'near')   return 'Local around dispatch base';
+  if (m === 'state')  return db.state ? `Anywhere in ${stateName(db.state)}` : 'Anywhere in your state';
+  if (m === 'states') {
+    const s = answers.pickup?.states || [];
+    if (!s.length) return 'Multiple states (none selected)';
+    return s.map(stateName).join(' · ');
+  }
+  return '—';
+}
+function deliveryLabel(answers) {
+  const m = answers.delivery?.mode || 'same';
+  if (m === 'same')        return 'Same as pickup';
+  if (m === 'nationwide')  return 'Nationwide (long-distance interest)';
+  if (m === 'states') {
+    const s = answers.delivery?.states || [];
+    if (!s.length) return 'Multiple states (none selected)';
+    return s.map(stateName).join(' · ');
+  }
+  return '—';
+}
+
 // ── Screen 5: Confirm setup (no offer here) ──────────────────────────────────
 function ScreenConfirmSetup({ answers }) {
-  const radiusLabel   = RADIUS_OPTIONS.find(r => r.id === answers.coverageRadius)?.label || '—';
   const distanceLabel = DISTANCE_OPTIONS.find(d => d.id === (answers.maxDistance || ''))?.label || 'Both / Any';
   const sizes         = (answers.preferredHomeSizes || []);
   const sizesValue    = sizes.length ? sizes.join(', ') : 'All sizes';
+  const db            = answers.dispatchBase || {};
+  const baseLabel     = (db.city && db.state) ? `${db.city}, ${db.state}` : (answers.primaryMarket || '—');
 
   return (
     <>
@@ -656,9 +771,9 @@ function ScreenConfirmSetup({ answers }) {
 
       <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
         <div className="ow-summary-recap-h">Service area</div>
-        <RecapRow label="Primary service area"      value={answers.primaryMarket || '—'} />
-        <RecapRow label="Service radius"            value={radiusLabel} />
-        <RecapRow label="Additional service areas"  value={(answers.additionalMarkets || []).join(', ') || '—'} />
+        <RecapRow label="Dispatch base"  value={baseLabel} />
+        <RecapRow label="Pickup areas"   value={pickupLabel(answers)} />
+        <RecapRow label="Delivery areas" value={deliveryLabel(answers)} />
       </div>
 
       <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
@@ -701,11 +816,13 @@ function ScreenProcessing({ onDone, answers }) {
   const { API_URL } = useContext(AuthContext);
   const persona = buildPersona(answers || {});
   const items = [
-    `Configuring ${persona.market} service area`,
-    persona.radiusLabel
-      ? `Building ${persona.radiusLabel.toLowerCase()} dispatch coverage`
-      : 'Building dispatch coverage',
-    'Enabling matching alert routing',
+    `Configuring ${persona.market} dispatch base`,
+    persona.deliveryMode === 'nationwide'
+      ? 'Enabling long-distance delivery interest'
+      : (persona.pickupMode === 'states' || persona.deliveryMode === 'states')
+        ? 'Building multi-state pickup + delivery coverage'
+        : 'Building local pickup + delivery coverage',
+    'Enabling matching alerts',
     'Calibrating request flow',
     'Account preferences set',
   ];

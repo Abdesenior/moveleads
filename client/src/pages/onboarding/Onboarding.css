@@ -949,6 +949,137 @@
   line-height: 1.5;
 }
 
+/* ── Step 1 — Place autocomplete (city/ZIP) ───────────────────────────── */
+.ow-place-wrap { position: relative; }
+.ow-place-dropdown {
+  list-style: none; padding: 4px; margin: 4px 0 0;
+  position: absolute; top: 100%; left: 0; right: 0;
+  z-index: 5;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.ow-place-option {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.ow-place-option.active,
+.ow-place-option:hover { background: rgba(255, 106, 20, 0.08); }
+.ow-place-option-label { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
+.ow-place-option-zip   { font-family: 'Poppins', sans-serif; font-weight: 800; color: #0f172a; font-size: 14px; }
+.ow-place-option-city  { color: #0f172a; font-weight: 600; font-size: 14px; }
+.ow-place-option-state { color: #64748b; font-weight: 600; font-size: 14px; }
+.ow-place-option-kind {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.ow-place-option.active .ow-place-option-kind {
+  background: rgba(255, 106, 20, 0.16); color: #ea580c;
+}
+.ow-place-empty {
+  margin-top: 6px;
+  padding: 10px 12px;
+  font-size: 13px; color: #64748b; font-weight: 500;
+}
+
+/* Selected place chip (replaces the input once user picks) */
+.ow-place-chip-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ow-place-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255, 106, 20, 0.10);
+  color: #ea580c;
+  border: 1px solid rgba(255, 106, 20, 0.32);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 14px; font-weight: 700;
+  letter-spacing: -0.005em;
+  min-height: 44px;
+}
+.ow-place-chip-zip {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 800; font-size: 12px;
+  color: #c2410c;
+}
+.ow-place-chip-x {
+  background: none; border: none; padding: 0 0 0 4px;
+  color: #ea580c; cursor: pointer;
+  font-size: 18px; font-weight: 800; line-height: 1;
+  font-family: inherit;
+}
+.ow-place-chip-x:hover { color: #c2410c; }
+
+/* ── Step 1 — State multi-select ──────────────────────────────────────── */
+.ow-state-ms {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ow-state-ms-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.ow-state-ms-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255, 106, 20, 0.08);
+  color: #ea580c;
+  border: 1px solid rgba(255, 106, 20, 0.30);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px; font-weight: 700;
+  min-height: 32px;
+}
+.ow-state-ms-chip-x {
+  background: none; border: none; padding: 0;
+  color: #ea580c; cursor: pointer;
+  font-size: 16px; font-weight: 800; line-height: 1;
+  font-family: inherit;
+}
+.ow-state-ms-inputwrap { position: relative; }
+.ow-state-ms-dropdown {
+  list-style: none; padding: 4px; margin: 4px 0 0;
+  position: absolute; top: 100%; left: 0; right: 0;
+  z-index: 5;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.ow-state-ms-option {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.ow-state-ms-option.active,
+.ow-state-ms-option:hover { background: rgba(255, 106, 20, 0.08); }
+.ow-state-ms-option-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+.ow-state-ms-option-code {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px; font-weight: 800; color: #94a3b8;
+  letter-spacing: 0.06em;
+}
+
+/* ── Mobile polish for Step 1 controls ────────────────────────────────── */
+@media (max-width: 600px) {
+  .ow-place-dropdown,
+  .ow-state-ms-dropdown { max-height: 240px; }
+  .ow-place-chip { width: 100%; justify-content: space-between; }
+}
+
 /* ── Step 1 — radius cards + live coverage preview pill ──────────────── */
 .ow-radius-cards {
   /* 5 options: 2-col on desktop wraps cleanly, single col on mobile */

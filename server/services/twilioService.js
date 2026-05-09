@@ -31,26 +31,35 @@ async function broadcastLeadSMS(lead) {
   console.log('[SMS] Attempting to notify movers for lead:', lead._id);
   try {
     // 1. Find companies whose CoverageArea covers either the origin or the
-    //    destination ZIP. This narrows the candidate set before we apply the
-    //    preference filter (distance + home size).
+    //    destination ZIP. Plus: include companies with deliversNationwide=true
+    //    whose coverage covers the ORIGIN — they explicitly opted into
+    //    long-distance opportunities anywhere.
     const matchingCompanyIds = await CoverageArea.distinct('company', {
       zipCode: { $in: [lead.originZip, lead.destinationZip].filter(Boolean) },
     });
+    const nationwideOriginIds = lead.originZip
+      ? await CoverageArea.distinct('company', { zipCode: lead.originZip })
+      : [];
+    const candidateIdSet = new Set([
+      ...matchingCompanyIds.map(String),
+      ...nationwideOriginIds.map(String),
+    ]);
 
-    if (!matchingCompanyIds.length) {
+    if (!candidateIdSet.size) {
       console.log('[SMS] No companies cover this lead — no SMS sent');
       return;
     }
 
     // 2. Hydrate candidate movers, including the preference fields the
-    //    matching helper reads (maxDistance, preferredHomeSizes).
+    //    matching helper reads (maxDistance, preferredHomeSizes,
+    //    deliversNationwide).
     const candidates = await User.find({
-      _id:      { $in: matchingCompanyIds },
+      _id:      { $in: Array.from(candidateIdSet) },
       role:     'customer',
       smsNotif: true,
       isSuspended: { $ne: true },
       phone:    { $exists: true, $nin: ['', null] },
-    }).select('phone companyName smsNotif maxDistance preferredHomeSizes').lean();
+    }).select('phone companyName smsNotif maxDistance preferredHomeSizes deliversNationwide').lean();
 
     if (!candidates.length) {
       console.log('[SMS] No SMS-enabled candidates with phone on file');

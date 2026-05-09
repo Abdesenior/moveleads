@@ -24,6 +24,11 @@ const UserSchema = new mongoose.Schema({
   smsNotif: { type: Boolean, default: false },
   isSuspended: { type: Boolean, default: false },
   receiveLiveTransfers: { type: Boolean, default: false },
+  // Set true when the partner picks "Nationwide" delivery in onboarding.
+  // Used by leadMatching + broadcastLeadSMS as a flag instead of writing
+  // ~41k destination ZIPs into CoverageArea. Warm transfers still require
+  // explicit destination CoverageArea entries (money-safety boundary).
+  deliversNationwide: { type: Boolean, default: false },
   googleReviewLink: { type: String, default: '' },
   // ── Email verification ───────────────────────────────────────────────────
   isEmailVerified: { type: Boolean, default: false },
@@ -53,11 +58,29 @@ const UserSchema = new mongoose.Schema({
       sentMidwizard72h: { type: Boolean, default: false },
     },
     answers: {
-      primaryMarket:        { type: String, default: '' },           // "Houston, TX" or "77001" — free-text
-      coverageRadius:       { type: String, default: '' },           // '25'|'50'|'100'|'statewide'|'interstate'
-      coveragePreference:   { type: String, default: '' },           // legacy single-select (kept for back-compat)
-      coveragePreferences:  { type: [String], default: [] },         // legacy multi-select (kept for back-compat)
-      additionalMarkets:    { type: [String], default: [] },         // city or ZIP chips
+      // ── New Step 1 (dispatch base + pickup + delivery) ──────────────────
+      // dispatchBase is selected from the place-autocomplete only; never
+      // free text. zip + city + state always populated together.
+      dispatchBase: {
+        input: { type: String, default: '' },   // displayed label, e.g. "Houston, TX"
+        zip:   { type: String, default: '' },
+        city:  { type: String, default: '' },
+        state: { type: String, default: '' },   // 2-letter code
+      },
+      pickup: {
+        mode:   { type: String, default: 'near' }, // 'near'|'state'|'states'
+        states: { type: [String], default: [] },   // 2-letter codes; only used when mode==='states'
+      },
+      delivery: {
+        mode:   { type: String, default: 'same' }, // 'same'|'states'|'nationwide'
+        states: { type: [String], default: [] },   // only used when mode==='states'
+      },
+      // ── Legacy Step 1 fields (kept for resume back-compat) ──────────────
+      primaryMarket:        { type: String, default: '' },           // legacy "Houston, TX" or "77001" free-text
+      coverageRadius:       { type: String, default: '' },           // legacy '25'|'50'|'100'|'statewide'|'interstate'
+      coveragePreference:   { type: String, default: '' },           // legacy single-select
+      coveragePreferences:  { type: [String], default: [] },         // legacy multi-select
+      additionalMarkets:    { type: [String], default: [] },         // legacy chip list
       moveTypes:            { type: [String], default: [] },         // ['apartment','home','office','longDistance','emergency','packing','laborOnly','storage']
       avoidMoveTypes:       { type: [String], default: [] },
       alertChannels:        { type: [String], default: [] },         // priority-ordered list of 'sms'|'call'|'email'
