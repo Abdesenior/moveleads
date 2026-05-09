@@ -863,8 +863,8 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         <p className="ow-sub">Your account is prepared and ready to receive verified move requests.</p>
       </header>
 
-      {/* Account-ready vertical checklist — reinforces "you're already set up,
-          activation just unlocks the door". */}
+      {/* Account-ready vertical checklist — three checkpoints to keep the
+          step feeling like a calm onboarding moment, not a sales page. */}
       <ul className="ow-account-ready" aria-label="Account ready checklist">
         <li className="ow-account-ready-item">
           <span className="ow-account-ready-check" aria-hidden="true">✓</span>
@@ -873,10 +873,6 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         <li className="ow-account-ready-item">
           <span className="ow-account-ready-check" aria-hidden="true">✓</span>
           <span>Lead alerts prepared</span>
-        </li>
-        <li className="ow-account-ready-item">
-          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
-          <span>Matching preferences saved</span>
         </li>
         <li className="ow-account-ready-item">
           <span className="ow-account-ready-check" aria-hidden="true">✓</span>
@@ -903,10 +899,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
             <span className="ow-tier-arrow">→</span>
             <span className="ow-tier-receive">$150 balance</span>
           </div>
-          <div className="ow-tier-bonus-line">
-            <span className="ow-tier-bonus-tag">$50 FREE</span>
-            <span>onboarding credit included</span>
-          </div>
+          <div className="ow-tier-support">Unlock verified homeowner move requests.</div>
         </button>
 
         <button
@@ -927,29 +920,13 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
             <span className="ow-tier-arrow">→</span>
             <span className="ow-tier-receive ow-tier-receive-muted">$50 balance</span>
           </div>
-          <div className="ow-tier-bonus-line muted">
-            No bonus · Cautious testing option.
-          </div>
         </button>
       </div>
 
-      {/* Marketplace value list — what activation unlocks. Replaces the old
-          financial-trust panel; keeping the focus on the marketplace, not
-          on payment mechanics. */}
-      <section className="ow-value-section" aria-label="What you'll receive">
-        <div className="ow-value-section-title">What You'll Receive</div>
-        <ul className="ow-value-list">
-          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Real homeowner move requests</li>
-          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Faster lead notifications</li>
-          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Local & interstate jobs</li>
-          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Buy only the leads you want</li>
-        </ul>
-      </section>
-
-      {/* Compact trust strip — single muted line so the financial reassurance
-          isn't lost when the trust-panel block was replaced. */}
+      {/* One compact trust line — financial reassurance without re-opening
+          a card. Reduced from 4 segments to 3 for less reading effort. */}
       <p className="ow-trust-strip">
-        Refundable balance · No subscription · Credits never expire · Secure card payment
+        Refundable balance · No subscription · Credits never expire
       </p>
 
       {initErr && (

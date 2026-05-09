@@ -1572,42 +1572,15 @@
   background: linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
 }
 
-/* ── Activation step — value section ("What You'll Receive") ─────────────
-   Replaces the old financial-trust panel. Focuses on marketplace benefits
-   so the lower area carries emotional weight, not just compliance copy. */
-.ow-value-section {
-  background: #f8fafc;
-  border: 1px solid #e6ecf2;
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-top: 2px;
-}
-.ow-value-section-title {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #94a3b8;
-  margin-bottom: 8px;
-}
-.ow-value-list {
-  list-style: none; padding: 0; margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: 16px; row-gap: 6px;
-  font-size: 13px; font-weight: 600; color: #334155;
-  letter-spacing: -0.005em;
-}
-.ow-value-list li {
-  display: inline-flex; align-items: center; gap: 6px;
-  line-height: 1.4;
-}
-.ow-value-bullet {
-  flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  background: rgba(255, 106, 20, 0.10);
+/* Primary tier supporting line — single short reason on the recommended
+   card. Replaces the old "$50 FREE / onboarding credit included" stack so
+   the offer reads as one focused beat instead of two. Only used on the
+   primary $100 card; the secondary card has no support line by design. */
+.ow-tier-support {
+  font-size: 12.5px; font-weight: 700;
   color: #ea580c;
-  font-size: 12px; font-weight: 800;
+  letter-spacing: -0.005em;
+  line-height: 1.4;
 }
 
 /* ── Activation step — compact trust strip + marketplace footer ──────────
@@ -1648,12 +1621,11 @@
   .ow-tier-bonus-line { font-size: 12px; }
   .ow-tier-badge { top: 9px; right: 9px; font-size: 10px; padding: 3px 7px; }
 
-  /* Account-ready + value-list collapse to single column on phones so each
-     line reads naturally without being squished. */
+  /* Account-ready collapses to single column on phones so each line reads
+     naturally without being squished. */
   .ow-account-ready { grid-template-columns: 1fr; column-gap: 0; row-gap: 5px; padding: 10px 12px; }
   .ow-account-ready-item { font-size: 12.5px; }
-  .ow-value-section { padding: 10px 12px; }
-  .ow-value-list { grid-template-columns: 1fr; column-gap: 0; row-gap: 5px; font-size: 12.5px; }
+  .ow-tier-support { font-size: 12px; }
   .ow-trust-strip, .ow-marketplace-footer { font-size: 11px; }
 }
 
