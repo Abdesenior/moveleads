@@ -1,8 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-/* All styles scoped under .onboarding-wizard so they don't leak */
+/* All styles scoped under .onboarding-wizard so they don't leak.
+   z-index: 13000 sits above the mobile sidebar-toggle (12000 in
+   dashboard.css) and the sidebar-backdrop (11900) so the wizard never
+   gets covered by the hamburger button on small screens. */
 .onboarding-wizard {
-  position: fixed; inset: 0; z-index: 9999;
+  position: fixed; inset: 0; z-index: 13000;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
@@ -82,9 +85,10 @@
   width: min(1100px, calc(100vw - 32px));
 }
 
+/* Header is now just the slim progress bar — labels removed entirely so
+   the form gets every spare pixel above the fold on mobile. */
 .ow-header {
   flex: 0 0 auto;
-  border-bottom: 1px solid #f1f5f9;
 }
 .ow-progress {
   height: 3px; background: #e9eef5;
@@ -94,13 +98,6 @@
   height: 100%; background: linear-gradient(90deg, #ff6a14, #fb923c);
   transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.ow-progress-label {
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: #94a3b8;
-  padding: 8px 24px 10px;
-}
-.ow-progress-label-sep { color: #cbd5e1; margin: 0 2px; }
-.ow-progress-label-micro { color: #64748b; }
 
 /* Setup-status tracker (5 stages, stable height across steps) */
 .ow-stages {
@@ -175,6 +172,19 @@
   overflow-y: auto;
 }
 
+/* Confirmation step (Step 4) — vertically center the milestone content
+   in the body so there's no awkward bottom whitespace. The :has() match
+   applies only when ScreenSetupComplete is mounted; other steps use the
+   default top-aligned scroll layout. */
+.ow-body:has(.ow-setup-complete) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.ow-body:has(.ow-setup-complete) .ow-step-anim {
+  width: 100%;
+}
+
 .ow-h1 {
   font-size: 24px; font-weight: 800; letter-spacing: -0.02em;
   color: #0f172a; margin: 0 0 4px; line-height: 1.22;
@@ -198,6 +208,26 @@
   box-sizing: border-box;
 }
 .ow-input:focus { border-color: #ff6a14; }
+.ow-input.ow-input-err {
+  border-color: #ef4444;
+  background: #fff5f5;
+}
+.ow-input.ow-input-err:focus { border-color: #dc2626; }
+.ow-input-error {
+  margin: 6px 0 0;
+  font-size: 12.5px; font-weight: 600;
+  color: #b91c1c;
+  display: flex; align-items: center; gap: 6px;
+}
+.ow-input-error::before {
+  content: "!";
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; flex-shrink: 0;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 10px; font-weight: 800;
+}
 
 .ow-cards {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
@@ -443,18 +473,8 @@
   .ow-cards { grid-template-columns: 1fr; gap: 8px; }
   .ow-body { padding: 14px 16px 20px; }
 
-  /* Ultra-minimal progress chrome on mobile — bar + smallest possible label. */
-  .ow-header { border-bottom: 1px solid #f4f6f9; }
+  /* Ultra-minimal progress chrome on mobile — slim bar only. */
   .ow-progress { height: 2.5px; }
-  .ow-progress-label {
-    padding: 6px 16px 8px;
-    font-size: 10px;
-    letter-spacing: 0.04em;
-  }
-  /* Hide the micro descriptor on the smallest screens — keep "Step X of Y"
-     only. Saves a line of header height. */
-  .ow-progress-label-sep,
-  .ow-progress-label-micro { display: none; }
 
   /* Sticky footer so the primary CTA stays in thumb reach as content scrolls. */
   .ow-footer {

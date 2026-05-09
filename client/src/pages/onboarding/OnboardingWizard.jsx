@@ -79,6 +79,41 @@ function stateName(code) {
   return found ? found.name : code;
 }
 
+// ── US phone helpers ────────────────────────────────────────────────────────
+// Strip everything that isn't a digit. Drop a leading "1" if a user pastes
+// an E.164-style "+1 555…" so we always end up with exactly the 10 NANP
+// digits before formatting.
+function normalizeUSDigits(input) {
+  let d = String(input || '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+  return d.slice(0, 10);
+}
+
+// Format any phone-ish input as a NANP-style "(555) 555-5555" string. Safe
+// to pass partially-typed values through — the user's typing experience is:
+//   ""           → ""
+//   "5"          → "(5"
+//   "555"        → "(555)"
+//   "5555"       → "(555) 5"
+//   "5555555"    → "(555) 555-5"
+//   "5555555555" → "(555) 555-5555"
+function formatUSPhone(input) {
+  const d = normalizeUSDigits(input);
+  if (d.length === 0)  return '';
+  if (d.length <= 3)   return `(${d}`;
+  if (d.length === 3)  return `(${d})`;
+  if (d.length <= 6)   return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
+// 10 digits + NANP rules: area code and exchange first digits must be 2-9.
+function isValidUSPhone(input) {
+  const d = normalizeUSDigits(input);
+  if (d.length !== 10) return false;
+  if (d[0] < '2' || d[3] < '2') return false;
+  return true;
+}
+
 export default function OnboardingWizard({ onClose, initialStep }) {
   const { API_URL, refreshUser, user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -113,7 +148,10 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     setAnswers(prev => {
       const next = { ...prev };
       let changed = false;
-      if (!prev.phone && user.phone) { next.phone = user.phone; changed = true; }
+      if (!prev.phone && user.phone) {
+        next.phone = formatUSPhone(user.phone);
+        changed = true;
+      }
       if (changed) return next;
       return prev;
     });
@@ -142,7 +180,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             primaryMarket:       a.primaryMarket       ?? prev.primaryMarket,
             coverageRadius:      a.coverageRadius      ?? prev.coverageRadius,
             additionalMarkets:   a.additionalMarkets   ?? prev.additionalMarkets,
-            phone:                (typeof a.phone === 'string' && a.phone) ? a.phone : prev.phone,
+            phone:                (typeof a.phone === 'string' && a.phone) ? formatUSPhone(a.phone) : prev.phone,
             smsNotif:             (typeof a.smsNotif === 'boolean') ? a.smsNotif : prev.smsNotif,
             emailNotif:           (typeof a.emailNotif === 'boolean') ? a.emailNotif : prev.emailNotif,
             receiveLiveTransfers: (typeof a.receiveLiveTransfers === 'boolean') ? a.receiveLiveTransfers : prev.receiveLiveTransfers,
@@ -295,14 +333,16 @@ export default function OnboardingWizard({ onClose, initialStep }) {
       <div className="ow-blur" />
       <div className="ow-modal">
         {showProgress && (
-          <div className="ow-header">
+          <div
+            className="ow-header"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={TOTAL_STEPS}
+            aria-valuenow={visibleStage}
+            aria-label={`Step ${visibleStage} of ${TOTAL_STEPS}: ${stepMicro}`}
+          >
             <div className="ow-progress">
               <div className="ow-progress-fill" style={{ width: `${(visibleStage / TOTAL_STEPS) * 100}%` }} />
-            </div>
-            <div className="ow-progress-label">
-              Step {visibleStage} of {TOTAL_STEPS}
-              <span className="ow-progress-label-sep" aria-hidden="true"> · </span>
-              <span className="ow-progress-label-micro">{stepMicro}</span>
             </div>
           </div>
         )}
@@ -357,8 +397,7 @@ function isStepValid(step, a) {
     return true;
   }
   if (step === 3) {
-    const digits = String(a.phone || '').replace(/\D/g, '');
-    return digits.length === 10;
+    return isValidUSPhone(a.phone);
   }
   return true;
 }
@@ -583,6 +622,12 @@ function previewMessage(p) {
 
 // ── Step 3: Alerts (phone + SMS + email + Live Transfers) ───────────────────
 function ScreenAlerts({ answers, setAnswer, userEmail }) {
+  // Show inline phone validation only once the user has typed something —
+  // empty field is "incomplete", not "invalid".
+  const phoneError = answers.phone && !isValidUSPhone(answers.phone)
+    ? 'Please enter a valid US phone number.'
+    : '';
+
   return (
     <>
       <h1 className="ow-h1">How should we send you move opportunities?</h1>
@@ -593,12 +638,20 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
         <input
           id="notifPhone"
           type="tel"
-          className="ow-input"
-          placeholder="(555) 123-4567"
+          className={`ow-input${phoneError ? ' ow-input-err' : ''}`}
+          placeholder="(555) 555-5555"
           value={answers.phone || ''}
-          onChange={e => setAnswer('phone', e.target.value)}
+          onChange={e => setAnswer('phone', formatUSPhone(e.target.value))}
+          onBlur={e => setAnswer('phone', formatUSPhone(e.target.value))}
           autoComplete="tel"
+          inputMode="numeric"
+          maxLength={14}
+          aria-invalid={!!phoneError}
+          aria-describedby={phoneError ? 'notifPhoneErr' : undefined}
         />
+        {phoneError && (
+          <p id="notifPhoneErr" className="ow-input-error" role="alert">{phoneError}</p>
+        )}
       </div>
 
       {userEmail && (
