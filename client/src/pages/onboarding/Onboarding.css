@@ -141,9 +141,37 @@
 }
 .ow-stage-future .ow-stage-dot { background: #e2e8f0; color: #94a3b8; }
 
-/* Step transition (fade + tiny Y) */
+/* Step transition (fade + tiny Y).
+   Also anchors the per-step content column at a fixed max-width so the
+   form never spans the full 880px modal — the user always has one
+   centered focal column. Mobile releases the cap below. */
 .ow-step-anim {
   animation: owStepIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* "You can configure additional states later from your dashboard
+   settings." — replaces the inline state typeahead when the user picks
+   "Multiple states" on Step 1 / Step 2. Quiet, informative, not a
+   blocker. */
+.ow-states-note {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  background: #f8fafc;
+  border: 1px solid #e6ecf2;
+  border-radius: 10px;
+  font-size: 12.5px; font-weight: 500;
+  color: #475569;
+  line-height: 1.45;
+  display: flex; align-items: center; gap: 8px;
+}
+.ow-states-note::before {
+  content: "ⓘ";
+  flex-shrink: 0;
+  color: #94a3b8;
+  font-size: 13px; font-weight: 700;
 }
 @keyframes owStepIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -488,7 +516,9 @@
   .ow-sub { font-size: 14px; margin-bottom: 14px; }
   .ow-step-header { min-height: 78px; margin-bottom: 14px; }
   .ow-step-header .ow-sub { margin: 0; }
+  .ow-step-anim { max-width: none; } /* let the modal width itself constrain */
   .ow-field { margin-bottom: 12px; }
+  .ow-states-note { font-size: 12px; padding: 8px 11px; }
   .ow-cards { grid-template-columns: 1fr; gap: 8px; }
   .ow-body { padding: 14px 16px 20px; }
 

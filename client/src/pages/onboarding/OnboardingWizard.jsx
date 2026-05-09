@@ -5,7 +5,6 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
 import PlaceAutocomplete from '../../components/PlaceAutocomplete';
-import StateMultiSelect from '../../components/StateMultiSelect';
 import './Onboarding.css';
 
 // Single Stripe.js loader memoized at module scope per @stripe/react-stripe-js docs.
@@ -429,8 +428,19 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
   const pickup       = answers.pickup   || { mode: 'near', states: [] };
   const baseReady    = !!dispatchBase.zip;
 
-  function setPickupMode(mode) { setAnswer('pickup', { ...pickup, mode }); }
-  function setPickupStates(s)  { setAnswer('pickup', { ...pickup, states: s }); }
+  // When the user picks "Multiple states" we don't show an inline picker —
+  // it's clutter on mobile and most users don't need to specify all states
+  // during onboarding. Instead we default coverage to the dispatch base's
+  // home state and tell them they can expand from Settings later. The
+  // backend's typed coverage regen still gets a non-empty states array,
+  // so SMS/email matching keeps working out of the gate.
+  function setPickupMode(mode) {
+    const next = { ...pickup, mode };
+    if (mode === 'states' && (!next.states || next.states.length === 0) && dispatchBase.state) {
+      next.states = [dispatchBase.state];
+    }
+    setAnswer('pickup', next);
+  }
 
   const PICKUP_OPTIONS = [
     { id: 'near',   label: 'Local around my base',   desc: 'Nearby pickups around your base.' },
@@ -492,14 +502,9 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
           })}
         </div>
         {pickup.mode === 'states' && baseReady && (
-          <div style={{ marginTop: 10 }}>
-            <StateMultiSelect
-              value={pickup.states || []}
-              onChange={setPickupStates}
-              placeholder="Type a pickup state…"
-              ariaLabel="Select pickup states"
-            />
-          </div>
+          <p className="ow-states-note" role="note">
+            You can configure additional states later from your dashboard settings.
+          </p>
         )}
       </div>
     </>
@@ -538,8 +543,15 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API_URL, dispatchBase.zip, pickup.mode, pickup.states.join(','), delivery.mode, delivery.states.join(',')]);
 
-  function setDeliveryMode(mode) { setAnswer('delivery', { ...delivery, mode }); }
-  function setDeliveryStates(s)  { setAnswer('delivery', { ...delivery, states: s }); }
+  // Same pattern as Step 1 pickup — picking "Multiple states" defaults to
+  // the dispatch base state and points the user to Settings for expansion.
+  function setDeliveryMode(mode) {
+    const next = { ...delivery, mode };
+    if (mode === 'states' && (!next.states || next.states.length === 0) && dispatchBase.state) {
+      next.states = [dispatchBase.state];
+    }
+    setAnswer('delivery', next);
+  }
 
   const DELIVERY_OPTIONS = [
     { id: 'same',       label: 'Same as pickup',  desc: 'Local moves only.' },
@@ -578,14 +590,9 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
           })}
         </div>
         {delivery.mode === 'states' && (
-          <div style={{ marginTop: 10 }}>
-            <StateMultiSelect
-              value={delivery.states || []}
-              onChange={setDeliveryStates}
-              placeholder="Type a delivery state…"
-              ariaLabel="Select delivery states"
-            />
-          </div>
+          <p className="ow-states-note" role="note">
+            You can configure additional delivery states later from your dashboard settings.
+          </p>
         )}
       </div>
 
@@ -717,32 +724,6 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
           <span className="ow-toggle-track" />
           <span className="ow-toggle-label">Email me matching move requests</span>
         </button>
-      </div>
-
-      <div className="ow-field ow-live-transfer-field">
-        <div className="ow-live-transfer-head">
-          <div>
-            <div className="ow-live-transfer-title">
-              <span>Live Phone Transfers</span>
-              <span className="ow-live-transfer-pill">$40 per accepted call</span>
-            </div>
-            <p className="ow-live-transfer-copy">
-              When a premium lead requests a quote, our system calls your phone directly. Press 1 to accept and instantly connect with the customer.
-            </p>
-          </div>
-          <button
-            type="button"
-            className={`ow-toggle${answers.receiveLiveTransfers ? ' active' : ''}`}
-            onClick={() => setAnswer('receiveLiveTransfers', !answers.receiveLiveTransfers)}
-            aria-pressed={!!answers.receiveLiveTransfers}
-            aria-label="Enable Live Phone Transfers"
-          >
-            <span className="ow-toggle-track" />
-          </button>
-        </div>
-        <div className="ow-live-transfer-warn">
-          You're only charged $40 when you accept the call. Keep your balance above $50 to receive live transfers.
-        </div>
       </div>
     </>
   );
