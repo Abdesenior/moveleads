@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef, useMemo } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -19,22 +19,18 @@ const stripePromiseSingleton = (() => {
   };
 })();
 
-const TOTAL_STEPS = 4; // Setup steps shown in the progress bar.
-// Internal step states: 1..4 = setup, 5 = processing, 6 = activation, 7 = success.
+// Visible setup steps in the progress bar:
+//   1 = Dispatch base + pickup
+//   2 = Delivery
+//   3 = Preferences + notifications
+//   4 = Activation (live transfers + balance picker → secure payment)
+// Internal-only post-flow steps (no progress bar):
+//   5 = Activation success
+const TOTAL_STEPS = 4;
 
 const REASSURANCE = 'You can change this later from your dashboard.';
 
-// Service-radius options for Step 1. Each value matches the server's
-// coverageExpansion.VALID_RADII set.
-const RADIUS_OPTIONS = [
-  { id: '25',         label: '25 miles',     desc: 'Local jobs around your base' },
-  { id: '50',         label: '50 miles',     desc: 'Metro coverage' },
-  { id: '100',        label: '100 miles',    desc: 'Wider regional coverage' },
-  { id: 'statewide',  label: 'Statewide',    desc: 'Anywhere in your state' },
-  { id: 'interstate', label: 'Interstate',   desc: 'Long-distance / cross-state moves' },
-];
-
-// Distance-preference options for Step 2. Values match User.maxDistance.
+// Distance-preference options. Values match User.maxDistance.
 const DISTANCE_OPTIONS = [
   { id: '',              label: 'Both / Any',     desc: 'Send me both local and long-distance moves' },
   { id: 'Local',         label: 'Local moves',    desc: 'Same-city / under-100mi jobs only' },
@@ -55,27 +51,23 @@ const HOME_SIZE_OPTIONS = [
   'Office/Commercial',
 ];
 
-// Step-keyed progress microcopy.
 const STEP_MICROCOPY = {
-  1: 'Set your service area',
-  2: 'Pick your move preferences',
-  3: 'Notification setup',
-  4: 'Review setup',
+  1: 'Dispatch base & pickup',
+  2: 'Delivery coverage',
+  3: 'Preferences & alerts',
+  4: 'Activate your account',
 };
 
-// Setup-status tracker stages — one per setup step (1..4).
 const SETUP_STAGES = [
-  { id: 1, label: 'Coverage' },
-  { id: 2, label: 'Preferences' },
-  { id: 3, label: 'Alerts' },
-  { id: 4, label: 'Ready' },
+  { id: 1, label: 'Dispatch' },
+  { id: 2, label: 'Delivery' },
+  { id: 3, label: 'Setup' },
+  { id: 4, label: 'Activate' },
 ];
 
 // Build personalized phrasing fragments from the answers object.
 function buildPersona(answers, fallback = {}) {
   const db = answers.dispatchBase || {};
-  // Prefer the new dispatchBase city/state. Fall back to legacy primaryMarket
-  // string for partners who completed the old wizard.
   const market = (db.city && db.state)
     ? `${db.city}, ${db.state}`
     : (answers.primaryMarket || '').trim() || fallback.market || 'your market';
@@ -91,9 +83,14 @@ function buildPersona(answers, fallback = {}) {
     sizesSummary: sizes.length
       ? (sizes.length <= 2 ? sizes.join(' and ') : `${sizes.slice(0, 2).join(', ')} and more`)
       : 'all home sizes',
-    // Legacy field kept so anything reading radiusLabel doesn't break.
     radiusLabel: '',
   };
+}
+
+// Convert "TX" → "Texas" for friendlier helper text.
+function stateName(code) {
+  const found = US_STATES.find(s => s.code === code);
+  return found ? found.name : code;
 }
 
 export default function OnboardingWizard({ onClose, initialStep }) {
@@ -101,18 +98,16 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
-    // Step 1 — new model
     dispatchBase: { input: '', zip: '', city: '', state: '' },
     pickup:   { mode: 'near', states: [] },
     delivery: { mode: 'same', states: [] },
-    // Step 1 — legacy back-compat (resume only; not asked in new UI)
+    // Legacy back-compat (resume only; not asked in new UI)
     primaryMarket: '',
     coverageRadius: '',
     additionalMarkets: [],
-    // Step 2 (move preferences — also written to top-level User fields)
-    maxDistance: '',          // '' | 'Local' | 'Long Distance'
+    // Step 3 (also written to top-level User fields)
+    maxDistance: '',
     preferredHomeSizes: [],
-    // Step 3 (notifications + live transfers)
     phone: user?.phone || '',
     smsNotif: !!user?.smsNotif,
     receiveLiveTransfers: !!user?.receiveLiveTransfers,
@@ -128,7 +123,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
       .then(data => {
         if (!alive || !data?.onboarding) return;
         const ob = data.onboarding;
-        // If caller pinned the step (e.g. banner reopens at activation), don't override.
         if (!initialStep && ob.currentStep && ob.currentStep > 0 && ob.currentStep <= TOTAL_STEPS) {
           setStep(ob.currentStep);
         }
@@ -142,12 +136,8 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             primaryMarket:       a.primaryMarket       ?? prev.primaryMarket,
             coverageRadius:      a.coverageRadius      ?? prev.coverageRadius,
             additionalMarkets:   a.additionalMarkets   ?? prev.additionalMarkets,
-            // Step 2 preferences may be in onboarding.answers (mid-wizard) OR
-            // already on the top-level User (resumed after save). Prefer
-            // onboarding.answers since it's the active draft.
             maxDistance:         (typeof a.maxDistance === 'string' ? a.maxDistance : prev.maxDistance),
             preferredHomeSizes:  Array.isArray(a.preferredHomeSizes) ? a.preferredHomeSizes : prev.preferredHomeSizes,
-            // Step 3
             phone:                (typeof a.phone === 'string' && a.phone) ? a.phone : prev.phone,
             smsNotif:             (typeof a.smsNotif === 'boolean') ? a.smsNotif : prev.smsNotif,
             receiveLiveTransfers: (typeof a.receiveLiveTransfers === 'boolean') ? a.receiveLiveTransfers : prev.receiveLiveTransfers,
@@ -178,19 +168,14 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         body: JSON.stringify({
           step: stepNum,
           answers: {
-            // Step 1 — new model (server runs regenerateCoverageForUser_v2 +
-            // flips deliversNationwide based on these)
             dispatchBase: answers.dispatchBase,
             pickup: answers.pickup,
             delivery: answers.delivery,
-            // Step 1 — legacy fields (kept in body for resume continuity)
             primaryMarket: answers.primaryMarket,
             coverageRadius: answers.coverageRadius,
             additionalMarkets: answers.additionalMarkets,
-            // Step 2 (server also writes these to top-level User)
             maxDistance: answers.maxDistance,
             preferredHomeSizes: answers.preferredHomeSizes,
-            // Step 3 (server also writes these to top-level User)
             phone: answers.phone,
             smsNotif: answers.smsNotif,
             receiveLiveTransfers: answers.receiveLiveTransfers,
@@ -202,22 +187,41 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
+  // Mark wizard as complete server-side. Called when user lands on activation
+  // step (step 4) — past that point they're "done with setup", whether or not
+  // they activate.
+  async function callComplete() {
+    try {
+      await fetch(`${API_URL}/onboarding/complete`, {
+        method: 'POST',
+        headers: { 'x-auth-token': localStorage.getItem('token') || '' },
+      });
+    } catch (err) {
+      console.error('[OnboardingWizard] complete failed:', err);
+    }
+  }
+
+  const completeCalledRef = useRef(false);
   async function next() {
     await saveStep(step);
-    if (step < TOTAL_STEPS) setStep(step + 1);
-    else if (step === TOTAL_STEPS) setStep(5); // → processing
+    if (step < 3) {
+      setStep(step + 1);
+    } else if (step === 3) {
+      // Transition into activation. Mark wizard complete (idempotent).
+      if (!completeCalledRef.current) {
+        completeCalledRef.current = true;
+        await callComplete();
+      }
+      setStep(4);
+    }
+    // Step 4 (activation) and step 5 (success) handle their own progression internally.
   }
 
   function back() {
     if (step > 1 && step <= TOTAL_STEPS) setStep(step - 1);
   }
 
-  // No more "use recommended setup" link — the new wizard only asks
-  // questions that are real, so there's nothing to default-skip.
-  const canSkipStep = false;
-  async function skipWithDefaults() { /* no-op — kept for type safety on the footer button */ }
-
-  // Soft-skip — only used from activation step ("Continue without activating")
+  // Soft-skip — used from activation step ("Continue without activating")
   async function dismissSkip() {
     try {
       await fetch(`${API_URL}/onboarding/skip`, {
@@ -229,11 +233,9 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     onClose && onClose();
   }
 
-  function onProcessingDone() { setStep(6); }
-
   async function onActivationDone() {
     if (refreshUser) await refreshUser();
-    setStep(7);
+    setStep(5);
   }
 
   async function closeAfterSuccess() {
@@ -243,6 +245,9 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   }
 
   const stepMicro = STEP_MICROCOPY[step] || '';
+  // Global footer is hidden during activation (step 4 has its own CTAs) and
+  // during the post-payment success screen (step 5).
+  const showFooter = step <= 3;
 
   return (
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
@@ -272,31 +277,19 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
         <div className="ow-body">
           <div className="ow-step-anim" key={step}>
-            {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} companyName={user?.companyName} API_URL={API_URL} />}
-            {step === 2 && <ScreenMovePreferences answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
-            {step === 3 && <ScreenNotifications answers={answers} setAnswer={setAnswer} />}
-            {step === 4 && <ScreenConfirmSetup answers={answers} />}
-            {step === 5 && <ScreenProcessing onDone={onProcessingDone} answers={answers} />}
-            {step === 6 && <ScreenActivation API_URL={API_URL} onDone={onActivationDone} onSkip={dismissSkip} answers={answers} />}
-            {step === 7 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
+            {step === 1 && <ScreenDispatchPickup answers={answers} setAnswer={setAnswer} companyName={user?.companyName} />}
+            {step === 2 && <ScreenDeliveryCoverage answers={answers} setAnswer={setAnswer} API_URL={API_URL} />}
+            {step === 3 && <ScreenPreferencesAndAlerts answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
+            {step === 4 && <ScreenActivation API_URL={API_URL} onDone={onActivationDone} onSkip={dismissSkip} answers={answers} setAnswer={setAnswer} />}
+            {step === 5 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
           </div>
         </div>
 
-        {step <= TOTAL_STEPS && (
+        {showFooter && (
           <div className="ow-footer">
             <div className="ow-footer-left">
               {step > 1 && (
                 <button className="ow-back" onClick={back} type="button">← Back</button>
-              )}
-              {canSkipStep && (
-                <button
-                  type="button"
-                  className="ow-skip-link"
-                  onClick={skipWithDefaults}
-                  title="Apply recommended defaults and continue — you can fine-tune this later from your dashboard."
-                >
-                  Use recommended setup →
-                </button>
               )}
             </div>
             <button
@@ -305,7 +298,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
               type="button"
               disabled={!isStepValid(step, answers)}
             >
-              {step < TOTAL_STEPS ? 'Continue →' : 'Confirm my setup →'}
+              {step === 3 ? 'Continue to activation →' : 'Continue →'}
             </button>
           </div>
         )}
@@ -315,79 +308,38 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 }
 
 function isStepValid(step, a) {
-  // Step 1: dispatch base must be a real selection from autocomplete.
-  // Pickup mode 'states' requires at least one state. Delivery mode 'states'
-  // also requires at least one state.
+  // Step 1: dispatch base required; pickup mode 'states' requires ≥1 state.
   if (step === 1) {
     if (!a.dispatchBase || !a.dispatchBase.zip) return false;
     if (a.pickup?.mode === 'states' && !(a.pickup.states && a.pickup.states.length)) return false;
+    return true;
+  }
+  // Step 2: delivery mode 'states' requires ≥1 state. Otherwise valid.
+  if (step === 2) {
     if (a.delivery?.mode === 'states' && !(a.delivery.states && a.delivery.states.length)) return false;
     return true;
   }
-  // Step 2: distance preference is always present ('' = Both/Any, valid).
-  // Preferred sizes are optional. Step is always valid.
-  if (step === 2) return true;
-  // Step 3: phone is required — it's the dial target for live transfers + SMS.
+  // Step 3: phone is required (10 digits).
   if (step === 3) {
     const digits = String(a.phone || '').replace(/\D/g, '');
     return digits.length === 10;
   }
-  // Step 4: confirm screen has nothing to validate.
-  if (step === 4) return true;
   return true;
 }
 
-// ── Screen 1: Service area + dispatch radius ────────────────────────────────
-function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
+// ── Step 1: Dispatch base + pickup coverage ─────────────────────────────────
+function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
   const dispatchBase = answers.dispatchBase || {};
   const pickup       = answers.pickup   || { mode: 'near', states: [] };
-  const delivery     = answers.delivery || { mode: 'same', states: [] };
+  const baseReady    = !!dispatchBase.zip;
 
-  const [preview, setPreview] = useState(null);
-  const [previewing, setPreviewing] = useState(false);
-
-  // Debounced live preview against /preview-coverage-v2.
-  useEffect(() => {
-    if (!dispatchBase.zip) { setPreview(null); return; }
-    setPreviewing(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(`${API_URL}/onboarding/preview-coverage-v2`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-auth-token': localStorage.getItem('token') || '',
-          },
-          body: JSON.stringify({ dispatchBase, pickup, delivery }),
-        });
-        setPreview(await res.json());
-      } catch {
-        setPreview({ ok: false, msg: 'Preview unavailable — your selection will still save.' });
-      } finally {
-        setPreviewing(false);
-      }
-    }, 500);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API_URL, dispatchBase.zip, pickup.mode, pickup.states.join(','), delivery.mode, delivery.states.join(',')]);
-
-  // Disable invalid pickup/delivery modes when dispatchBase isn't resolved yet.
-  const baseReady = !!dispatchBase.zip;
-
-  function setPickupMode(mode)   { setAnswer('pickup',   { ...pickup,   mode }); }
-  function setPickupStates(s)    { setAnswer('pickup',   { ...pickup,   states: s }); }
-  function setDeliveryMode(mode) { setAnswer('delivery', { ...delivery, mode }); }
-  function setDeliveryStates(s)  { setAnswer('delivery', { ...delivery, states: s }); }
+  function setPickupMode(mode) { setAnswer('pickup', { ...pickup, mode }); }
+  function setPickupStates(s)  { setAnswer('pickup', { ...pickup, states: s }); }
 
   const PICKUP_OPTIONS = [
-    { id: 'near',   label: 'Local around my base',   desc: 'Best for nearby pickup jobs around your dispatch base. Local around my base uses roughly 50 miles.' },
+    { id: 'near',   label: 'Local around my base',   desc: 'Best for nearby pickup jobs around your dispatch base. Roughly 50 miles.' },
     { id: 'state',  label: 'Anywhere in my state',   desc: dispatchBase.state ? `Receive pickup opportunities across ${stateName(dispatchBase.state)}.` : 'Receive pickup opportunities across your main state.' },
     { id: 'states', label: 'Multiple states',        desc: 'Choose the states where your crews can pick up moves.' },
-  ];
-  const DELIVERY_OPTIONS = [
-    { id: 'same',       label: 'Same as pickup',  desc: 'Best for local moves where pickup and delivery stay in your service area.' },
-    { id: 'states',     label: 'Multiple states', desc: 'Choose the states where your crews can deliver moves.' },
-    { id: 'nationwide', label: 'Nationwide',      desc: 'Receive long-distance delivery opportunities across the U.S.' },
   ];
 
   const greeting = companyName
@@ -397,8 +349,14 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
   return (
     <>
       <p className="ow-greeting">{greeting}</p>
-      <h1 className="ow-h1">Set up your dispatch area</h1>
-      <p className="ow-sub">Tell us where your crews start jobs and where they can move customers.</p>
+      <h1 className="ow-h1">Set up your dispatch base</h1>
+      <p className="ow-sub">Tell us where your crews start jobs. We'll use this to route nearby pickup requests to your team.</p>
+
+      {/* FOMO note — operational, no fake counts */}
+      <aside className="ow-setup-fomo" role="note">
+        <span className="ow-setup-fomo-dot" aria-hidden="true" />
+        <span>We limit active mover partners per market so request quality stays protected. Your spot is held until you finish setup.</span>
+      </aside>
 
       {/* ── Question 1: Dispatch base ───────────────────────────────────── */}
       <div className="ow-field">
@@ -411,9 +369,9 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
           placeholder="Houston, TX or 77001"
           ariaLabel="Search dispatch base"
         />
-        <p className="ow-helper">Choose your main dispatch base. You can fine-tune ZIPs later in Settings.</p>
+        <p className="ow-helper">Choose your main dispatch base. You can fine-tune later in Settings.</p>
         {baseReady && (
-          <p className="ow-feedback">{dispatchBase.city}, {dispatchBase.state} selected as your dispatch base.</p>
+          <p className="ow-feedback">{dispatchBase.city}, {dispatchBase.state} confirmed as your dispatch base.</p>
         )}
       </div>
 
@@ -455,10 +413,82 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
             />
           </div>
         )}
+        {pickup.mode === 'near' && baseReady && (
+          <p className="ow-feedback">Local pickup coverage enabled around {dispatchBase.city}.</p>
+        )}
+        {pickup.mode === 'state' && baseReady && (
+          <p className="ow-feedback">Statewide pickup coverage enabled in {stateName(dispatchBase.state)}.</p>
+        )}
+        {pickup.mode === 'states' && (pickup.states || []).length > 0 && (
+          <p className="ow-feedback">Pickup coverage enabled in {pickup.states.length === 1 ? '1 state' : `${pickup.states.length} states`}.</p>
+        )}
       </div>
 
-      {/* ── Question 3: Delivery ────────────────────────────────────────── */}
-      <div className="ow-field" aria-disabled={!baseReady}>
+      <p className="ow-reassurance">{REASSURANCE}</p>
+    </>
+  );
+}
+
+// ── Step 2: Delivery coverage ───────────────────────────────────────────────
+function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
+  const dispatchBase = answers.dispatchBase || {};
+  const pickup       = answers.pickup   || { mode: 'near', states: [] };
+  const delivery     = answers.delivery || { mode: 'same', states: [] };
+  const [preview, setPreview] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  // Live coverage preview against /preview-coverage-v2 — runs once we have
+  // a complete dispatch+pickup+delivery shape so the user sees the operational
+  // result of the choices they made on Step 1 + Step 2.
+  useEffect(() => {
+    if (!dispatchBase.zip) { setPreview(null); return; }
+    setPreviewing(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/onboarding/preview-coverage-v2`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': localStorage.getItem('token') || '',
+          },
+          body: JSON.stringify({ dispatchBase, pickup, delivery }),
+        });
+        setPreview(await res.json());
+      } catch {
+        setPreview({ ok: false, msg: 'Preview unavailable — your selection will still save.' });
+      } finally {
+        setPreviewing(false);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API_URL, dispatchBase.zip, pickup.mode, pickup.states.join(','), delivery.mode, delivery.states.join(',')]);
+
+  function setDeliveryMode(mode) { setAnswer('delivery', { ...delivery, mode }); }
+  function setDeliveryStates(s)  { setAnswer('delivery', { ...delivery, states: s }); }
+
+  const DELIVERY_OPTIONS = [
+    { id: 'same',       label: 'Same as pickup',  desc: 'Best for local moves where pickup and delivery stay in your service area.' },
+    { id: 'states',     label: 'Multiple states', desc: 'Choose the states where your crews can deliver moves.' },
+    { id: 'nationwide', label: 'Nationwide',      desc: 'Receive long-distance delivery opportunities across the U.S.' },
+  ];
+
+  const baseLabel = (dispatchBase.city && dispatchBase.state)
+    ? `${dispatchBase.city}, ${dispatchBase.state}`
+    : 'your dispatch base';
+
+  return (
+    <>
+      <h1 className="ow-h1">Set up delivery coverage</h1>
+      <p className="ow-sub">Tell us where your crews can move customers to. This narrows the long-distance leads we send you.</p>
+
+      <div className="ow-progression-row" aria-label="Setup so far">
+        <span className="ow-progression-chip">✓ Dispatch base · {baseLabel}</span>
+        <span className="ow-progression-chip">✓ Pickup coverage · {pickupLabelShort(answers)}</span>
+      </div>
+
+      {/* ── Question: Delivery ──────────────────────────────────────────── */}
+      <div className="ow-field">
         <label className="ow-label">Where do you usually move customers to?</label>
         <div className="ow-cards">
           {DELIVERY_OPTIONS.map(opt => {
@@ -468,10 +498,8 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
                 key={opt.id}
                 type="button"
                 className={`ow-card${active ? ' active' : ''}`}
-                onClick={() => baseReady && setDeliveryMode(opt.id)}
+                onClick={() => setDeliveryMode(opt.id)}
                 aria-pressed={active}
-                disabled={!baseReady}
-                style={!baseReady ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
                 <div className="ow-card-row">
                   <div>
@@ -484,7 +512,7 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
             );
           })}
         </div>
-        {delivery.mode === 'states' && baseReady && (
+        {delivery.mode === 'states' && (
           <div style={{ marginTop: 10 }}>
             <p className="ow-helper" style={{ marginTop: 0, marginBottom: 6 }}>Choose the states where your crews can deliver customers.</p>
             <StateMultiSelect
@@ -495,10 +523,19 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
             />
           </div>
         )}
+        {delivery.mode === 'same' && (
+          <p className="ow-feedback">Local delivery coverage enabled around your service area.</p>
+        )}
+        {delivery.mode === 'nationwide' && (
+          <p className="ow-feedback">Nationwide long-distance delivery interest enabled.</p>
+        )}
+        {delivery.mode === 'states' && (delivery.states || []).length > 0 && (
+          <p className="ow-feedback">Delivery coverage enabled in {delivery.states.length === 1 ? '1 state' : `${delivery.states.length} states`}.</p>
+        )}
       </div>
 
-      {/* ── Live preview pill — operational copy, ZIP count is secondary ─── */}
-      {(previewing || preview) && baseReady && (
+      {/* Live preview pill — operational copy, ZIP count is secondary. */}
+      {(previewing || preview) && (
         <div className={`ow-coverage-preview${preview && preview.ok === false ? ' err' : ''}`} role="status" aria-live="polite">
           {previewing && (
             <>
@@ -515,7 +552,7 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
               <span style={{ fontSize: 11.5, color: '#94a3b8', fontWeight: 500, paddingLeft: 18 }}>
                 Internal coverage: {preview.counts.total.toLocaleString()} ZIP areas
                 {(preview.counts.rawOrigin > 3000 || (preview.counts.rawDestination !== null && preview.counts.rawDestination > 3000)) && ' · capped at 3,000'}
-                {' · Fine-tune ZIPs later in Settings.'}
+                {' · Fine-tune later in Settings.'}
               </span>
             </div>
           )}
@@ -530,12 +567,6 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
   );
 }
 
-// Convert "TX" → "Texas" for friendlier helper text.
-function stateName(code) {
-  const found = US_STATES.find(s => s.code === code);
-  return found ? found.name : code;
-}
-
 // Operational preview-pill copy. ZIP count is intentionally secondary.
 function previewMessage(p) {
   const baseCity = p.base?.city || 'Your dispatch base';
@@ -545,9 +576,7 @@ function previewMessage(p) {
   const dmode = p.delivery?.mode;
 
   if (p.nationwide) {
-    return (
-      <span><strong>{baseLabel}</strong> pickup · <strong>Nationwide</strong> delivery interest saved</span>
-    );
+    return <span><strong>{baseLabel}</strong> pickup · <strong>Nationwide</strong> delivery interest saved</span>;
   }
   if (pmode === 'near' && dmode === 'same') {
     return <span><strong>{baseLabel}</strong> local dispatch coverage ready</span>;
@@ -571,384 +600,139 @@ function previewMessage(p) {
   return <span>Coverage ready</span>;
 }
 
-// ── Screen 2: Service types (multi-select only) ──────────────────────────────
-// ── Screen 2: Move preferences (distance + home sizes) ──────────────────────
-//
-// Both fields write to TOP-LEVEL User fields server-side (User.maxDistance,
-// User.preferredHomeSizes), which the matching helper reads. So setting these
-// here actually narrows the leads a mover sees in the "Matched for you" tab
-// AND the SMS broadcasts they receive.
-function ScreenMovePreferences({ answers, setAnswer, toggleInArray }) {
-  return (
-    <>
-      <h1 className="ow-h1">Which move requests fit your crews best?</h1>
-      <p className="ow-sub">
-        Choose the move types you want us to prioritize when sending alerts. We'll still show all marketplace leads on your dashboard.
-      </p>
-
-      <div className="ow-field">
-        <label className="ow-label">Distance preference</label>
-        <div className="ow-cards">
-          {DISTANCE_OPTIONS.map(opt => {
-            const active = (answers.maxDistance || '') === opt.id;
-            return (
-              <button
-                key={opt.id || 'any'}
-                type="button"
-                className={`ow-card${active ? ' active' : ''}`}
-                onClick={() => setAnswer('maxDistance', opt.id)}
-                aria-pressed={active}
-              >
-                <div className="ow-card-row">
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
-                  </div>
-                  {active && <span className="ow-card-check">✓</span>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="ow-field">
-        <label className="ow-label">
-          Preferred move sizes
-          <span className="ow-label-hint">(optional — leave empty to receive all sizes)</span>
-        </label>
-        <div className="ow-chips">
-          {HOME_SIZE_OPTIONS.map(size => {
-            const active = (answers.preferredHomeSizes || []).includes(size);
-            return (
-              <button
-                key={size}
-                type="button"
-                className={`ow-chip${active ? ' active' : ''}`}
-                onClick={() => toggleInArray('preferredHomeSizes', size)}
-              >
-                {active && <span className="ow-chip-check">✓</span>}
-                {size}
-              </button>
-            );
-          })}
-        </div>
-        {(answers.preferredHomeSizes || []).length > 0 && (
-          <p className="ow-feedback">
-            {answers.preferredHomeSizes.length === 1
-              ? `${answers.preferredHomeSizes[0]} requests prioritized.`
-              : `${answers.preferredHomeSizes.length} sizes prioritized for matching.`}
-          </p>
-        )}
-      </div>
-
-      <p className="ow-reassurance">{REASSURANCE}</p>
-    </>
-  );
-}
-
-// ── Screen 3: Notifications + Live Phone Transfers ──────────────────────────
-//
-// Writes phone, smsNotif, receiveLiveTransfers to TOP-LEVEL User fields.
-// These directly drive broadcastLeadSMS and the voice/warm-transfer
-// eligibility filter in routes/voice.js.
-function ScreenNotifications({ answers, setAnswer }) {
-  return (
-    <>
-      <h1 className="ow-h1">How should we notify you?</h1>
-      <p className="ow-sub">Choose how you want to hear about matching move opportunities.</p>
-
-      <div className="ow-field">
-        <label className="ow-label" htmlFor="notifPhone">Phone number</label>
-        <input
-          id="notifPhone"
-          type="tel"
-          className="ow-input"
-          placeholder="(555) 123-4567"
-          value={answers.phone || ''}
-          onChange={e => setAnswer('phone', e.target.value)}
-          autoComplete="tel"
-        />
-        <p className="ow-helper">We text + dial this number for SMS alerts and live transfers.</p>
-      </div>
-
-      <div className="ow-field">
-        <button
-          type="button"
-          className={`ow-toggle${answers.smsNotif ? ' active' : ''}`}
-          onClick={() => setAnswer('smsNotif', !answers.smsNotif)}
-          aria-pressed={!!answers.smsNotif}
-        >
-          <span className="ow-toggle-track" />
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
-            Text me when a request matches my setup
-          </span>
-        </button>
-        <p className="ow-helper">SMS fires only on leads matching your service area, distance, and size preferences.</p>
-      </div>
-
-      <div className="ow-field ow-live-transfer-field">
-        <div className="ow-live-transfer-head">
-          <div>
-            <div className="ow-live-transfer-title">
-              <span>Live Phone Transfers</span>
-              <span className="ow-live-transfer-pill">$40 per accepted call</span>
-            </div>
-            <p className="ow-live-transfer-copy">
-              When a premium lead requests a quote, our system calls your phone directly. Press 1 to accept and instantly connect with the customer.
-            </p>
-          </div>
-          <button
-            type="button"
-            className={`ow-toggle${answers.receiveLiveTransfers ? ' active' : ''}`}
-            onClick={() => setAnswer('receiveLiveTransfers', !answers.receiveLiveTransfers)}
-            aria-pressed={!!answers.receiveLiveTransfers}
-            aria-label="Enable Live Phone Transfers"
-          >
-            <span className="ow-toggle-track" />
-          </button>
-        </div>
-        <div className="ow-live-transfer-warn">
-          ⚠️ You're only charged $40 when you accept the call. Keep your balance above $50 to receive live transfers.
-        </div>
-      </div>
-
-      <p className="ow-reassurance">{REASSURANCE}</p>
-    </>
-  );
-}
-
-function CoverageRecapSummary({ answers }) {
-  const persona = buildPersona(answers);
-  const db = answers.dispatchBase || {};
-  if (!db.zip && !answers.primaryMarket) return null;
-  return (
-    <p className="ow-summary-tagline">
-      Your <strong>{persona.market}</strong> dispatch setup is ready.
-    </p>
-  );
-}
-
-// Friendly label for pickup mode in the confirm recap.
-function pickupLabel(answers) {
+// Compact pickup label for the progression chip on Step 2.
+function pickupLabelShort(answers) {
   const m = answers.pickup?.mode || 'near';
   const db = answers.dispatchBase || {};
-  if (m === 'near')   return 'Local around dispatch base';
-  if (m === 'state')  return db.state ? `Anywhere in ${stateName(db.state)}` : 'Anywhere in your state';
+  if (m === 'near')   return 'Local';
+  if (m === 'state')  return db.state ? stateName(db.state) : 'Statewide';
   if (m === 'states') {
     const s = answers.pickup?.states || [];
-    if (!s.length) return 'Multiple states (none selected)';
-    return s.map(stateName).join(' · ');
-  }
-  return '—';
-}
-function deliveryLabel(answers) {
-  const m = answers.delivery?.mode || 'same';
-  if (m === 'same')        return 'Same as pickup';
-  if (m === 'nationwide')  return 'Nationwide (long-distance interest)';
-  if (m === 'states') {
-    const s = answers.delivery?.states || [];
-    if (!s.length) return 'Multiple states (none selected)';
-    return s.map(stateName).join(' · ');
+    if (!s.length) return 'Multiple states';
+    return s.length === 1 ? stateName(s[0]) : `${s.length} states`;
   }
   return '—';
 }
 
-// ── Screen 5: Confirm setup (no offer here) ──────────────────────────────────
-function ScreenConfirmSetup({ answers }) {
-  const distanceLabel = DISTANCE_OPTIONS.find(d => d.id === (answers.maxDistance || ''))?.label || 'Both / Any';
-  const sizes         = (answers.preferredHomeSizes || []);
-  const sizesValue    = sizes.length ? sizes.join(', ') : 'All sizes';
-  const db            = answers.dispatchBase || {};
-  const baseLabel     = (db.city && db.state) ? `${db.city}, ${db.state}` : (answers.primaryMarket || '—');
-
+// ── Step 3: Move preferences + notifications (no live transfers here) ───────
+//
+// Top-level User fields written server-side: maxDistance, preferredHomeSizes,
+// phone, smsNotif. Live Transfers moves to Step 4 (activation) so the user
+// makes that decision in the same context as funding the balance.
+function ScreenPreferencesAndAlerts({ answers, setAnswer, toggleInArray }) {
   return (
     <>
-      <h1 className="ow-h1">Your dispatch setup is ready</h1>
-      <p className="ow-sub">Review how we'll match and notify your company.</p>
+      <h1 className="ow-h1">Match preferences & alerts</h1>
+      <p className="ow-sub">
+        Tell us which moves fit your crews and how to reach you. We'll narrow alerts to matching opportunities.
+      </p>
 
-      <CoverageRecapSummary answers={answers} />
+      <section className="ow-section">
+        <div className="ow-section-h">Match preferences</div>
 
-      <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
-        <div className="ow-summary-recap-h">Service area</div>
-        <RecapRow label="Dispatch base"  value={baseLabel} />
-        <RecapRow label="Pickup areas"   value={pickupLabel(answers)} />
-        <RecapRow label="Delivery areas" value={deliveryLabel(answers)} />
-      </div>
+        <div className="ow-field">
+          <label className="ow-label">Distance preference</label>
+          <div className="ow-cards">
+            {DISTANCE_OPTIONS.map(opt => {
+              const active = (answers.maxDistance || '') === opt.id;
+              return (
+                <button
+                  key={opt.id || 'any'}
+                  type="button"
+                  className={`ow-card${active ? ' active' : ''}`}
+                  onClick={() => setAnswer('maxDistance', opt.id)}
+                  aria-pressed={active}
+                >
+                  <div className="ow-card-row">
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{opt.label}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
+                    </div>
+                    {active && <span className="ow-card-check">✓</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-      <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
-        <div className="ow-summary-recap-h">Move preferences</div>
-        <RecapRow label="Distance preference"  value={distanceLabel} />
-        <RecapRow label="Preferred move sizes" value={sizesValue} />
-      </div>
+        <div className="ow-field">
+          <label className="ow-label">
+            Preferred move sizes
+            <span className="ow-label-hint">(optional — leave empty to receive all sizes)</span>
+          </label>
+          <div className="ow-chips">
+            {HOME_SIZE_OPTIONS.map(size => {
+              const active = (answers.preferredHomeSizes || []).includes(size);
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  className={`ow-chip${active ? ' active' : ''}`}
+                  onClick={() => toggleInArray('preferredHomeSizes', size)}
+                >
+                  {active && <span className="ow-chip-check">✓</span>}
+                  {size}
+                </button>
+              );
+            })}
+          </div>
+          {(answers.preferredHomeSizes || []).length > 0 && (
+            <p className="ow-feedback">
+              {answers.preferredHomeSizes.length === 1
+                ? `${answers.preferredHomeSizes[0]} requests prioritized.`
+                : `${answers.preferredHomeSizes.length} sizes prioritized for matching.`}
+            </p>
+          )}
+        </div>
+      </section>
 
-      <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
-        <div className="ow-summary-recap-h">Notifications</div>
-        <RecapRow label="Phone number"          value={answers.phone || '—'} />
-        <RecapRow label="SMS alerts"            value={answers.smsNotif ? 'On' : 'Off'} />
-        <RecapRow label="Live Phone Transfers"  value={answers.receiveLiveTransfers ? 'On — $40 per accepted call' : 'Off'} />
-      </div>
+      <section className="ow-section">
+        <div className="ow-section-h">Alerts</div>
+
+        <div className="ow-field">
+          <label className="ow-label" htmlFor="notifPhone">Phone number</label>
+          <input
+            id="notifPhone"
+            type="tel"
+            className="ow-input"
+            placeholder="(555) 123-4567"
+            value={answers.phone || ''}
+            onChange={e => setAnswer('phone', e.target.value)}
+            autoComplete="tel"
+          />
+          <p className="ow-helper">We text + dial this number for SMS alerts and (optionally) live transfers.</p>
+        </div>
+
+        <div className="ow-field">
+          <button
+            type="button"
+            className={`ow-toggle${answers.smsNotif ? ' active' : ''}`}
+            onClick={() => setAnswer('smsNotif', !answers.smsNotif)}
+            aria-pressed={!!answers.smsNotif}
+          >
+            <span className="ow-toggle-track" />
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
+              Text me when a request matches my setup
+            </span>
+          </button>
+          <p className="ow-helper">SMS fires only on leads matching your service area, distance, and size preferences.</p>
+        </div>
+      </section>
 
       <p className="ow-reassurance">{REASSURANCE}</p>
     </>
   );
 }
 
-function RecapRow({ label, value }) {
-  return (
-    <div className="ow-summary-recap-row">
-      <span className="ow-summary-recap-label">{label}</span>
-      <span className="ow-summary-recap-value">{value}</span>
-    </div>
-  );
-}
-
-function formatTime12h(t) {
-  if (!t || !/^\d{2}:\d{2}$/.test(t)) return t || '';
-  const [h, m] = t.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-}
-
-// ── Screen 6: Processing (5 items, ~5.4s, then transition CTA) ───────────────
-function ScreenProcessing({ onDone, answers }) {
-  const { API_URL } = useContext(AuthContext);
-  const persona = buildPersona(answers || {});
-  const items = [
-    `Configuring ${persona.market} dispatch base`,
-    persona.deliveryMode === 'nationwide'
-      ? 'Enabling long-distance delivery interest'
-      : (persona.pickupMode === 'states' || persona.deliveryMode === 'states')
-        ? 'Building multi-state pickup + delivery coverage'
-        : 'Building local pickup + delivery coverage',
-    'Enabling matching alerts',
-    'Calibrating request flow',
-    'Account preferences set',
-  ];
-  const [done, setDone] = useState(0);
-  const [phase, setPhase] = useState('working'); // 'working' | 'transition' | 'completeError'
-  const completedRef = useRef(false);
-
-  // Try to mark onboarding complete server-side. Retry once on failure;
-  // surface a manual retry CTA if both attempts fail so we don't transition
-  // the user with stale server state (which would break the activation
-  // banner + recovery deep-links).
-  async function callComplete() {
-    const url = `${API_URL}/onboarding/complete`;
-    const opts = {
-      method: 'POST',
-      headers: { 'x-auth-token': localStorage.getItem('token') || '' },
-    };
-    try {
-      const r = await fetch(url, opts);
-      if (r.ok) return true;
-    } catch { /* fall through to retry */ }
-    try {
-      const r2 = await fetch(url, opts);
-      return r2.ok;
-    } catch {
-      return false;
-    }
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    // Spread to ~5.4 seconds (within 4-7 sec target)
-    const t1 = setTimeout(() => setDone(1), 900);
-    const t2 = setTimeout(() => setDone(2), 1900);
-    const t3 = setTimeout(() => setDone(3), 2900);
-    const t4 = setTimeout(() => setDone(4), 3900);
-    const t5 = setTimeout(async () => {
-      if (cancelled) return;
-      setDone(5);
-      const ok = await callComplete();
-      if (cancelled) return;
-      // Hold ~800ms so the final check has visual time, then route.
-      setTimeout(() => {
-        if (cancelled) return;
-        setPhase(ok ? 'transition' : 'completeError');
-      }, 800);
-    }, 5000);
-    return () => { cancelled = true; [t1, t2, t3, t4, t5].forEach(clearTimeout); };
-  }, []);
-
-  async function handleRetryComplete() {
-    setPhase('working');
-    const ok = await callComplete();
-    setPhase(ok ? 'transition' : 'completeError');
-  }
-
-  function handleContinue() {
-    if (completedRef.current) return;
-    completedRef.current = true;
-    onDone();
-  }
-
-  if (phase === 'completeError') {
-    return (
-      <div className="ow-processing ow-processing-transition">
-        <div className="ow-error-icon">!</div>
-        <h1 className="ow-h1">We couldn't finalize your setup.</h1>
-        <p className="ow-sub" style={{ marginBottom: 18 }}>
-          The connection dropped. Your answers are saved — just retry to continue to activation.
-        </p>
-        <button type="button" className="ow-next" onClick={handleRetryComplete}>
-          Retry →
-        </button>
-      </div>
-    );
-  }
-
-  if (phase === 'transition') {
-    return (
-      <div className="ow-processing ow-processing-transition">
-        <div className="ow-success-icon ow-success-icon-sm">✓</div>
-        <h1 className="ow-h1">Your account preferences are set.</h1>
-        <p className="ow-sub" style={{ marginBottom: 18 }}>
-          Claim your <strong style={{ color: '#ea580c' }}>$50 FREE credit</strong> to start unlocking requests.
-        </p>
-        <button type="button" className="ow-next" onClick={handleContinue}>
-          Claim my $50 FREE credit →
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="ow-processing">
-      <h1 className="ow-h1">Preparing your request routing…</h1>
-      <p className="ow-sub">Configuring your account based on the preferences you just set.</p>
-      <ul className="ow-processing-list">
-        {items.map((label, i) => {
-          const isDone = i < done;
-          const isLoading = i === done;
-          return (
-            <li key={label} className={`ow-processing-item${isDone ? ' done' : ''}${isLoading ? ' loading' : ''}`}>
-              <span className="ow-processing-icon">
-                {isDone ? '✓' : isLoading ? <span className="ow-spinner" /> : ''}
-              </span>
-              <span className="ow-processing-label">{label}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-// ── Screen 7: Activation (light theme — native to onboarding modal) ──────────
-// ── Screen 7: Activation — TWO substeps inside one wizard step ───────────────
-//   7a "choose"  → tier picker, no PaymentElement, no Stripe API call yet.
-//                  CTA "Continue to secure payment →" fetches a PaymentIntent.
-//   7b "pay"     → summary banner + Back link + PaymentElement + dynamic CTA.
-// Splitting these means the user never sees plan cards and a card form on the
-// same screen, and we don't burn a PaymentIntent until the user actually
-// commits to a tier.
-function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
+// ── Step 4: Activation — Live Transfers + Balance + Payment ──────────────────
+//   Substeps:
+//     'choose' → Live Transfers card + ChooseBalance picker (no Stripe call yet)
+//     'pay'    → PaymentElement form
+function ScreenActivation({ API_URL, onSkip, onDone, answers, setAnswer }) {
   const [tier, setTier] = useState(100);
-  const [substep, setSubstep] = useState('choose'); // 'choose' | 'pay'
-  const [intent, setIntent] = useState(null);       // { clientSecret, selectedAmount, bonusCredits, totalCredits }
+  const [substep, setSubstep] = useState('choose');
+  const [intent, setIntent] = useState(null);
   const [fetching, setFetching] = useState(false);
   const [initErr, setInitErr] = useState('');
 
@@ -982,8 +766,6 @@ function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
   }
 
   function handleBackToChoose() {
-    // Drop the existing intent — if the user changes tier and continues again,
-    // a fresh PI will be created.
     setIntent(null);
     setSubstep('choose');
   }
@@ -997,12 +779,13 @@ function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
         onSkip={onSkip}
         fetching={fetching}
         initErr={initErr}
+        answers={answers}
+        setAnswer={setAnswer}
+        API_URL={API_URL}
       />
     );
   }
 
-  // substep === 'pay' — Elements re-keyed on clientSecret so a back-then-tier-change
-  // flow remounts cleanly with a fresh PI.
   if (!intent) return null;
   return (
     <Elements
@@ -1035,31 +818,75 @@ function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
   );
 }
 
-// ── 7a — Choose your activation balance ─────────────────────────────────────
-function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr }) {
+// ── Step 4 substep 'choose' — Live Transfers + balance picker ───────────────
+function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, answers, setAnswer, API_URL }) {
   const ctaLabel = fetching
     ? 'Preparing secure payment…'
     : tier === 100 ? 'Continue with $150 balance →' : 'Continue with $50 balance →';
 
+  // When the user toggles live transfers here, persist immediately so closing
+  // the wizard mid-activation doesn't lose the choice.
+  async function setLiveTransfers(value) {
+    setAnswer('receiveLiveTransfers', value);
+    try {
+      await fetch(`${API_URL}/onboarding/save-step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
+        body: JSON.stringify({
+          step: 4,
+          answers: {
+            receiveLiveTransfers: value,
+          },
+        }),
+      });
+    } catch { /* swallow — user can toggle again */ }
+  }
+
   return (
     <div className="ow-choose">
-      <h1 className="ow-h1">Claim your onboarding credit</h1>
+      <h1 className="ow-h1">Activate your account</h1>
       <p className="ow-sub">
-        Your state is open for new mover partners right now. Activate your balance before partner onboarding closes.
+        Add your starting balance and pick whether you want premium live phone transfers. You'll only be charged for what you accept.
       </p>
 
-      {/* FOMO notice — operational tone, no countdowns, no fake spots. */}
+      {/* FOMO notice — operational tone */}
       <aside className="ow-fomo" role="note">
         <span className="ow-fomo-dot" aria-hidden="true" />
         <span>
-          Partner spots are limited by state so request quality stays protected. Your <strong>$50 onboarding credit</strong> is available while onboarding remains open in your state.
+          Partner spots are limited per state so request quality stays protected. Your <strong>$50 onboarding credit</strong> is available while onboarding remains open in your state.
         </span>
       </aside>
+
+      {/* Live phone transfers — opt-in here so the choice is paired with funding */}
+      <section className="ow-live-transfer-field" aria-label="Live phone transfers">
+        <div className="ow-live-transfer-head">
+          <div>
+            <div className="ow-live-transfer-title">
+              <span>Live Phone Transfers</span>
+              <span className="ow-live-transfer-pill">$40 per accepted call</span>
+            </div>
+            <p className="ow-live-transfer-copy">
+              When a premium lead requests a quote, our system calls your phone directly. Press 1 to accept and instantly connect with the customer.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={`ow-toggle${answers.receiveLiveTransfers ? ' active' : ''}`}
+            onClick={() => setLiveTransfers(!answers.receiveLiveTransfers)}
+            aria-pressed={!!answers.receiveLiveTransfers}
+            aria-label="Enable Live Phone Transfers"
+          >
+            <span className="ow-toggle-track" />
+          </button>
+        </div>
+        <div className="ow-live-transfer-warn">
+          ⚠️ You're only charged $40 when you accept the call. Keep your balance above $50 to receive live transfers.
+        </div>
+      </section>
 
       <div className="ow-choose-heading">Choose your starting balance</div>
 
       <div className="ow-tiers">
-        {/* Primary $100 — visually dominant. */}
         <button
           type="button"
           className={`ow-tier-v2 ow-tier-v2-primary${tier === 100 ? ' selected' : ''}`}
@@ -1087,7 +914,6 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
           </div>
         </button>
 
-        {/* Secondary $50 — lighter, still trustworthy. */}
         <button
           type="button"
           className={`ow-tier-v2 ow-tier-v2-secondary${tier === 50 ? ' selected' : ''}`}
@@ -1114,7 +940,6 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
         </button>
       </div>
 
-      {/* Trust panel — contained, visually tied to the activation flow. */}
       <section className="ow-trust-panel" aria-label="Included with your balance">
         <div className="ow-trust-panel-title">Included with your balance</div>
         <ul className="ow-trust-panel-list">
@@ -1153,7 +978,7 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
   );
 }
 
-// ── 7b — Complete secure payment ────────────────────────────────────────────
+// ── Step 4 substep 'pay' — Complete secure payment ───────────────────────────
 function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -1255,27 +1080,21 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   );
 }
 
-// ── Screen 8: Activation success (post-payment) ─────────────────────────────
+// ── Step 5: Activation success ──────────────────────────────────────────────
 function ScreenActivationSuccess({ onDone, answers }) {
   const { API_URL, user } = useContext(AuthContext);
   const persona = buildPersona(answers || {});
 
-  // Tier-aware copy: read the activated balance from the fresh user object
-  // (refreshUser was called before transitioning to this step). $100 path
-  // shows "$150 balance is active"; $50 path shows "$50 balance is active".
   const balance = Math.round(user?.balance || 0);
   const isBonusPath = !!user?.onboarding?.bonusClaimedAt || balance >= 150;
   const headline = isBonusPath ? 'Your $150 balance is active' : `Your $${balance || 50} balance is active`;
-  // primaryMarket is now a US state name (e.g. "Texas"). We also match the
-  // 2-letter code so leads stored as "Houston, TX" still count toward the
-  // partner's selected state.
-  const stateName = (persona.market || '').trim();
-  const stateRecord = US_STATES.find(s => s.name.toLowerCase() === stateName.toLowerCase());
+  const stateLabel = (persona.market || '').trim();
+  const stateRecord = US_STATES.find(s => s.name.toLowerCase() === stateLabel.toLowerCase());
   const stateCode = stateRecord?.code || '';
   const [matchCount, setMatchCount] = useState(null);
 
   useEffect(() => {
-    if (!stateName || stateName === 'your market') return;
+    if (!stateLabel || stateLabel === 'your market') return;
     let alive = true;
     fetch(`${API_URL}/leads`, {
       headers: { 'x-auth-token': localStorage.getItem('token') || '' },
@@ -1283,12 +1102,11 @@ function ScreenActivationSuccess({ onDone, answers }) {
       .then(r => r.json())
       .then(data => {
         if (!alive || !Array.isArray(data)) return;
-        const nameLc = stateName.toLowerCase();
+        const nameLc = stateLabel.toLowerCase();
         const codeLc = stateCode.toLowerCase();
         const count = data.filter(l => {
           const o = (l.originCity || '').toLowerCase();
           const d = (l.destinationCity || '').toLowerCase();
-          // Match either the state name or the 2-letter code as a token.
           return (
             (nameLc && (o.includes(nameLc) || d.includes(nameLc))) ||
             (codeLc && (o.match(new RegExp(`(?:^|[\\s,])${codeLc}(?:$|[\\s,])`)) || d.match(new RegExp(`(?:^|[\\s,])${codeLc}(?:$|[\\s,])`))))
@@ -1298,7 +1116,7 @@ function ScreenActivationSuccess({ onDone, answers }) {
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [API_URL, stateName, stateCode]);
+  }, [API_URL, stateLabel, stateCode]);
 
   const marketLine = matchCount && matchCount > 0
     ? `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${persona.market}`
@@ -1306,8 +1124,6 @@ function ScreenActivationSuccess({ onDone, answers }) {
         ? `Market routing enabled for ${persona.market}`
         : 'Market routing enabled');
 
-  // We dropped the old "channels" concept (legacy alertChannels). The success
-  // bullet now reflects the actual real notification toggles set via Step 3.
   const alertLine = 'Notifications ready for matching requests';
 
   return (

@@ -64,42 +64,40 @@ router.post('/save-step', auth, async (req, res) => {
         if (key in answers) update[`onboarding.answers.${key}`] = answers[key];
       }
 
-      // ── Step 2 (Move preferences) writes to TOP-LEVEL User fields where
-      //    the matching helper actually reads them. The nested
+      // ── Step 3 (Preferences + Alerts) writes top-level User fields the
+      //    matching helper + SMS broadcast read directly. The nested
       //    onboarding.answers copy is kept so the wizard can hydrate on
-      //    resume.
-      if (step === 2) {
+      //    resume. (Was Step 2 + Step 3 in the legacy 5-step wizard; merged
+      //    into Step 3 in the new 4-step flow.)
+      if (step === 3) {
         if (typeof answers.maxDistance === 'string') {
-          // '' | 'Local' | 'Long Distance'
           update['maxDistance'] = answers.maxDistance;
         }
         if (Array.isArray(answers.preferredHomeSizes)) {
           update['preferredHomeSizes'] = answers.preferredHomeSizes;
         }
-      }
-
-      // ── Step 3 (Notifications + Live Transfers) → top-level User fields
-      //    consumed by broadcastLeadSMS, voice routing, and the live-transfer
-      //    eligibility filter.
-      if (step === 3) {
         if (typeof answers.phone === 'string' && answers.phone.trim()) {
           update['phone'] = answers.phone.trim();
         }
         if (typeof answers.smsNotif === 'boolean') {
           update['smsNotif'] = answers.smsNotif;
         }
+      }
+
+      // ── Step 4 (Activation) — Live Phone Transfers toggle moved here so
+      //    the user opts in next to the balance picker. Persisted on every
+      //    save-step from this screen so closing mid-activation doesn't
+      //    drop the choice.
+      if (step === 4) {
         if (typeof answers.receiveLiveTransfers === 'boolean') {
           update['receiveLiveTransfers'] = answers.receiveLiveTransfers;
         }
       }
 
-      // ── Step 1 (new model): persist deliversNationwide flag at top level
-      //    so leadMatching + broadcastLeadSMS can short-circuit on it.
-      if (step === 1 && answers.delivery && typeof answers.delivery.mode === 'string') {
+      // ── Step 2 (new model): persist deliversNationwide + derive friendly
+      //    primaryMarket. Delivery mode is set on Step 2 in the new flow.
+      if (step === 2 && answers.delivery && typeof answers.delivery.mode === 'string') {
         update['deliversNationwide'] = (answers.delivery.mode === 'nationwide');
-        // Derive a friendly primaryMarket string from the dispatchBase so
-        // recovery-email templates and any legacy reader still get the
-        // canonical "City, ST" label without needing to know the new shape.
         if (answers.dispatchBase && answers.dispatchBase.city && answers.dispatchBase.state) {
           update['onboarding.answers.primaryMarket'] = `${answers.dispatchBase.city}, ${answers.dispatchBase.state}`;
         }
@@ -115,8 +113,12 @@ router.post('/save-step', auth, async (req, res) => {
     // Only while the user is still in onboarding. Once onboarding.complete is
     // true, the Settings → Coverage Areas editor is the source of truth and
     // we must NOT wipe whatever the partner has customized there.
+    // Coverage regenerates whenever the user touches the dispatch/pickup
+    // (Step 1) OR delivery (Step 2). Both phases of the new split flow need
+    // to refresh CoverageArea docs because dispatchBase + pickup + delivery
+    // together define the typed origin/destination/both writes.
     let coverageInfo = null;
-    if (step === 1 && !user.onboarding?.complete && answers) {
+    if ((step === 1 || step === 2) && !user.onboarding?.complete && answers) {
       try {
         // Prefer the new dispatchBase + pickup + delivery model. Fall back to
         // the legacy primaryMarket + coverageRadius + additionalMarkets path

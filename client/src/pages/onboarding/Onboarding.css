@@ -1509,3 +1509,68 @@
   border: 1px solid rgba(220, 38, 38, 0.22);
   border-radius: 12px;
 }
+
+/* ── New 4-step flow polish ─────────────────────────────────────────────── */
+
+/* Setup-phase FOMO note (Step 1). Lighter than the activation .ow-fomo so it
+   doesn't out-shout the dispatch-base input. */
+.ow-setup-fomo {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(255,106,20,0.05), rgba(255,106,20,0.01));
+  border: 1px solid rgba(255, 106, 20, 0.16);
+  border-radius: 10px;
+  font-size: 12.5px; line-height: 1.45; color: #475569; font-weight: 500;
+}
+.ow-setup-fomo-dot {
+  flex-shrink: 0;
+  margin-top: 6px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ff6a14;
+  box-shadow: 0 0 0 3px rgba(255, 106, 20, 0.16);
+}
+
+/* Progression chips at the top of Step 2 — "✓ Dispatch base · Houston, TX". */
+.ow-progression-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 0 0 18px;
+}
+.ow-progression-chip {
+  display: inline-flex; align-items: center;
+  padding: 5px 10px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.26);
+  border-radius: 999px;
+  font-size: 12px; font-weight: 700; color: #15803d;
+  letter-spacing: -0.005em;
+}
+
+/* Section divider used inside Step 3 (Preferences + Alerts merge). */
+.ow-section {
+  margin: 0 0 18px;
+  padding: 16px 16px 4px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+.ow-section-h {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #94a3b8; margin: 0 0 12px;
+}
+.ow-section .ow-field:last-child { margin-bottom: 8px; }
+
+/* Stronger selected-card state — adds soft tint + lift in addition to the
+   existing border-color change. Applies to all .ow-card.active states. */
+.ow-card.active {
+  box-shadow: 0 8px 18px rgba(255, 106, 20, 0.10);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 600px) {
+  .ow-section { padding: 14px 14px 2px; }
+  .ow-progression-chip { font-size: 11.5px; padding: 4px 9px; }
+  .ow-setup-fomo { font-size: 12px; padding: 9px 11px; }
+}
+

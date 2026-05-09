@@ -50,10 +50,10 @@ export default function DashboardLayout({ children }) {
     }
   }, [user]);
 
-  // Banner CTA → reopen wizard at the activation step (step 6 in the new
-  // 4-setup-step flow; was step 7 in the legacy 5-setup-step flow).
+  // Banner CTA → reopen wizard at the activation step. In the new 4-step
+  // flow, Step 4 is the Live Transfers + Balance + Payment phase.
   const openActivation = () => {
-    setWizardInitialStep(6);
+    setWizardInitialStep(4);
     setShowWizard(true);
   };
 
@@ -89,19 +89,19 @@ export default function DashboardLayout({ children }) {
 
     if (onboardingParam === 'resume') {
       // Mid-wizard abandoner: reopen at saved step (or 1 if missing). Clamp
-      // to the new 4-step setup range; legacy partners with currentStep=5
-      // (old "Confirm" step) end up on the new Confirm (step 4).
+      // to the 4-step setup range. If they already completed setup, drop
+      // them on the activation step.
       const savedStep = user.onboarding?.currentStep || 1;
       const clamped = Math.min(Math.max(savedStep, 1), 4);
-      const target = !user.onboarding?.complete ? clamped : 6;
+      const target = !user.onboarding?.complete ? clamped : 4;
       setWizardInitialStep(target);
       setShowWizard(true);
       params.delete('onboarding');
       const qs = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
     } else if (activateParam === '1') {
-      // Post-skip recovery: jump to activation step (now step 6).
-      setWizardInitialStep(6);
+      // Post-skip recovery: jump to activation step (Step 4).
+      setWizardInitialStep(4);
       setShowWizard(true);
       params.delete('activate');
       const qs = params.toString();
