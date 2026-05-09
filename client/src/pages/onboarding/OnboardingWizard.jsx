@@ -17,8 +17,8 @@ const stripePromiseSingleton = (() => {
   };
 })();
 
-const TOTAL_STEPS = 5; // Setup steps shown in the progress bar.
-// Internal step states: 1..5 = setup, 6 = processing, 7 = activation, 8 = success.
+const TOTAL_STEPS = 4; // Setup steps shown in the progress bar.
+// Internal step states: 1..4 = setup, 5 = processing, 6 = activation, 7 = success.
 
 const REASSURANCE = 'You can change this later from your dashboard.';
 
@@ -32,61 +32,41 @@ const RADIUS_OPTIONS = [
   { id: 'interstate', label: 'Interstate',   desc: 'Long-distance / cross-state moves' },
 ];
 
-const SERVICE_TYPES = [
-  { id: 'apartment',    label: 'Apartments' },
-  { id: 'home',         label: 'Homes' },
-  { id: 'office',       label: 'Offices' },
-  { id: 'longDistance', label: 'Long-distance' },
-  { id: 'emergency',    label: 'Emergency moves' },
-  { id: 'packing',      label: 'Packing' },
-  { id: 'laborOnly',    label: 'Labor-only' },
-  { id: 'storage',      label: 'Storage' },
+// Distance-preference options for Step 2. Values match User.maxDistance.
+const DISTANCE_OPTIONS = [
+  { id: '',              label: 'Both / Any',     desc: 'Send me both local and long-distance moves' },
+  { id: 'Local',         label: 'Local moves',    desc: 'Same-city / under-100mi jobs only' },
+  { id: 'Long Distance', label: 'Long-distance',  desc: 'Cross-state / 100mi+ jobs only' },
 ];
 
-const ALERT_CHANNELS = [
-  { id: 'sms',   label: 'SMS' },
-  { id: 'call',  label: 'Phone call' },
-  { id: 'email', label: 'Email' },
+// Lead.homeSize enum (as written by the admin form + ingest pipeline).
+// Keep these strings in sync with HOME_SIZES in client/src/pages/admin/AdminLeads.jsx.
+const HOME_SIZE_OPTIONS = [
+  'Studio',
+  '1 Bedroom',
+  '2 Bedroom',
+  '3 Bedroom',
+  '4+ Bedroom',
+  'House (Small)',
+  'House (Medium)',
+  'House (Large)',
+  'Office/Commercial',
 ];
 
-const DAILY_ALERT_OPTIONS = [
-  { id: '1-3',  label: '1–3' },
-  { id: '4-7',  label: '4–7' },
-  { id: '8-15', label: '8–15' },
-  { id: '15+',  label: '15+' },
-];
-
-const TIMING_OPTIONS = [
-  { id: 'sameDay',     label: 'Same day' },
-  { id: 'within7Days', label: 'Within 7 days' },
-  { id: 'thisMonth',   label: 'This month' },
-  { id: 'any',         label: 'Any timing' },
-];
-
-const DAYS = [
-  { id: 'mon', label: 'Mon' }, { id: 'tue', label: 'Tue' }, { id: 'wed', label: 'Wed' },
-  { id: 'thu', label: 'Thu' }, { id: 'fri', label: 'Fri' }, { id: 'sat', label: 'Sat' },
-  { id: 'sun', label: 'Sun' },
-];
-
-// Step-keyed progress microcopy. Replaces the previous rotating TRUST_TIPS
-// with operational labels that mirror what the user is doing right now.
+// Step-keyed progress microcopy.
 const STEP_MICROCOPY = {
-  1: 'Set your market',
-  2: 'Choose job types',
-  3: 'Alert routing',
-  4: 'Request flow',
-  5: 'Review setup',
+  1: 'Set your service area',
+  2: 'Pick your move preferences',
+  3: 'Notification setup',
+  4: 'Review setup',
 };
 
-// Setup-status tracker stages — one per setup step (1..5).
-// Labels updated to match the operational step microcopy.
+// Setup-status tracker stages — one per setup step (1..4).
 const SETUP_STAGES = [
   { id: 1, label: 'Coverage' },
-  { id: 2, label: 'Jobs' },
+  { id: 2, label: 'Preferences' },
   { id: 3, label: 'Alerts' },
-  { id: 4, label: 'Flow' },
-  { id: 5, label: 'Ready' },
+  { id: 4, label: 'Ready' },
 ];
 
 // Build personalized phrasing fragments from the answers object.
@@ -95,26 +75,17 @@ function buildPersona(answers, fallback = {}) {
   const radius = answers.coverageRadius || '';
   const radiusOption = RADIUS_OPTIONS.find(r => r.id === radius);
   const radiusLabel = radiusOption?.label || '';
-  const moveLabels = (answers.moveTypes || [])
-    .map(id => SERVICE_TYPES.find(o => o.id === id)?.label.toLowerCase())
-    .filter(Boolean);
-  const channelLabels = (answers.alertChannels || [])
-    .map(id => ALERT_CHANNELS.find(o => o.id === id)?.label)
-    .filter(Boolean);
+  const distanceLabel = DISTANCE_OPTIONS.find(d => d.id === (answers.maxDistance || ''))?.label || '';
+  const sizes = Array.isArray(answers.preferredHomeSizes) ? answers.preferredHomeSizes : [];
   return {
     market: market || fallback.market || 'your market',
     radius,
     radiusLabel,
-    // legacy field kept for back-compat with anything that reads coverageLabels
-    coverageLabels: radiusLabel ? [radiusLabel] : [],
-    moveLabels,
-    channelLabels,
-    moveSummary: moveLabels.length
-      ? (moveLabels.length <= 2 ? moveLabels.join(' and ') : `${moveLabels.slice(0, 2).join(', ')} and more`)
-      : (fallback.moveSummary || 'verified move'),
-    channelSummary: channelLabels.length
-      ? channelLabels.join(' and ')
-      : (fallback.channelSummary || 'your alert channels'),
+    distanceLabel,
+    sizes,
+    sizesSummary: sizes.length
+      ? (sizes.length <= 2 ? sizes.join(' and ') : `${sizes.slice(0, 2).join(', ')} and more`)
+      : 'all home sizes',
   };
 }
 
@@ -123,20 +94,17 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
+    // Step 1
     primaryMarket: '',
     coverageRadius: '',
-    coveragePreferences: [], // legacy — left for back-compat resume
     additionalMarkets: [],
-    moveTypes: [],
-    alertChannels: [],
-    urgentCallEnabled: false,
-    dispatchHoursMode: 'default', // 'default' | 'advanced'
-    dispatchDays: [],
-    dispatchHoursOpen: '08:00',
-    dispatchHoursClose: '19:00',
-    dispatchHoursPerDay: {}, // { mon: {open, close}, ... }
-    dailyRequestCapacity: '',
-    preferredTiming: [],
+    // Step 2 (move preferences — also written to top-level User fields)
+    maxDistance: '',          // '' | 'Local' | 'Long Distance'
+    preferredHomeSizes: [],
+    // Step 3 (notifications + live transfers)
+    phone: user?.phone || '',
+    smsNotif: !!user?.smsNotif,
+    receiveLiveTransfers: !!user?.receiveLiveTransfers,
   });
 
   // Restore prior progress on mount
@@ -155,31 +123,20 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         }
         if (ob.answers) {
           const a = ob.answers;
-          // Migrate single coveragePreference → coveragePreferences[]
-          let coveragePrefs = Array.isArray(a.coveragePreferences) && a.coveragePreferences.length
-            ? a.coveragePreferences
-            : (a.coveragePreference ? [a.coveragePreference] : []);
-          // Build per-day hours from legacy shape if present
-          const perDay = (a.dispatchHours && typeof a.dispatchHours === 'object') ? a.dispatchHours : {};
-          const dispatchDays = Array.isArray(a.dispatchDays) && a.dispatchDays.length
-            ? a.dispatchDays
-            : Object.keys(perDay);
           setAnswers(prev => ({
             ...prev,
-            primaryMarket:        a.primaryMarket        ?? prev.primaryMarket,
-            coverageRadius:       a.coverageRadius       ?? prev.coverageRadius,
-            coveragePreferences:  coveragePrefs,
-            additionalMarkets:    a.additionalMarkets    ?? prev.additionalMarkets,
-            moveTypes:            a.moveTypes            ?? prev.moveTypes,
-            alertChannels:        a.alertChannels        ?? prev.alertChannels,
-            urgentCallEnabled:    a.urgentCallEnabled    ?? prev.urgentCallEnabled,
-            dispatchHoursMode:    a.dispatchHoursMode    || prev.dispatchHoursMode,
-            dispatchDays,
-            dispatchHoursOpen:    a.dispatchHoursOpen    ?? prev.dispatchHoursOpen,
-            dispatchHoursClose:   a.dispatchHoursClose   ?? prev.dispatchHoursClose,
-            dispatchHoursPerDay:  perDay,
-            dailyRequestCapacity: a.dailyRequestCapacity ?? prev.dailyRequestCapacity,
-            preferredTiming:      a.preferredTiming      ?? prev.preferredTiming,
+            primaryMarket:       a.primaryMarket       ?? prev.primaryMarket,
+            coverageRadius:      a.coverageRadius      ?? prev.coverageRadius,
+            additionalMarkets:   a.additionalMarkets   ?? prev.additionalMarkets,
+            // Step 2 preferences may be in onboarding.answers (mid-wizard) OR
+            // already on the top-level User (resumed after save). Prefer
+            // onboarding.answers since it's the active draft.
+            maxDistance:         (typeof a.maxDistance === 'string' ? a.maxDistance : prev.maxDistance),
+            preferredHomeSizes:  Array.isArray(a.preferredHomeSizes) ? a.preferredHomeSizes : prev.preferredHomeSizes,
+            // Step 3
+            phone:                (typeof a.phone === 'string' && a.phone) ? a.phone : prev.phone,
+            smsNotif:             (typeof a.smsNotif === 'boolean') ? a.smsNotif : prev.smsNotif,
+            receiveLiveTransfers: (typeof a.receiveLiveTransfers === 'boolean') ? a.receiveLiveTransfers : prev.receiveLiveTransfers,
           }));
         }
       })
@@ -201,41 +158,23 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
   async function saveStep(stepNum) {
     try {
-      // Build dispatchHours object based on mode for backend storage
-      const dispatchHours = {};
-      if (answers.dispatchHoursMode === 'advanced') {
-        for (const d of answers.dispatchDays) {
-          const perDay = answers.dispatchHoursPerDay[d] || {};
-          dispatchHours[d] = {
-            open: perDay.open || answers.dispatchHoursOpen,
-            close: perDay.close || answers.dispatchHoursClose,
-          };
-        }
-      } else {
-        for (const d of answers.dispatchDays) {
-          dispatchHours[d] = { open: answers.dispatchHoursOpen, close: answers.dispatchHoursClose };
-        }
-      }
       await fetch(`${API_URL}/onboarding/save-step`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
         body: JSON.stringify({
           step: stepNum,
           answers: {
+            // Step 1
             primaryMarket: answers.primaryMarket,
             coverageRadius: answers.coverageRadius,
-            coveragePreferences: answers.coveragePreferences,
             additionalMarkets: answers.additionalMarkets,
-            moveTypes: answers.moveTypes,
-            alertChannels: answers.alertChannels,
-            urgentCallEnabled: answers.urgentCallEnabled,
-            dispatchHoursMode: answers.dispatchHoursMode,
-            dispatchDays: answers.dispatchDays,
-            dispatchHoursOpen: answers.dispatchHoursOpen,
-            dispatchHoursClose: answers.dispatchHoursClose,
-            dispatchHours,
-            dailyRequestCapacity: answers.dailyRequestCapacity,
-            preferredTiming: answers.preferredTiming,
+            // Step 2 (server also writes these to top-level User)
+            maxDistance: answers.maxDistance,
+            preferredHomeSizes: answers.preferredHomeSizes,
+            // Step 3 (server also writes these to top-level User)
+            phone: answers.phone,
+            smsNotif: answers.smsNotif,
+            receiveLiveTransfers: answers.receiveLiveTransfers,
           },
         }),
       });
@@ -247,51 +186,19 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   async function next() {
     await saveStep(step);
     if (step < TOTAL_STEPS) setStep(step + 1);
-    else if (step === TOTAL_STEPS) setStep(6); // → processing
+    else if (step === TOTAL_STEPS) setStep(5); // → processing
   }
 
   function back() {
     if (step > 1 && step <= TOTAL_STEPS) setStep(step - 1);
   }
 
-  // Skip-with-defaults — only allowed on Step 2 (Service Types) and Step 4
-  // (Request Flow). Applies broad defaults the user can edit later from the
-  // dashboard; preserves the conversion path for movers who want to rush.
-  async function skipWithDefaults() {
-    let patched = answers;
-    if (step === 2) {
-      patched = { ...patched, moveTypes: patched.moveTypes?.length ? patched.moveTypes : ['home', 'apartment'] };
-    } else if (step === 4) {
-      patched = {
-        ...patched,
-        dailyRequestCapacity: patched.dailyRequestCapacity || '4-7',
-        preferredTiming: patched.preferredTiming?.length ? patched.preferredTiming : ['any'],
-      };
-    } else {
-      return;
-    }
-    setAnswers(patched);
-    // Save with the patched answers immediately, then advance.
-    try {
-      const dispatchHours = {};
-      for (const d of patched.dispatchDays || []) {
-        dispatchHours[d] = { open: patched.dispatchHoursOpen, close: patched.dispatchHoursClose };
-      }
-      await fetch(`${API_URL}/onboarding/save-step`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
-        body: JSON.stringify({
-          step,
-          answers: { ...patched, dispatchHours },
-        }),
-      });
-    } catch (err) { /* swallow — UI can advance regardless */ }
-    if (step < TOTAL_STEPS) setStep(step + 1);
-    else if (step === TOTAL_STEPS) setStep(6);
-  }
-  const canSkipStep = step === 2 || step === 4;
+  // No more "use recommended setup" link — the new wizard only asks
+  // questions that are real, so there's nothing to default-skip.
+  const canSkipStep = false;
+  async function skipWithDefaults() { /* no-op — kept for type safety on the footer button */ }
 
-  // Soft-skip — only used from activation step ("I'll activate later")
+  // Soft-skip — only used from activation step ("Continue without activating")
   async function dismissSkip() {
     try {
       await fetch(`${API_URL}/onboarding/skip`, {
@@ -303,11 +210,11 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     onClose && onClose();
   }
 
-  function onProcessingDone() { setStep(7); }
+  function onProcessingDone() { setStep(6); }
 
   async function onActivationDone() {
     if (refreshUser) await refreshUser();
-    setStep(8);
+    setStep(7);
   }
 
   async function closeAfterSuccess() {
@@ -347,13 +254,12 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         <div className="ow-body">
           <div className="ow-step-anim" key={step}>
             {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} companyName={user?.companyName} API_URL={API_URL} />}
-            {step === 2 && <ScreenServiceTypes answers={answers} toggleInArray={toggleInArray} />}
-            {step === 3 && <ScreenAlertRouting answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
-            {step === 4 && <ScreenRequestFlow answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
-            {step === 5 && <ScreenConfirmSetup answers={answers} />}
-            {step === 6 && <ScreenProcessing onDone={onProcessingDone} answers={answers} />}
-            {step === 7 && <ScreenActivation API_URL={API_URL} onDone={onActivationDone} onSkip={dismissSkip} answers={answers} />}
-            {step === 8 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
+            {step === 2 && <ScreenMovePreferences answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
+            {step === 3 && <ScreenNotifications answers={answers} setAnswer={setAnswer} />}
+            {step === 4 && <ScreenConfirmSetup answers={answers} />}
+            {step === 5 && <ScreenProcessing onDone={onProcessingDone} answers={answers} />}
+            {step === 6 && <ScreenActivation API_URL={API_URL} onDone={onActivationDone} onSkip={dismissSkip} answers={answers} />}
+            {step === 7 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
           </div>
         </div>
 
@@ -389,40 +295,19 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   );
 }
 
-function coverageFeedback(ids) {
-  const labels = ids
-    .map(id => COVERAGE_OPTIONS.find(o => o.id === id)?.label)
-    .filter(Boolean);
-  if (labels.length === 1) return `${labels[0]} routing prepared.`;
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]} routing prepared.`;
-  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]} routing prepared.`;
-}
-
-function moveTypeFeedback(ids) {
-  const n = ids.length;
-  if (n === 0) return '';
-  if (n === 1) {
-    const label = SERVICE_TYPES.find(o => o.id === ids[0])?.label.toLowerCase();
-    return `${label.charAt(0).toUpperCase() + label.slice(1)} requests enabled.`;
-  }
-  return `${n} service types enabled for matching.`;
-}
-
-function alertFeedback(ids, urgent) {
-  if (!ids.length) return '';
-  const labels = ids.map(id => ALERT_CHANNELS.find(o => o.id === id)?.label).filter(Boolean);
-  const channelLine = labels.length === 1
-    ? `${labels[0]} alerts ready.`
-    : `${labels.join(' + ')} alerts ready.`;
-  return urgent ? `${channelLine} Urgent calls enabled.` : channelLine;
-}
-
 function isStepValid(step, a) {
+  // Step 1: a primary service area + radius are required (writes CoverageArea)
   if (step === 1) return !!(a.primaryMarket && a.primaryMarket.trim()) && !!a.coverageRadius;
-  if (step === 2) return a.moveTypes && a.moveTypes.length > 0;
-  if (step === 3) return a.alertChannels && a.alertChannels.length > 0;
-  if (step === 4) return !!a.dailyRequestCapacity;
-  if (step === 5) return true;
+  // Step 2: distance preference is always present ('' = Both/Any, valid).
+  // Preferred sizes are optional. Step is always valid.
+  if (step === 2) return true;
+  // Step 3: phone is required — it's the dial target for live transfers + SMS.
+  if (step === 3) {
+    const digits = String(a.phone || '').replace(/\D/g, '');
+    return digits.length === 10;
+  }
+  // Step 4: confirm screen has nothing to validate.
+  if (step === 4) return true;
   return true;
 }
 
@@ -597,232 +482,144 @@ function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
 }
 
 // ── Screen 2: Service types (multi-select only) ──────────────────────────────
-function ScreenServiceTypes({ answers, toggleInArray }) {
+// ── Screen 2: Move preferences (distance + home sizes) ──────────────────────
+//
+// Both fields write to TOP-LEVEL User fields server-side (User.maxDistance,
+// User.preferredHomeSizes), which the matching helper reads. So setting these
+// here actually narrows the leads a mover sees in the "Matched for you" tab
+// AND the SMS broadcasts they receive.
+function ScreenMovePreferences({ answers, setAnswer, toggleInArray }) {
   return (
     <>
-      <h1 className="ow-h1">What jobs should we send your way?</h1>
-      <p className="ow-sub">Pick the move types your crews actually want. You can choose more than one.</p>
+      <h1 className="ow-h1">Which move requests fit your crews best?</h1>
+      <p className="ow-sub">
+        Choose the move types you want us to prioritize when sending alerts. We'll still show all marketplace leads on your dashboard.
+      </p>
 
       <div className="ow-field">
-        <label className="ow-label">Service types</label>
-        <div className="ow-chips">
-          {SERVICE_TYPES.map(opt => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`ow-chip${answers.moveTypes.includes(opt.id) ? ' active' : ''}`}
-              onClick={() => toggleInArray('moveTypes', opt.id)}
-            >
-              {answers.moveTypes.includes(opt.id) && <span className="ow-chip-check">✓</span>}
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        {answers.moveTypes.length > 0 && (
-          <p className="ow-feedback">{moveTypeFeedback(answers.moveTypes)}</p>
-        )}
-      </div>
-
-      <p className="ow-reassurance">{REASSURANCE}</p>
-    </>
-  );
-}
-
-// ── Screen 3: Alert routing ──────────────────────────────────────────────────
-function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
-  const isToggleActive = answers.urgentCallEnabled;
-  const isAdvanced = answers.dispatchHoursMode === 'advanced';
-  const setPerDay = (dayId, field, value) => {
-    setAnswer('dispatchHoursPerDay', {
-      ...answers.dispatchHoursPerDay,
-      [dayId]: {
-        open:  field === 'open'  ? value : (answers.dispatchHoursPerDay[dayId]?.open  || answers.dispatchHoursOpen),
-        close: field === 'close' ? value : (answers.dispatchHoursPerDay[dayId]?.close || answers.dispatchHoursClose),
-      },
-    });
-  };
-  return (
-    <>
-      <h1 className="ow-h1">How should we alert your dispatcher?</h1>
-      <p className="ow-sub">When a matching request comes in, choose how your team should receive it. Fast response usually decides who books the move.</p>
-
-      <div className="ow-field">
-        <label className="ow-label">Choose alert channels</label>
-        <div className="ow-chips">
-          {ALERT_CHANNELS.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              className={`ow-chip${answers.alertChannels.includes(c.id) ? ' active' : ''}`}
-              onClick={() => toggleInArray('alertChannels', c.id)}
-            >
-              {answers.alertChannels.includes(c.id) && <span className="ow-chip-check">✓</span>}
-              {c.label}
-            </button>
-          ))}
-        </div>
-        {(answers.alertChannels.length > 0 || answers.urgentCallEnabled) && (
-          <p className="ow-feedback">{alertFeedback(answers.alertChannels, answers.urgentCallEnabled)}</p>
-        )}
-      </div>
-
-      <div className="ow-field">
-        <button
-          type="button"
-          className={`ow-toggle${isToggleActive ? ' active' : ''}`}
-          onClick={() => setAnswer('urgentCallEnabled', !isToggleActive)}
-        >
-          <span className="ow-toggle-track" />
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
-            Call me immediately for urgent requests
-          </span>
-        </button>
-        <p className="ow-helper">Urgent requests can trigger a phone call when this is enabled.</p>
-      </div>
-
-      <div className="ow-field">
-        <label className="ow-label">Dispatch days <span className="ow-label-hint">(optional)</span></label>
-        <div className="ow-chips">
-          {DAYS.map(d => {
-            const active = answers.dispatchDays.includes(d.id);
+        <label className="ow-label">Distance preference</label>
+        <div className="ow-cards">
+          {DISTANCE_OPTIONS.map(opt => {
+            const active = (answers.maxDistance || '') === opt.id;
             return (
               <button
-                key={d.id}
+                key={opt.id || 'any'}
                 type="button"
-                className={`ow-chip${active ? ' active' : ''}`}
-                onClick={() => toggleInArray('dispatchDays', d.id)}
+                className={`ow-card${active ? ' active' : ''}`}
+                onClick={() => setAnswer('maxDistance', opt.id)}
+                aria-pressed={active}
               >
-                {active && <span className="ow-chip-check">✓</span>}
-                {d.label}
+                <div className="ow-card-row">
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{opt.label}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
+                  </div>
+                  {active && <span className="ow-card-check">✓</span>}
+                </div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {answers.dispatchDays.length > 0 && (
-        <div className="ow-field">
-          <div className="ow-mode-row">
-            <label className="ow-label" style={{ marginBottom: 0 }}>Dispatch hours</label>
-            <div className="ow-mode-tabs" role="tablist" aria-label="Dispatch hours mode">
+      <div className="ow-field">
+        <label className="ow-label">
+          Preferred move sizes
+          <span className="ow-label-hint">(optional — leave empty to receive all sizes)</span>
+        </label>
+        <div className="ow-chips">
+          {HOME_SIZE_OPTIONS.map(size => {
+            const active = (answers.preferredHomeSizes || []).includes(size);
+            return (
               <button
+                key={size}
                 type="button"
-                role="tab"
-                aria-selected={!isAdvanced}
-                className={`ow-mode-tab${!isAdvanced ? ' active' : ''}`}
-                onClick={() => setAnswer('dispatchHoursMode', 'default')}
+                className={`ow-chip${active ? ' active' : ''}`}
+                onClick={() => toggleInArray('preferredHomeSizes', size)}
               >
-                Same hours
+                {active && <span className="ow-chip-check">✓</span>}
+                {size}
               </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={isAdvanced}
-                className={`ow-mode-tab${isAdvanced ? ' active' : ''}`}
-                onClick={() => setAnswer('dispatchHoursMode', 'advanced')}
-              >
-                Per day
-              </button>
-            </div>
-          </div>
-
-          {!isAdvanced ? (
-            <>
-              <div className="ow-time-range">
-                <input
-                  type="time"
-                  className="ow-input ow-time-input"
-                  value={answers.dispatchHoursOpen}
-                  onChange={e => setAnswer('dispatchHoursOpen', e.target.value)}
-                  aria-label="Opens at"
-                />
-                <span className="ow-time-sep">to</span>
-                <input
-                  type="time"
-                  className="ow-input ow-time-input"
-                  value={answers.dispatchHoursClose}
-                  onChange={e => setAnswer('dispatchHoursClose', e.target.value)}
-                  aria-label="Closes at"
-                />
-              </div>
-              <p className="ow-helper">We'll route requests to your team during these hours on selected days.</p>
-            </>
-          ) : (
-            <div className="ow-perday">
-              {answers.dispatchDays.map(dayId => {
-                const label = DAYS.find(d => d.id === dayId)?.label || dayId;
-                const perDay = answers.dispatchHoursPerDay[dayId] || {};
-                const open  = perDay.open  ?? answers.dispatchHoursOpen;
-                const close = perDay.close ?? answers.dispatchHoursClose;
-                return (
-                  <div key={dayId} className="ow-perday-row">
-                    <span className="ow-perday-label">{label}</span>
-                    <input
-                      type="time"
-                      className="ow-input ow-time-input"
-                      value={open}
-                      onChange={e => setPerDay(dayId, 'open', e.target.value)}
-                      aria-label={`${label} opens at`}
-                    />
-                    <span className="ow-time-sep">to</span>
-                    <input
-                      type="time"
-                      className="ow-input ow-time-input"
-                      value={close}
-                      onChange={e => setPerDay(dayId, 'close', e.target.value)}
-                      aria-label={`${label} closes at`}
-                    />
-                  </div>
-                );
-              })}
-              <p className="ow-helper">Set unique hours for each dispatch day.</p>
-            </div>
-          )}
+            );
+          })}
         </div>
-      )}
+        {(answers.preferredHomeSizes || []).length > 0 && (
+          <p className="ow-feedback">
+            {answers.preferredHomeSizes.length === 1
+              ? `${answers.preferredHomeSizes[0]} requests prioritized.`
+              : `${answers.preferredHomeSizes.length} sizes prioritized for matching.`}
+          </p>
+        )}
+      </div>
 
       <p className="ow-reassurance">{REASSURANCE}</p>
     </>
   );
 }
 
-// ── Screen 4: Request flow ───────────────────────────────────────────────────
-function ScreenRequestFlow({ answers, setAnswer, toggleInArray }) {
+// ── Screen 3: Notifications + Live Phone Transfers ──────────────────────────
+//
+// Writes phone, smsNotif, receiveLiveTransfers to TOP-LEVEL User fields.
+// These directly drive broadcastLeadSMS and the voice/warm-transfer
+// eligibility filter in routes/voice.js.
+function ScreenNotifications({ answers, setAnswer }) {
   return (
     <>
-      <h1 className="ow-h1">How much request flow do you want?</h1>
-      <p className="ow-sub">Choose the daily alert volume that fits your team right now.</p>
+      <h1 className="ow-h1">How should we notify you?</h1>
+      <p className="ow-sub">Choose how you want to hear about matching move opportunities.</p>
 
       <div className="ow-field">
-        <label className="ow-label">How many request alerts should we send per day?</label>
-        <div className="ow-cards">
-          {DAILY_ALERT_OPTIONS.map(opt => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`ow-card${answers.dailyRequestCapacity === opt.id ? ' active' : ''}`}
-              onClick={() => setAnswer('dailyRequestCapacity', opt.id)}
-            >
-              <div style={{ fontWeight: 700 }}>{opt.label}</div>
-            </button>
-          ))}
-        </div>
+        <label className="ow-label" htmlFor="notifPhone">Phone number</label>
+        <input
+          id="notifPhone"
+          type="tel"
+          className="ow-input"
+          placeholder="(555) 123-4567"
+          value={answers.phone || ''}
+          onChange={e => setAnswer('phone', e.target.value)}
+          autoComplete="tel"
+        />
+        <p className="ow-helper">We text + dial this number for SMS alerts and live transfers.</p>
       </div>
 
       <div className="ow-field">
-        <label className="ow-label">Most useful timing</label>
-        <div className="ow-chips">
-          {TIMING_OPTIONS.map(opt => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`ow-chip${answers.preferredTiming.includes(opt.id) ? ' active' : ''}`}
-              onClick={() => toggleInArray('preferredTiming', opt.id)}
-            >
-              {answers.preferredTiming.includes(opt.id) && <span className="ow-chip-check">✓</span>}
-              {opt.label}
-            </button>
-          ))}
+        <button
+          type="button"
+          className={`ow-toggle${answers.smsNotif ? ' active' : ''}`}
+          onClick={() => setAnswer('smsNotif', !answers.smsNotif)}
+          aria-pressed={!!answers.smsNotif}
+        >
+          <span className="ow-toggle-track" />
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
+            Text me when a request matches my setup
+          </span>
+        </button>
+        <p className="ow-helper">SMS fires only on leads matching your service area, distance, and size preferences.</p>
+      </div>
+
+      <div className="ow-field ow-live-transfer-field">
+        <div className="ow-live-transfer-head">
+          <div>
+            <div className="ow-live-transfer-title">
+              <span>Live Phone Transfers</span>
+              <span className="ow-live-transfer-pill">$40 per accepted call</span>
+            </div>
+            <p className="ow-live-transfer-copy">
+              When a premium lead requests a quote, our system calls your phone directly. Press 1 to accept and instantly connect with the customer.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={`ow-toggle${answers.receiveLiveTransfers ? ' active' : ''}`}
+            onClick={() => setAnswer('receiveLiveTransfers', !answers.receiveLiveTransfers)}
+            aria-pressed={!!answers.receiveLiveTransfers}
+            aria-label="Enable Live Phone Transfers"
+          >
+            <span className="ow-toggle-track" />
+          </button>
+        </div>
+        <div className="ow-live-transfer-warn">
+          ⚠️ You're only charged $40 when you accept the call. Keep your balance above $50 to receive live transfers.
         </div>
       </div>
 
@@ -845,44 +642,36 @@ function CoverageRecapSummary({ answers }) {
 
 // ── Screen 5: Confirm setup (no offer here) ──────────────────────────────────
 function ScreenConfirmSetup({ answers }) {
-  const moveLabels = answers.moveTypes
-    .map(id => SERVICE_TYPES.find(o => o.id === id)?.label).filter(Boolean).join(', ') || '—';
-  const channelLabels = answers.alertChannels
-    .map(id => ALERT_CHANNELS.find(o => o.id === id)?.label).filter(Boolean).join(' · ') || '—';
-  const timingLabels = answers.preferredTiming
-    .map(id => TIMING_OPTIONS.find(o => o.id === id)?.label).filter(Boolean).join(', ') || '—';
-  const dayLabels = answers.dispatchDays
-    .map(id => DAYS.find(o => o.id === id)?.label).filter(Boolean).join(' · ') || '—';
-  const radiusLabel = RADIUS_OPTIONS.find(r => r.id === answers.coverageRadius)?.label || '—';
-
-  let dispatchHoursLabel = '—';
-  if (answers.dispatchDays.length > 0) {
-    if (answers.dispatchHoursMode === 'advanced') {
-      dispatchHoursLabel = 'Custom per day';
-    } else {
-      dispatchHoursLabel = `${formatTime12h(answers.dispatchHoursOpen)} – ${formatTime12h(answers.dispatchHoursClose)}`;
-    }
-  }
+  const radiusLabel   = RADIUS_OPTIONS.find(r => r.id === answers.coverageRadius)?.label || '—';
+  const distanceLabel = DISTANCE_OPTIONS.find(d => d.id === (answers.maxDistance || ''))?.label || 'Both / Any';
+  const sizes         = (answers.preferredHomeSizes || []);
+  const sizesValue    = sizes.length ? sizes.join(', ') : 'All sizes';
 
   return (
     <>
       <h1 className="ow-h1">Your dispatch setup is ready</h1>
-      <p className="ow-sub">Review your setup before we activate your request routing.</p>
+      <p className="ow-sub">Review how we'll match and notify your company.</p>
 
       <CoverageRecapSummary answers={answers} />
 
       <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
-        <div className="ow-summary-recap-h">Configured</div>
-        <RecapRow label="Primary market"        value={answers.primaryMarket || '—'} />
-        <RecapRow label="Service radius"        value={radiusLabel} />
-        <RecapRow label="Additional service areas" value={answers.additionalMarkets.join(', ') || '—'} />
-        <RecapRow label="Service types"         value={moveLabels} />
-        <RecapRow label="Alert channels"        value={channelLabels} />
-        <RecapRow label="Urgent call alerts"    value={answers.urgentCallEnabled ? 'On' : 'Off'} />
-        <RecapRow label="Dispatch days"         value={dayLabels} />
-        <RecapRow label="Dispatch hours"        value={dispatchHoursLabel} />
-        <RecapRow label="Daily request alerts"  value={answers.dailyRequestCapacity || '—'} />
-        <RecapRow label="Most useful timing"    value={timingLabels} />
+        <div className="ow-summary-recap-h">Service area</div>
+        <RecapRow label="Primary service area"      value={answers.primaryMarket || '—'} />
+        <RecapRow label="Service radius"            value={radiusLabel} />
+        <RecapRow label="Additional service areas"  value={(answers.additionalMarkets || []).join(', ') || '—'} />
+      </div>
+
+      <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
+        <div className="ow-summary-recap-h">Move preferences</div>
+        <RecapRow label="Distance preference"  value={distanceLabel} />
+        <RecapRow label="Preferred move sizes" value={sizesValue} />
+      </div>
+
+      <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
+        <div className="ow-summary-recap-h">Notifications</div>
+        <RecapRow label="Phone number"          value={answers.phone || '—'} />
+        <RecapRow label="SMS alerts"            value={answers.smsNotif ? 'On' : 'Off'} />
+        <RecapRow label="Live Phone Transfers"  value={answers.receiveLiveTransfers ? 'On — $40 per accepted call' : 'Off'} />
       </div>
 
       <p className="ow-reassurance">{REASSURANCE}</p>
@@ -916,9 +705,7 @@ function ScreenProcessing({ onDone, answers }) {
     persona.radiusLabel
       ? `Building ${persona.radiusLabel.toLowerCase()} dispatch coverage`
       : 'Building dispatch coverage',
-    persona.channelLabels.length
-      ? `Enabling ${persona.channelLabels.join(' + ')} alert routing`
-      : 'Enabling alert routing',
+    'Enabling matching alert routing',
     'Calibrating request flow',
     'Account preferences set',
   ];
@@ -1402,9 +1189,9 @@ function ScreenActivationSuccess({ onDone, answers }) {
         ? `Market routing enabled for ${persona.market}`
         : 'Market routing enabled');
 
-  const alertLine = persona.channelLabels.length
-    ? `${persona.channelLabels.join(' + ')} alerts ready`
-    : 'Dispatch alerts ready';
+  // We dropped the old "channels" concept (legacy alertChannels). The success
+  // bullet now reflects the actual real notification toggles set via Step 3.
+  const alertLine = 'Notifications ready for matching requests';
 
   return (
     <div className="ow-success">

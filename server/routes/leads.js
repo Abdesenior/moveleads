@@ -8,6 +8,7 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const CoverageArea = require('../models/CoverageArea');
 const PurchasedLead = require('../models/PurchasedLead');
+const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
 const { deductLeadBalance, runAutoRecharge } = require('../services/billingService');
 const { sendSpeedToLeadSMS } = require('../services/twilioService');
 const PlatformSettings = require('../models/PlatformSettings');
@@ -237,26 +238,10 @@ router.get('/', auth, async (req, res) => {
         ]
       };
 
-      // ── Coverage filter ──────────────────────────────────────────────────
-      // Default: restrict to leads whose origin OR destination ZIP matches
-      // the mover's CoverageArea. Pass ?scope=all to bypass (used by an
-      // optional "Show all marketplace leads" toggle in the UI).
-      // Legacy fallback: if the mover has zero CoverageArea (i.e. they
-      // signed up before the wizard wired itself into CoverageArea), do
-      // not filter — otherwise their feed would unexpectedly empty.
-      const scope = String(req.query.scope || '').toLowerCase();
-      if (scope !== 'all') {
-        const myZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
-        if (myZips.length > 0) {
-          query.$and = [{
-            $or: [
-              { 'buyers.company': req.user.id }, // never filter purchased leads out
-              { originZip: { $in: myZips } },
-              { destinationZip: { $in: myZips } },
-            ],
-          }];
-        }
-      }
+      // The lead feed is fully browseable. We DO NOT filter by CoverageArea
+      // here — instead, every lead is annotated below with
+      // `_matchesPreferences` and the response is sorted matched-first. The
+      // client renders a "Matched for you" tab on top of the same dataset.
     }
 
     // Expire bulk-imported leads whose move date has already passed.
@@ -292,7 +277,23 @@ router.get('/', auth, async (req, res) => {
       }
     );
 
-    const leads = await Lead.find(query).sort({ createdAt: -1 });
+    const leads = await Lead.find(query).sort({ createdAt: -1 }).lean();
+
+    // For non-admin users, annotate each lead with _matchesPreferences and
+    // sort matched-first. The client uses this to drive the "Matched for
+    // you" tab + a "Matches your setup" badge.
+    if (req.user.role !== 'admin') {
+      const me = await User.findById(req.user.id).select('maxDistance preferredHomeSizes').lean();
+      const myZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
+      const zipSet = new Set((myZips || []).map(z => String(z)));
+      for (const l of leads) {
+        l._matchesPreferences = doesLeadMatchMoverPreferences(l, me || {}, zipSet);
+      }
+      // Stable matched-first sort. Within each group, preserve the existing
+      // createdAt-desc order from Mongo.
+      leads.sort((a, b) => (b._matchesPreferences ? 1 : 0) - (a._matchesPreferences ? 1 : 0));
+    }
+
     res.json(leads);
   } catch (err) {
     console.error(err.message);
@@ -303,12 +304,42 @@ router.get('/', auth, async (req, res) => {
 // @route   POST /api/leads
 // @desc    Admin: Create new lead
 // @access  Private (Admin)
+//
+// Notification side-effects (added):
+//   - emits NEW_LEAD_AVAILABLE to zip socket rooms (so connected matching
+//     movers see the lead instantly in their LeadFeed)
+//   - broadcasts SMS to movers whose preferences match (coverage + distance
+//     + home size, gated by smsNotif=true)
+//   - does NOT trigger the warm-transfer voice flow — that's reserved for
+//     verified ingest leads with a Grade A score. Admin leads bypass
+//     verification and would rake-fire calls otherwise.
+//
+// Opt-out: pass ?notify=false to suppress notifications (use during bulk
+// CSV imports of stale historical leads).
 router.post('/', [auth, admin], async (req, res) => {
   try {
     const body = req.body;
     if (body.price && !body.buyNowPrice) body.buyNowPrice = body.price;
     const newLead = new Lead(body);
     const lead = await newLead.save();
+
+    const notify = String(req.query.notify || 'true').toLowerCase() !== 'false';
+    if (notify) {
+      // Lazy-require to avoid a circular import at module-load time.
+      try {
+        const socketService = require('../services/socketService');
+        socketService.emitNewLead(lead);
+      } catch (e) {
+        console.error('[AdminLead] socket emit failed:', e.message);
+      }
+      try {
+        const { broadcastLeadSMS } = require('../services/twilioService');
+        broadcastLeadSMS(lead).catch(() => {});
+      } catch (e) {
+        console.error('[AdminLead] sms broadcast failed:', e.message);
+      }
+    }
+
     res.json(lead);
   } catch (err) {
     console.error(err.message);

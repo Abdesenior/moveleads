@@ -5,6 +5,7 @@ const User = require('../models/User');
 const CoverageArea = require('../models/CoverageArea');
 const Communication = require('../models/Communication');
 const PurchasedLead = require('../models/PurchasedLead');
+const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
@@ -30,9 +31,8 @@ async function broadcastLeadSMS(lead) {
   console.log('[SMS] Attempting to notify movers for lead:', lead._id);
   try {
     // 1. Find companies whose CoverageArea covers either the origin or the
-    //    destination ZIP. (Previously this query used role:'mover' which
-    //    matches no users in the current schema — partners hold
-    //    role:'customer'. Fixed and additionally narrowed by coverage.)
+    //    destination ZIP. This narrows the candidate set before we apply the
+    //    preference filter (distance + home size).
     const matchingCompanyIds = await CoverageArea.distinct('company', {
       zipCode: { $in: [lead.originZip, lead.destinationZip].filter(Boolean) },
     });
@@ -42,19 +42,33 @@ async function broadcastLeadSMS(lead) {
       return;
     }
 
-    const movers = await User.find({
+    // 2. Hydrate candidate movers, including the preference fields the
+    //    matching helper reads (maxDistance, preferredHomeSizes).
+    const candidates = await User.find({
       _id:      { $in: matchingCompanyIds },
       role:     'customer',
       smsNotif: true,
       isSuspended: { $ne: true },
       phone:    { $exists: true, $nin: ['', null] },
-    }).select('phone companyName smsNotif').lean();
+    }).select('phone companyName smsNotif maxDistance preferredHomeSizes').lean();
 
-    console.log(`[SMS] ${matchingCompanyIds.length} cover this lead, ${movers.length} have SMS enabled + phone on file`);
-    if (!movers.length) return;
-    console.log(`[SMS] Broadcasting to: ${movers.map(m => m.companyName || m.phone).join(', ')}`);
+    if (!candidates.length) {
+      console.log('[SMS] No SMS-enabled candidates with phone on file');
+      return;
+    }
 
-    for (const mover of movers) {
+    // 3. Apply the full preference filter using the shared matching helper.
+    //    Each mover already passes coverage (Stage 1), so we pass an empty
+    //    Set to skip the coverage check inside the helper and only test
+    //    distance + home size.
+    const emptyZipSet = new Set();
+    const matched = candidates.filter(m => doesLeadMatchMoverPreferences(lead, m, emptyZipSet));
+
+    console.log(`[SMS] ${matchingCompanyIds.length} cover this lead, ${candidates.length} SMS-enabled, ${matched.length} pass preferences`);
+    if (!matched.length) return;
+    console.log(`[SMS] Broadcasting to: ${matched.map(m => m.companyName || m.phone).join(', ')}`);
+
+    for (const mover of matched) {
       sendMoverLeadSMS(mover.phone, lead).catch(() => {});
     }
   } catch (err) {

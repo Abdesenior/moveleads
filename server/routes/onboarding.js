@@ -6,7 +6,14 @@ const { expandAll, regenerateCoverageForUser, VALID_RADII } = require('../utils/
 
 // Whitelisted answer keys to prevent setting arbitrary fields
 const ANSWER_KEYS = [
-  'primaryMarket', 'coverageRadius', 'coveragePreference', 'coveragePreferences', 'additionalMarkets',
+  // Step 1 — service area / coverage
+  'primaryMarket', 'coverageRadius', 'additionalMarkets',
+  // Step 2 — move preferences (also written to top-level User.{maxDistance, preferredHomeSizes})
+  'maxDistance', 'preferredHomeSizes',
+  // Step 3 — notifications + live transfers (also written to top-level User.{phone, smsNotif, receiveLiveTransfers})
+  'phone', 'smsNotif', 'receiveLiveTransfers',
+  // Legacy fields kept so resuming partners with old answers don't lose data
+  'coveragePreference', 'coveragePreferences',
   'moveTypes', 'avoidMoveTypes',
   'alertChannels', 'urgentCallEnabled',
   'dispatchHoursMode', 'dispatchDays', 'dispatchHoursOpen', 'dispatchHoursClose', 'dispatchHours',
@@ -37,6 +44,7 @@ router.get('/status', auth, async (req, res) => {
 router.post('/save-step', auth, async (req, res) => {
   try {
     const { step, answers } = req.body || {};
+    // Accept 1..5 to keep partners with the legacy 5-step wizard mid-flow compatible.
     if (typeof step !== 'number' || step < 1 || step > 5) {
       return res.status(400).json({ msg: 'Invalid step' });
     }
@@ -44,6 +52,35 @@ router.post('/save-step', auth, async (req, res) => {
     if (answers && typeof answers === 'object') {
       for (const key of ANSWER_KEYS) {
         if (key in answers) update[`onboarding.answers.${key}`] = answers[key];
+      }
+
+      // ── Step 2 (Move preferences) writes to TOP-LEVEL User fields where
+      //    the matching helper actually reads them. The nested
+      //    onboarding.answers copy is kept so the wizard can hydrate on
+      //    resume.
+      if (step === 2) {
+        if (typeof answers.maxDistance === 'string') {
+          // '' | 'Local' | 'Long Distance'
+          update['maxDistance'] = answers.maxDistance;
+        }
+        if (Array.isArray(answers.preferredHomeSizes)) {
+          update['preferredHomeSizes'] = answers.preferredHomeSizes;
+        }
+      }
+
+      // ── Step 3 (Notifications + Live Transfers) → top-level User fields
+      //    consumed by broadcastLeadSMS, voice routing, and the live-transfer
+      //    eligibility filter.
+      if (step === 3) {
+        if (typeof answers.phone === 'string' && answers.phone.trim()) {
+          update['phone'] = answers.phone.trim();
+        }
+        if (typeof answers.smsNotif === 'boolean') {
+          update['smsNotif'] = answers.smsNotif;
+        }
+        if (typeof answers.receiveLiveTransfers === 'boolean') {
+          update['receiveLiveTransfers'] = answers.receiveLiveTransfers;
+        }
       }
     }
     const user = await User.findByIdAndUpdate(

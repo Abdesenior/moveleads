@@ -50,9 +50,10 @@ export default function DashboardLayout({ children }) {
     }
   }, [user]);
 
-  // Banner CTA → reopen wizard at the activation step (step 7).
+  // Banner CTA → reopen wizard at the activation step (step 6 in the new
+  // 4-setup-step flow; was step 7 in the legacy 5-setup-step flow).
   const openActivation = () => {
-    setWizardInitialStep(7);
+    setWizardInitialStep(6);
     setShowWizard(true);
   };
 
@@ -87,17 +88,20 @@ export default function DashboardLayout({ children }) {
     if (user.role === 'admin' || user.role === 'super_admin') return;
 
     if (onboardingParam === 'resume') {
-      // Mid-wizard abandoner: reopen at saved step (or 1 if missing).
+      // Mid-wizard abandoner: reopen at saved step (or 1 if missing). Clamp
+      // to the new 4-step setup range; legacy partners with currentStep=5
+      // (old "Confirm" step) end up on the new Confirm (step 4).
       const savedStep = user.onboarding?.currentStep || 1;
-      const target = !user.onboarding?.complete ? Math.min(Math.max(savedStep, 1), 5) : 7;
+      const clamped = Math.min(Math.max(savedStep, 1), 4);
+      const target = !user.onboarding?.complete ? clamped : 6;
       setWizardInitialStep(target);
       setShowWizard(true);
       params.delete('onboarding');
       const qs = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
     } else if (activateParam === '1') {
-      // Post-skip recovery: jump to activation step.
-      setWizardInitialStep(7);
+      // Post-skip recovery: jump to activation step (now step 6).
+      setWizardInitialStep(6);
       setShowWizard(true);
       params.delete('activate');
       const qs = params.toString();

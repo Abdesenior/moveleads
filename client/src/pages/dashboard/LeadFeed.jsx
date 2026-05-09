@@ -311,6 +311,10 @@ export default function LeadFeed() {
   const [dateFilter, setDateFilter]     = useState('all');
   const [customDate, setCustomDate]     = useState('');
   const [sortBy, setSortBy]             = useState('listed');
+  // Server-supplied _matchesPreferences flag drives this. Default to "Matched
+  // for you" when the mover has any preferences set; otherwise "All leads".
+  const hasPrefs = !!(user?.maxDistance || (user?.preferredHomeSizes && user.preferredHomeSizes.length));
+  const [feedScope, setFeedScope]       = useState(hasPrefs ? 'matched' : 'all');
   const [outbidToast, setOutbidToast]   = useState(''); // "you were outbid" banner
   const pollRef   = useRef(null);
   const myBidsRef = useRef(new Set()); // lead IDs the current user has bid on
@@ -452,6 +456,12 @@ export default function LeadFeed() {
   const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
 
   const visible = leads.filter(l => {
+    // "Matched for you" tab — narrow to leads the server flagged as matching
+    // this mover's coverage + preferences. Purchased leads always pass through.
+    if (feedScope === 'matched') {
+      const isMine = (l.buyers || []).some(b => String(b.company) === String(user?._id));
+      if (!isMine && !l._matchesPreferences) return false;
+    }
     if (distFilter === 'local' && l.distance !== 'Local') return false;
     if (distFilter === 'long'  && l.distance !== 'Long Distance') return false;
     if (q && !(
@@ -518,6 +528,54 @@ export default function LeadFeed() {
               <span>{socketStatus === 'connected' ? 'Live' : socketStatus === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'}</span>
             </div>
           </div>
+        </div>
+
+        {/* ── Matched / All tabs ── */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          background: '#f1f5f9', padding: 4, borderRadius: 12,
+          marginBottom: 14,
+        }} role="tablist" aria-label="Lead scope">
+          {[
+            { id: 'matched', label: 'Matched for you' },
+            { id: 'all',     label: 'All marketplace leads' },
+          ].map(tab => {
+            const active = feedScope === tab.id;
+            const matchedCount = leads.filter(l => l._matchesPreferences).length;
+            const showCount = tab.id === 'matched' && hasPrefs;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFeedScope(tab.id)}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 9,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: active ? '#fff' : 'transparent',
+                  color: active ? '#ea580c' : '#64748b',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: '-0.005em',
+                  boxShadow: active ? '0 1px 2px rgba(15,23,42,0.06)' : 'none',
+                  transition: 'all 160ms ease',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                {tab.label}
+                {showCount && matchedCount > 0 && (
+                  <span style={{
+                    background: active ? 'rgba(255,106,20,0.12)' : 'rgba(100,116,139,0.16)',
+                    color: active ? '#ea580c' : '#64748b',
+                    fontSize: 11, fontWeight: 800,
+                    padding: '1px 7px', borderRadius: 999,
+                  }}>{matchedCount}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Search + filter bar ── */}
@@ -650,6 +708,11 @@ export default function LeadFeed() {
                           {isPremium && (
                             <span style={{ ...TAG_BASE, background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', border: 'none' }}>
                               ⭐ Premium Lead
+                            </span>
+                          )}
+                          {lead._matchesPreferences && (
+                            <span style={{ ...TAG_BASE, background: 'rgba(255,106,20,0.10)', color: '#ea580c', border: '1px solid rgba(255,106,20,0.30)', fontWeight: 800 }}>
+                              ✓ Matches your setup
                             </span>
                           )}
                         </div>
