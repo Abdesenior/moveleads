@@ -596,7 +596,11 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
         )}
       </div>
 
-      {(previewing || preview) && (
+      {/* Hide the live state-to-state preview when the user picks "Multiple
+          states" — the settings note above already tells them they can
+          expand later, and showing only their auto-defaulted home state
+          here would read as confusing or misleading. */}
+      {delivery.mode !== 'states' && (previewing || preview) && (
         <div className={`ow-coverage-preview${preview && preview.ok === false ? ' err' : ''}`} role="status" aria-live="polite">
           {previewing && (
             <>
