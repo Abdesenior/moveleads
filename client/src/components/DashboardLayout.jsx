@@ -56,6 +56,15 @@ export default function DashboardLayout({ children }) {
     setShowWizard(true);
   };
 
+  // Custom-event channel so deep children (e.g. PreviewModal inside LeadFeed)
+  // can request the activation wizard without prop-drilling. Anyone in the
+  // tree can fire `window.dispatchEvent(new CustomEvent('moveleads:open-activation'))`.
+  useEffect(() => {
+    const handler = () => openActivation();
+    window.addEventListener('moveleads:open-activation', handler);
+    return () => window.removeEventListener('moveleads:open-activation', handler);
+  }, []);
+
   // Detect post-payment return from Stripe Embedded Checkout AND deep-links
   // from recovery emails (?onboarding=resume / ?activate=1).
   useEffect(() => {

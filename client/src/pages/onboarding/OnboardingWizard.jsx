@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { AuthContext } from '../../context/AuthContext';
-import { US_STATES, filterStates } from '../../data/usStates';
+import { US_STATES } from '../../data/usStates';
 import './Onboarding.css';
 
 // Single Stripe.js loader memoized at module scope per @stripe/react-stripe-js docs.
@@ -23,10 +23,10 @@ const TOTAL_STEPS = 5; // Setup steps shown in the progress bar.
 const REASSURANCE = 'You can change this later from your dashboard.';
 
 const COVERAGE_OPTIONS = [
-  { id: 'local',        label: 'Local only',     desc: 'Same city or county' },
-  { id: 'regional',     label: 'Regional',       desc: 'Within state' },
-  { id: 'longDistance', label: 'Long-distance',  desc: 'Cross-state hauls' },
-  { id: 'nationwide',   label: 'Nationwide',     desc: 'Anywhere in the U.S.' },
+  { id: 'local',        label: 'Local only',     desc: 'Same city / nearby jobs' },
+  { id: 'regional',     label: 'Regional',       desc: 'Moves across your state' },
+  { id: 'longDistance', label: 'Long-distance',  desc: 'State-to-state moves' },
+  { id: 'nationwide',   label: 'Nationwide',     desc: 'You can handle moves anywhere' },
 ];
 
 const SERVICE_TYPES = [
@@ -66,20 +66,24 @@ const DAYS = [
   { id: 'sun', label: 'Sun' },
 ];
 
-const TRUST_TIPS = [
-  '98% of requests are phone-confirmed before delivery',
-  'Duplicate and unreachable requests are filtered automatically',
-  'Movers in your category typically book 4–7 jobs per month',
-  'Average mover-to-customer connect time: 4–6 minutes',
-];
+// Step-keyed progress microcopy. Replaces the previous rotating TRUST_TIPS
+// with operational labels that mirror what the user is doing right now.
+const STEP_MICROCOPY = {
+  1: 'Set your market',
+  2: 'Choose job types',
+  3: 'Alert routing',
+  4: 'Request flow',
+  5: 'Review setup',
+};
 
 // Setup-status tracker stages — one per setup step (1..5).
+// Labels updated to match the operational step microcopy.
 const SETUP_STAGES = [
   { id: 1, label: 'Coverage' },
-  { id: 2, label: 'Preferences' },
-  { id: 3, label: 'Routing' },
+  { id: 2, label: 'Jobs' },
+  { id: 3, label: 'Alerts' },
   { id: 4, label: 'Flow' },
-  { id: 5, label: 'Confirm' },
+  { id: 5, label: 'Ready' },
 ];
 
 // Build personalized phrasing fragments from the answers object.
@@ -303,7 +307,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     navigate('/dashboard/leads');
   }
 
-  const trustTip = TRUST_TIPS[(step - 1) % TRUST_TIPS.length];
+  const stepMicro = STEP_MICROCOPY[step] || '';
 
   return (
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
@@ -314,7 +318,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             <div className="ow-progress">
               <div className="ow-progress-fill" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
             </div>
-            <div className="ow-progress-label">Step {step} of {TOTAL_STEPS} · {trustTip}</div>
+            <div className="ow-progress-label">Step {step} of {TOTAL_STEPS} · {stepMicro}</div>
             <div className="ow-stages" aria-label="Setup progress">
               {SETUP_STAGES.map(stage => {
                 const state = stage.id < step ? 'done' : stage.id === step ? 'active' : 'future';
@@ -355,9 +359,9 @@ export default function OnboardingWizard({ onClose, initialStep }) {
                   type="button"
                   className="ow-skip-link"
                   onClick={skipWithDefaults}
-                  title="Apply smart defaults and continue — you can fine-tune this later from your dashboard."
+                  title="Apply recommended defaults and continue — you can fine-tune this later from your dashboard."
                 >
-                  Skip — use smart defaults →
+                  Use recommended setup →
                 </button>
               )}
             </div>
@@ -367,7 +371,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
               type="button"
               disabled={!isStepValid(step, answers)}
             >
-              {step < TOTAL_STEPS ? 'Continue →' : 'Confirm setup →'}
+              {step < TOTAL_STEPS ? 'Continue →' : 'Confirm my setup →'}
             </button>
           </div>
         )}
@@ -390,9 +394,9 @@ function moveTypeFeedback(ids) {
   if (n === 0) return '';
   if (n === 1) {
     const label = SERVICE_TYPES.find(o => o.id === ids[0])?.label.toLowerCase();
-    return `Prioritizing ${label} requests.`;
+    return `${label.charAt(0).toUpperCase() + label.slice(1)} requests enabled.`;
   }
-  return `${n} service types enabled — we'll prioritize matches in these.`;
+  return `${n} service types enabled for matching.`;
 }
 
 function alertFeedback(ids, urgent) {
@@ -415,67 +419,7 @@ function isStepValid(step, a) {
 
 // ── Screen 1: Market coverage ─────────────────────────────────────────────────
 function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }) {
-  const primaryMarketRef = useRef(null);
-  const dropdownRef = useRef(null);
   const [marketDraft, setMarketDraft] = useState('');
-  const [stateQuery, setStateQuery] = useState(answers.primaryMarket || '');
-  const [stateOpen, setStateOpen] = useState(false);
-  const [highlightIdx, setHighlightIdx] = useState(0);
-
-  // Keep local query in sync with the answer when external state changes
-  // (e.g. on resume from server-saved progress).
-  useEffect(() => {
-    setStateQuery(answers.primaryMarket || '');
-  }, [answers.primaryMarket]);
-
-  const filtered = filterStates(stateQuery, 8);
-
-  function pickState(state) {
-    setAnswer('primaryMarket', state.name);
-    setStateQuery(state.name);
-    setStateOpen(false);
-    setHighlightIdx(0);
-  }
-
-  function handleStateInput(e) {
-    const v = e.target.value;
-    setStateQuery(v);
-    setStateOpen(true);
-    setHighlightIdx(0);
-    // If the user clears the field, also clear the saved answer.
-    if (!v.trim()) setAnswer('primaryMarket', '');
-  }
-
-  function handleStateBlur() {
-    // Defer so a click on a dropdown item still registers before close.
-    setTimeout(() => setStateOpen(false), 120);
-    // If they typed an exact match (case-insensitive), commit it.
-    const exact = US_STATES.find(s =>
-      s.name.toLowerCase() === stateQuery.trim().toLowerCase() ||
-      s.code.toLowerCase() === stateQuery.trim().toLowerCase()
-    );
-    if (exact) {
-      setAnswer('primaryMarket', exact.name);
-      setStateQuery(exact.name);
-    }
-  }
-
-  function handleStateKey(e) {
-    if (!stateOpen) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlightIdx(i => Math.min(i + 1, filtered.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlightIdx(i => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const s = filtered[highlightIdx];
-      if (s) pickState(s);
-    } else if (e.key === 'Escape') {
-      setStateOpen(false);
-    }
-  }
 
   function commitMarket() {
     const v = marketDraft.trim().replace(/,$/, '');
@@ -501,48 +445,26 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
   return (
     <>
       <p className="ow-greeting">{greeting}</p>
-      <h1 className="ow-h1">Where should we send move opportunities?</h1>
-      <p className="ow-sub">Set your primary market — we'll only route requests inside your service area.</p>
+      <h1 className="ow-h1">Let's set your service area</h1>
+      <p className="ow-sub">Tell us where your crews work so we only show you move opportunities that match your market.</p>
 
-      <div className="ow-field ow-state-field">
-        <label className="ow-label" htmlFor="primaryMarket">Primary state</label>
+      <div className="ow-field">
+        <label className="ow-label" htmlFor="primaryMarket">Primary market</label>
         <input
           id="primaryMarket"
-          ref={primaryMarketRef}
           className="ow-input"
-          placeholder="Start typing… e.g. Texas"
-          value={stateQuery}
-          onChange={handleStateInput}
-          onFocus={() => setStateOpen(true)}
-          onBlur={handleStateBlur}
-          onKeyDown={handleStateKey}
+          placeholder="Houston, TX or Miami, FL"
+          value={answers.primaryMarket}
+          onChange={e => setAnswer('primaryMarket', e.target.value)}
           autoComplete="off"
-          role="combobox"
-          aria-expanded={stateOpen}
-          aria-controls="ow-state-dropdown"
-          aria-autocomplete="list"
         />
-        {stateOpen && filtered.length > 0 && (
-          <ul id="ow-state-dropdown" ref={dropdownRef} className="ow-state-dropdown" role="listbox">
-            {filtered.map((s, i) => (
-              <li
-                key={s.code}
-                role="option"
-                aria-selected={i === highlightIdx}
-                className={`ow-state-option${i === highlightIdx ? ' active' : ''}`}
-                onMouseDown={(e) => { e.preventDefault(); pickState(s); }}
-                onMouseEnter={() => setHighlightIdx(i)}
-              >
-                <span className="ow-state-name">{s.name}</span>
-                <span className="ow-state-code">{s.code}</span>
-              </li>
-            ))}
-          </ul>
+        {answers.primaryMarket && answers.primaryMarket.trim().length > 1 && (
+          <p className="ow-feedback">{answers.primaryMarket.trim()} market selected.</p>
         )}
       </div>
 
       <div className="ow-field">
-        <label className="ow-label">Coverage preference <span className="ow-label-hint">(select all that apply)</span></label>
+        <label className="ow-label">Where can we send you work? <span className="ow-label-hint">(pick all that apply)</span></label>
         <div className="ow-cards">
           {COVERAGE_OPTIONS.map(opt => {
             const active = answers.coveragePreferences.includes(opt.id);
@@ -607,8 +529,8 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
 function ScreenServiceTypes({ answers, toggleInArray }) {
   return (
     <>
-      <h1 className="ow-h1">What kind of moves fit your crews best?</h1>
-      <p className="ow-sub">Select all that apply — we'll prioritize matching requests in these categories.</p>
+      <h1 className="ow-h1">What jobs should we send your way?</h1>
+      <p className="ow-sub">Pick the move types your crews actually want. You can choose more than one.</p>
 
       <div className="ow-field">
         <label className="ow-label">Service types</label>
@@ -650,11 +572,11 @@ function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
   };
   return (
     <>
-      <h1 className="ow-h1">How should we route requests to your team?</h1>
-      <p className="ow-sub">Pick your alert channels — speed of response usually decides who books the move.</p>
+      <h1 className="ow-h1">How should we alert your dispatcher?</h1>
+      <p className="ow-sub">When a matching request comes in, choose how your team should receive it. Fast response usually decides who books the move.</p>
 
       <div className="ow-field">
-        <label className="ow-label">Alert channels (tap to enable)</label>
+        <label className="ow-label">Choose alert channels</label>
         <div className="ow-chips">
           {ALERT_CHANNELS.map(c => (
             <button
@@ -684,6 +606,7 @@ function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
             Call me immediately for urgent requests
           </span>
         </button>
+        <p className="ow-helper">Urgent requests can trigger a phone call when this is enabled.</p>
       </div>
 
       <div className="ow-field">
@@ -796,11 +719,11 @@ function ScreenAlertRouting({ answers, setAnswer, toggleInArray }) {
 function ScreenRequestFlow({ answers, setAnswer, toggleInArray }) {
   return (
     <>
-      <h1 className="ow-h1">Help us balance request flow for your team</h1>
-      <p className="ow-sub">We'll throttle alerts to fit your preferred request volume.</p>
+      <h1 className="ow-h1">How much request flow do you want?</h1>
+      <p className="ow-sub">Choose the daily alert volume that fits your team right now.</p>
 
       <div className="ow-field">
-        <label className="ow-label">How many new request alerts do you want per day?</label>
+        <label className="ow-label">How many request alerts should we send per day?</label>
         <div className="ow-cards">
           {DAILY_ALERT_OPTIONS.map(opt => (
             <button
@@ -872,8 +795,8 @@ function ScreenConfirmSetup({ answers }) {
 
   return (
     <>
-      <h1 className="ow-h1">Confirm your dispatch setup</h1>
-      <p className="ow-sub">Review your preferences before we activate your request routing.</p>
+      <h1 className="ow-h1">Your dispatch setup is ready</h1>
+      <p className="ow-sub">Review your setup before we activate your request routing.</p>
 
       <CoverageRecapSummary answers={answers} />
 
@@ -1008,10 +931,10 @@ function ScreenProcessing({ onDone, answers }) {
         <div className="ow-success-icon ow-success-icon-sm">✓</div>
         <h1 className="ow-h1">Your account preferences are set.</h1>
         <p className="ow-sub" style={{ marginBottom: 18 }}>
-          Claim your <strong style={{ color: '#ea580c' }}>$50 FREE credit</strong> to start moving.
+          Claim your <strong style={{ color: '#ea580c' }}>$50 FREE credit</strong> to start unlocking requests.
         </p>
         <button type="button" className="ow-next" onClick={handleContinue}>
-          Claim my $50 bonus →
+          Claim my $50 FREE credit →
         </button>
       </div>
     );
@@ -1019,7 +942,7 @@ function ScreenProcessing({ onDone, answers }) {
 
   return (
     <div className="ow-processing">
-      <h1 className="ow-h1">Setting up your request routing…</h1>
+      <h1 className="ow-h1">Preparing your request routing…</h1>
       <p className="ow-sub">Configuring your account based on the preferences you just set.</p>
       <ul className="ow-processing-list">
         {items.map((label, i) => {
@@ -1141,10 +1064,18 @@ function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
 function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr }) {
   return (
     <div className="ow-choose">
-      <h1 className="ow-h1">Choose your activation balance</h1>
+      <h1 className="ow-h1">Claim your onboarding credit</h1>
       <p className="ow-sub">
-        Start with a refundable balance to unlock verified move opportunities in your selected markets.
+        Your state is open for new mover partners right now. Activate your balance before partner onboarding closes.
       </p>
+
+      {/* FOMO notice — operational, not aggressive. No countdowns, no fake spots. */}
+      <aside className="ow-fomo" role="note">
+        <span className="ow-fomo-dot" aria-hidden="true" />
+        <span>
+          We limit active mover partners by state to protect request quality. Your <strong>$50 onboarding credit</strong> is available while partner onboarding remains open in your state.
+        </span>
+      </aside>
 
       <div
         className={`ow-pay-tier ow-pay-tier-primary${tier === 100 ? ' selected' : ''}`}
@@ -1155,7 +1086,8 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
       >
         <div className="ow-pay-tier-head">
-          <span className="ow-activate-pill">Best value</span>
+          <span className="ow-activate-pill">Recommended</span>
+          <span className="ow-pay-tier-supporting">Most partners start here</span>
           <span className="ow-tier-radio" aria-hidden="true" />
         </div>
         <div className="ow-pay-tier-amount"><strong>$100</strong> <span>→ $150 balance</span></div>
@@ -1175,7 +1107,7 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
           <span className="ow-tier-radio" aria-hidden="true" />
         </div>
         <div className="ow-pay-tier-amount"><strong>$50</strong> <span>→ $50 balance</span></div>
-        <div className="ow-pay-tier-bonus muted">No onboarding bonus included</div>
+        <div className="ow-pay-tier-bonus muted">No bonus included · Test the marketplace with a smaller balance.</div>
       </div>
 
       <ul className="ow-activate-trust ow-pay-trust">
@@ -1201,7 +1133,7 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
       </button>
 
       <button type="button" className="ow-activate-skip" onClick={onSkip} disabled={fetching}>
-        I'll activate later
+        Claim later
       </button>
     </div>
   );
@@ -1311,8 +1243,15 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
 
 // ── Screen 8: Activation success (post-payment) ─────────────────────────────
 function ScreenActivationSuccess({ onDone, answers }) {
-  const { API_URL } = useContext(AuthContext);
+  const { API_URL, user } = useContext(AuthContext);
   const persona = buildPersona(answers || {});
+
+  // Tier-aware copy: read the activated balance from the fresh user object
+  // (refreshUser was called before transitioning to this step). $100 path
+  // shows "$150 balance is active"; $50 path shows "$50 balance is active".
+  const balance = Math.round(user?.balance || 0);
+  const isBonusPath = !!user?.onboarding?.bonusClaimedAt || balance >= 150;
+  const headline = isBonusPath ? 'Your $150 balance is active' : `Your $${balance || 50} balance is active`;
   // primaryMarket is now a US state name (e.g. "Texas"). We also match the
   // 2-letter code so leads stored as "Houston, TX" still count toward the
   // partner's selected state.
@@ -1360,9 +1299,11 @@ function ScreenActivationSuccess({ onDone, answers }) {
   return (
     <div className="ow-success">
       <div className="ow-success-icon">✓</div>
-      <h1 className="ow-h1">Your $150 balance is active</h1>
+      <h1 className="ow-h1">{headline}</h1>
       <ul className="ow-success-list">
-        <li>Onboarding bonus applied: <strong>+$50</strong></li>
+        {isBonusPath
+          ? <li>Onboarding bonus applied: <strong>+$50</strong></li>
+          : <li>Starter balance activated</li>}
         <li>{marketLine}</li>
         <li>{alertLine}</li>
       </ul>

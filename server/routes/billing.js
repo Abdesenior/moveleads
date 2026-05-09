@@ -254,6 +254,14 @@ async function applyOnboardingActivationCredit(paymentIntent) {
     );
   }
 
+  // Stamp activatedAt for ANY successful onboarding payment ($50 or $100).
+  // This is the field the ActivationBanner uses to hide itself, so $50 payers
+  // also get the banner removed. Conditional update so it stamps only once.
+  await User.updateOne(
+    { _id: userId, 'onboarding.activatedAt': null },
+    { $set: { 'onboarding.activatedAt': new Date() } }
+  );
+
   // Mark onboarding complete (in case user paid before clicking Confirm Setup).
   await User.updateOne(
     { _id: userId, 'onboarding.complete': { $ne: true } },
