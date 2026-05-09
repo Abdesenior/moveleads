@@ -743,46 +743,106 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
   );
 }
 
-// ── Step 4: Setup-complete celebration interstitial ─────────────────────────
+// ── Step 4: Setup-complete interstitial ─────────────────────────────────────
+//
+// Two phases:
+//   'loading' → progressive checklist that ticks off setup tasks (~4s total).
+//               No CTA, no skip — feels like the system is doing real work.
+//   'ready'   → vertical status checkpoints + "Claim your $50 FREE credit"
+//               primary CTA + "Continue without activating" secondary.
+//
+// The /onboarding/complete API call already fired before this screen
+// mounted (next() in the wizard handler runs it on the 3 → 4 transition),
+// so the loading phase is purely a UX moment to legitimize the answers
+// the user just gave.
 function ScreenSetupComplete({ answers, onClaim, onSkip }) {
   const persona = buildPersona(answers || {});
   const market = persona.market !== 'your market' ? persona.market : 'your service area';
 
-  // Friendly "Alerts ready" subline — surfaces which channels they enabled
-  // without re-listing every toggle. If everything is off, fall back to a
-  // safe default since they'll still see leads in the dashboard feed.
   const enabledChannels = [];
   if (answers.smsNotif) enabledChannels.push('SMS');
   if (answers.emailNotif) enabledChannels.push('Email');
   if (answers.receiveLiveTransfers) enabledChannels.push('Live calls');
-  const alertsBody = enabledChannels.length ? enabledChannels.join(' · ') : 'In-dashboard only';
+  const alertsBody = enabledChannels.length
+    ? `${enabledChannels.join(' · ')} alerts prepared`
+    : 'In-dashboard alerts prepared';
+
+  const [phase, setPhase] = useState('loading'); // 'loading' | 'ready'
+  const [done, setDone] = useState(0);
+
+  const setupItems = [
+    'Setting up your dispatch account',
+    `Saving your service area · ${market}`,
+    'Preparing lead alerts',
+    'Matching your coverage preferences',
+    'Finalizing your dashboard',
+  ];
+
+  useEffect(() => {
+    // ~700ms per tick, ~3.5s total + 700ms hold before the reveal.
+    const ticks = [700, 1400, 2100, 2800, 3500];
+    const timers = ticks.map((ms, i) => setTimeout(() => setDone(i + 1), ms));
+    timers.push(setTimeout(() => setPhase('ready'), 4200));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  if (phase === 'loading') {
+    return (
+      <div className="ow-setup-loading">
+        <h1 className="ow-h1">Setting up your account</h1>
+        <p className="ow-sub">A moment while we configure everything based on your answers.</p>
+        <ul className="ow-processing-list">
+          {setupItems.map((label, i) => {
+            const isDone = i < done;
+            const isLoading = i === done;
+            return (
+              <li key={i} className={`ow-processing-item${isDone ? ' done' : ''}${isLoading ? ' loading' : ''}`}>
+                <span className="ow-processing-icon">
+                  {isDone ? '✓' : isLoading ? <span className="ow-spinner" /> : ''}
+                </span>
+                <span className="ow-processing-label">{label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <div className="ow-setup-complete">
       <div className="ow-success-icon ow-success-icon-lg" aria-hidden="true">✓</div>
       <h1 className="ow-h1">Your dispatch setup is ready</h1>
-      <p className="ow-sub">
-        Your service area and alerts are set. You're ready to start receiving matching move opportunities.
-      </p>
+      <p className="ow-sub">Your service area, alerts, and dashboard are now prepared.</p>
 
-      <div className="ow-milestone-grid">
-        <div className="ow-milestone-card">
-          <div className="ow-milestone-card-h">Service area saved</div>
-          <div className="ow-milestone-body">{market}</div>
-        </div>
-        <div className="ow-milestone-card">
-          <div className="ow-milestone-card-h">Alerts ready</div>
-          <div className="ow-milestone-body">{alertsBody}</div>
-        </div>
-        <div className="ow-milestone-card">
-          <div className="ow-milestone-card-h">Dashboard prepared</div>
-          <div className="ow-milestone-body">Ready for live requests</div>
-        </div>
-      </div>
+      <ul className="ow-status-list">
+        <li className="ow-status-item">
+          <span className="ow-status-check" aria-hidden="true">✓</span>
+          <div className="ow-status-text">
+            <div className="ow-status-label">Service area saved</div>
+            <div className="ow-status-value">{market}</div>
+          </div>
+        </li>
+        <li className="ow-status-item">
+          <span className="ow-status-check" aria-hidden="true">✓</span>
+          <div className="ow-status-text">
+            <div className="ow-status-label">Alerts ready</div>
+            <div className="ow-status-value">{alertsBody}</div>
+          </div>
+        </li>
+        <li className="ow-status-item">
+          <span className="ow-status-check" aria-hidden="true">✓</span>
+          <div className="ow-status-text">
+            <div className="ow-status-label">Dashboard prepared</div>
+            <div className="ow-status-value">Ready for matching move opportunities</div>
+          </div>
+        </li>
+      </ul>
 
       <button type="button" className="ow-activate-cta" onClick={onClaim}>
-        Claim your $50 FREE credit →
+        Claim your $50 FREE credit
       </button>
+      <p className="ow-claim-support">Activate your account and start unlocking verified moving leads.</p>
 
       <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip}>
         <span>Continue without activating</span>
