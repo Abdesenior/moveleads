@@ -64,31 +64,19 @@ router.post('/save-step', auth, async (req, res) => {
         if (key in answers) update[`onboarding.answers.${key}`] = answers[key];
       }
 
-      // ── Step 3 (Preferences + Alerts) writes top-level User fields the
-      //    matching helper + SMS broadcast read directly. The nested
-      //    onboarding.answers copy is kept so the wizard can hydrate on
-      //    resume. (Was Step 2 + Step 3 in the legacy 5-step wizard; merged
-      //    into Step 3 in the new 4-step flow.)
+      // ── Step 3 (Alerts) writes the top-level User fields the SMS
+      //    broadcast + voice routing + warm-transfer eligibility filter
+      //    read directly. Move-distance + preferred-home-sizes are NOT
+      //    asked in onboarding anymore — those preferences belong in
+      //    Settings. The User schema still keeps the fields so the
+      //    Settings page can write them later.
       if (step === 3) {
-        if (typeof answers.maxDistance === 'string') {
-          update['maxDistance'] = answers.maxDistance;
-        }
-        if (Array.isArray(answers.preferredHomeSizes)) {
-          update['preferredHomeSizes'] = answers.preferredHomeSizes;
-        }
         if (typeof answers.phone === 'string' && answers.phone.trim()) {
           update['phone'] = answers.phone.trim();
         }
         if (typeof answers.smsNotif === 'boolean') {
           update['smsNotif'] = answers.smsNotif;
         }
-      }
-
-      // ── Step 4 (Activation) — Live Phone Transfers toggle moved here so
-      //    the user opts in next to the balance picker. Persisted on every
-      //    save-step from this screen so closing mid-activation doesn't
-      //    drop the choice.
-      if (step === 4) {
         if (typeof answers.receiveLiveTransfers === 'boolean') {
           update['receiveLiveTransfers'] = answers.receiveLiveTransfers;
         }

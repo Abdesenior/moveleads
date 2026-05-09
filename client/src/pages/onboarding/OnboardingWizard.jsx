@@ -19,50 +19,31 @@ const stripePromiseSingleton = (() => {
   };
 })();
 
-// Visible setup steps in the progress bar:
-//   1 = Dispatch base + pickup
-//   2 = Delivery
-//   3 = Preferences + notifications
-//   4 = Activation (live transfers + balance picker → secure payment)
-// Internal-only post-flow steps (no progress bar):
-//   5 = Activation success
-const TOTAL_STEPS = 4;
+// Visible steps in the progress bar:
+//   1 = Dispatch base + pickup       → "Where are your crews based?"
+//   2 = Delivery coverage            → "Where can your crews deliver?"
+//   3 = Alerts                       → phone + SMS + Live Phone Transfers
+//   4 = Activate                     → balance picker only (no Stripe call yet)
+//   5 = Payment                      → Stripe Payment Element only
+// Internal-only post-flow step (no progress bar):
+//   6 = Activation success
+const TOTAL_STEPS = 5;
 
-const REASSURANCE = 'You can change this later from your dashboard.';
-
-// Distance-preference options. Values match User.maxDistance.
-const DISTANCE_OPTIONS = [
-  { id: '',              label: 'Both / Any',     desc: 'Send me both local and long-distance moves' },
-  { id: 'Local',         label: 'Local moves',    desc: 'Same-city / under-100mi jobs only' },
-  { id: 'Long Distance', label: 'Long-distance',  desc: 'Cross-state / 100mi+ jobs only' },
-];
-
-// Lead.homeSize enum (as written by the admin form + ingest pipeline).
-// Keep these strings in sync with HOME_SIZES in client/src/pages/admin/AdminLeads.jsx.
-const HOME_SIZE_OPTIONS = [
-  'Studio',
-  '1 Bedroom',
-  '2 Bedroom',
-  '3 Bedroom',
-  '4+ Bedroom',
-  'House (Small)',
-  'House (Medium)',
-  'House (Large)',
-  'Office/Commercial',
-];
-
+// Compact mover-language microcopy for the progress label.
 const STEP_MICROCOPY = {
-  1: 'Dispatch base & pickup',
-  2: 'Delivery coverage',
-  3: 'Preferences & alerts',
+  1: 'Where your crews are based',
+  2: 'Where you deliver',
+  3: 'How we reach you',
   4: 'Activate your account',
+  5: 'Secure payment',
 };
 
 const SETUP_STAGES = [
   { id: 1, label: 'Dispatch' },
-  { id: 2, label: 'Delivery' },
-  { id: 3, label: 'Setup' },
+  { id: 2, label: 'Coverage' },
+  { id: 3, label: 'Alerts' },
   { id: 4, label: 'Activate' },
+  { id: 5, label: 'Payment' },
 ];
 
 // Build personalized phrasing fragments from the answers object.
@@ -71,23 +52,14 @@ function buildPersona(answers, fallback = {}) {
   const market = (db.city && db.state)
     ? `${db.city}, ${db.state}`
     : (answers.primaryMarket || '').trim() || fallback.market || 'your market';
-  const distanceLabel = DISTANCE_OPTIONS.find(d => d.id === (answers.maxDistance || ''))?.label || '';
-  const sizes = Array.isArray(answers.preferredHomeSizes) ? answers.preferredHomeSizes : [];
   return {
     market,
     base: db,
     pickupMode:   answers.pickup?.mode   || 'near',
     deliveryMode: answers.delivery?.mode || 'same',
-    distanceLabel,
-    sizes,
-    sizesSummary: sizes.length
-      ? (sizes.length <= 2 ? sizes.join(' and ') : `${sizes.slice(0, 2).join(', ')} and more`)
-      : 'all home sizes',
-    radiusLabel: '',
   };
 }
 
-// Convert "TX" → "Texas" for friendlier helper text.
 function stateName(code) {
   const found = US_STATES.find(s => s.code === code);
   return found ? found.name : code;
@@ -98,20 +70,24 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
+    // Step 1
     dispatchBase: { input: '', zip: '', city: '', state: '' },
-    pickup:   { mode: 'near', states: [] },
-    delivery: { mode: 'same', states: [] },
-    // Legacy back-compat (resume only; not asked in new UI)
+    pickup:       { mode: 'near', states: [] },
+    // Step 2
+    delivery:     { mode: 'same', states: [] },
+    // Legacy back-compat (resume only — not asked in the new UI)
     primaryMarket: '',
     coverageRadius: '',
     additionalMarkets: [],
-    // Step 3 (also written to top-level User fields)
-    maxDistance: '',
-    preferredHomeSizes: [],
+    // Step 3
     phone: user?.phone || '',
     smsNotif: !!user?.smsNotif,
     receiveLiveTransfers: !!user?.receiveLiveTransfers,
   });
+
+  // Tier picked in Step 4 + PaymentIntent fetched on the 4 → 5 transition.
+  const [tier, setTier] = useState(100);
+  const [intent, setIntent] = useState(null);
 
   // Restore prior progress on mount
   useEffect(() => {
@@ -136,8 +112,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             primaryMarket:       a.primaryMarket       ?? prev.primaryMarket,
             coverageRadius:      a.coverageRadius      ?? prev.coverageRadius,
             additionalMarkets:   a.additionalMarkets   ?? prev.additionalMarkets,
-            maxDistance:         (typeof a.maxDistance === 'string' ? a.maxDistance : prev.maxDistance),
-            preferredHomeSizes:  Array.isArray(a.preferredHomeSizes) ? a.preferredHomeSizes : prev.preferredHomeSizes,
             phone:                (typeof a.phone === 'string' && a.phone) ? a.phone : prev.phone,
             smsNotif:             (typeof a.smsNotif === 'boolean') ? a.smsNotif : prev.smsNotif,
             receiveLiveTransfers: (typeof a.receiveLiveTransfers === 'boolean') ? a.receiveLiveTransfers : prev.receiveLiveTransfers,
@@ -149,16 +123,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   }, [API_URL, initialStep]);
 
   const setAnswer = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }));
-
-  const toggleInArray = (key, value) => {
-    setAnswers(prev => {
-      const arr = prev[key] || [];
-      return {
-        ...prev,
-        [key]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value],
-      };
-    });
-  };
 
   async function saveStep(stepNum) {
     try {
@@ -174,8 +138,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             primaryMarket: answers.primaryMarket,
             coverageRadius: answers.coverageRadius,
             additionalMarkets: answers.additionalMarkets,
-            maxDistance: answers.maxDistance,
-            preferredHomeSizes: answers.preferredHomeSizes,
             phone: answers.phone,
             smsNotif: answers.smsNotif,
             receiveLiveTransfers: answers.receiveLiveTransfers,
@@ -187,9 +149,10 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
-  // Mark wizard as complete server-side. Called when user lands on activation
-  // step (step 4) — past that point they're "done with setup", whether or not
-  // they activate.
+  // Mark wizard complete server-side. Called once on the 3 → 4 transition —
+  // past that point the user is "done with setup", whether or not they
+  // activate. Idempotent on the server.
+  const completeCalledRef = useRef(false);
   async function callComplete() {
     try {
       await fetch(`${API_URL}/onboarding/complete`, {
@@ -201,41 +164,67 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
-  const completeCalledRef = useRef(false);
   async function next() {
     await saveStep(step);
     if (step < 3) {
       setStep(step + 1);
     } else if (step === 3) {
-      // Transition into activation. Mark wizard complete (idempotent).
       if (!completeCalledRef.current) {
         completeCalledRef.current = true;
         await callComplete();
       }
       setStep(4);
     }
-    // Step 4 (activation) and step 5 (success) handle their own progression internally.
+    // Steps 4 + 5 + 6 progress via their own internal CTAs.
   }
 
   function back() {
-    if (step > 1 && step <= TOTAL_STEPS) setStep(step - 1);
+    if (step > 1 && step <= TOTAL_STEPS) {
+      // Stepping back from Payment to Balance also drops the in-flight intent
+      // so the next continue triggers a fresh PaymentIntent.
+      if (step === 5) setIntent(null);
+      setStep(step - 1);
+    }
   }
 
-  // Soft-skip — used from activation step ("Continue without activating")
+  // Step 4 → Step 5 transition. Fetch a PaymentIntent for the chosen tier.
+  async function continueToPayment() {
+    try {
+      const res = await fetch(`${API_URL}/billing/create-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': localStorage.getItem('token') || '',
+        },
+        body: JSON.stringify({ amount: tier, source: 'onboarding_activation' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.clientSecret) {
+        return { ok: false, msg: data?.msg || `Could not start payment (status ${res.status}).` };
+      }
+      setIntent(data);
+      setStep(5);
+      return { ok: true };
+    } catch (err) {
+      console.error('[Activation] create-payment-intent threw', err);
+      return { ok: false, msg: err?.message || 'Network error starting payment.' };
+    }
+  }
+
   async function dismissSkip() {
     try {
       await fetch(`${API_URL}/onboarding/skip`, {
         method: 'POST',
         headers: { 'x-auth-token': localStorage.getItem('token') || '' },
       });
-    } catch (err) { /* swallow */ }
+    } catch { /* swallow */ }
     if (refreshUser) await refreshUser();
     onClose && onClose();
   }
 
   async function onActivationDone() {
     if (refreshUser) await refreshUser();
-    setStep(5);
+    setStep(6);
   }
 
   async function closeAfterSuccess() {
@@ -245,15 +234,16 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   }
 
   const stepMicro = STEP_MICROCOPY[step] || '';
-  // Global footer is hidden during activation (step 4 has its own CTAs) and
-  // during the post-payment success screen (step 5).
+  // Global footer is hidden during activation (step 4 has its own CTAs),
+  // payment (step 5 has the Stripe form), and the success screen (step 6).
   const showFooter = step <= 3;
+  const showProgress = step <= TOTAL_STEPS;
 
   return (
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
       <div className="ow-blur" />
       <div className="ow-modal">
-        {step <= TOTAL_STEPS && (
+        {showProgress && (
           <div className="ow-header">
             <div className="ow-progress">
               <div className="ow-progress-fill" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
@@ -279,9 +269,10 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           <div className="ow-step-anim" key={step}>
             {step === 1 && <ScreenDispatchPickup answers={answers} setAnswer={setAnswer} companyName={user?.companyName} />}
             {step === 2 && <ScreenDeliveryCoverage answers={answers} setAnswer={setAnswer} API_URL={API_URL} />}
-            {step === 3 && <ScreenPreferencesAndAlerts answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
-            {step === 4 && <ScreenActivation API_URL={API_URL} onDone={onActivationDone} onSkip={dismissSkip} answers={answers} setAnswer={setAnswer} />}
-            {step === 5 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
+            {step === 3 && <ScreenAlerts answers={answers} setAnswer={setAnswer} />}
+            {step === 4 && <ScreenBalance tier={tier} setTier={setTier} onContinue={continueToPayment} onSkip={dismissSkip} />}
+            {step === 5 && intent && <ScreenPayment API_URL={API_URL} tier={tier} intent={intent} onBack={back} onDone={onActivationDone} />}
+            {step === 6 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
           </div>
         </div>
 
@@ -308,18 +299,15 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 }
 
 function isStepValid(step, a) {
-  // Step 1: dispatch base required; pickup mode 'states' requires ≥1 state.
   if (step === 1) {
     if (!a.dispatchBase || !a.dispatchBase.zip) return false;
     if (a.pickup?.mode === 'states' && !(a.pickup.states && a.pickup.states.length)) return false;
     return true;
   }
-  // Step 2: delivery mode 'states' requires ≥1 state. Otherwise valid.
   if (step === 2) {
     if (a.delivery?.mode === 'states' && !(a.delivery.states && a.delivery.states.length)) return false;
     return true;
   }
-  // Step 3: phone is required (10 digits).
   if (step === 3) {
     const digits = String(a.phone || '').replace(/\D/g, '');
     return digits.length === 10;
@@ -327,7 +315,7 @@ function isStepValid(step, a) {
   return true;
 }
 
-// ── Step 1: Dispatch base + pickup coverage ─────────────────────────────────
+// ── Step 1: Dispatch base + pickup ──────────────────────────────────────────
 function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
   const dispatchBase = answers.dispatchBase || {};
   const pickup       = answers.pickup   || { mode: 'near', states: [] };
@@ -337,30 +325,19 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
   function setPickupStates(s)  { setAnswer('pickup', { ...pickup, states: s }); }
 
   const PICKUP_OPTIONS = [
-    { id: 'near',   label: 'Local around my base',   desc: 'Best for nearby pickup jobs around your dispatch base. Roughly 50 miles.' },
-    { id: 'state',  label: 'Anywhere in my state',   desc: dispatchBase.state ? `Receive pickup opportunities across ${stateName(dispatchBase.state)}.` : 'Receive pickup opportunities across your main state.' },
-    { id: 'states', label: 'Multiple states',        desc: 'Choose the states where your crews can pick up moves.' },
+    { id: 'near',   label: 'Local around my base',   desc: 'Nearby pickups around your base.' },
+    { id: 'state',  label: 'Anywhere in my state',   desc: dispatchBase.state ? `Pickups across ${stateName(dispatchBase.state)}.` : 'Pickups across your state.' },
+    { id: 'states', label: 'Multiple states',        desc: 'Pick the states your crews cover.' },
   ];
-
-  const greeting = companyName
-    ? `${companyName} — let's set up your dispatch.`
-    : `Let's set up your dispatch.`;
 
   return (
     <>
-      <p className="ow-greeting">{greeting}</p>
-      <h1 className="ow-h1">Set up your dispatch base</h1>
-      <p className="ow-sub">Tell us where your crews start jobs. We'll use this to route nearby pickup requests to your team.</p>
+      {companyName && <p className="ow-hello">Hi {companyName} —</p>}
+      <h1 className="ow-h1">Where are your crews based?</h1>
+      <p className="ow-sub">We'll send you move requests near your dispatch base.</p>
 
-      {/* FOMO note — operational, no fake counts */}
-      <aside className="ow-setup-fomo" role="note">
-        <span className="ow-setup-fomo-dot" aria-hidden="true" />
-        <span>We limit active mover partners per market so request quality stays protected. Your spot is held until you finish setup.</span>
-      </aside>
-
-      {/* ── Question 1: Dispatch base ───────────────────────────────────── */}
+      {/* Dispatch base autocomplete */}
       <div className="ow-field">
-        <label className="ow-label" htmlFor="dispatchBaseInput">Where are your crews based?</label>
         <PlaceAutocomplete
           id="dispatchBaseInput"
           value={baseReady ? dispatchBase : null}
@@ -369,15 +346,22 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
           placeholder="Houston, TX or 77001"
           ariaLabel="Search dispatch base"
         />
-        <p className="ow-helper">Choose your main dispatch base. You can fine-tune later in Settings.</p>
-        {baseReady && (
-          <p className="ow-feedback">{dispatchBase.city}, {dispatchBase.state} confirmed as your dispatch base.</p>
-        )}
       </div>
 
-      {/* ── Question 2: Pickup ──────────────────────────────────────────── */}
+      {/* Value reassurance — appears once the user picks a base */}
+      {baseReady && (
+        <aside className="ow-market-open" role="note">
+          <span className="ow-market-open-dot" aria-hidden="true" />
+          <div>
+            <div className="ow-market-open-title">Your market is open</div>
+            <div className="ow-market-open-body">We're currently onboarding movers in your area.</div>
+          </div>
+        </aside>
+      )}
+
+      {/* Pickup areas */}
       <div className="ow-field" aria-disabled={!baseReady}>
-        <label className="ow-label">Where do your crews usually start jobs?</label>
+        <label className="ow-label">Where do your crews start jobs?</label>
         <div className="ow-cards">
           {PICKUP_OPTIONS.map(opt => {
             const active = pickup.mode === opt.id;
@@ -389,12 +373,11 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
                 onClick={() => baseReady && setPickupMode(opt.id)}
                 aria-pressed={active}
                 disabled={!baseReady}
-                style={!baseReady ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
                 <div className="ow-card-row">
                   <div>
-                    <div style={{ fontWeight: 700 }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
+                    <div className="ow-card-title">{opt.label}</div>
+                    <div className="ow-card-desc">{opt.desc}</div>
                   </div>
                   {active && <span className="ow-card-check">✓</span>}
                 </div>
@@ -404,7 +387,6 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
         </div>
         {pickup.mode === 'states' && baseReady && (
           <div style={{ marginTop: 10 }}>
-            <p className="ow-helper" style={{ marginTop: 0, marginBottom: 6 }}>Choose the states where your crews can start moves.</p>
             <StateMultiSelect
               value={pickup.states || []}
               onChange={setPickupStates}
@@ -413,18 +395,7 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
             />
           </div>
         )}
-        {pickup.mode === 'near' && baseReady && (
-          <p className="ow-feedback">Local pickup coverage enabled around {dispatchBase.city}.</p>
-        )}
-        {pickup.mode === 'state' && baseReady && (
-          <p className="ow-feedback">Statewide pickup coverage enabled in {stateName(dispatchBase.state)}.</p>
-        )}
-        {pickup.mode === 'states' && (pickup.states || []).length > 0 && (
-          <p className="ow-feedback">Pickup coverage enabled in {pickup.states.length === 1 ? '1 state' : `${pickup.states.length} states`}.</p>
-        )}
       </div>
-
-      <p className="ow-reassurance">{REASSURANCE}</p>
     </>
   );
 }
@@ -437,9 +408,6 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
 
-  // Live coverage preview against /preview-coverage-v2 — runs once we have
-  // a complete dispatch+pickup+delivery shape so the user sees the operational
-  // result of the choices they made on Step 1 + Step 2.
   useEffect(() => {
     if (!dispatchBase.zip) { setPreview(null); return; }
     setPreviewing(true);
@@ -455,7 +423,7 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
         });
         setPreview(await res.json());
       } catch {
-        setPreview({ ok: false, msg: 'Preview unavailable — your selection will still save.' });
+        setPreview({ ok: false, msg: 'Preview unavailable.' });
       } finally {
         setPreviewing(false);
       }
@@ -468,28 +436,17 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
   function setDeliveryStates(s)  { setAnswer('delivery', { ...delivery, states: s }); }
 
   const DELIVERY_OPTIONS = [
-    { id: 'same',       label: 'Same as pickup',  desc: 'Best for local moves where pickup and delivery stay in your service area.' },
-    { id: 'states',     label: 'Multiple states', desc: 'Choose the states where your crews can deliver moves.' },
-    { id: 'nationwide', label: 'Nationwide',      desc: 'Receive long-distance delivery opportunities across the U.S.' },
+    { id: 'same',       label: 'Same as pickup',  desc: 'Local moves only.' },
+    { id: 'states',     label: 'Multiple states', desc: 'Pick states you deliver to.' },
+    { id: 'nationwide', label: 'Nationwide',      desc: 'Long-distance across the U.S.' },
   ];
-
-  const baseLabel = (dispatchBase.city && dispatchBase.state)
-    ? `${dispatchBase.city}, ${dispatchBase.state}`
-    : 'your dispatch base';
 
   return (
     <>
-      <h1 className="ow-h1">Set up delivery coverage</h1>
-      <p className="ow-sub">Tell us where your crews can move customers to. This narrows the long-distance leads we send you.</p>
+      <h1 className="ow-h1">Where can your crews deliver?</h1>
+      <p className="ow-sub">This narrows the long-distance leads we send you.</p>
 
-      <div className="ow-progression-row" aria-label="Setup so far">
-        <span className="ow-progression-chip">✓ Dispatch base · {baseLabel}</span>
-        <span className="ow-progression-chip">✓ Pickup coverage · {pickupLabelShort(answers)}</span>
-      </div>
-
-      {/* ── Question: Delivery ──────────────────────────────────────────── */}
       <div className="ow-field">
-        <label className="ow-label">Where do you usually move customers to?</label>
         <div className="ow-cards">
           {DELIVERY_OPTIONS.map(opt => {
             const active = delivery.mode === opt.id;
@@ -503,8 +460,8 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
               >
                 <div className="ow-card-row">
                   <div>
-                    <div style={{ fontWeight: 700 }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
+                    <div className="ow-card-title">{opt.label}</div>
+                    <div className="ow-card-desc">{opt.desc}</div>
                   </div>
                   {active && <span className="ow-card-check">✓</span>}
                 </div>
@@ -514,7 +471,6 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
         </div>
         {delivery.mode === 'states' && (
           <div style={{ marginTop: 10 }}>
-            <p className="ow-helper" style={{ marginTop: 0, marginBottom: 6 }}>Choose the states where your crews can deliver customers.</p>
             <StateMultiSelect
               value={delivery.states || []}
               onChange={setDeliveryStates}
@@ -523,18 +479,9 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
             />
           </div>
         )}
-        {delivery.mode === 'same' && (
-          <p className="ow-feedback">Local delivery coverage enabled around your service area.</p>
-        )}
-        {delivery.mode === 'nationwide' && (
-          <p className="ow-feedback">Nationwide long-distance delivery interest enabled.</p>
-        )}
-        {delivery.mode === 'states' && (delivery.states || []).length > 0 && (
-          <p className="ow-feedback">Delivery coverage enabled in {delivery.states.length === 1 ? '1 state' : `${delivery.states.length} states`}.</p>
-        )}
       </div>
 
-      {/* Live preview pill — operational copy, ZIP count is secondary. */}
+      {/* Operational coverage preview — short, no ZIP count in the headline. */}
       {(previewing || preview) && (
         <div className={`ow-coverage-preview${preview && preview.ok === false ? ' err' : ''}`} role="status" aria-live="polite">
           {previewing && (
@@ -544,16 +491,9 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
             </>
           )}
           {!previewing && preview?.ok && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                <span className="ow-coverage-preview-dot" aria-hidden="true" />
-                <span>{previewMessage(preview)}</span>
-              </div>
-              <span style={{ fontSize: 11.5, color: '#94a3b8', fontWeight: 500, paddingLeft: 18 }}>
-                Internal coverage: {preview.counts.total.toLocaleString()} ZIP areas
-                {(preview.counts.rawOrigin > 3000 || (preview.counts.rawDestination !== null && preview.counts.rawDestination > 3000)) && ' · capped at 3,000'}
-                {' · Fine-tune later in Settings.'}
-              </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <span className="ow-coverage-preview-dot" aria-hidden="true" />
+              <span>{previewMessage(preview)}</span>
             </div>
           )}
           {!previewing && preview && preview.ok === false && (
@@ -561,32 +501,29 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
           )}
         </div>
       )}
-
-      <p className="ow-reassurance">{REASSURANCE}</p>
     </>
   );
 }
 
-// Operational preview-pill copy. ZIP count is intentionally secondary.
 function previewMessage(p) {
-  const baseCity = p.base?.city || 'Your dispatch base';
+  const baseCity = p.base?.city || 'Your dispatch';
   const baseState = p.base?.state || '';
   const baseLabel = baseState ? `${baseCity}, ${baseState}` : baseCity;
   const pmode = p.pickup?.mode;
   const dmode = p.delivery?.mode;
 
   if (p.nationwide) {
-    return <span><strong>{baseLabel}</strong> pickup · <strong>Nationwide</strong> delivery interest saved</span>;
+    return <span><strong>{baseLabel}</strong> pickup · <strong>Nationwide</strong> delivery</span>;
   }
   if (pmode === 'near' && dmode === 'same') {
-    return <span><strong>{baseLabel}</strong> local dispatch coverage ready</span>;
+    return <span><strong>{baseLabel}</strong> dispatch area ready</span>;
   }
   if (pmode === 'state' && dmode === 'same') {
-    return <span><strong>{stateName(baseState)}</strong> pickup + delivery coverage ready</span>;
+    return <span><strong>{stateName(baseState)}</strong> pickup + delivery ready</span>;
   }
   if (pmode === 'states' && dmode === 'same') {
     const list = (p.pickup.states || []).map(stateName).join(' · ');
-    return <span><strong>{list || 'Multi-state'}</strong> pickup + delivery coverage ready</span>;
+    return <span><strong>{list || 'Multi-state'}</strong> pickup + delivery ready</span>;
   }
   if (dmode === 'states') {
     const pLabel = pmode === 'near'
@@ -595,270 +532,44 @@ function previewMessage(p) {
         ? stateName(baseState)
         : (p.pickup.states || []).map(stateName).join(' · ');
     const dLabel = (p.delivery.states || []).map(stateName).join(' · ');
-    return <span><strong>{pLabel}</strong> pickup · <strong>{dLabel}</strong> delivery ready</span>;
+    return <span><strong>{pLabel}</strong> → <strong>{dLabel}</strong></span>;
   }
   return <span>Coverage ready</span>;
 }
 
-// Compact pickup label for the progression chip on Step 2.
-function pickupLabelShort(answers) {
-  const m = answers.pickup?.mode || 'near';
-  const db = answers.dispatchBase || {};
-  if (m === 'near')   return 'Local';
-  if (m === 'state')  return db.state ? stateName(db.state) : 'Statewide';
-  if (m === 'states') {
-    const s = answers.pickup?.states || [];
-    if (!s.length) return 'Multiple states';
-    return s.length === 1 ? stateName(s[0]) : `${s.length} states`;
-  }
-  return '—';
-}
-
-// ── Step 3: Move preferences + notifications (no live transfers here) ───────
-//
-// Top-level User fields written server-side: maxDistance, preferredHomeSizes,
-// phone, smsNotif. Live Transfers moves to Step 4 (activation) so the user
-// makes that decision in the same context as funding the balance.
-function ScreenPreferencesAndAlerts({ answers, setAnswer, toggleInArray }) {
+// ── Step 3: Alerts (phone + SMS + Live Transfers) ───────────────────────────
+function ScreenAlerts({ answers, setAnswer }) {
   return (
     <>
-      <h1 className="ow-h1">Match preferences & alerts</h1>
-      <p className="ow-sub">
-        Tell us which moves fit your crews and how to reach you. We'll narrow alerts to matching opportunities.
-      </p>
+      <h1 className="ow-h1">How should we send you move opportunities?</h1>
+      <p className="ow-sub">Choose how your team should hear about matching requests.</p>
 
-      <section className="ow-section">
-        <div className="ow-section-h">Match preferences</div>
+      <div className="ow-field">
+        <label className="ow-label" htmlFor="notifPhone">Phone number</label>
+        <input
+          id="notifPhone"
+          type="tel"
+          className="ow-input"
+          placeholder="(555) 123-4567"
+          value={answers.phone || ''}
+          onChange={e => setAnswer('phone', e.target.value)}
+          autoComplete="tel"
+        />
+      </div>
 
-        <div className="ow-field">
-          <label className="ow-label">Distance preference</label>
-          <div className="ow-cards">
-            {DISTANCE_OPTIONS.map(opt => {
-              const active = (answers.maxDistance || '') === opt.id;
-              return (
-                <button
-                  key={opt.id || 'any'}
-                  type="button"
-                  className={`ow-card${active ? ' active' : ''}`}
-                  onClick={() => setAnswer('maxDistance', opt.id)}
-                  aria-pressed={active}
-                >
-                  <div className="ow-card-row">
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{opt.label}</div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{opt.desc}</div>
-                    </div>
-                    {active && <span className="ow-card-check">✓</span>}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <div className="ow-field">
+        <button
+          type="button"
+          className={`ow-toggle${answers.smsNotif ? ' active' : ''}`}
+          onClick={() => setAnswer('smsNotif', !answers.smsNotif)}
+          aria-pressed={!!answers.smsNotif}
+        >
+          <span className="ow-toggle-track" />
+          <span className="ow-toggle-label">Text me when a request matches my service area</span>
+        </button>
+      </div>
 
-        <div className="ow-field">
-          <label className="ow-label">
-            Preferred move sizes
-            <span className="ow-label-hint">(optional — leave empty to receive all sizes)</span>
-          </label>
-          <div className="ow-chips">
-            {HOME_SIZE_OPTIONS.map(size => {
-              const active = (answers.preferredHomeSizes || []).includes(size);
-              return (
-                <button
-                  key={size}
-                  type="button"
-                  className={`ow-chip${active ? ' active' : ''}`}
-                  onClick={() => toggleInArray('preferredHomeSizes', size)}
-                >
-                  {active && <span className="ow-chip-check">✓</span>}
-                  {size}
-                </button>
-              );
-            })}
-          </div>
-          {(answers.preferredHomeSizes || []).length > 0 && (
-            <p className="ow-feedback">
-              {answers.preferredHomeSizes.length === 1
-                ? `${answers.preferredHomeSizes[0]} requests prioritized.`
-                : `${answers.preferredHomeSizes.length} sizes prioritized for matching.`}
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="ow-section">
-        <div className="ow-section-h">Alerts</div>
-
-        <div className="ow-field">
-          <label className="ow-label" htmlFor="notifPhone">Phone number</label>
-          <input
-            id="notifPhone"
-            type="tel"
-            className="ow-input"
-            placeholder="(555) 123-4567"
-            value={answers.phone || ''}
-            onChange={e => setAnswer('phone', e.target.value)}
-            autoComplete="tel"
-          />
-          <p className="ow-helper">We text + dial this number for SMS alerts and (optionally) live transfers.</p>
-        </div>
-
-        <div className="ow-field">
-          <button
-            type="button"
-            className={`ow-toggle${answers.smsNotif ? ' active' : ''}`}
-            onClick={() => setAnswer('smsNotif', !answers.smsNotif)}
-            aria-pressed={!!answers.smsNotif}
-          >
-            <span className="ow-toggle-track" />
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
-              Text me when a request matches my setup
-            </span>
-          </button>
-          <p className="ow-helper">SMS fires only on leads matching your service area, distance, and size preferences.</p>
-        </div>
-      </section>
-
-      <p className="ow-reassurance">{REASSURANCE}</p>
-    </>
-  );
-}
-
-// ── Step 4: Activation — Live Transfers + Balance + Payment ──────────────────
-//   Substeps:
-//     'choose' → Live Transfers card + ChooseBalance picker (no Stripe call yet)
-//     'pay'    → PaymentElement form
-function ScreenActivation({ API_URL, onSkip, onDone, answers, setAnswer }) {
-  const [tier, setTier] = useState(100);
-  const [substep, setSubstep] = useState('choose');
-  const [intent, setIntent] = useState(null);
-  const [fetching, setFetching] = useState(false);
-  const [initErr, setInitErr] = useState('');
-
-  async function handleContinue() {
-    setFetching(true);
-    setInitErr('');
-    try {
-      const res = await fetch(`${API_URL}/billing/create-payment-intent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': localStorage.getItem('token') || '',
-        },
-        body: JSON.stringify({ amount: tier, source: 'onboarding_activation' }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.clientSecret) {
-        console.error('[Activation] create-payment-intent failed', res.status, data);
-        setInitErr(data?.msg || `Could not start payment (status ${res.status}).`);
-        setFetching(false);
-        return;
-      }
-      setIntent(data);
-      setSubstep('pay');
-      setFetching(false);
-    } catch (err) {
-      console.error('[Activation] create-payment-intent threw', err);
-      setInitErr(err?.message || 'Network error starting payment.');
-      setFetching(false);
-    }
-  }
-
-  function handleBackToChoose() {
-    setIntent(null);
-    setSubstep('choose');
-  }
-
-  if (substep === 'choose') {
-    return (
-      <ChooseBalance
-        tier={tier}
-        setTier={setTier}
-        onContinue={handleContinue}
-        onSkip={onSkip}
-        fetching={fetching}
-        initErr={initErr}
-        answers={answers}
-        setAnswer={setAnswer}
-        API_URL={API_URL}
-      />
-    );
-  }
-
-  if (!intent) return null;
-  return (
-    <Elements
-      key={intent.clientSecret}
-      stripe={stripePromiseSingleton()}
-      options={{
-        clientSecret: intent.clientSecret,
-        appearance: {
-          theme: 'stripe',
-          variables: {
-            colorPrimary: '#ff6a14',
-            colorText: '#0f172a',
-            colorBackground: '#ffffff',
-            colorDanger: '#dc2626',
-            fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
-            borderRadius: '10px',
-            spacingUnit: '4px',
-          },
-        },
-      }}
-    >
-      <ActivationPaymentForm
-        API_URL={API_URL}
-        tier={tier}
-        intent={intent}
-        onBack={handleBackToChoose}
-        onDone={onDone}
-      />
-    </Elements>
-  );
-}
-
-// ── Step 4 substep 'choose' — Live Transfers + balance picker ───────────────
-function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, answers, setAnswer, API_URL }) {
-  const ctaLabel = fetching
-    ? 'Preparing secure payment…'
-    : tier === 100 ? 'Continue with $150 balance →' : 'Continue with $50 balance →';
-
-  // When the user toggles live transfers here, persist immediately so closing
-  // the wizard mid-activation doesn't lose the choice.
-  async function setLiveTransfers(value) {
-    setAnswer('receiveLiveTransfers', value);
-    try {
-      await fetch(`${API_URL}/onboarding/save-step`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
-        body: JSON.stringify({
-          step: 4,
-          answers: {
-            receiveLiveTransfers: value,
-          },
-        }),
-      });
-    } catch { /* swallow — user can toggle again */ }
-  }
-
-  return (
-    <div className="ow-choose">
-      <h1 className="ow-h1">Activate your account</h1>
-      <p className="ow-sub">
-        Add your starting balance and pick whether you want premium live phone transfers. You'll only be charged for what you accept.
-      </p>
-
-      {/* FOMO notice — operational tone */}
-      <aside className="ow-fomo" role="note">
-        <span className="ow-fomo-dot" aria-hidden="true" />
-        <span>
-          Partner spots are limited per state so request quality stays protected. Your <strong>$50 onboarding credit</strong> is available while onboarding remains open in your state.
-        </span>
-      </aside>
-
-      {/* Live phone transfers — opt-in here so the choice is paired with funding */}
-      <section className="ow-live-transfer-field" aria-label="Live phone transfers">
+      <div className="ow-field ow-live-transfer-field">
         <div className="ow-live-transfer-head">
           <div>
             <div className="ow-live-transfer-title">
@@ -872,7 +583,7 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, a
           <button
             type="button"
             className={`ow-toggle${answers.receiveLiveTransfers ? ' active' : ''}`}
-            onClick={() => setLiveTransfers(!answers.receiveLiveTransfers)}
+            onClick={() => setAnswer('receiveLiveTransfers', !answers.receiveLiveTransfers)}
             aria-pressed={!!answers.receiveLiveTransfers}
             aria-label="Enable Live Phone Transfers"
           >
@@ -880,11 +591,42 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, a
           </button>
         </div>
         <div className="ow-live-transfer-warn">
-          ⚠️ You're only charged $40 when you accept the call. Keep your balance above $50 to receive live transfers.
+          You're only charged $40 when you accept the call. Keep your balance above $50 to receive live transfers.
         </div>
-      </section>
+      </div>
+    </>
+  );
+}
 
-      <div className="ow-choose-heading">Choose your starting balance</div>
+// ── Step 4: Activate (balance picker only — no Stripe call yet) ─────────────
+function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
+  const [fetching, setFetching] = useState(false);
+  const [initErr, setInitErr] = useState('');
+
+  const ctaLabel = fetching
+    ? 'Preparing secure payment…'
+    : tier === 100 ? 'Continue with $150 balance →' : 'Continue with $50 balance →';
+
+  async function handleContinue() {
+    setFetching(true);
+    setInitErr('');
+    const res = await onContinue();
+    if (!res?.ok) {
+      setInitErr(res?.msg || 'Could not start payment.');
+      setFetching(false);
+    }
+    // Success path: parent flips to step 5; this component will unmount.
+  }
+
+  return (
+    <div className="ow-choose">
+      <h1 className="ow-h1">Activate your account</h1>
+      <p className="ow-sub">Add your starting balance to unlock verified move requests.</p>
+
+      <aside className="ow-fomo" role="note">
+        <span className="ow-fomo-dot" aria-hidden="true" />
+        <span>Active markets are opened gradually to protect request quality. Your <strong>$50 onboarding credit</strong> is available while onboarding remains open in your state.</span>
+      </aside>
 
       <div className="ow-tiers">
         <button
@@ -896,9 +638,7 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, a
           onClick={() => setTier(100)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
         >
-          {tier === 100 && (
-            <span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>
-          )}
+          {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
             <span className="ow-tier-pill-recommended">Recommended</span>
             <span className="ow-tier-supporting">Most partners start here</span>
@@ -923,9 +663,7 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, a
           onClick={() => setTier(50)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
         >
-          {tier === 50 && (
-            <span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>
-          )}
+          {tier === 50 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
             <span className="ow-tier-pill-starter">Starter balance</span>
           </div>
@@ -956,21 +694,11 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, a
         </div>
       )}
 
-      <button
-        type="button"
-        className="ow-activate-cta"
-        onClick={onContinue}
-        disabled={fetching}
-      >
+      <button type="button" className="ow-activate-cta" onClick={handleContinue} disabled={fetching}>
         {ctaLabel}
       </button>
 
-      <button
-        type="button"
-        className="ow-activate-skip ow-skip-secondary"
-        onClick={onSkip}
-        disabled={fetching}
-      >
+      <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip} disabled={fetching}>
         <span>Continue without activating</span>
         <span className="ow-skip-secondary-sub">Dashboard access stays limited until activation.</span>
       </button>
@@ -978,7 +706,39 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr, a
   );
 }
 
-// ── Step 4 substep 'pay' — Complete secure payment ───────────────────────────
+// ── Step 5: Secure payment (Stripe Payment Element only) ────────────────────
+function ScreenPayment({ API_URL, tier, intent, onBack, onDone }) {
+  return (
+    <Elements
+      key={intent.clientSecret}
+      stripe={stripePromiseSingleton()}
+      options={{
+        clientSecret: intent.clientSecret,
+        appearance: {
+          theme: 'stripe',
+          variables: {
+            colorPrimary: '#ff6a14',
+            colorText: '#0f172a',
+            colorBackground: '#ffffff',
+            colorDanger: '#dc2626',
+            fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+            borderRadius: '10px',
+            spacingUnit: '4px',
+          },
+        },
+      }}
+    >
+      <ActivationPaymentForm
+        API_URL={API_URL}
+        tier={tier}
+        intent={intent}
+        onBack={onBack}
+        onDone={onDone}
+      />
+    </Elements>
+  );
+}
+
 function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -1048,7 +808,7 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
         ← Change balance
       </button>
 
-      <h1 className="ow-h1">Complete secure payment</h1>
+      <h1 className="ow-h1">Secure payment</h1>
       <p className="ow-sub">Your selected balance will be added immediately after payment.</p>
 
       <div className="ow-pay-summary">
@@ -1080,7 +840,7 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   );
 }
 
-// ── Step 5: Activation success ──────────────────────────────────────────────
+// ── Step 6: Activation success (terminal) ───────────────────────────────────
 function ScreenActivationSuccess({ onDone, answers }) {
   const { API_URL, user } = useContext(AuthContext);
   const persona = buildPersona(answers || {});
@@ -1121,10 +881,8 @@ function ScreenActivationSuccess({ onDone, answers }) {
   const marketLine = matchCount && matchCount > 0
     ? `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${persona.market}`
     : (persona.market !== 'your market'
-        ? `Market routing enabled for ${persona.market}`
-        : 'Market routing enabled');
-
-  const alertLine = 'Notifications ready for matching requests';
+        ? `Routing enabled for ${persona.market}`
+        : 'Routing enabled');
 
   return (
     <div className="ow-success">
@@ -1135,7 +893,7 @@ function ScreenActivationSuccess({ onDone, answers }) {
           ? <li>Onboarding bonus applied: <strong>+$50</strong></li>
           : <li>Starter balance activated</li>}
         <li>{marketLine}</li>
-        <li>{alertLine}</li>
+        <li>Notifications ready for matching requests</li>
       </ul>
       <button type="button" className="ow-next" style={{ marginTop: 18 }} onClick={onDone}>
         View matching opportunities →

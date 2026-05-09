@@ -50,8 +50,8 @@ export default function DashboardLayout({ children }) {
     }
   }, [user]);
 
-  // Banner CTA → reopen wizard at the activation step. In the new 4-step
-  // flow, Step 4 is the Live Transfers + Balance + Payment phase.
+  // Banner CTA → reopen wizard at the balance step (Step 4). Payment (Step 5)
+  // is only reached once the user picks a tier and a PaymentIntent is created.
   const openActivation = () => {
     setWizardInitialStep(4);
     setShowWizard(true);
@@ -89,10 +89,10 @@ export default function DashboardLayout({ children }) {
 
     if (onboardingParam === 'resume') {
       // Mid-wizard abandoner: reopen at saved step (or 1 if missing). Clamp
-      // to the 4-step setup range. If they already completed setup, drop
-      // them on the activation step.
+      // to the 5-step range (Dispatch/Coverage/Alerts/Activate/Payment). If
+      // they already completed setup, drop them on the balance step.
       const savedStep = user.onboarding?.currentStep || 1;
-      const clamped = Math.min(Math.max(savedStep, 1), 4);
+      const clamped = Math.min(Math.max(savedStep, 1), 5);
       const target = !user.onboarding?.complete ? clamped : 4;
       setWizardInitialStep(target);
       setShowWizard(true);
@@ -100,7 +100,8 @@ export default function DashboardLayout({ children }) {
       const qs = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
     } else if (activateParam === '1') {
-      // Post-skip recovery: jump to activation step (Step 4).
+      // Post-skip recovery: open the balance step (Step 4). Payment (Step 5)
+      // is reached only after the user picks a tier and a fresh PI is created.
       setWizardInitialStep(4);
       setShowWizard(true);
       params.delete('activate');

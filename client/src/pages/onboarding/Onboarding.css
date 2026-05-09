@@ -1510,7 +1510,77 @@
   border-radius: 12px;
 }
 
-/* ── New 4-step flow polish ─────────────────────────────────────────────── */
+/* ── 5-step flow: lighter, mover-native polish ──────────────────────────── */
+
+/* Soft "Hi {company} —" line above H1 (replaces the old boxed greeting). */
+.ow-hello {
+  margin: 0 0 6px;
+  font-size: 13px; font-weight: 600; color: #94a3b8;
+  letter-spacing: -0.005em;
+}
+
+/* Card title + desc — pulled out of inline styles so we can tone down weight
+   and keep a single place to adjust hierarchy. */
+.ow-card-title {
+  font-size: 14px; font-weight: 700; color: #0f172a;
+  letter-spacing: -0.005em;
+}
+.ow-card-desc {
+  font-size: 12.5px; font-weight: 500; color: #64748b;
+  margin-top: 3px; line-height: 1.4;
+}
+
+/* Card hover/selected — softer than the previous loud orange tint. */
+.ow-card { transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.ow-card:hover:not(:disabled) {
+  border-color: rgba(255, 106, 20, 0.30);
+  background: #fafbfc;
+}
+.ow-card.active {
+  border-color: #ff6a14;
+  background: rgba(255, 106, 20, 0.04);
+  box-shadow: 0 6px 16px rgba(255, 106, 20, 0.08);
+  transform: translateY(-1px);
+}
+.ow-card:disabled { background: #f8fafc; }
+
+/* Toggle inline label — used in Step 3 SMS toggle. */
+.ow-toggle-label {
+  font-size: 14px; font-weight: 600; color: #0f172a;
+  letter-spacing: -0.005em;
+}
+
+/* "Your market is open" reassurance — small, premium, no fake numbers.
+   Shown after the user picks a dispatch base on Step 1. */
+.ow-market-open {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: -2px 0 18px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(34,197,94,0.06), rgba(34,197,94,0.01));
+  border: 1px solid rgba(34, 197, 94, 0.20);
+  border-radius: 12px;
+}
+.ow-market-open-dot {
+  flex-shrink: 0; margin-top: 6px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+  animation: owSoftPulse 2.4s ease-in-out infinite;
+}
+.ow-market-open-title {
+  font-size: 13.5px; font-weight: 800; color: #15803d;
+  letter-spacing: -0.005em;
+}
+.ow-market-open-body {
+  margin-top: 2px;
+  font-size: 12.5px; font-weight: 500; color: #475569; line-height: 1.45;
+}
+
+/* ── Legacy classes (.ow-setup-fomo, .ow-progression-chip, .ow-section) ──
+   kept so any in-flight wizard session loaded from a stale build can still
+   render. The current 5-step flow does not use them. Safe to delete in a
+   follow-up cleanup pass. */
 
 /* Setup-phase FOMO note (Step 1). Lighter than the activation .ow-fomo so it
    doesn't out-shout the dispatch-base input. */
