@@ -101,6 +101,24 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
+  // Backfill contact fields from the AuthContext user once it hydrates.
+  // The useState initializer above runs synchronously on first mount, when
+  // `user` may still be null (the wizard mounts from DashboardLayout before
+  // /auth/me returns). Email already works because it's passed as a prop and
+  // re-renders pick up the late value. Phone, smsNotif, emailNotif, and
+  // receiveLiveTransfers live in `answers` state, so they need an effect.
+  // Never overwrites typed input — only fills empty/default fields.
+  useEffect(() => {
+    if (!user) return;
+    setAnswers(prev => {
+      const next = { ...prev };
+      let changed = false;
+      if (!prev.phone && user.phone) { next.phone = user.phone; changed = true; }
+      if (changed) return next;
+      return prev;
+    });
+  }, [user?.phone]);
+
   // Restore prior progress on mount
   useEffect(() => {
     let alive = true;
@@ -602,6 +620,11 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
         </div>
       )}
 
+      <p className="ow-contact-notice">
+        You can update your phone number and email anytime from Settings.
+      </p>
+
+
       <div className="ow-field">
         <button
           type="button"
@@ -660,19 +683,39 @@ function ScreenSetupComplete({ answers, onClaim, onSkip }) {
   const persona = buildPersona(answers || {});
   const market = persona.market !== 'your market' ? persona.market : 'your service area';
 
+  // Friendly "Alerts ready" subline — surfaces which channels they enabled
+  // without re-listing every toggle. If everything is off, fall back to a
+  // safe default since they'll still see leads in the dashboard feed.
+  const enabledChannels = [];
+  if (answers.smsNotif) enabledChannels.push('SMS');
+  if (answers.emailNotif) enabledChannels.push('Email');
+  if (answers.receiveLiveTransfers) enabledChannels.push('Live calls');
+  const alertsBody = enabledChannels.length ? enabledChannels.join(' · ') : 'In-dashboard only';
+
   return (
     <div className="ow-setup-complete">
-      <div className="ow-success-icon">✓</div>
+      <div className="ow-success-icon ow-success-icon-lg" aria-hidden="true">✓</div>
       <h1 className="ow-h1">Your dispatch setup is ready</h1>
-      <p className="ow-sub">Your service area and alerts are set. You're ready to start receiving matching move opportunities.</p>
+      <p className="ow-sub">
+        Your service area and alerts are set. You're ready to start receiving matching move opportunities.
+      </p>
 
-      <ul className="ow-success-list">
-        <li>Service area saved · <strong>{market}</strong></li>
-        <li>Alerts ready</li>
-        <li>Dashboard access prepared</li>
-      </ul>
+      <div className="ow-milestone-grid">
+        <div className="ow-milestone-card">
+          <div className="ow-milestone-card-h">Service area saved</div>
+          <div className="ow-milestone-body">{market}</div>
+        </div>
+        <div className="ow-milestone-card">
+          <div className="ow-milestone-card-h">Alerts ready</div>
+          <div className="ow-milestone-body">{alertsBody}</div>
+        </div>
+        <div className="ow-milestone-card">
+          <div className="ow-milestone-card-h">Dashboard prepared</div>
+          <div className="ow-milestone-body">Ready for live requests</div>
+        </div>
+      </div>
 
-      <button type="button" className="ow-activate-cta" onClick={onClaim} style={{ marginTop: 22 }}>
+      <button type="button" className="ow-activate-cta" onClick={onClaim}>
         Claim your $50 FREE credit →
       </button>
 
