@@ -34,9 +34,11 @@ export default function StateMultiSelect({ value = [], onChange, placeholder = '
     if (!state || selectedSet.has(state.code)) return;
     onChange && onChange([...value, state.code]);
     setQuery('');
-    setOpen(true);
+    // Close the suggestions list after a pick. The user can refocus the
+    // input (or just click into it) to add another state — that re-opens
+    // the dropdown via onFocus. Keeps the UI calm after each selection.
+    setOpen(false);
     setHighlight(0);
-    inputRef.current?.focus();
   }
 
   function remove(code) {

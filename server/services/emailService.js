@@ -769,10 +769,119 @@ async function sendOnboardingMidwizard72h(user) {
   });
 }
 
+/**
+ * Send a "matching move request" email to a mover whose CoverageArea +
+ * preferences cover this lead. Mirrors broadcastLeadSMS — the mover already
+ * passed the coverage + preference filter before this is called, so this
+ * function trusts its inputs and just renders + sends.
+ */
+async function sendMatchingLeadEmail({ toEmail, companyName, lead }) {
+  const resend = getResend();
+  const moveDateStr = lead.moveDate
+    ? new Date(lead.moveDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : 'Flexible';
+  const dashUrl = `https://moveleads.cloud/dashboard/leads`;
+  const greeting = companyName ? `Hi ${companyName},` : 'Hi,';
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: toEmail,
+    replyTo: REPLY_TO,
+    subject: `New move request: ${lead.originCity} → ${lead.destinationCity} · ${moveDateStr}`,
+    html: `
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f8fafc;padding:24px 0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
+        <tr><td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 6px 18px rgba(15,23,42,0.06);">
+            <tr><td style="background:linear-gradient(180deg,#fff7ed,#ffffff);padding:24px 28px 18px;">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#ea580c;">Matching move request</p>
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;">${lead.originCity} → ${lead.destinationCity}</h1>
+              <p style="margin:6px 0 0;font-size:14px;color:#475569;">${greeting} a new request matches your service area.</p>
+            </td></tr>
+            <tr><td style="padding:18px 28px 4px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+                <tr><td style="padding:8px 0;color:#64748b;font-size:13px;width:40%;">Move date</td><td style="padding:8px 0;font-weight:700;color:#0f172a;font-size:14px;">${moveDateStr}</td></tr>
+                <tr style="background:#f8fafc;"><td style="padding:8px 10px;color:#64748b;font-size:13px;">Home size</td><td style="padding:8px 10px;font-weight:700;color:#0f172a;font-size:14px;">${lead.homeSize || '—'}</td></tr>
+                <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Distance</td><td style="padding:8px 0;font-weight:700;color:#0f172a;font-size:14px;">${lead.distance || ''} ${lead.miles ? `(${lead.miles} miles)` : ''}</td></tr>
+                ${lead.grade ? `<tr style="background:#f8fafc;"><td style="padding:8px 10px;color:#64748b;font-size:13px;">Grade</td><td style="padding:8px 10px;font-weight:800;color:#ea580c;font-size:16px;">${lead.grade}</td></tr>` : ''}
+              </table>
+            </td></tr>
+            <tr><td style="padding:18px 28px 24px;text-align:center;">
+              <a href="${dashUrl}" style="display:inline-block;background:#ff6a14;color:#ffffff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px;letter-spacing:-0.005em;">View in dashboard →</a>
+              <p style="margin:14px 0 0;font-size:12px;color:#94a3b8;">Manage email alerts in Settings.</p>
+            </td></tr>
+            ${emailFooter()}
+          </table>
+        </td></tr>
+      </table>
+    `,
+  });
+
+  if (error) console.error('[LeadEmail] Failed to send matching lead email:', error.message);
+}
+
+/**
+ * Broadcast a matching-lead email to all movers whose CoverageArea covers
+ * the lead's origin or destination AND who have emailNotif enabled. Filters
+ * by the same shared preference helper used for SMS. Non-blocking — errors
+ * are logged but never propagate.
+ */
+async function broadcastLeadEmail(lead) {
+  console.log('[LeadEmail] Attempting to notify movers for lead:', lead._id);
+  try {
+    const CoverageArea = require('../models/CoverageArea');
+    const User = require('../models/User');
+    const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
+
+    // 1. Coverage candidates. Mirrors broadcastLeadSMS.
+    const matchingCompanyIds = await CoverageArea.distinct('company', {
+      zipCode: { $in: [lead.originZip, lead.destinationZip].filter(Boolean) },
+    });
+    const nationwideOriginIds = lead.originZip
+      ? await CoverageArea.distinct('company', { zipCode: lead.originZip })
+      : [];
+    const candidateIdSet = new Set([
+      ...matchingCompanyIds.map(String),
+      ...nationwideOriginIds.map(String),
+    ]);
+    if (!candidateIdSet.size) {
+      console.log('[LeadEmail] No companies cover this lead — no email sent');
+      return;
+    }
+
+    // 2. Hydrate email-opted-in candidates.
+    const candidates = await User.find({
+      _id:        { $in: Array.from(candidateIdSet) },
+      role:       'customer',
+      emailNotif: true,
+      isSuspended: { $ne: true },
+      email:      { $exists: true, $nin: ['', null] },
+    }).select('email companyName maxDistance preferredHomeSizes deliversNationwide').lean();
+    if (!candidates.length) {
+      console.log('[LeadEmail] No email-enabled candidates with email on file');
+      return;
+    }
+
+    // 3. Apply preference filter via the shared helper. Pass an empty Set
+    //    for coverage since we already filtered by ZIP at Stage 1.
+    const emptyZipSet = new Set();
+    const matched = candidates.filter(m => doesLeadMatchMoverPreferences(lead, m, emptyZipSet));
+    console.log(`[LeadEmail] ${matchingCompanyIds.length} cover, ${candidates.length} email-enabled, ${matched.length} pass preferences`);
+    if (!matched.length) return;
+
+    for (const mover of matched) {
+      sendMatchingLeadEmail({ toEmail: mover.email, companyName: mover.companyName, lead })
+        .catch(err => console.error('[LeadEmail] send failed:', err?.message));
+    }
+  } catch (err) {
+    console.error('[LeadEmail] broadcastLeadEmail error:', err.message);
+  }
+}
+
 module.exports = {
   sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail,
   sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail,
   sendAuctionWonEmail, sendAdminLeadNotification, sendAdminNotification,
   sendOnboardingRecovery12h, sendOnboardingRecovery24h, sendOnboardingRecovery72h,
   sendOnboardingMidwizard12h, sendOnboardingMidwizard24h, sendOnboardingMidwizard72h,
+  sendMatchingLeadEmail, broadcastLeadEmail,
 };

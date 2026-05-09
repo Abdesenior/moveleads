@@ -50,10 +50,13 @@ export default function DashboardLayout({ children }) {
     }
   }, [user]);
 
-  // Banner CTA → reopen wizard at the balance step (Step 4). Payment (Step 5)
-  // is only reached once the user picks a tier and a PaymentIntent is created.
+  // Banner CTA → reopen wizard at the balance picker (internal step 5 in the
+  // current wizard: Dispatch=1, Coverage=2, Alerts=3, SetupComplete=4 [skipped
+  // when re-entering after dismissal], Activate=5, Payment=6, Success=7).
+  // Payment (step 6) is only reached after the user picks a tier and a fresh
+  // PaymentIntent is created.
   const openActivation = () => {
-    setWizardInitialStep(4);
+    setWizardInitialStep(5);
     setShowWizard(true);
   };
 
@@ -89,20 +92,21 @@ export default function DashboardLayout({ children }) {
 
     if (onboardingParam === 'resume') {
       // Mid-wizard abandoner: reopen at saved step (or 1 if missing). Clamp
-      // to the 5-step range (Dispatch/Coverage/Alerts/Activate/Payment). If
-      // they already completed setup, drop them on the balance step.
+      // to the [1, 6] range (the wizard saves currentStep up to 6 for the
+      // Payment phase). If they already completed setup, drop them on the
+      // balance picker (step 5).
       const savedStep = user.onboarding?.currentStep || 1;
-      const clamped = Math.min(Math.max(savedStep, 1), 5);
-      const target = !user.onboarding?.complete ? clamped : 4;
+      const clamped = Math.min(Math.max(savedStep, 1), 6);
+      const target = !user.onboarding?.complete ? clamped : 5;
       setWizardInitialStep(target);
       setShowWizard(true);
       params.delete('onboarding');
       const qs = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
     } else if (activateParam === '1') {
-      // Post-skip recovery: open the balance step (Step 4). Payment (Step 5)
+      // Post-skip recovery: open the balance picker (step 5). Payment (step 6)
       // is reached only after the user picks a tier and a fresh PI is created.
-      setWizardInitialStep(4);
+      setWizardInitialStep(5);
       setShowWizard(true);
       params.delete('activate');
       const qs = params.toString();

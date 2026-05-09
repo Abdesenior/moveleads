@@ -338,6 +338,12 @@ router.post('/', [auth, admin], async (req, res) => {
       } catch (e) {
         console.error('[AdminLead] sms broadcast failed:', e.message);
       }
+      try {
+        const { broadcastLeadEmail } = require('../services/emailService');
+        broadcastLeadEmail(lead).catch(() => {});
+      } catch (e) {
+        console.error('[AdminLead] email broadcast failed:', e.message);
+      }
     }
 
     res.json(lead);

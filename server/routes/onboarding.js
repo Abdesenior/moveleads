@@ -20,8 +20,8 @@ const ANSWER_KEYS = [
   'primaryMarket', 'coverageRadius', 'additionalMarkets',
   // Step 2 — move preferences (also written to top-level User.{maxDistance, preferredHomeSizes})
   'maxDistance', 'preferredHomeSizes',
-  // Step 3 — notifications + live transfers (also written to top-level User.{phone, smsNotif, receiveLiveTransfers})
-  'phone', 'smsNotif', 'receiveLiveTransfers',
+  // Step 3 — alerts (also written to top-level User.{phone, smsNotif, emailNotif, receiveLiveTransfers})
+  'phone', 'smsNotif', 'emailNotif', 'receiveLiveTransfers',
   // Legacy fields kept so resuming partners with old answers don't lose data
   'coveragePreference', 'coveragePreferences',
   'moveTypes', 'avoidMoveTypes',
@@ -76,6 +76,9 @@ router.post('/save-step', auth, async (req, res) => {
         }
         if (typeof answers.smsNotif === 'boolean') {
           update['smsNotif'] = answers.smsNotif;
+        }
+        if (typeof answers.emailNotif === 'boolean') {
+          update['emailNotif'] = answers.emailNotif;
         }
         if (typeof answers.receiveLiveTransfers === 'boolean') {
           update['receiveLiveTransfers'] = answers.receiveLiveTransfers;

@@ -19,34 +19,48 @@ const stripePromiseSingleton = (() => {
   };
 })();
 
-// Visible steps in the progress bar:
-//   1 = Dispatch base + pickup       → "Where are your crews based?"
-//   2 = Delivery coverage            → "Where can your crews deliver?"
-//   3 = Alerts                       → phone + SMS + Live Phone Transfers
-//   4 = Activate                     → balance picker only (no Stripe call yet)
-//   5 = Payment                      → Stripe Payment Element only
-// Internal-only post-flow step (no progress bar):
-//   6 = Activation success
-const TOTAL_STEPS = 5;
+// Internal step state numbering:
+//   1 = Dispatch base + pickup
+//   2 = Delivery coverage
+//   3 = Alerts (phone, SMS, email, Live Phone Transfers)
+//   4 = Setup-complete celebration interstitial (no progress bar)
+//   5 = Activate / balance picker (no Stripe call yet)
+//   6 = Secure payment (Stripe Payment Element)
+//   7 = Activation success (no progress bar)
+//
+// The visible progress bar shows 5 stages: Dispatch / Coverage / Alerts /
+// Activate / Payment. Step 4 (setup-complete) and Step 7 (success) hide
+// the progress chrome since they're celebration screens, not configuration.
+const TOTAL_STEPS = 5; // visible progress steps (Dispatch through Payment)
 
-// Compact mover-language microcopy for the progress label.
 const STEP_MICROCOPY = {
   1: 'Where your crews are based',
   2: 'Where you deliver',
   3: 'How we reach you',
-  4: 'Activate your account',
-  5: 'Secure payment',
+  4: 'Setup complete',
+  5: 'Activate your account',
+  6: 'Secure payment',
 };
 
 const SETUP_STAGES = [
   { id: 1, label: 'Dispatch' },
   { id: 2, label: 'Coverage' },
   { id: 3, label: 'Alerts' },
-  { id: 4, label: 'Activate' },
-  { id: 5, label: 'Payment' },
+  { id: 4, label: 'Activate' }, // shown active when internal step === 5
+  { id: 5, label: 'Payment'  }, // shown active when internal step === 6
 ];
 
-// Build personalized phrasing fragments from the answers object.
+// Map internal step → visible-stage id (for the stages bar fill). Step 4
+// (setup-complete) and step 7 (success) are interstitials with no stage.
+const STEP_TO_STAGE = { 1: 1, 2: 2, 3: 3, 5: 4, 6: 5 };
+
+// CTA labels while saveStep is in flight.
+const SAVING_LABEL = {
+  1: 'Saving dispatch area…',
+  2: 'Preparing coverage…',
+  3: 'Saving alerts…',
+};
+
 function buildPersona(answers, fallback = {}) {
   const db = answers.dispatchBase || {};
   const market = (db.city && db.state)
@@ -70,24 +84,22 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
-    // Step 1
     dispatchBase: { input: '', zip: '', city: '', state: '' },
     pickup:       { mode: 'near', states: [] },
-    // Step 2
     delivery:     { mode: 'same', states: [] },
-    // Legacy back-compat (resume only — not asked in the new UI)
     primaryMarket: '',
     coverageRadius: '',
     additionalMarkets: [],
-    // Step 3
     phone: user?.phone || '',
-    smsNotif: !!user?.smsNotif,
+    smsNotif:             user?.smsNotif !== undefined ? !!user.smsNotif : true,
+    emailNotif:           user?.emailNotif !== undefined ? !!user.emailNotif : true,
     receiveLiveTransfers: !!user?.receiveLiveTransfers,
   });
 
-  // Tier picked in Step 4 + PaymentIntent fetched on the 4 → 5 transition.
   const [tier, setTier] = useState(100);
   const [intent, setIntent] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Restore prior progress on mount
   useEffect(() => {
@@ -114,6 +126,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             additionalMarkets:   a.additionalMarkets   ?? prev.additionalMarkets,
             phone:                (typeof a.phone === 'string' && a.phone) ? a.phone : prev.phone,
             smsNotif:             (typeof a.smsNotif === 'boolean') ? a.smsNotif : prev.smsNotif,
+            emailNotif:           (typeof a.emailNotif === 'boolean') ? a.emailNotif : prev.emailNotif,
             receiveLiveTransfers: (typeof a.receiveLiveTransfers === 'boolean') ? a.receiveLiveTransfers : prev.receiveLiveTransfers,
           }));
         }
@@ -125,33 +138,31 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const setAnswer = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }));
 
   async function saveStep(stepNum) {
-    try {
-      await fetch(`${API_URL}/onboarding/save-step`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
-        body: JSON.stringify({
-          step: stepNum,
-          answers: {
-            dispatchBase: answers.dispatchBase,
-            pickup: answers.pickup,
-            delivery: answers.delivery,
-            primaryMarket: answers.primaryMarket,
-            coverageRadius: answers.coverageRadius,
-            additionalMarkets: answers.additionalMarkets,
-            phone: answers.phone,
-            smsNotif: answers.smsNotif,
-            receiveLiveTransfers: answers.receiveLiveTransfers,
-          },
-        }),
-      });
-    } catch (err) {
-      console.error('[OnboardingWizard] save-step failed:', err);
+    const res = await fetch(`${API_URL}/onboarding/save-step`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
+      body: JSON.stringify({
+        step: stepNum,
+        answers: {
+          dispatchBase: answers.dispatchBase,
+          pickup: answers.pickup,
+          delivery: answers.delivery,
+          primaryMarket: answers.primaryMarket,
+          coverageRadius: answers.coverageRadius,
+          additionalMarkets: answers.additionalMarkets,
+          phone: answers.phone,
+          smsNotif: answers.smsNotif,
+          emailNotif: answers.emailNotif,
+          receiveLiveTransfers: answers.receiveLiveTransfers,
+        },
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`save-step ${res.status} ${txt}`.trim());
     }
   }
 
-  // Mark wizard complete server-side. Called once on the 3 → 4 transition —
-  // past that point the user is "done with setup", whether or not they
-  // activate. Idempotent on the server.
   const completeCalledRef = useRef(false);
   async function callComplete() {
     try {
@@ -165,29 +176,45 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   }
 
   async function next() {
-    await saveStep(step);
-    if (step < 3) {
-      setStep(step + 1);
-    } else if (step === 3) {
-      if (!completeCalledRef.current) {
+    if (saving) return;
+    setSaveError('');
+    setSaving(true);
+    try {
+      await saveStep(step);
+      if (step === 3 && !completeCalledRef.current) {
         completeCalledRef.current = true;
         await callComplete();
       }
-      setStep(4);
+      if (step < 3) {
+        setStep(step + 1);
+      } else if (step === 3) {
+        setStep(4); // → setup-complete celebration
+      }
+    } catch (err) {
+      console.error('[OnboardingWizard] next() failed:', err);
+      setSaveError("We couldn't save that step. Check your connection and try again.");
+    } finally {
+      setSaving(false);
     }
-    // Steps 4 + 5 + 6 progress via their own internal CTAs.
   }
 
   function back() {
-    if (step > 1 && step <= TOTAL_STEPS) {
-      // Stepping back from Payment to Balance also drops the in-flight intent
-      // so the next continue triggers a fresh PaymentIntent.
-      if (step === 5) setIntent(null);
+    if (saving) return;
+    if (step > 1 && step <= TOTAL_STEPS + 1) {
+      // Stepping back from Payment (6) to Activate (5) drops the in-flight
+      // intent so the next continue triggers a fresh PaymentIntent.
+      if (step === 6) setIntent(null);
+      // Setup-complete (4) is a celebration — back jumps to Alerts (3).
       setStep(step - 1);
     }
   }
 
-  // Step 4 → Step 5 transition. Fetch a PaymentIntent for the chosen tier.
+  // Setup-complete → Activate transition. No save needed.
+  function continueToActivate() {
+    setStep(5);
+  }
+
+  // Step 5 → Step 6 transition. Fetch a PaymentIntent for the chosen tier.
   async function continueToPayment() {
     try {
       const res = await fetch(`${API_URL}/billing/create-payment-intent`, {
@@ -203,7 +230,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         return { ok: false, msg: data?.msg || `Could not start payment (status ${res.status}).` };
       }
       setIntent(data);
-      setStep(5);
+      setStep(6);
       return { ok: true };
     } catch (err) {
       console.error('[Activation] create-payment-intent threw', err);
@@ -224,7 +251,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
   async function onActivationDone() {
     if (refreshUser) await refreshUser();
-    setStep(6);
+    setStep(7);
   }
 
   async function closeAfterSuccess() {
@@ -234,10 +261,16 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   }
 
   const stepMicro = STEP_MICROCOPY[step] || '';
-  // Global footer is hidden during activation (step 4 has its own CTAs),
-  // payment (step 5 has the Stripe form), and the success screen (step 6).
+  // Global footer is shown only on configurable steps (1..3). All later
+  // steps drive themselves with internal CTAs.
   const showFooter = step <= 3;
-  const showProgress = step <= TOTAL_STEPS;
+  // Progress chrome hidden on celebration steps (4 setup-complete, 7 success).
+  const visibleStage = STEP_TO_STAGE[step];
+  const showProgress = !!visibleStage;
+
+  let nextLabel = 'Continue →';
+  if (saving && SAVING_LABEL[step]) nextLabel = SAVING_LABEL[step];
+  else if (step === 3) nextLabel = 'Continue →';
 
   return (
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
@@ -246,12 +279,12 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         {showProgress && (
           <div className="ow-header">
             <div className="ow-progress">
-              <div className="ow-progress-fill" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
+              <div className="ow-progress-fill" style={{ width: `${(visibleStage / TOTAL_STEPS) * 100}%` }} />
             </div>
-            <div className="ow-progress-label">Step {step} of {TOTAL_STEPS} · {stepMicro}</div>
+            <div className="ow-progress-label">Step {visibleStage} of {TOTAL_STEPS} · {stepMicro}</div>
             <div className="ow-stages" aria-label="Setup progress">
               {SETUP_STAGES.map(stage => {
-                const state = stage.id < step ? 'done' : stage.id === step ? 'active' : 'future';
+                const state = stage.id < visibleStage ? 'done' : stage.id === visibleStage ? 'active' : 'future';
                 return (
                   <span key={stage.id} className={`ow-stage ow-stage-${state}`}>
                     <span className="ow-stage-dot">
@@ -269,10 +302,11 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           <div className="ow-step-anim" key={step}>
             {step === 1 && <ScreenDispatchPickup answers={answers} setAnswer={setAnswer} companyName={user?.companyName} />}
             {step === 2 && <ScreenDeliveryCoverage answers={answers} setAnswer={setAnswer} API_URL={API_URL} />}
-            {step === 3 && <ScreenAlerts answers={answers} setAnswer={setAnswer} />}
-            {step === 4 && <ScreenBalance tier={tier} setTier={setTier} onContinue={continueToPayment} onSkip={dismissSkip} />}
-            {step === 5 && intent && <ScreenPayment API_URL={API_URL} tier={tier} intent={intent} onBack={back} onDone={onActivationDone} />}
-            {step === 6 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
+            {step === 3 && <ScreenAlerts answers={answers} setAnswer={setAnswer} userEmail={user?.email} />}
+            {step === 4 && <ScreenSetupComplete answers={answers} onClaim={continueToActivate} onSkip={dismissSkip} />}
+            {step === 5 && <ScreenBalance tier={tier} setTier={setTier} onContinue={continueToPayment} onSkip={dismissSkip} />}
+            {step === 6 && intent && <ScreenPayment API_URL={API_URL} tier={tier} intent={intent} onBack={back} onDone={onActivationDone} />}
+            {step === 7 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
           </div>
         </div>
 
@@ -280,16 +314,21 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           <div className="ow-footer">
             <div className="ow-footer-left">
               {step > 1 && (
-                <button className="ow-back" onClick={back} type="button">← Back</button>
+                <button className="ow-back" onClick={back} type="button" disabled={saving}>← Back</button>
+              )}
+              {saveError && (
+                <span className="ow-save-error" role="alert">{saveError}</span>
               )}
             </div>
             <button
               className="ow-next"
               onClick={next}
               type="button"
-              disabled={!isStepValid(step, answers)}
+              disabled={saving || !isStepValid(step, answers)}
+              aria-busy={saving}
             >
-              {step === 3 ? 'Continue to activation →' : 'Continue →'}
+              {saving && <span className="ow-spinner ow-spinner-on-cta" aria-hidden="true" />}
+              <span>{nextLabel}</span>
             </button>
           </div>
         )}
@@ -336,7 +375,6 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
       <h1 className="ow-h1">Where are your crews based?</h1>
       <p className="ow-sub">We'll send you move requests near your dispatch base.</p>
 
-      {/* Dispatch base autocomplete */}
       <div className="ow-field">
         <PlaceAutocomplete
           id="dispatchBaseInput"
@@ -348,7 +386,6 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
         />
       </div>
 
-      {/* Value reassurance — appears once the user picks a base */}
       {baseReady && (
         <aside className="ow-market-open" role="note">
           <span className="ow-market-open-dot" aria-hidden="true" />
@@ -359,7 +396,6 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
         </aside>
       )}
 
-      {/* Pickup areas */}
       <div className="ow-field" aria-disabled={!baseReady}>
         <label className="ow-label">Where do your crews start jobs?</label>
         <div className="ow-cards">
@@ -481,7 +517,6 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
         )}
       </div>
 
-      {/* Operational coverage preview — short, no ZIP count in the headline. */}
       {(previewing || preview) && (
         <div className={`ow-coverage-preview${preview && preview.ok === false ? ' err' : ''}`} role="status" aria-live="polite">
           {previewing && (
@@ -537,8 +572,8 @@ function previewMessage(p) {
   return <span>Coverage ready</span>;
 }
 
-// ── Step 3: Alerts (phone + SMS + Live Transfers) ───────────────────────────
-function ScreenAlerts({ answers, setAnswer }) {
+// ── Step 3: Alerts (phone + SMS + email + Live Transfers) ───────────────────
+function ScreenAlerts({ answers, setAnswer, userEmail }) {
   return (
     <>
       <h1 className="ow-h1">How should we send you move opportunities?</h1>
@@ -557,6 +592,16 @@ function ScreenAlerts({ answers, setAnswer }) {
         />
       </div>
 
+      {userEmail && (
+        <div className="ow-field">
+          <label className="ow-label">Email address</label>
+          <div className="ow-readonly-input" aria-label={`Account email: ${userEmail}`}>
+            <span>{userEmail}</span>
+            <span className="ow-readonly-tag">Account email</span>
+          </div>
+        </div>
+      )}
+
       <div className="ow-field">
         <button
           type="button"
@@ -565,7 +610,19 @@ function ScreenAlerts({ answers, setAnswer }) {
           aria-pressed={!!answers.smsNotif}
         >
           <span className="ow-toggle-track" />
-          <span className="ow-toggle-label">Text me when a request matches my service area</span>
+          <span className="ow-toggle-label">Text me matching move requests</span>
+        </button>
+      </div>
+
+      <div className="ow-field">
+        <button
+          type="button"
+          className={`ow-toggle${answers.emailNotif ? ' active' : ''}`}
+          onClick={() => setAnswer('emailNotif', !answers.emailNotif)}
+          aria-pressed={!!answers.emailNotif}
+        >
+          <span className="ow-toggle-track" />
+          <span className="ow-toggle-label">Email me matching move requests</span>
         </button>
       </div>
 
@@ -598,7 +655,36 @@ function ScreenAlerts({ answers, setAnswer }) {
   );
 }
 
-// ── Step 4: Activate (balance picker only — no Stripe call yet) ─────────────
+// ── Step 4: Setup-complete celebration interstitial ─────────────────────────
+function ScreenSetupComplete({ answers, onClaim, onSkip }) {
+  const persona = buildPersona(answers || {});
+  const market = persona.market !== 'your market' ? persona.market : 'your service area';
+
+  return (
+    <div className="ow-setup-complete">
+      <div className="ow-success-icon">✓</div>
+      <h1 className="ow-h1">Your dispatch setup is ready</h1>
+      <p className="ow-sub">Your service area and alerts are set. You're ready to start receiving matching move opportunities.</p>
+
+      <ul className="ow-success-list">
+        <li>Service area saved · <strong>{market}</strong></li>
+        <li>Alerts ready</li>
+        <li>Dashboard access prepared</li>
+      </ul>
+
+      <button type="button" className="ow-activate-cta" onClick={onClaim} style={{ marginTop: 22 }}>
+        Claim your $50 FREE credit →
+      </button>
+
+      <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip}>
+        <span>Continue without activating</span>
+        <span className="ow-skip-secondary-sub">Dashboard access stays limited until activation.</span>
+      </button>
+    </div>
+  );
+}
+
+// ── Step 5: Activate (balance picker only) ──────────────────────────────────
 function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
   const [fetching, setFetching] = useState(false);
   const [initErr, setInitErr] = useState('');
@@ -615,18 +701,12 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
       setInitErr(res?.msg || 'Could not start payment.');
       setFetching(false);
     }
-    // Success path: parent flips to step 5; this component will unmount.
   }
 
   return (
     <div className="ow-choose">
       <h1 className="ow-h1">Activate your account</h1>
       <p className="ow-sub">Add your starting balance to unlock verified move requests.</p>
-
-      <aside className="ow-fomo" role="note">
-        <span className="ow-fomo-dot" aria-hidden="true" />
-        <span>Active markets are opened gradually to protect request quality. Your <strong>$50 onboarding credit</strong> is available while onboarding remains open in your state.</span>
-      </aside>
 
       <div className="ow-tiers">
         <button
@@ -640,8 +720,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         >
           {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-recommended">Recommended</span>
-            <span className="ow-tier-supporting">Most partners start here</span>
+            <span className="ow-tier-pill-recommended">Limited partner spots</span>
           </div>
           <div className="ow-tier-amount-row">
             <span className="ow-tier-pay">$100</span>
@@ -649,8 +728,8 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
             <span className="ow-tier-receive">$150 balance</span>
           </div>
           <div className="ow-tier-bonus-line">
-            <span className="ow-tier-bonus-tag">+ $50 FREE</span>
-            <span>onboarding credit included</span>
+            <span className="ow-tier-bonus-tag">$50 FREE credit</span>
+            <span>included with this balance</span>
           </div>
         </button>
 
@@ -706,7 +785,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
   );
 }
 
-// ── Step 5: Secure payment (Stripe Payment Element only) ────────────────────
+// ── Step 6: Secure payment (Stripe Payment Element) ─────────────────────────
 function ScreenPayment({ API_URL, tier, intent, onBack, onDone }) {
   return (
     <Elements
@@ -840,7 +919,7 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   );
 }
 
-// ── Step 6: Activation success (terminal) ───────────────────────────────────
+// ── Step 7: Activation success (terminal) ───────────────────────────────────
 function ScreenActivationSuccess({ onDone, answers }) {
   const { API_URL, user } = useContext(AuthContext);
   const persona = buildPersona(answers || {});

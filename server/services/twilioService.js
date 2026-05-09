@@ -9,7 +9,7 @@ const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
-const { sendAdminLeadNotification } = require('./emailService');
+const { sendAdminLeadNotification, broadcastLeadEmail } = require('./emailService');
 const { sendMoverLeadSMS } = require('./smsService');
 
 // Twilio — used for SMS and warm-transfer calls only (not phone lookup)
@@ -170,6 +170,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       console.log(`[PhoneVerify] Mock PASS — Grade: ${mockScoring.grade}`);
       sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] mock path error:', err.message));
       broadcastLeadSMS(lead);
+      broadcastLeadEmail(lead).catch(() => {});
       socketService.emitNewLead(lead);
       return;
     }
@@ -250,6 +251,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
 
       sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] real path error:', err.message));
       broadcastLeadSMS(lead);
+      broadcastLeadEmail(lead).catch(() => {});
 
       socketService.emitNewLead(lead);
     } else {
@@ -418,4 +420,4 @@ async function sendMoverSms(toPhone, leadDetails) {
   }
 }
 
-module.exports = { verifyLeadPhone, sendSpeedToLeadSMS, verifyPhoneNumber, sendMoverSms };
+module.exports = { verifyLeadPhone, sendSpeedToLeadSMS, verifyPhoneNumber, sendMoverSms, broadcastLeadSMS };
