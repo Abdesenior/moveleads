@@ -84,9 +84,10 @@
 
 .ow-header {
   flex: 0 0 auto;
+  border-bottom: 1px solid #f1f5f9;
 }
 .ow-progress {
-  height: 4px; background: #e2e8f0;
+  height: 3px; background: #e9eef5;
   position: relative;
 }
 .ow-progress-fill {
@@ -94,9 +95,12 @@
   transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .ow-progress-label {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: #94a3b8; padding: 12px 28px 0;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #94a3b8;
+  padding: 8px 24px 10px;
 }
+.ow-progress-label-sep { color: #cbd5e1; margin: 0 2px; }
+.ow-progress-label-micro { color: #64748b; }
 
 /* Setup-status tracker (5 stages, stable height across steps) */
 .ow-stages {
@@ -167,19 +171,19 @@
 .ow-body {
   flex: 1 1 auto;
   min-height: 0;
-  padding: 22px 28px 28px;
+  padding: 18px 28px 24px;
   overflow-y: auto;
 }
 
 .ow-h1 {
-  font-size: 26px; font-weight: 800; letter-spacing: -0.02em;
-  color: #0f172a; margin: 0 0 6px; line-height: 1.2;
+  font-size: 24px; font-weight: 800; letter-spacing: -0.02em;
+  color: #0f172a; margin: 0 0 4px; line-height: 1.22;
 }
 .ow-sub {
-  font-size: 15px; color: #475569; line-height: 1.5; margin: 0 0 22px;
+  font-size: 14.5px; color: #475569; line-height: 1.5; margin: 0 0 16px;
 }
 
-.ow-field { display: block; margin-bottom: 18px; }
+.ow-field { display: block; margin-bottom: 14px; }
 .ow-label {
   display: block; font-size: 13px; font-weight: 700; color: #0f172a;
   margin-bottom: 8px; letter-spacing: -0.005em;
@@ -358,16 +362,16 @@
 .ow-activate-label { color: #475569; font-size: 17px; font-weight: 600; margin: 0 0 4px; }
 .ow-activate-plus { color: #64748b; font-size: 13px; font-weight: 500; margin: 0 0 22px; }
 .ow-activate-cta {
-  width: 100%; height: 56px;
+  width: 100%; height: 52px;
   background: #ff6a14; color: #fff;
-  border: none; border-radius: 14px;
-  font-family: inherit; font-size: 16px; font-weight: 800; letter-spacing: -0.005em;
+  border: none; border-radius: 12px;
+  font-family: inherit; font-size: 15.5px; font-weight: 800; letter-spacing: -0.005em;
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(255, 106, 20, 0.35);
+  box-shadow: 0 10px 26px rgba(255, 106, 20, 0.32);
   transition: transform 180ms ease, box-shadow 180ms ease;
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
 }
-.ow-activate-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(255, 106, 20, 0.44); }
+.ow-activate-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(255, 106, 20, 0.42); }
 .ow-activate-cta:disabled { opacity: 0.7; cursor: wait; }
 .ow-activate-trust {
   display: flex; flex-wrap: wrap; gap: 8px;
@@ -426,31 +430,53 @@
 }
 
 @media (max-width: 600px) {
-  /* Near-fullscreen sheet on mobile, with a small inset so it reads as a
-     sheet (not a forced fullscreen). dvh handles iOS Safari address bar. */
+  /* Near-fullscreen sheet on mobile. */
   .ow-modal {
-    width: calc(100vw - 16px);
-    height: calc(100dvh - 16px);
-    margin: 8px auto;
-    border-radius: 14px;
+    width: calc(100vw - 12px);
+    height: calc(100dvh - 12px);
+    margin: 6px auto;
+    border-radius: 12px;
   }
-  .ow-h1 { font-size: 22px; }
-  .ow-cards { grid-template-columns: 1fr; }
-  .ow-activate-bonus-num { font-size: 56px; }
+  .ow-h1 { font-size: 21px; }
+  .ow-sub { font-size: 14px; margin-bottom: 14px; }
+  .ow-field { margin-bottom: 12px; }
+  .ow-cards { grid-template-columns: 1fr; gap: 8px; }
+  .ow-body { padding: 14px 16px 20px; }
+
+  /* Ultra-minimal progress chrome on mobile — bar + smallest possible label. */
+  .ow-header { border-bottom: 1px solid #f4f6f9; }
+  .ow-progress { height: 2.5px; }
+  .ow-progress-label {
+    padding: 6px 16px 8px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  /* Hide the micro descriptor on the smallest screens — keep "Step X of Y"
+     only. Saves a line of header height. */
+  .ow-progress-label-sep,
+  .ow-progress-label-micro { display: none; }
+
   /* Sticky footer so the primary CTA stays in thumb reach as content scrolls. */
   .ow-footer {
     position: sticky;
     bottom: 0;
-    padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   }
-  .ow-body { padding: 18px 18px 24px; }
-  .ow-progress-label { padding: 10px 18px 0; font-size: 10.5px; }
-  .ow-stages { padding: 8px 14px 10px; gap: 4px; }
-  .ow-stage { padding: 4px 8px 4px 5px; font-size: 11.5px; }
-  .ow-stage-dot { width: 16px; height: 16px; font-size: 10px; }
+
   /* 44px minimum tap targets on touch */
   .ow-back, .ow-skip-link, .ow-activate-skip { min-height: 44px; display: inline-flex; align-items: center; }
   .ow-chip { min-height: 36px; padding-top: 9px; padding-bottom: 9px; }
+
+  /* Activation step — tighter on mobile */
+  .ow-activate-cta { height: 50px; font-size: 15px; }
+  .ow-trust-panel { padding: 9px 12px; }
+  .ow-trust-panel-list { column-gap: 14px; row-gap: 3px; font-size: 11.5px; }
+
+  /* Confirmation step — tighter on mobile */
+  .ow-setup-complete { padding: 10px 0 6px; }
+  .ow-setup-complete .ow-h1 { font-size: 21px; }
+  .ow-setup-complete .ow-sub { font-size: 13.5px; margin-bottom: 14px; }
+  .ow-success-icon-lg { width: 56px; height: 56px; font-size: 28px; }
 }
 
 /* ── Reassurance line ─────────────────────────────────────────────────── */
@@ -1177,8 +1203,8 @@
   text-align: left;
   background: #fff;
   border: 1.5px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px 18px;
+  border-radius: 14px;
+  padding: 12px 16px;
   cursor: pointer;
   font-family: inherit;
   transition:
@@ -1206,7 +1232,7 @@
 
 /* Primary $100 card gets cream gradient + bigger presence when selected. */
 .ow-tier-v2-primary {
-  padding: 18px 20px 20px;
+  padding: 14px 16px 16px;
 }
 .ow-tier-v2-primary.selected {
   background: linear-gradient(180deg, #fff7ed 0%, #fffaf6 100%);
@@ -1251,7 +1277,7 @@
 /* Recommended / Starter pill row */
 .ow-tier-row-pill {
   display: flex; align-items: center; gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   padding-right: 92px; /* leave room for the selected badge */
 }
 .ow-tier-pill-recommended {
@@ -1284,26 +1310,26 @@
 /* Amount row — strong hierarchy on the receive amount. */
 .ow-tier-amount-row {
   display: flex; align-items: baseline; gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .ow-tier-pay {
   font-family: 'Poppins', sans-serif;
-  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
   color: #0f172a;
 }
 .ow-tier-arrow {
-  font-size: 18px; color: #cbd5e1; font-weight: 700;
+  font-size: 16px; color: #cbd5e1; font-weight: 700;
 }
 .ow-tier-receive {
   font-family: 'Poppins', sans-serif;
-  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
   color: #ea580c;
 }
 .ow-tier-receive-muted {
   color: #475569;
 }
 .ow-tier-v2-primary .ow-tier-receive {
-  font-size: 26px;
+  font-size: 23px;
 }
 
 /* Bonus line below the amount */
@@ -1325,26 +1351,28 @@
   box-shadow: 0 4px 10px rgba(249, 115, 22, 0.32);
 }
 
-/* Trust panel — contained reassurance group below the cards. */
+/* Trust panel — single compact row on desktop, 2x2 on small screens.
+   Title hidden on desktop to save vertical space (the bullets carry meaning
+   on their own); kept for screen readers. */
 .ow-trust-panel {
-  margin-top: 6px;
-  padding: 14px 16px;
+  margin-top: 2px;
+  padding: 10px 14px;
   background: linear-gradient(180deg, #fff8f3 0%, #ffffff 100%);
   border: 1px solid #fde0c6;
-  border-radius: 14px;
+  border-radius: 12px;
 }
 .ow-trust-panel-title {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #94a3b8;
-  margin-bottom: 8px;
+  position: absolute;
+  width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
 }
 .ow-trust-panel-list {
   list-style: none; margin: 0; padding: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 16px;
-  font-size: 12.5px; font-weight: 600; color: #475569;
+  display: flex; flex-wrap: wrap;
+  column-gap: 18px; row-gap: 4px;
+  font-size: 12px; font-weight: 600; color: #475569;
 }
 .ow-trust-panel-list li {
   display: inline-flex; align-items: center;
@@ -1354,48 +1382,55 @@
   content: "✓";
   color: #16a34a;
   font-weight: 800;
-  font-size: 13px;
-  margin-right: 6px;
+  font-size: 12px;
+  margin-right: 5px;
 }
 
-/* Secondary action — stacked label + microcopy under the primary CTA */
+/* Secondary action — stacked label + microcopy under the primary CTA. Lighter
+   visual weight than the activate CTA so it never competes for attention. */
 .ow-skip-secondary {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
   padding: 6px 0;
+  margin-top: 14px; /* breathing room from primary CTA */
   text-align: center;
   background: none; border: none;
   font-family: inherit;
   cursor: pointer;
-  color: #64748b;
-  transition: color 160ms ease;
+  color: #94a3b8;
+  opacity: 0.92;
+  transition: color 160ms ease, opacity 160ms ease;
 }
 .ow-skip-secondary > span:first-child {
-  font-size: 13.5px; font-weight: 700;
+  font-size: 12.5px; font-weight: 600;
   color: inherit;
 }
 .ow-skip-secondary-sub {
-  font-size: 12px; font-weight: 500;
-  color: #94a3b8;
+  font-size: 11.5px; font-weight: 500;
+  color: #cbd5e1;
 }
-.ow-skip-secondary:hover { color: #0f172a; }
+.ow-skip-secondary:hover { color: #475569; opacity: 1; }
 .ow-skip-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Tighten Step 7a vertical rhythm */
-.ow-choose { gap: 14px; }
+/* Tighten Step 5 (balance) vertical rhythm. Smaller gap pulls the CTA
+   closer to the offer cards. */
+.ow-choose { gap: 10px; }
 .ow-choose .ow-fomo {
-  padding: 11px 14px;
+  padding: 10px 12px;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
+.ow-choose .ow-activate-cta { margin-top: 4px; }
 
 @media (max-width: 600px) {
-  .ow-trust-panel-list { grid-template-columns: 1fr; }
-  .ow-tier-v2-primary { padding: 16px 16px 18px; }
-  .ow-tier-v2 { padding: 14px 16px; }
-  .ow-tier-row-pill { flex-wrap: wrap; padding-right: 80px; }
-  .ow-tier-pay, .ow-tier-receive { font-size: 20px; }
-  .ow-tier-v2-primary .ow-tier-receive { font-size: 22px; }
-  .ow-tier-badge { top: 10px; right: 10px; font-size: 10.5px; padding: 3px 8px; }
+  /* Tier cards on mobile — already compact; just tighten further. */
+  .ow-tier-v2 { padding: 11px 14px; }
+  .ow-tier-v2-primary { padding: 12px 14px 14px; }
+  .ow-tier-row-pill { flex-wrap: wrap; padding-right: 76px; margin-bottom: 6px; }
+  .ow-tier-pay, .ow-tier-receive { font-size: 18px; }
+  .ow-tier-v2-primary .ow-tier-receive { font-size: 20px; }
+  .ow-tier-amount-row { gap: 8px; margin-bottom: 3px; }
+  .ow-tier-bonus-line { font-size: 12px; }
+  .ow-tier-badge { top: 9px; right: 9px; font-size: 10px; padding: 3px 7px; }
 }
 
 /* ── Step 7b — Complete secure payment ────────────────────────────────── */
@@ -1593,67 +1628,66 @@
   margin-right: 4px;
 }
 
-/* Step 4 setup-complete celebration. Uses the full modal content width so it
-   reads as a proper milestone, on par with the activation/payment screens. */
+/* Step 4 setup-complete celebration. Compact — preserves the milestone
+   feeling without taking 2 viewports of vertical space. */
 .ow-setup-complete {
   text-align: center;
-  padding: 28px 0 16px;
+  padding: 16px 0 8px;
   display: flex; flex-direction: column; align-items: center;
   width: 100%;
 }
 .ow-setup-complete .ow-success-icon {
-  margin: 0 auto 20px;
+  margin: 0 auto 14px;
 }
 .ow-success-icon-lg {
-  width: 80px; height: 80px;
-  font-size: 40px;
-  box-shadow: 0 18px 40px rgba(34, 197, 94, 0.32);
+  width: 64px; height: 64px;
+  font-size: 32px;
+  box-shadow: 0 14px 32px rgba(34, 197, 94, 0.28);
 }
 .ow-setup-complete .ow-h1 {
-  font-size: 28px;
-  margin-bottom: 10px;
+  font-size: 24px;
+  margin-bottom: 6px;
   letter-spacing: -0.02em;
 }
 .ow-setup-complete .ow-sub {
-  font-size: 15.5px;
-  max-width: 560px;
-  margin: 0 auto 26px;
-  line-height: 1.55;
+  font-size: 14.5px;
+  max-width: 520px;
+  margin: 0 auto 18px;
+  line-height: 1.5;
   color: #475569;
 }
 .ow-milestone-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  margin: 0 0 26px;
+  margin: 0 0 18px;
 }
 .ow-milestone-card {
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 18px 16px;
+  border: 1px solid #e6ecf2;
+  border-radius: 12px;
+  padding: 12px 14px;
   text-align: left;
-  display: flex; flex-direction: column; gap: 4px;
-  min-height: 92px;
+  display: flex; flex-direction: column; gap: 3px;
 }
 .ow-milestone-card-h {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 13.5px; font-weight: 800; color: #0f172a;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 800; color: #0f172a;
   letter-spacing: -0.005em;
 }
 .ow-milestone-card-h::before {
   content: "✓";
   display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; flex-shrink: 0;
+  width: 16px; height: 16px; flex-shrink: 0;
   border-radius: 50%;
   background: #22c55e;
   color: #ffffff;
-  font-size: 11px; font-weight: 800;
+  font-size: 10px; font-weight: 800;
 }
 .ow-milestone-body {
-  font-size: 12.5px; font-weight: 500; color: #64748b;
-  line-height: 1.45;
+  font-size: 12px; font-weight: 500; color: #64748b;
+  line-height: 1.4;
   word-break: break-word;
 }
 .ow-setup-complete .ow-activate-cta {
@@ -1661,7 +1695,7 @@
   max-width: none;
 }
 .ow-setup-complete .ow-activate-skip {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 /* "You can update phone/email anytime in Settings" notice on the Alerts step. */
@@ -1684,11 +1718,10 @@
 }
 
 @media (max-width: 720px) {
-  .ow-milestone-grid { grid-template-columns: 1fr; gap: 10px; }
-  .ow-milestone-card { min-height: 0; padding: 14px 14px; }
-  .ow-success-icon-lg { width: 68px; height: 68px; font-size: 32px; }
-  .ow-setup-complete .ow-h1 { font-size: 24px; }
-  .ow-setup-complete .ow-sub { font-size: 14.5px; }
+  /* Confirmation milestones — collapse to single column above the small
+     phone breakpoint so tablets get a calmer layout too. */
+  .ow-milestone-grid { grid-template-columns: 1fr; gap: 8px; }
+  .ow-milestone-card { padding: 11px 12px; }
 }
 
 /* "Your market is open" reassurance — small, premium, no fake numbers.

@@ -299,19 +299,10 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             <div className="ow-progress">
               <div className="ow-progress-fill" style={{ width: `${(visibleStage / TOTAL_STEPS) * 100}%` }} />
             </div>
-            <div className="ow-progress-label">Step {visibleStage} of {TOTAL_STEPS} · {stepMicro}</div>
-            <div className="ow-stages" aria-label="Setup progress">
-              {SETUP_STAGES.map(stage => {
-                const state = stage.id < visibleStage ? 'done' : stage.id === visibleStage ? 'active' : 'future';
-                return (
-                  <span key={stage.id} className={`ow-stage ow-stage-${state}`}>
-                    <span className="ow-stage-dot">
-                      {state === 'done' ? '✓' : stage.id}
-                    </span>
-                    <span className="ow-stage-label">{stage.label}</span>
-                  </span>
-                );
-              })}
+            <div className="ow-progress-label">
+              Step {visibleStage} of {TOTAL_STEPS}
+              <span className="ow-progress-label-sep" aria-hidden="true"> · </span>
+              <span className="ow-progress-label-micro">{stepMicro}</span>
             </div>
           </div>
         )}
