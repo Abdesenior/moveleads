@@ -847,7 +847,6 @@ function ScreenSetupComplete({ answers, onClaim, onSkip }) {
       <button type="button" className="ow-activate-cta" onClick={onClaim}>
         Claim your $50 FREE credit
       </button>
-      <p className="ow-claim-support">Activate your account and start unlocking verified moving leads.</p>
 
       <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip}>
         <span>Continue without activating</span>
