@@ -24,11 +24,15 @@ export default function StateMultiSelect({ value = [], onChange, placeholder = '
 
   const selectedSet = new Set(value);
   const q = query.trim().toLowerCase();
-  const matches = US_STATES.filter(s => {
-    if (selectedSet.has(s.code)) return false;
-    if (!q) return true;
-    return s.name.toLowerCase().startsWith(q) || s.code.toLowerCase() === q;
-  }).slice(0, 8);
+  // Suggestions only appear after the user starts typing — the previous
+  // behavior (showing all 50+1 states by default) overwhelmed the mobile
+  // viewport before the user had narrowed anything down.
+  const matches = q
+    ? US_STATES.filter(s => {
+        if (selectedSet.has(s.code)) return false;
+        return s.name.toLowerCase().startsWith(q) || s.code.toLowerCase() === q;
+      }).slice(0, 8)
+    : [];
 
   function add(state) {
     if (!state || selectedSet.has(state.code)) return;
@@ -93,7 +97,7 @@ export default function StateMultiSelect({ value = [], onChange, placeholder = '
           placeholder={value.length ? 'Add another state…' : placeholder}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); setHighlight(0); }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => { if (query) setOpen(true); }}
           onBlur={() => setTimeout(() => setOpen(false), 140)}
           onKeyDown={handleKey}
           role="combobox"

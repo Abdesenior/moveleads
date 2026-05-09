@@ -460,18 +460,27 @@
 }
 
 @media (max-width: 600px) {
-  /* Near-fullscreen sheet on mobile. */
+  /* Near-fullscreen sheet on mobile. The CSS variable --ow-vh is set by the
+     OnboardingWizard via window.visualViewport when available, so the modal
+     shrinks correctly when the iOS keyboard opens. Falls back to dvh on
+     browsers without visualViewport. */
   .ow-modal {
     width: calc(100vw - 12px);
-    height: calc(100dvh - 12px);
+    height: calc(var(--ow-vh, 100dvh) - 12px);
     margin: 6px auto;
     border-radius: 12px;
+    overflow-x: hidden;
   }
   .ow-h1 { font-size: 21px; }
   .ow-sub { font-size: 14px; margin-bottom: 14px; }
   .ow-field { margin-bottom: 12px; }
   .ow-cards { grid-template-columns: 1fr; gap: 8px; }
   .ow-body { padding: 14px 16px 20px; }
+
+  /* iOS Safari auto-zooms any focused input/textarea/select with computed
+     font-size below 16px. Bumping inputs to 16px on mobile blocks the
+     zoom-in (which is what makes users feel they have to "zoom out"). */
+  .ow-input, .ow-state-ms-inputwrap input, .ow-place-wrap input { font-size: 16px; }
 
   /* Ultra-minimal progress chrome on mobile — slim bar only. */
   .ow-progress { height: 2.5px; }
@@ -491,6 +500,21 @@
   .ow-activate-cta { height: 50px; font-size: 15px; }
   .ow-trust-panel { padding: 9px 12px; }
   .ow-trust-panel-list { column-gap: 14px; row-gap: 3px; font-size: 11.5px; }
+
+  /* Sticky primary CTAs on mobile — pin the activate / claim button to the
+     bottom of the scroll container so it never slips below the fold. The
+     skip-secondary stays inline below it (user must scroll a bit to see it,
+     which is fine — soft-skip should be a deliberate action, not equal-weight). */
+  .ow-choose .ow-activate-cta,
+  .ow-setup-complete .ow-activate-cta {
+    position: sticky;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 5;
+  }
+  .ow-choose,
+  .ow-setup-complete {
+    padding-bottom: 4px;
+  }
 
   /* Confirmation step — tighter on mobile */
   .ow-setup-complete { padding: 10px 0 6px; }

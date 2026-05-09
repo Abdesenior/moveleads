@@ -35,19 +35,25 @@ export default function DashboardLayout({ children }) {
   const [wizardInitialStep, setWizardInitialStep] = useState(null);
   const [showActivationSuccess, setShowActivationSuccess] = useState(false);
 
-  // Show wizard once for partner users who haven't completed onboarding.
+  // Show wizard for partner users who haven't completed onboarding. Delay
+  // the auto-mount by ~3s so the dashboard has a moment to render and the
+  // user sees their account land before the wizard takes over. Deep-link
+  // mounts (banner CTA, ?activate=1, ?onboarding=resume) are NOT delayed —
+  // those are explicit user intent and should appear immediately.
   // Also auto-collapse the sidebar on first arrival so onboarding takes focus.
   useEffect(() => {
     if (!user) return;
     if (user.role === 'admin' || user.role === 'super_admin') return;
-    if (!user.onboarding?.complete) {
-      setShowWizard(true);
-      // First-time visit: no stored preference yet → start collapsed.
-      if (localStorage.getItem('sidebarCollapsed') === null) {
-        setCollapsed(true);
-        localStorage.setItem('sidebarCollapsed', 'true');
-      }
+    if (user.onboarding?.complete) return;
+
+    // First-time visit: no stored preference yet → start collapsed.
+    if (localStorage.getItem('sidebarCollapsed') === null) {
+      setCollapsed(true);
+      localStorage.setItem('sidebarCollapsed', 'true');
     }
+
+    const t = setTimeout(() => setShowWizard(true), 3000);
+    return () => clearTimeout(t);
   }, [user]);
 
   // Banner CTA → reopen wizard at the balance picker (internal step 5 in the

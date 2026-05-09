@@ -136,6 +136,27 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
+  // Track the visual viewport on mobile so the modal stays sized correctly
+  // when the iOS keyboard opens (keyboard reduces visualViewport.height but
+  // does NOT shrink window.innerHeight — without this, the sticky footer
+  // would slide behind the keyboard). We expose the live height as a CSS
+  // variable so the stylesheet can `calc(var(--ow-vh, 100dvh) - 12px)`.
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!vv) return;
+    const sync = () => {
+      document.documentElement.style.setProperty('--ow-vh', `${vv.height}px`);
+    };
+    sync();
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    return () => {
+      vv.removeEventListener('resize', sync);
+      vv.removeEventListener('scroll', sync);
+      document.documentElement.style.removeProperty('--ow-vh');
+    };
+  }, []);
+
   // Backfill contact fields from the AuthContext user once it hydrates.
   // The useState initializer above runs synchronously on first mount, when
   // `user` may still be null (the wizard mounts from DashboardLayout before
