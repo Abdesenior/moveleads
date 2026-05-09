@@ -65,13 +65,16 @@
 
 .ow-modal {
   position: relative;
-  width: min(880px, calc(100vw - 32px));
+  /* Narrower frame so the modal feels intentionally framed for the content
+     density inside, rather than a giant card with empty horizontal sides.
+     820px sits inside the 760-900px SaaS-onboarding range. */
+  width: min(820px, calc(100vw - 32px));
   /* dvh handles iOS Safari's collapsing address bar so the footer CTA never
      sits behind the URL bar */
-  height: min(820px, calc(100dvh - 32px));
+  height: min(800px, calc(100dvh - 32px));
   margin: 16px auto;
   background: #fff;
-  border-radius: 22px;
+  border-radius: 20px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
   overflow: hidden;
   display: flex; flex-direction: column;
@@ -141,15 +144,26 @@
 }
 .ow-stage-future .ow-stage-dot { background: #e2e8f0; color: #94a3b8; }
 
-/* Step transition (fade + tiny Y).
-   Also anchors the per-step content column at a fixed max-width so the
-   form never spans the full 880px modal — the user always has one
-   centered focal column. Mobile releases the cap below. */
+/* Step content column. Universal across all onboarding steps:
+   - max-width 560px gives the focused single-column SaaS-onboarding feel
+     (Stripe / Linear / Ramp / Brex range)
+   - margin: 0 auto centers horizontally inside the body
+   - min-height: 100% + flex column + justify-content: center vertically
+     centers SHORT step content (icon + title + sub + tight content) and
+     lets LONG step content (activation page) overflow + scroll naturally
+     — modern flexbox handles both cases without per-step rules.
+   - flex-shrink: 0 prevents content from being squeezed to fit the body
+     when total content height exceeds available space (long activation step). */
 .ow-step-anim {
   animation: owStepIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  max-width: 600px;
-  margin: 0 auto;
+  max-width: 560px;
   width: 100%;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* "You can configure additional states later from your dashboard
@@ -196,21 +210,11 @@
 .ow-body {
   flex: 1 1 auto;
   min-height: 0;
-  padding: 18px 28px 24px;
+  /* Top breathing room is the single biggest fix for the "cramped near the
+     border" feel. 32px top vs 24px bottom nudges content slightly above the
+     mathematical center which reads as visually centered. */
+  padding: 32px 28px 24px;
   overflow-y: auto;
-}
-
-/* Confirmation step (Step 4) — vertically center the milestone content
-   in the body so there's no awkward bottom whitespace. The :has() match
-   applies only when ScreenSetupComplete is mounted; other steps use the
-   default top-aligned scroll layout. */
-.ow-body:has(.ow-setup-complete) {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.ow-body:has(.ow-setup-complete) .ow-step-anim {
-  width: 100%;
 }
 
 .ow-h1 {
@@ -516,7 +520,14 @@
   .ow-sub { font-size: 14px; margin-bottom: 14px; }
   .ow-step-header { min-height: 78px; margin-bottom: 14px; }
   .ow-step-header .ow-sub { margin: 0; }
-  .ow-step-anim { max-width: none; } /* let the modal width itself constrain */
+  /* On mobile the modal already fills the viewport — no need for an extra
+     centered cap, and forcing vertical centering causes scroll-clip on the
+     longer steps. Let content top-align and grow naturally. */
+  .ow-step-anim {
+    max-width: none;
+    min-height: 0;
+    justify-content: flex-start;
+  }
   .ow-field { margin-bottom: 12px; }
   .ow-states-note { font-size: 12px; padding: 8px 11px; }
   .ow-cards { grid-template-columns: 1fr; gap: 8px; }
