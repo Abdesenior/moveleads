@@ -193,6 +193,19 @@
   font-size: 14.5px; color: #475569; line-height: 1.5; margin: 0 0 16px;
 }
 
+/* Stable step header — locks the title + subtitle into a fixed-height
+   container so the H1 baseline and the start-of-content baseline are
+   identical across every step. Steps that don't use the wrapper (the
+   loading interstitial, success screen, payment back-link layout) are
+   intentional exceptions. */
+.ow-step-header {
+  min-height: 72px;
+  margin-bottom: 16px;
+  display: flex; flex-direction: column;
+}
+.ow-step-header .ow-h1 { margin: 0 0 4px; }
+.ow-step-header .ow-sub { margin: 0; }
+
 .ow-field { display: block; margin-bottom: 14px; }
 .ow-label {
   display: block; font-size: 13px; font-weight: 700; color: #0f172a;
@@ -473,6 +486,8 @@
   }
   .ow-h1 { font-size: 21px; }
   .ow-sub { font-size: 14px; margin-bottom: 14px; }
+  .ow-step-header { min-height: 78px; margin-bottom: 14px; }
+  .ow-step-header .ow-sub { margin: 0; }
   .ow-field { margin-bottom: 12px; }
   .ow-cards { grid-template-columns: 1fr; gap: 8px; }
   .ow-body { padding: 14px 16px 20px; }

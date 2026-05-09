@@ -440,9 +440,10 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
 
   return (
     <>
-      {companyName && <p className="ow-hello">Hi {companyName} —</p>}
-      <h1 className="ow-h1">Where are your crews based?</h1>
-      <p className="ow-sub">We'll send you move requests near your dispatch base.</p>
+      <header className="ow-step-header">
+        <h1 className="ow-h1">Where are your crews based?</h1>
+        <p className="ow-sub">We'll send you move requests near your dispatch base.</p>
+      </header>
 
       <div className="ow-field">
         <PlaceAutocomplete
@@ -548,8 +549,10 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
 
   return (
     <>
-      <h1 className="ow-h1">Where can your crews deliver?</h1>
-      <p className="ow-sub">This narrows the long-distance leads we send you.</p>
+      <header className="ow-step-header">
+        <h1 className="ow-h1">Where can your crews deliver?</h1>
+        <p className="ow-sub">This narrows the long-distance leads we send you.</p>
+      </header>
 
       <div className="ow-field">
         <div className="ow-cards">
@@ -651,8 +654,10 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
 
   return (
     <>
-      <h1 className="ow-h1">How should we send you move opportunities?</h1>
-      <p className="ow-sub">Choose how your team should hear about matching requests.</p>
+      <header className="ow-step-header">
+        <h1 className="ow-h1">How should we send you move opportunities?</h1>
+        <p className="ow-sub">Choose how your team should hear about matching requests.</p>
+      </header>
 
       <div className="ow-field">
         <label className="ow-label" htmlFor="notifPhone">Phone number</label>
@@ -873,8 +878,10 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
 
   return (
     <div className="ow-choose">
-      <h1 className="ow-h1">Ready To Receive Moving Jobs</h1>
-      <p className="ow-sub">Your account is prepared and ready to receive verified move requests.</p>
+      <header className="ow-step-header">
+        <h1 className="ow-h1">Ready To Receive Moving Jobs</h1>
+        <p className="ow-sub">Your account is prepared and ready to receive verified move requests.</p>
+      </header>
 
       {/* Account-ready vertical checklist — reinforces "you're already set up,
           activation just unlocks the door". */}
@@ -1090,8 +1097,10 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
         ← Change balance
       </button>
 
-      <h1 className="ow-h1">Secure payment</h1>
-      <p className="ow-sub">Your selected balance will be added immediately after payment.</p>
+      <header className="ow-step-header">
+        <h1 className="ow-h1">Secure payment</h1>
+        <p className="ow-sub">Your selected balance will be added immediately after payment.</p>
+      </header>
 
       <div className="ow-pay-summary">
         <span className="ow-pay-summary-label">Selected</span>
