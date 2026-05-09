@@ -1062,6 +1062,10 @@ function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
 
 // ── 7a — Choose your activation balance ─────────────────────────────────────
 function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr }) {
+  const ctaLabel = fetching
+    ? 'Preparing secure payment…'
+    : tier === 100 ? 'Continue with $150 balance →' : 'Continue with $50 balance →';
+
   return (
     <div className="ow-choose">
       <h1 className="ow-h1">Claim your onboarding credit</h1>
@@ -1069,53 +1073,82 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
         Your state is open for new mover partners right now. Activate your balance before partner onboarding closes.
       </p>
 
-      {/* FOMO notice — operational, not aggressive. No countdowns, no fake spots. */}
+      {/* FOMO notice — operational tone, no countdowns, no fake spots. */}
       <aside className="ow-fomo" role="note">
         <span className="ow-fomo-dot" aria-hidden="true" />
         <span>
-          We limit active mover partners by state to protect request quality. Your <strong>$50 onboarding credit</strong> is available while partner onboarding remains open in your state.
+          Partner spots are limited by state so request quality stays protected. Your <strong>$50 onboarding credit</strong> is available while onboarding remains open in your state.
         </span>
       </aside>
 
-      <div
-        className={`ow-pay-tier ow-pay-tier-primary${tier === 100 ? ' selected' : ''}`}
-        role="radio"
-        aria-checked={tier === 100}
-        tabIndex={0}
-        onClick={() => setTier(100)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
-      >
-        <div className="ow-pay-tier-head">
-          <span className="ow-activate-pill">Recommended</span>
-          <span className="ow-pay-tier-supporting">Most partners start here</span>
-          <span className="ow-tier-radio" aria-hidden="true" />
-        </div>
-        <div className="ow-pay-tier-amount"><strong>$100</strong> <span>→ $150 balance</span></div>
-        <div className="ow-pay-tier-bonus">$50 FREE onboarding credit included</div>
+      <div className="ow-choose-heading">Choose your starting balance</div>
+
+      <div className="ow-tiers">
+        {/* Primary $100 — visually dominant. */}
+        <button
+          type="button"
+          className={`ow-tier-v2 ow-tier-v2-primary${tier === 100 ? ' selected' : ''}`}
+          role="radio"
+          aria-checked={tier === 100}
+          aria-label="Pay $100 and receive $150 balance"
+          onClick={() => setTier(100)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
+        >
+          {tier === 100 && (
+            <span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>
+          )}
+          <div className="ow-tier-row-pill">
+            <span className="ow-tier-pill-recommended">Recommended</span>
+            <span className="ow-tier-supporting">Most partners start here</span>
+          </div>
+          <div className="ow-tier-amount-row">
+            <span className="ow-tier-pay">$100</span>
+            <span className="ow-tier-arrow">→</span>
+            <span className="ow-tier-receive">$150 balance</span>
+          </div>
+          <div className="ow-tier-bonus-line">
+            <span className="ow-tier-bonus-tag">+ $50 FREE</span>
+            <span>onboarding credit included</span>
+          </div>
+        </button>
+
+        {/* Secondary $50 — lighter, still trustworthy. */}
+        <button
+          type="button"
+          className={`ow-tier-v2 ow-tier-v2-secondary${tier === 50 ? ' selected' : ''}`}
+          role="radio"
+          aria-checked={tier === 50}
+          aria-label="Pay $50 and receive $50 starter balance"
+          onClick={() => setTier(50)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
+        >
+          {tier === 50 && (
+            <span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>
+          )}
+          <div className="ow-tier-row-pill">
+            <span className="ow-tier-pill-starter">Starter balance</span>
+          </div>
+          <div className="ow-tier-amount-row">
+            <span className="ow-tier-pay">$50</span>
+            <span className="ow-tier-arrow">→</span>
+            <span className="ow-tier-receive ow-tier-receive-muted">$50 balance</span>
+          </div>
+          <div className="ow-tier-bonus-line muted">
+            No bonus · Test the marketplace with a smaller balance.
+          </div>
+        </button>
       </div>
 
-      <div
-        className={`ow-pay-tier ow-pay-tier-secondary${tier === 50 ? ' selected' : ''}`}
-        role="radio"
-        aria-checked={tier === 50}
-        tabIndex={0}
-        onClick={() => setTier(50)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
-      >
-        <div className="ow-pay-tier-head">
-          <span className="ow-pay-tier-label">Starter balance</span>
-          <span className="ow-tier-radio" aria-hidden="true" />
-        </div>
-        <div className="ow-pay-tier-amount"><strong>$50</strong> <span>→ $50 balance</span></div>
-        <div className="ow-pay-tier-bonus muted">No bonus included · Test the marketplace with a smaller balance.</div>
-      </div>
-
-      <ul className="ow-activate-trust ow-pay-trust">
-        <li>Refundable unused balance</li>
-        <li>No subscription, no contract</li>
-        <li>Credits never expire</li>
-        <li>Secure card payment</li>
-      </ul>
+      {/* Trust panel — contained, visually tied to the activation flow. */}
+      <section className="ow-trust-panel" aria-label="Included with your balance">
+        <div className="ow-trust-panel-title">Included with your balance</div>
+        <ul className="ow-trust-panel-list">
+          <li>Refundable unused balance</li>
+          <li>No subscription or contract</li>
+          <li>Credits never expire</li>
+          <li>Secure card payment</li>
+        </ul>
+      </section>
 
       {initErr && (
         <div className="ow-activate-err" role="alert" aria-live="polite">
@@ -1129,11 +1162,17 @@ function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr })
         onClick={onContinue}
         disabled={fetching}
       >
-        {fetching ? 'Preparing secure payment…' : 'Continue to secure payment →'}
+        {ctaLabel}
       </button>
 
-      <button type="button" className="ow-activate-skip" onClick={onSkip} disabled={fetching}>
-        Claim later
+      <button
+        type="button"
+        className="ow-activate-skip ow-skip-secondary"
+        onClick={onSkip}
+        disabled={fetching}
+      >
+        <span>Continue without activating</span>
+        <span className="ow-skip-secondary-sub">Dashboard access stays limited until activation.</span>
       </button>
     </div>
   );
