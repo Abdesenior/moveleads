@@ -308,7 +308,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   return (
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
       <div className="ow-blur" />
-      <div className={`ow-modal${step === 7 ? ' ow-modal-wide' : ''}`}>
+      <div className="ow-modal">
         {step <= TOTAL_STEPS && (
           <div className="ow-header">
             <div className="ow-progress">
@@ -1040,82 +1040,72 @@ function ScreenProcessing({ onDone, answers }) {
 }
 
 // ── Screen 7: Activation (light theme — native to onboarding modal) ──────────
-// ── Screen 7: Activation (Stripe Payment Element, two-column layout) ────────
+// ── Screen 7: Activation — TWO substeps inside one wizard step ───────────────
+//   7a "choose"  → tier picker, no PaymentElement, no Stripe API call yet.
+//                  CTA "Continue to secure payment →" fetches a PaymentIntent.
+//   7b "pay"     → summary banner + Back link + PaymentElement + dynamic CTA.
+// Splitting these means the user never sees plan cards and a card form on the
+// same screen, and we don't burn a PaymentIntent until the user actually
+// commits to a tier.
 function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
-  const persona = buildPersona(answers || {});
-  const personalSub = persona.market !== 'your market' || persona.moveLabels.length
-    ? `Activate your balance to start unlocking ${persona.moveSummary} opportunities in ${persona.market}.`
-    : 'Your dispatch setup is ready. Activate your balance to start unlocking verified move opportunities.';
-
   const [tier, setTier] = useState(100);
-  const [intent, setIntent] = useState(null);  // { clientSecret, selectedAmount, bonusCredits, totalCredits }
-  const [phase, setPhase] = useState('fetching'); // 'fetching' | 'ready' | 'error_init'
+  const [substep, setSubstep] = useState('choose'); // 'choose' | 'pay'
+  const [intent, setIntent] = useState(null);       // { clientSecret, selectedAmount, bonusCredits, totalCredits }
+  const [fetching, setFetching] = useState(false);
   const [initErr, setInitErr] = useState('');
 
-  // Fetch (or refetch on tier change) a PaymentIntent. The clientSecret must
-  // be present BEFORE we mount <Elements>.
-  useEffect(() => {
-    let alive = true;
-    setPhase('fetching');
+  async function handleContinue() {
+    setFetching(true);
     setInitErr('');
-    setIntent(null);
-    (async () => {
-      try {
-        const res = await fetch(`${API_URL}/billing/create-payment-intent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-auth-token': localStorage.getItem('token') || '',
-          },
-          body: JSON.stringify({ amount: tier, source: 'onboarding_activation' }),
-        });
-        const data = await res.json();
-        if (!alive) return;
-        if (!res.ok || !data?.clientSecret) {
-          console.error('[Activation] create-payment-intent failed', res.status, data);
-          setInitErr(data?.msg || `Could not start payment (status ${res.status}).`);
-          setPhase('error_init');
-          return;
-        }
-        setIntent(data);
-        setPhase('ready');
-      } catch (err) {
-        if (!alive) return;
-        console.error('[Activation] create-payment-intent threw', err);
-        setInitErr(err?.message || 'Network error starting payment.');
-        setPhase('error_init');
+    try {
+      const res = await fetch(`${API_URL}/billing/create-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': localStorage.getItem('token') || '',
+        },
+        body: JSON.stringify({ amount: tier, source: 'onboarding_activation' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.clientSecret) {
+        console.error('[Activation] create-payment-intent failed', res.status, data);
+        setInitErr(data?.msg || `Could not start payment (status ${res.status}).`);
+        setFetching(false);
+        return;
       }
-    })();
-    return () => { alive = false; };
-  }, [API_URL, tier]);
+      setIntent(data);
+      setSubstep('pay');
+      setFetching(false);
+    } catch (err) {
+      console.error('[Activation] create-payment-intent threw', err);
+      setInitErr(err?.message || 'Network error starting payment.');
+      setFetching(false);
+    }
+  }
 
-  if (phase === 'error_init') {
+  function handleBackToChoose() {
+    // Drop the existing intent — if the user changes tier and continues again,
+    // a fresh PI will be created.
+    setIntent(null);
+    setSubstep('choose');
+  }
+
+  if (substep === 'choose') {
     return (
-      <div className="ow-pay-init-error">
-        <div className="ow-activate-err-msg">{initErr}</div>
-        <div className="ow-activate-err-actions" style={{ marginTop: 10 }}>
-          <button type="button" className="ow-activate-err-retry" onClick={() => setTier(t => t)}>
-            Try again
-          </button>
-          <button type="button" className="ow-activate-err-link" onClick={onSkip} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            I'll activate later
-          </button>
-        </div>
-      </div>
+      <ChooseBalance
+        tier={tier}
+        setTier={setTier}
+        onContinue={handleContinue}
+        onSkip={onSkip}
+        fetching={fetching}
+        initErr={initErr}
+      />
     );
   }
 
-  if (phase === 'fetching' || !intent) {
-    return (
-      <div className="ow-pay-loading" role="status" aria-live="polite">
-        <span className="ow-spinner" />
-        <span className="ow-stripe-loading-text">Preparing secure payment…</span>
-      </div>
-    );
-  }
-
-  // Re-key Elements on tier change so the PaymentIntent secret is always
-  // fresh (Stripe requires the clientSecret to match the current intent).
+  // substep === 'pay' — Elements re-keyed on clientSecret so a back-then-tier-change
+  // flow remounts cleanly with a fresh PI.
+  if (!intent) return null;
   return (
     <Elements
       key={intent.clientSecret}
@@ -1139,17 +1129,86 @@ function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
       <ActivationPaymentForm
         API_URL={API_URL}
         tier={tier}
-        setTier={setTier}
         intent={intent}
-        personalSub={personalSub}
-        onSkip={onSkip}
+        onBack={handleBackToChoose}
         onDone={onDone}
       />
     </Elements>
   );
 }
 
-function ActivationPaymentForm({ API_URL, tier, setTier, intent, personalSub, onSkip, onDone }) {
+// ── 7a — Choose your activation balance ─────────────────────────────────────
+function ChooseBalance({ tier, setTier, onContinue, onSkip, fetching, initErr }) {
+  return (
+    <div className="ow-choose">
+      <h1 className="ow-h1">Choose your activation balance</h1>
+      <p className="ow-sub">
+        Start with a refundable balance to unlock verified move opportunities in your selected markets.
+      </p>
+
+      <div
+        className={`ow-pay-tier ow-pay-tier-primary${tier === 100 ? ' selected' : ''}`}
+        role="radio"
+        aria-checked={tier === 100}
+        tabIndex={0}
+        onClick={() => setTier(100)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
+      >
+        <div className="ow-pay-tier-head">
+          <span className="ow-activate-pill">Best value</span>
+          <span className="ow-tier-radio" aria-hidden="true" />
+        </div>
+        <div className="ow-pay-tier-amount"><strong>$100</strong> <span>→ $150 balance</span></div>
+        <div className="ow-pay-tier-bonus">$50 FREE onboarding credit included</div>
+      </div>
+
+      <div
+        className={`ow-pay-tier ow-pay-tier-secondary${tier === 50 ? ' selected' : ''}`}
+        role="radio"
+        aria-checked={tier === 50}
+        tabIndex={0}
+        onClick={() => setTier(50)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
+      >
+        <div className="ow-pay-tier-head">
+          <span className="ow-pay-tier-label">Starter balance</span>
+          <span className="ow-tier-radio" aria-hidden="true" />
+        </div>
+        <div className="ow-pay-tier-amount"><strong>$50</strong> <span>→ $50 balance</span></div>
+        <div className="ow-pay-tier-bonus muted">No onboarding bonus included</div>
+      </div>
+
+      <ul className="ow-activate-trust ow-pay-trust">
+        <li>Refundable unused balance</li>
+        <li>No subscription, no contract</li>
+        <li>Credits never expire</li>
+        <li>Secure card payment</li>
+      </ul>
+
+      {initErr && (
+        <div className="ow-activate-err" role="alert" aria-live="polite">
+          <div className="ow-activate-err-msg">{initErr}</div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className="ow-activate-cta"
+        onClick={onContinue}
+        disabled={fetching}
+      >
+        {fetching ? 'Preparing secure payment…' : 'Continue to secure payment →'}
+      </button>
+
+      <button type="button" className="ow-activate-skip" onClick={onSkip} disabled={fetching}>
+        I'll activate later
+      </button>
+    </div>
+  );
+}
+
+// ── 7b — Complete secure payment ────────────────────────────────────────────
+function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   const stripe = useStripe();
   const elements = useElements();
   const { refreshUser } = useContext(AuthContext);
@@ -1158,8 +1217,14 @@ function ActivationPaymentForm({ API_URL, tier, setTier, intent, personalSub, on
   const [elementReady, setElementReady] = useState(false);
 
   const ctaLabel = submitting
-    ? 'Processing…'
-    : tier === 100 ? `Activate my $${intent.totalCredits} balance →` : `Pay $${tier} →`;
+    ? 'Processing payment…'
+    : tier === 100
+      ? `Pay $100 and activate $${intent.totalCredits} balance →`
+      : `Pay $${tier} and activate balance →`;
+
+  const summaryRight = tier === 100
+    ? `$${intent.selectedAmount} → $${intent.totalCredits} balance`
+    : `$${intent.selectedAmount} → $${intent.selectedAmount} balance`;
 
   async function handlePay(e) {
     e.preventDefault();
@@ -1181,7 +1246,6 @@ function ActivationPaymentForm({ API_URL, tier, setTier, intent, personalSub, on
         return;
       }
       if (paymentIntent && paymentIntent.status === 'succeeded') {
-        // Verify with backend (instant UX path; webhook is the safety net).
         try {
           await fetch(`${API_URL}/billing/verify-payment-intent`, {
             method: 'POST',
@@ -1198,7 +1262,6 @@ function ActivationPaymentForm({ API_URL, tier, setTier, intent, personalSub, on
         if (onDone) onDone();
         return;
       }
-      // Edge case: redirect-required methods won't reach here in if_required mode.
       setPaymentErr(`Payment ended in unexpected status: ${paymentIntent?.status || 'unknown'}.`);
       setSubmitting(false);
     } catch (err) {
@@ -1209,85 +1272,39 @@ function ActivationPaymentForm({ API_URL, tier, setTier, intent, personalSub, on
   }
 
   return (
-    <form className="ow-pay-grid" onSubmit={handlePay}>
-      {/* LEFT — offer summary, tier picker, trust */}
-      <aside className="ow-pay-left">
-        <h1 className="ow-pay-h1">Complete your activation</h1>
-        <p className="ow-pay-sub">{personalSub}</p>
+    <form className="ow-pay" onSubmit={handlePay}>
+      <button type="button" className="ow-pay-back" onClick={onBack} disabled={submitting}>
+        ← Change balance
+      </button>
 
-        <div
-          className={`ow-pay-tier ow-pay-tier-primary${tier === 100 ? ' selected' : ''}`}
-          role="radio"
-          aria-checked={tier === 100}
-          tabIndex={0}
-          onClick={() => setTier(100)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
-        >
-          <div className="ow-pay-tier-head">
-            <span className="ow-activate-pill">Best value</span>
-            <span className="ow-tier-radio" aria-hidden="true" />
-          </div>
-          <div className="ow-pay-tier-amount"><strong>$100</strong> <span>= $150 balance</span></div>
-          <div className="ow-pay-tier-bonus">$50 FREE onboarding credit included</div>
+      <h1 className="ow-h1">Complete secure payment</h1>
+      <p className="ow-sub">Your selected balance will be added immediately after payment.</p>
+
+      <div className="ow-pay-summary">
+        <span className="ow-pay-summary-label">Selected</span>
+        <span className="ow-pay-summary-value">{summaryRight}</span>
+      </div>
+
+      <div className="ow-pay-element-wrap">
+        <PaymentElement
+          options={{ layout: 'tabs' }}
+          onReady={() => setElementReady(true)}
+        />
+      </div>
+
+      {paymentErr && (
+        <div className="ow-activate-err" role="alert" aria-live="polite">
+          <div className="ow-activate-err-msg">{paymentErr}</div>
         </div>
+      )}
 
-        <div
-          className={`ow-pay-tier ow-pay-tier-secondary${tier === 50 ? ' selected' : ''}`}
-          role="radio"
-          aria-checked={tier === 50}
-          tabIndex={0}
-          onClick={() => setTier(50)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
-        >
-          <div className="ow-pay-tier-head">
-            <span className="ow-pay-tier-label">Starter balance</span>
-            <span className="ow-tier-radio" aria-hidden="true" />
-          </div>
-          <div className="ow-pay-tier-amount"><strong>$50</strong> <span>= $50 balance</span></div>
-          <div className="ow-pay-tier-bonus muted">No onboarding bonus included</div>
-        </div>
-
-        <ul className="ow-activate-trust ow-pay-trust">
-          <li>Refundable unused balance</li>
-          <li>No subscription</li>
-          <li>No contract</li>
-          <li>Credits never expire</li>
-          <li>Secure card payment</li>
-        </ul>
-      </aside>
-
-      {/* RIGHT — payment form */}
-      <section className="ow-pay-right">
-        <div className="ow-pay-element-wrap">
-          <PaymentElement
-            options={{ layout: 'tabs' }}
-            onReady={() => setElementReady(true)}
-          />
-        </div>
-
-        {paymentErr && (
-          <div className="ow-activate-err" role="alert" aria-live="polite">
-            <div className="ow-activate-err-msg">{paymentErr}</div>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          className="ow-activate-cta"
-          disabled={!stripe || !elements || !elementReady || submitting}
-        >
-          {ctaLabel}
-        </button>
-
-        <button
-          type="button"
-          className="ow-activate-skip"
-          onClick={onSkip}
-          disabled={submitting}
-        >
-          I'll activate later
-        </button>
-      </section>
+      <button
+        type="submit"
+        className="ow-activate-cta"
+        disabled={!stripe || !elements || !elementReady || submitting}
+      >
+        {ctaLabel}
+      </button>
     </form>
   );
 }
