@@ -1474,6 +1474,112 @@
 }
 .ow-choose .ow-activate-cta { margin-top: 4px; }
 
+/* ── Activation step — account-ready checklist ───────────────────────────
+   Vertical list at the top of Step 5 reinforcing "your account is already
+   set up" before the offer reveal. Compact, premium, mobile-first. */
+.ow-account-ready {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.06), rgba(34, 197, 94, 0.01));
+  border: 1px solid rgba(34, 197, 94, 0.20);
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 14px; row-gap: 6px;
+}
+.ow-account-ready-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: #15803d;
+  letter-spacing: -0.005em;
+}
+.ow-account-ready-check {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #ffffff;
+  font-size: 10px; font-weight: 800;
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.28);
+}
+
+/* ── Activation step — primary tier resting glow ─────────────────────────
+   Make the recommended $150 plan feel pre-selected even before the user
+   clicks. Gentle amber halo in the resting state, stronger when selected. */
+.ow-tier-v2-primary {
+  box-shadow: 0 4px 14px rgba(255, 106, 20, 0.10);
+}
+.ow-tier-v2-primary:not(.selected) {
+  border-color: rgba(255, 106, 20, 0.32);
+  background: linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
+}
+
+/* ── Activation step — value section ("What You'll Receive") ─────────────
+   Replaces the old financial-trust panel. Focuses on marketplace benefits
+   so the lower area carries emotional weight, not just compliance copy. */
+.ow-value-section {
+  background: #f8fafc;
+  border: 1px solid #e6ecf2;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 2px;
+}
+.ow-value-section-title {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+.ow-value-list {
+  list-style: none; padding: 0; margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 16px; row-gap: 6px;
+  font-size: 13px; font-weight: 600; color: #334155;
+  letter-spacing: -0.005em;
+}
+.ow-value-list li {
+  display: inline-flex; align-items: center; gap: 6px;
+  line-height: 1.4;
+}
+.ow-value-bullet {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 106, 20, 0.10);
+  color: #ea580c;
+  font-size: 12px; font-weight: 800;
+}
+
+/* ── Activation step — compact trust strip + marketplace footer ──────────
+   Two thin lines that fold the financial reassurance + marketplace realism
+   into the activation step without taking another card-sized block. */
+.ow-trust-strip {
+  margin: 6px 0 2px;
+  font-size: 11.5px; font-weight: 600;
+  color: #94a3b8;
+  text-align: center;
+  letter-spacing: -0.005em;
+}
+.ow-marketplace-footer {
+  margin: 6px 0 0;
+  font-size: 11.5px; font-weight: 500;
+  color: #94a3b8;
+  text-align: center;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  align-self: center;
+}
+.ow-marketplace-footer::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ff6a14;
+  box-shadow: 0 0 0 3px rgba(255, 106, 20, 0.16);
+  animation: owSoftPulse 2.4s ease-in-out infinite;
+}
+
 @media (max-width: 600px) {
   /* Tier cards on mobile — already compact; just tighten further. */
   .ow-tier-v2 { padding: 11px 14px; }
@@ -1484,6 +1590,14 @@
   .ow-tier-amount-row { gap: 8px; margin-bottom: 3px; }
   .ow-tier-bonus-line { font-size: 12px; }
   .ow-tier-badge { top: 9px; right: 9px; font-size: 10px; padding: 3px 7px; }
+
+  /* Account-ready + value-list collapse to single column on phones so each
+     line reads naturally without being squished. */
+  .ow-account-ready { grid-template-columns: 1fr; column-gap: 0; row-gap: 5px; padding: 10px 12px; }
+  .ow-account-ready-item { font-size: 12.5px; }
+  .ow-value-section { padding: 10px 12px; }
+  .ow-value-list { grid-template-columns: 1fr; column-gap: 0; row-gap: 5px; font-size: 12.5px; }
+  .ow-trust-strip, .ow-marketplace-footer { font-size: 11px; }
 }
 
 /* ── Step 7b — Complete secure payment ────────────────────────────────── */

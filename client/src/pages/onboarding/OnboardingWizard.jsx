@@ -859,7 +859,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
 
   const ctaLabel = fetching
     ? 'Preparing secure payment…'
-    : tier === 100 ? 'Continue with $150 balance →' : 'Continue with $50 balance →';
+    : tier === 100 ? 'Claim Your $150 Balance' : 'Activate $50 Starter Balance';
 
   async function handleContinue() {
     setFetching(true);
@@ -873,8 +873,29 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
 
   return (
     <div className="ow-choose">
-      <h1 className="ow-h1">Activate your account</h1>
-      <p className="ow-sub">Add your starting balance to unlock verified move requests.</p>
+      <h1 className="ow-h1">Ready To Receive Moving Jobs</h1>
+      <p className="ow-sub">Your account is prepared and ready to receive verified move requests.</p>
+
+      {/* Account-ready vertical checklist — reinforces "you're already set up,
+          activation just unlocks the door". */}
+      <ul className="ow-account-ready" aria-label="Account ready checklist">
+        <li className="ow-account-ready-item">
+          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
+          <span>Coverage area activated</span>
+        </li>
+        <li className="ow-account-ready-item">
+          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
+          <span>Lead alerts prepared</span>
+        </li>
+        <li className="ow-account-ready-item">
+          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
+          <span>Matching preferences saved</span>
+        </li>
+        <li className="ow-account-ready-item">
+          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
+          <span>Ready for move requests</span>
+        </li>
+      </ul>
 
       <div className="ow-tiers">
         <button
@@ -888,7 +909,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         >
           {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-recommended">Limited partner spots</span>
+            <span className="ow-tier-pill-recommended">Includes $50 Free Credits</span>
           </div>
           <div className="ow-tier-amount-row">
             <span className="ow-tier-pay">$100</span>
@@ -896,8 +917,8 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
             <span className="ow-tier-receive">$150 balance</span>
           </div>
           <div className="ow-tier-bonus-line">
-            <span className="ow-tier-bonus-tag">$50 FREE credit</span>
-            <span>included with this balance</span>
+            <span className="ow-tier-bonus-tag">$50 FREE</span>
+            <span>onboarding credit included</span>
           </div>
         </button>
 
@@ -912,7 +933,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         >
           {tier === 50 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-starter">Starter balance</span>
+            <span className="ow-tier-pill-starter">Limited starter balance</span>
           </div>
           <div className="ow-tier-amount-row">
             <span className="ow-tier-pay">$50</span>
@@ -920,20 +941,29 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
             <span className="ow-tier-receive ow-tier-receive-muted">$50 balance</span>
           </div>
           <div className="ow-tier-bonus-line muted">
-            No bonus · Test the marketplace with a smaller balance.
+            No bonus · Cautious testing option.
           </div>
         </button>
       </div>
 
-      <section className="ow-trust-panel" aria-label="Included with your balance">
-        <div className="ow-trust-panel-title">Included with your balance</div>
-        <ul className="ow-trust-panel-list">
-          <li>Refundable unused balance</li>
-          <li>No subscription or contract</li>
-          <li>Credits never expire</li>
-          <li>Secure card payment</li>
+      {/* Marketplace value list — what activation unlocks. Replaces the old
+          financial-trust panel; keeping the focus on the marketplace, not
+          on payment mechanics. */}
+      <section className="ow-value-section" aria-label="What you'll receive">
+        <div className="ow-value-section-title">What You'll Receive</div>
+        <ul className="ow-value-list">
+          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Real homeowner move requests</li>
+          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Faster lead notifications</li>
+          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Local & interstate jobs</li>
+          <li><span className="ow-value-bullet" aria-hidden="true">›</span>Buy only the leads you want</li>
         </ul>
       </section>
+
+      {/* Compact trust strip — single muted line so the financial reassurance
+          isn't lost when the trust-panel block was replaced. */}
+      <p className="ow-trust-strip">
+        Refundable balance · No subscription · Credits never expire · Secure card payment
+      </p>
 
       {initErr && (
         <div className="ow-activate-err" role="alert" aria-live="polite">
@@ -944,6 +974,11 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
       <button type="button" className="ow-activate-cta" onClick={handleContinue} disabled={fetching}>
         {ctaLabel}
       </button>
+
+      {/* Marketplace realism — small line under CTA, no fake numbers. */}
+      <p className="ow-marketplace-footer" aria-live="off">
+        Movers are currently activating coverage in your market.
+      </p>
 
       <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip} disabled={fetching}>
         <span>Continue without activating</span>
