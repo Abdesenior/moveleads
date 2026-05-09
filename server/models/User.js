@@ -53,10 +53,11 @@ const UserSchema = new mongoose.Schema({
       sentMidwizard72h: { type: Boolean, default: false },
     },
     answers: {
-      primaryMarket:        { type: String, default: '' },           // "Houston, TX"
+      primaryMarket:        { type: String, default: '' },           // "Houston, TX" or "77001" — free-text
+      coverageRadius:       { type: String, default: '' },           // '25'|'50'|'100'|'statewide'|'interstate'
       coveragePreference:   { type: String, default: '' },           // legacy single-select (kept for back-compat)
-      coveragePreferences:  { type: [String], default: [] },         // multi-select: ['local','regional','longDistance','nationwide']
-      additionalMarkets:    { type: [String], default: [] },
+      coveragePreferences:  { type: [String], default: [] },         // legacy multi-select (kept for back-compat)
+      additionalMarkets:    { type: [String], default: [] },         // city or ZIP chips
       moveTypes:            { type: [String], default: [] },         // ['apartment','home','office','longDistance','emergency','packing','laborOnly','storage']
       avoidMoveTypes:       { type: [String], default: [] },
       alertChannels:        { type: [String], default: [] },         // priority-ordered list of 'sms'|'call'|'email'

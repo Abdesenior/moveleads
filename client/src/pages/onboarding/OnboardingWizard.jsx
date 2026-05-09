@@ -22,11 +22,14 @@ const TOTAL_STEPS = 5; // Setup steps shown in the progress bar.
 
 const REASSURANCE = 'You can change this later from your dashboard.';
 
-const COVERAGE_OPTIONS = [
-  { id: 'local',        label: 'Local only',     desc: 'Same city / nearby jobs' },
-  { id: 'regional',     label: 'Regional',       desc: 'Moves across your state' },
-  { id: 'longDistance', label: 'Long-distance',  desc: 'State-to-state moves' },
-  { id: 'nationwide',   label: 'Nationwide',     desc: 'You can handle moves anywhere' },
+// Service-radius options for Step 1. Each value matches the server's
+// coverageExpansion.VALID_RADII set.
+const RADIUS_OPTIONS = [
+  { id: '25',         label: '25 miles',     desc: 'Local jobs around your base' },
+  { id: '50',         label: '50 miles',     desc: 'Metro coverage' },
+  { id: '100',        label: '100 miles',    desc: 'Wider regional coverage' },
+  { id: 'statewide',  label: 'Statewide',    desc: 'Anywhere in your state' },
+  { id: 'interstate', label: 'Interstate',   desc: 'Long-distance / cross-state moves' },
 ];
 
 const SERVICE_TYPES = [
@@ -89,9 +92,9 @@ const SETUP_STAGES = [
 // Build personalized phrasing fragments from the answers object.
 function buildPersona(answers, fallback = {}) {
   const market = (answers.primaryMarket || '').trim();
-  const coverageLabels = (answers.coveragePreferences || [])
-    .map(id => COVERAGE_OPTIONS.find(o => o.id === id)?.label)
-    .filter(Boolean);
+  const radius = answers.coverageRadius || '';
+  const radiusOption = RADIUS_OPTIONS.find(r => r.id === radius);
+  const radiusLabel = radiusOption?.label || '';
   const moveLabels = (answers.moveTypes || [])
     .map(id => SERVICE_TYPES.find(o => o.id === id)?.label.toLowerCase())
     .filter(Boolean);
@@ -100,7 +103,10 @@ function buildPersona(answers, fallback = {}) {
     .filter(Boolean);
   return {
     market: market || fallback.market || 'your market',
-    coverageLabels,
+    radius,
+    radiusLabel,
+    // legacy field kept for back-compat with anything that reads coverageLabels
+    coverageLabels: radiusLabel ? [radiusLabel] : [],
     moveLabels,
     channelLabels,
     moveSummary: moveLabels.length
@@ -118,7 +124,8 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
     primaryMarket: '',
-    coveragePreferences: [],
+    coverageRadius: '',
+    coveragePreferences: [], // legacy — left for back-compat resume
     additionalMarkets: [],
     moveTypes: [],
     alertChannels: [],
@@ -160,6 +167,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           setAnswers(prev => ({
             ...prev,
             primaryMarket:        a.primaryMarket        ?? prev.primaryMarket,
+            coverageRadius:       a.coverageRadius       ?? prev.coverageRadius,
             coveragePreferences:  coveragePrefs,
             additionalMarkets:    a.additionalMarkets    ?? prev.additionalMarkets,
             moveTypes:            a.moveTypes            ?? prev.moveTypes,
@@ -215,6 +223,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           step: stepNum,
           answers: {
             primaryMarket: answers.primaryMarket,
+            coverageRadius: answers.coverageRadius,
             coveragePreferences: answers.coveragePreferences,
             additionalMarkets: answers.additionalMarkets,
             moveTypes: answers.moveTypes,
@@ -337,7 +346,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
         <div className="ow-body">
           <div className="ow-step-anim" key={step}>
-            {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} companyName={user?.companyName} />}
+            {step === 1 && <ScreenMarketCoverage answers={answers} setAnswer={setAnswer} companyName={user?.companyName} API_URL={API_URL} />}
             {step === 2 && <ScreenServiceTypes answers={answers} toggleInArray={toggleInArray} />}
             {step === 3 && <ScreenAlertRouting answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
             {step === 4 && <ScreenRequestFlow answers={answers} setAnswer={setAnswer} toggleInArray={toggleInArray} />}
@@ -409,7 +418,7 @@ function alertFeedback(ids, urgent) {
 }
 
 function isStepValid(step, a) {
-  if (step === 1) return !!a.primaryMarket && a.coveragePreferences && a.coveragePreferences.length > 0;
+  if (step === 1) return !!(a.primaryMarket && a.primaryMarket.trim()) && !!a.coverageRadius;
   if (step === 2) return a.moveTypes && a.moveTypes.length > 0;
   if (step === 3) return a.alertChannels && a.alertChannels.length > 0;
   if (step === 4) return !!a.dailyRequestCapacity;
@@ -417,9 +426,11 @@ function isStepValid(step, a) {
   return true;
 }
 
-// ── Screen 1: Market coverage ─────────────────────────────────────────────────
-function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }) {
+// ── Screen 1: Service area + dispatch radius ────────────────────────────────
+function ScreenMarketCoverage({ answers, setAnswer, companyName, API_URL }) {
   const [marketDraft, setMarketDraft] = useState('');
+  const [preview, setPreview] = useState(null);   // { ok, primary, additional, zipCount, msg, capped }
+  const [previewing, setPreviewing] = useState(false);
 
   function commitMarket() {
     const v = marketDraft.trim().replace(/,$/, '');
@@ -438,6 +449,42 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
     }
   }
 
+  // Debounced live preview — calls /api/onboarding/preview-coverage to surface
+  // the resolved metro and the number of ZIPs the wizard will actually write
+  // to CoverageArea. No DB writes here; the real generation happens on save.
+  useEffect(() => {
+    const market = (answers.primaryMarket || '').trim();
+    const radius = answers.coverageRadius;
+    if (!market || !radius) {
+      setPreview(null);
+      return;
+    }
+    setPreviewing(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/onboarding/preview-coverage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': localStorage.getItem('token') || '',
+          },
+          body: JSON.stringify({
+            primaryMarket: market,
+            coverageRadius: radius,
+            additionalMarkets: answers.additionalMarkets,
+          }),
+        });
+        const data = await res.json();
+        setPreview(data);
+      } catch {
+        setPreview({ ok: false, msg: 'Could not check coverage just now — your selection will still save.' });
+      } finally {
+        setPreviewing(false);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [API_URL, answers.primaryMarket, answers.coverageRadius, answers.additionalMarkets]);
+
   const greeting = companyName
     ? `${companyName} — let's get your dispatch live and start matching you with verified move opportunities.`
     : `Let's get your dispatch live and start matching you with verified move opportunities.`;
@@ -445,35 +492,33 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
   return (
     <>
       <p className="ow-greeting">{greeting}</p>
-      <h1 className="ow-h1">Let's set your service area</h1>
-      <p className="ow-sub">Tell us where your crews work so we only show you move opportunities that match your market.</p>
+      <h1 className="ow-h1">Where should we send move opportunities?</h1>
+      <p className="ow-sub">Set your service area so we only route requests your crews can actually handle.</p>
 
       <div className="ow-field">
-        <label className="ow-label" htmlFor="primaryMarket">Primary market</label>
+        <label className="ow-label" htmlFor="primaryMarket">Primary service area</label>
         <input
           id="primaryMarket"
           className="ow-input"
-          placeholder="Houston, TX or Miami, FL"
+          placeholder="Houston, TX or 77001"
           value={answers.primaryMarket}
           onChange={e => setAnswer('primaryMarket', e.target.value)}
           autoComplete="off"
         />
-        {answers.primaryMarket && answers.primaryMarket.trim().length > 1 && (
-          <p className="ow-feedback">{answers.primaryMarket.trim()} market selected.</p>
-        )}
+        <p className="ow-helper">Enter your dispatch base — city/state or a 5-digit ZIP.</p>
       </div>
 
       <div className="ow-field">
-        <label className="ow-label">Where can we send you work? <span className="ow-label-hint">(pick all that apply)</span></label>
-        <div className="ow-cards">
-          {COVERAGE_OPTIONS.map(opt => {
-            const active = answers.coveragePreferences.includes(opt.id);
+        <label className="ow-label">Service radius</label>
+        <div className="ow-cards ow-radius-cards">
+          {RADIUS_OPTIONS.map(opt => {
+            const active = answers.coverageRadius === opt.id;
             return (
               <button
                 key={opt.id}
                 type="button"
                 className={`ow-card${active ? ' active' : ''}`}
-                onClick={() => toggleInArray('coveragePreferences', opt.id)}
+                onClick={() => setAnswer('coverageRadius', opt.id)}
                 aria-pressed={active}
               >
                 <div className="ow-card-row">
@@ -487,15 +532,41 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
             );
           })}
         </div>
-        {answers.coveragePreferences.length > 0 && (
-          <p className="ow-feedback">
-            {coverageFeedback(answers.coveragePreferences)}
-          </p>
-        )}
       </div>
 
+      {/* Live coverage preview pill — sets expectation BEFORE save. */}
+      {(previewing || preview) && (
+        <div className={`ow-coverage-preview${preview && preview.ok === false ? ' err' : ''}`} role="status" aria-live="polite">
+          {previewing && (
+            <>
+              <span className="ow-spinner" />
+              <span>Checking coverage…</span>
+            </>
+          )}
+          {!previewing && preview?.ok && (
+            <>
+              <span className="ow-coverage-preview-dot" aria-hidden="true" />
+              <span>
+                <strong>{preview.primary?.displayName || 'Primary area'}</strong>
+                {' • '}
+                Approx. <strong>{preview.zipCount.toLocaleString()} ZIPs</strong> covered
+                {preview.capped && <em style={{ color: '#94a3b8', marginLeft: 6 }}>(capped at 3,000)</em>}
+              </span>
+            </>
+          )}
+          {!previewing && preview && preview.ok === false && (
+            <span>{preview.msg || 'Could not resolve service area.'}</span>
+          )}
+        </div>
+      )}
+      {!previewing && preview?.ok && preview.failedExtras && preview.failedExtras.length > 0 && (
+        <p className="ow-helper" style={{ color: '#b91c1c' }}>
+          Couldn't resolve: {preview.failedExtras.map(f => `"${f.input}"`).join(', ')}. They'll be skipped.
+        </p>
+      )}
+
       <div className="ow-field">
-        <label className="ow-label">Additional markets <span className="ow-label-hint">(optional)</span></label>
+        <label className="ow-label">Additional service areas <span className="ow-label-hint">(optional)</span></label>
         <div className="ow-chip-input">
           {answers.additionalMarkets.map(m => (
             <span key={m} className="ow-input-chip">
@@ -510,14 +581,14 @@ function ScreenMarketCoverage({ answers, setAnswer, toggleInArray, companyName }
           ))}
           <input
             className="ow-chip-input-text"
-            placeholder={answers.additionalMarkets.length ? 'Add another…' : 'Add Dallas, Austin, San Antonio…'}
+            placeholder={answers.additionalMarkets.length ? 'Add another city or ZIP…' : 'Dallas, TX · 78701 · Austin, TX'}
             value={marketDraft}
             onChange={e => setMarketDraft(e.target.value)}
             onKeyDown={handleKey}
             onBlur={commitMarket}
           />
         </div>
-        <p className="ow-helper">Press Enter or comma to add.</p>
+        <p className="ow-helper">Add neighboring metros or specific ZIPs your crews also cover. Press Enter or comma to add.</p>
       </div>
 
       <p className="ow-reassurance">{REASSURANCE}</p>
@@ -762,11 +833,12 @@ function ScreenRequestFlow({ answers, setAnswer, toggleInArray }) {
 
 function CoverageRecapSummary({ answers }) {
   const persona = buildPersona(answers);
-  if (!answers.primaryMarket && !persona.coverageLabels.length) return null;
+  if (!answers.primaryMarket && !persona.radiusLabel) return null;
   return (
     <p className="ow-summary-tagline">
-      Your <strong>{persona.market}</strong> {persona.coverageLabels.length ? <>+ <strong>{persona.coverageLabels.join(', ').toLowerCase()}</strong> </> : null}
-      routing is ready.
+      Your <strong>{persona.market}</strong>
+      {persona.radiusLabel ? <> service area (<strong>{persona.radiusLabel.toLowerCase()}</strong>)</> : null}
+      {' '}routing is ready.
     </p>
   );
 }
@@ -781,8 +853,7 @@ function ScreenConfirmSetup({ answers }) {
     .map(id => TIMING_OPTIONS.find(o => o.id === id)?.label).filter(Boolean).join(', ') || '—';
   const dayLabels = answers.dispatchDays
     .map(id => DAYS.find(o => o.id === id)?.label).filter(Boolean).join(' · ') || '—';
-  const coverageLabels = answers.coveragePreferences
-    .map(id => COVERAGE_OPTIONS.find(o => o.id === id)?.label).filter(Boolean).join(', ') || '—';
+  const radiusLabel = RADIUS_OPTIONS.find(r => r.id === answers.coverageRadius)?.label || '—';
 
   let dispatchHoursLabel = '—';
   if (answers.dispatchDays.length > 0) {
@@ -803,8 +874,8 @@ function ScreenConfirmSetup({ answers }) {
       <div className="ow-summary-recap" style={{ marginBottom: 16 }}>
         <div className="ow-summary-recap-h">Configured</div>
         <RecapRow label="Primary market"        value={answers.primaryMarket || '—'} />
-        <RecapRow label="Coverage"              value={coverageLabels} />
-        <RecapRow label="Additional markets"    value={answers.additionalMarkets.join(', ') || '—'} />
+        <RecapRow label="Service radius"        value={radiusLabel} />
+        <RecapRow label="Additional service areas" value={answers.additionalMarkets.join(', ') || '—'} />
         <RecapRow label="Service types"         value={moveLabels} />
         <RecapRow label="Alert channels"        value={channelLabels} />
         <RecapRow label="Urgent call alerts"    value={answers.urgentCallEnabled ? 'On' : 'Off'} />
@@ -842,9 +913,9 @@ function ScreenProcessing({ onDone, answers }) {
   const persona = buildPersona(answers || {});
   const items = [
     `Configuring ${persona.market} service area`,
-    persona.coverageLabels.length
-      ? `Preparing ${persona.coverageLabels.join(' + ').toLowerCase()} preferences`
-      : 'Preparing matching preferences',
+    persona.radiusLabel
+      ? `Building ${persona.radiusLabel.toLowerCase()} dispatch coverage`
+      : 'Building dispatch coverage',
     persona.channelLabels.length
       ? `Enabling ${persona.channelLabels.join(' + ')} alert routing`
       : 'Enabling alert routing',

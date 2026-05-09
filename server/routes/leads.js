@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const { auth, admin } = authMiddleware;
 const Lead = require('../models/Lead');
 const User = require('../models/User');
+const CoverageArea = require('../models/CoverageArea');
 const PurchasedLead = require('../models/PurchasedLead');
 const { deductLeadBalance, runAutoRecharge } = require('../services/billingService');
 const { sendSpeedToLeadSMS } = require('../services/twilioService');
@@ -235,6 +236,27 @@ router.get('/', auth, async (req, res) => {
           }
         ]
       };
+
+      // ── Coverage filter ──────────────────────────────────────────────────
+      // Default: restrict to leads whose origin OR destination ZIP matches
+      // the mover's CoverageArea. Pass ?scope=all to bypass (used by an
+      // optional "Show all marketplace leads" toggle in the UI).
+      // Legacy fallback: if the mover has zero CoverageArea (i.e. they
+      // signed up before the wizard wired itself into CoverageArea), do
+      // not filter — otherwise their feed would unexpectedly empty.
+      const scope = String(req.query.scope || '').toLowerCase();
+      if (scope !== 'all') {
+        const myZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
+        if (myZips.length > 0) {
+          query.$and = [{
+            $or: [
+              { 'buyers.company': req.user.id }, // never filter purchased leads out
+              { originZip: { $in: myZips } },
+              { destinationZip: { $in: myZips } },
+            ],
+          }];
+        }
+      }
     }
 
     // Expire bulk-imported leads whose move date has already passed.

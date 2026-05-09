@@ -2,6 +2,7 @@ const twilio = require('twilio');
 const https  = require('https');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
+const CoverageArea = require('../models/CoverageArea');
 const Communication = require('../models/Communication');
 const PurchasedLead = require('../models/PurchasedLead');
 const socketService = require('./socketService');
@@ -28,14 +29,28 @@ const LOOKUP_TIMEOUT_MS = 5000;
 async function broadcastLeadSMS(lead) {
   console.log('[SMS] Attempting to notify movers for lead:', lead._id);
   try {
+    // 1. Find companies whose CoverageArea covers either the origin or the
+    //    destination ZIP. (Previously this query used role:'mover' which
+    //    matches no users in the current schema — partners hold
+    //    role:'customer'. Fixed and additionally narrowed by coverage.)
+    const matchingCompanyIds = await CoverageArea.distinct('company', {
+      zipCode: { $in: [lead.originZip, lead.destinationZip].filter(Boolean) },
+    });
+
+    if (!matchingCompanyIds.length) {
+      console.log('[SMS] No companies cover this lead — no SMS sent');
+      return;
+    }
+
     const movers = await User.find({
-      role:     'mover',
+      _id:      { $in: matchingCompanyIds },
+      role:     'customer',
       smsNotif: true,
+      isSuspended: { $ne: true },
       phone:    { $exists: true, $nin: ['', null] },
     }).select('phone companyName smsNotif').lean();
 
-    console.log(`[SMS] Found ${movers.length} mover(s) with smsNotif=true and a phone number`);
-    movers.forEach(m => console.log(`[SMS Debug] Mover: ${m.companyName} smsNotif: ${m.smsNotif} phone: ${m.phone}`));
+    console.log(`[SMS] ${matchingCompanyIds.length} cover this lead, ${movers.length} have SMS enabled + phone on file`);
     if (!movers.length) return;
     console.log(`[SMS] Broadcasting to: ${movers.map(m => m.companyName || m.phone).join(', ')}`);
 
