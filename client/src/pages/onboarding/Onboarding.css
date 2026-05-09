@@ -69,9 +69,15 @@
      density inside, rather than a giant card with empty horizontal sides.
      820px sits inside the 760-900px SaaS-onboarding range. */
   width: min(820px, calc(100vw - 32px));
-  /* dvh handles iOS Safari's collapsing address bar so the footer CTA never
-     sits behind the URL bar */
-  height: min(800px, calc(100dvh - 32px));
+
+  /* Adaptive height: min-height keeps a premium baseline so very short steps
+     (success / setup-complete) don't look like a tiny card; max-height
+     bounds tall steps (Step 5 activation) at 90vh and lets the body scroll
+     internally past that. dvh on the viewport math handles iOS Safari's
+     collapsing address bar so the footer CTA never slips behind the URL bar. */
+  min-height: 480px;
+  max-height: min(800px, calc(100dvh - 32px), 90vh);
+
   margin: 16px auto;
   background: #fff;
   border-radius: 20px;
@@ -211,9 +217,10 @@
   flex: 1 1 auto;
   min-height: 0;
   /* Top breathing room is the single biggest fix for the "cramped near the
-     border" feel. 32px top vs 24px bottom nudges content slightly above the
-     mathematical center which reads as visually centered. */
-  padding: 32px 28px 24px;
+     border" feel. 28px top + 18px bottom nudges content slightly above the
+     mathematical center which reads as visually centered, while keeping
+     the dead-zone under the secondary action minimal on short steps. */
+  padding: 28px 28px 18px;
   overflow-y: auto;
 }
 
@@ -508,10 +515,15 @@
   /* Near-fullscreen sheet on mobile. The CSS variable --ow-vh is set by the
      OnboardingWizard via window.visualViewport when available, so the modal
      shrinks correctly when the iOS keyboard opens. Falls back to dvh on
-     browsers without visualViewport. */
+     browsers without visualViewport.
+
+     On mobile we let the modal hug content too (min-height: auto) so very
+     short steps don't anchor at a forced 480 — the bounded max-height
+     prevents accidental overflow past the keyboard area. */
   .ow-modal {
     width: calc(100vw - 12px);
-    height: calc(var(--ow-vh, 100dvh) - 12px);
+    min-height: auto;
+    max-height: calc(var(--ow-vh, 100dvh) - 12px);
     margin: 6px auto;
     border-radius: 12px;
     overflow-x: hidden;
@@ -1497,11 +1509,13 @@
 }
 
 /* Secondary action — stacked label + microcopy under the primary CTA. Lighter
-   visual weight than the activate CTA so it never competes for attention. */
+   visual weight than the activate CTA so it never competes for attention.
+   Tight margin-top brings "Continue without activating" closer to the CTA
+   (or marketplace footer line) so there's no awkward dead zone below. */
 .ow-skip-secondary {
   display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 6px 0;
-  margin-top: 14px; /* breathing room from primary CTA */
+  padding: 4px 0;
+  margin-top: 8px;
   text-align: center;
   background: none; border: none;
   font-family: inherit;
