@@ -1,9 +1,21 @@
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES, filterStates } from '../../data/usStates';
 import './Onboarding.css';
+
+// Single Stripe.js loader memoized at module scope per @stripe/react-stripe-js docs.
+const stripePromiseSingleton = (() => {
+  let promise = null;
+  return () => {
+    if (promise) return promise;
+    const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    promise = pubKey ? loadStripe(pubKey) : Promise.resolve(null);
+    return promise;
+  };
+})();
 
 const TOTAL_STEPS = 5; // Setup steps shown in the progress bar.
 // Internal step states: 1..5 = setup, 6 = processing, 7 = activation, 8 = success.
@@ -296,7 +308,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   return (
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
       <div className="ow-blur" />
-      <div className="ow-modal">
+      <div className={`ow-modal${step === 7 ? ' ow-modal-wide' : ''}`}>
         {step <= TOTAL_STEPS && (
           <div className="ow-header">
             <div className="ow-progress">
@@ -1028,306 +1040,255 @@ function ScreenProcessing({ onDone, answers }) {
 }
 
 // ── Screen 7: Activation (light theme — native to onboarding modal) ──────────
-function ScreenActivation({ API_URL, onSkip, answers }) {
+// ── Screen 7: Activation (Stripe Payment Element, two-column layout) ────────
+function ScreenActivation({ API_URL, onSkip, onDone, answers }) {
   const persona = buildPersona(answers || {});
   const personalSub = persona.market !== 'your market' || persona.moveLabels.length
     ? `Activate your balance to start unlocking ${persona.moveSummary} opportunities in ${persona.market}.`
     : 'Your dispatch setup is ready. Activate your balance to start unlocking verified move opportunities.';
-  // Tier the user picked. Defaults to the $100 primary tier.
+
   const [tier, setTier] = useState(100);
-  // Tracks whether Stripe's iframe has had a chance to paint inside the mount.
-  // Used to fade out the spinner overlay once checkout is visible.
-  const [checkoutReady, setCheckoutReady] = useState(false);
-  const [phase, setPhase] = useState('offer'); // 'offer' | 'loading' | 'checkout' | 'error'
-  const [errMsg, setErrMsg] = useState('');
-  const checkoutMountRef = useRef(null);
-  const stripeCheckoutRef = useRef(null);
+  const [intent, setIntent] = useState(null);  // { clientSecret, selectedAmount, bonusCredits, totalCredits }
+  const [phase, setPhase] = useState('fetching'); // 'fetching' | 'ready' | 'error_init'
+  const [initErr, setInitErr] = useState('');
 
-  async function handleActivate() {
-    // Verbose, label-prefixed logs so we can read the exact failure point
-    // from the browser console. (1) Activate clicked.
-    console.log('[Activate] click — tier:', tier);
-
-    // (2) Token presence before fetch.
-    const token = localStorage.getItem('token') || '';
-    console.log('[Activate] token present:', !!token, 'length:', token.length);
-
-    setPhase('loading');
-    setErrMsg('');
-    setCheckoutReady(false);
-
-    const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-    console.log('[Activate] pubKey present:', !!pubKey, 'prefix:', pubKey ? pubKey.slice(0, 12) : '(missing)');
-    if (!pubKey) {
-      setErrMsg('Checkout misconfigured (missing publishable key). Contact support.');
-      setPhase('error');
-      return;
-    }
-
-    // (3) Immediately before POST.
-    const url = `${API_URL}/billing/create-checkout-session`;
-    const body = { amount: tier, embedded: true };
-    console.log('[Activate] POST →', url, 'body:', body);
-
-    let res;
-    try {
-      res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token,
-        },
-        body: JSON.stringify(body),
-      });
-    } catch (fetchErr) {
-      // (11) catch with console.error.
-      console.error('[Activate] fetch threw (network/CORS/abort):', fetchErr);
-      setErrMsg(fetchErr?.message || 'Network error contacting checkout server');
-      setPhase('error');
-      return;
-    }
-    // (4) Immediately after POST.
-    console.log('[Activate] POST returned. ok:', res.ok);
-    // (5) Response status.
-    console.log('[Activate] response status:', res.status, res.statusText);
-
-    let data;
-    try {
-      data = await res.json();
-    } catch (jsonErr) {
-      console.error('[Activate] response not JSON:', jsonErr);
-      setErrMsg(`Server returned a non-JSON response (status ${res.status}).`);
-      setPhase('error');
-      return;
-    }
-    // (6) Response JSON.
-    console.log('[Activate] response JSON:', data);
-
-    if (!res.ok || !data?.clientSecret) {
-      console.error('[Activate] server rejected or missing clientSecret. status:', res.status, 'body:', data);
-      setErrMsg(data?.msg || `Could not start checkout (status ${res.status}).`);
-      setPhase('error');
-      return;
-    }
-
-    // (7) Before loadStripe.
-    console.log('[Activate] calling loadStripe(...)');
-    let stripe;
-    try {
-      stripe = await loadStripe(pubKey);
-    } catch (loadErr) {
-      console.error('[Activate] loadStripe threw:', loadErr);
-      setErrMsg('Could not load Stripe.js. Check your network or extensions.');
-      setPhase('error');
-      return;
-    }
-    // (8) After loadStripe.
-    console.log('[Activate] loadStripe returned. stripe is null?', stripe === null);
-    if (!stripe) {
-      setErrMsg('Stripe failed to initialize.');
-      setPhase('error');
-      return;
-    }
-    if (typeof stripe.createEmbeddedCheckoutPage !== 'function') {
-      console.error('[Activate] createEmbeddedCheckoutPage missing on stripe instance. Available keys:', Object.keys(stripe));
-      setErrMsg('Stripe Embedded Checkout API not available. Try a hard refresh.');
-      setPhase('error');
-      return;
-    }
-
-    // (9) Before createEmbeddedCheckoutPage.
-    console.log('[Activate] calling stripe.createEmbeddedCheckoutPage(...) with clientSecret prefix:', String(data.clientSecret).slice(0, 12));
-    let checkout;
-    try {
-      checkout = await stripe.createEmbeddedCheckoutPage({
-        fetchClientSecret: async () => data.clientSecret,
-      });
-    } catch (createErr) {
-      console.error('[Activate] createEmbeddedCheckoutPage threw:', createErr);
-      setErrMsg(createErr?.message || 'Could not initialize secure checkout.');
-      setPhase('error');
-      return;
-    }
-    console.log('[Activate] createEmbeddedCheckoutPage returned. checkout truthy?', !!checkout);
-
-    stripeCheckoutRef.current = checkout;
-    setPhase('checkout');
-    // Actual mount happens in the effect below — that way we know React has
-    // rendered the new phase markup and checkoutMountRef.current is real.
-  }
-
-  // Mount the embedded checkout once we're in the 'checkout' phase AND React
-  // has committed the new DOM (so checkoutMountRef.current is non-null).
-  // No setTimeout / AbortController / preemptive route changes here —
-  // anything that could unmount the container before the POST finishes was
-  // explicitly removed.
+  // Fetch (or refetch on tier change) a PaymentIntent. The clientSecret must
+  // be present BEFORE we mount <Elements>.
   useEffect(() => {
-    if (phase !== 'checkout') return;
-    const checkout = stripeCheckoutRef.current;
-    const target = checkoutMountRef.current;
-    if (!checkout || !target) {
-      console.error('[Activate] mount effect ran but refs missing:', { hasCheckout: !!checkout, hasTarget: !!target });
-      return;
-    }
-    // (10) Before mount.
-    console.log('[Activate] mounting checkout into DOM target');
-    try {
-      checkout.mount(target);
-      console.log('[Activate] mount() returned');
-    } catch (mountErr) {
-      console.error('[Activate] mount() threw:', mountErr);
-      setErrMsg(mountErr?.message || 'Could not display checkout.');
-      setPhase('error');
-      return;
-    }
-    // Reveal the iframe after a short paint window. Cleanup on phase change
-    // so we never call setState after the screen unmounts.
-    const t = setTimeout(() => setCheckoutReady(true), 1200);
-    return () => clearTimeout(t);
-  }, [phase]);
-
-  // Destroy the embedded checkout on unmount so we don't leak the iframe.
-  useEffect(() => {
-    return () => {
-      if (stripeCheckoutRef.current) {
-        try { stripeCheckoutRef.current.destroy(); } catch (e) { /* ignore */ }
+    let alive = true;
+    setPhase('fetching');
+    setInitErr('');
+    setIntent(null);
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/billing/create-payment-intent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': localStorage.getItem('token') || '',
+          },
+          body: JSON.stringify({ amount: tier, source: 'onboarding_activation' }),
+        });
+        const data = await res.json();
+        if (!alive) return;
+        if (!res.ok || !data?.clientSecret) {
+          console.error('[Activation] create-payment-intent failed', res.status, data);
+          setInitErr(data?.msg || `Could not start payment (status ${res.status}).`);
+          setPhase('error_init');
+          return;
+        }
+        setIntent(data);
+        setPhase('ready');
+      } catch (err) {
+        if (!alive) return;
+        console.error('[Activation] create-payment-intent threw', err);
+        setInitErr(err?.message || 'Network error starting payment.');
+        setPhase('error_init');
       }
-    };
-  }, []);
+    })();
+    return () => { alive = false; };
+  }, [API_URL, tier]);
 
-  if (phase === 'checkout') {
-    const checkoutSub = tier === 100
-      ? 'Pay $100 securely to receive a $150 balance ($50 onboarding bonus included).'
-      : 'Pay $50 securely to receive a $50 starting balance.';
+  if (phase === 'error_init') {
     return (
-      <div className="ow-activate">
-        <h1 className="ow-activate-h1">Complete your activation</h1>
-        <p className="ow-activate-sub">{checkoutSub}</p>
-        <div className="ow-stripe-wrap">
-          <div ref={checkoutMountRef} className="ow-stripe-mount" />
-          {!checkoutReady && (
-            <div className="ow-stripe-loading" role="status" aria-live="polite">
-              <span className="ow-spinner" />
-              <span className="ow-stripe-loading-text">Loading secure checkout…</span>
-            </div>
-          )}
+      <div className="ow-pay-init-error">
+        <div className="ow-activate-err-msg">{initErr}</div>
+        <div className="ow-activate-err-actions" style={{ marginTop: 10 }}>
+          <button type="button" className="ow-activate-err-retry" onClick={() => setTier(t => t)}>
+            Try again
+          </button>
+          <button type="button" className="ow-activate-err-link" onClick={onSkip} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            I'll activate later
+          </button>
         </div>
-        <button type="button" className="ow-activate-skip" onClick={onSkip} style={{ marginTop: 12 }}>
-          Cancel — I'll activate later
-        </button>
       </div>
     );
   }
 
-  const ctaLabel = phase === 'loading'
-    ? 'Loading checkout…'
-    : tier === 100 ? 'Activate my $150 balance →' : 'Start with a $50 balance →';
+  if (phase === 'fetching' || !intent) {
+    return (
+      <div className="ow-pay-loading" role="status" aria-live="polite">
+        <span className="ow-spinner" />
+        <span className="ow-stripe-loading-text">Preparing secure payment…</span>
+      </div>
+    );
+  }
+
+  // Re-key Elements on tier change so the PaymentIntent secret is always
+  // fresh (Stripe requires the clientSecret to match the current intent).
+  return (
+    <Elements
+      key={intent.clientSecret}
+      stripe={stripePromiseSingleton()}
+      options={{
+        clientSecret: intent.clientSecret,
+        appearance: {
+          theme: 'stripe',
+          variables: {
+            colorPrimary: '#ff6a14',
+            colorText: '#0f172a',
+            colorBackground: '#ffffff',
+            colorDanger: '#dc2626',
+            fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+            borderRadius: '10px',
+            spacingUnit: '4px',
+          },
+        },
+      }}
+    >
+      <ActivationPaymentForm
+        API_URL={API_URL}
+        tier={tier}
+        setTier={setTier}
+        intent={intent}
+        personalSub={personalSub}
+        onSkip={onSkip}
+        onDone={onDone}
+      />
+    </Elements>
+  );
+}
+
+function ActivationPaymentForm({ API_URL, tier, setTier, intent, personalSub, onSkip, onDone }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const { refreshUser } = useContext(AuthContext);
+  const [submitting, setSubmitting] = useState(false);
+  const [paymentErr, setPaymentErr] = useState('');
+  const [elementReady, setElementReady] = useState(false);
+
+  const ctaLabel = submitting
+    ? 'Processing…'
+    : tier === 100 ? `Activate my $${intent.totalCredits} balance →` : `Pay $${tier} →`;
+
+  async function handlePay(e) {
+    e.preventDefault();
+    if (!stripe || !elements || submitting) return;
+    setPaymentErr('');
+    setSubmitting(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/dashboard/leads?payment=success`,
+        },
+        redirect: 'if_required',
+      });
+      if (error) {
+        console.error('[Activation] confirmPayment error', error);
+        setPaymentErr(error.message || 'Payment could not be completed.');
+        setSubmitting(false);
+        return;
+      }
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
+        // Verify with backend (instant UX path; webhook is the safety net).
+        try {
+          await fetch(`${API_URL}/billing/verify-payment-intent`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-auth-token': localStorage.getItem('token') || '',
+            },
+            body: JSON.stringify({ paymentIntentId: paymentIntent.id }),
+          });
+        } catch (verifyErr) {
+          console.error('[Activation] verify failed (webhook will catch up):', verifyErr);
+        }
+        if (refreshUser) await refreshUser();
+        if (onDone) onDone();
+        return;
+      }
+      // Edge case: redirect-required methods won't reach here in if_required mode.
+      setPaymentErr(`Payment ended in unexpected status: ${paymentIntent?.status || 'unknown'}.`);
+      setSubmitting(false);
+    } catch (err) {
+      console.error('[Activation] confirmPayment threw', err);
+      setPaymentErr(err?.message || 'Unexpected error during payment.');
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <div className="ow-activate">
-      <h1 className="ow-activate-h1">Activate your onboarding balance</h1>
-      <p className="ow-activate-sub">{personalSub}</p>
+    <form className="ow-pay-grid" onSubmit={handlePay}>
+      {/* LEFT — offer summary, tier picker, trust */}
+      <aside className="ow-pay-left">
+        <h1 className="ow-pay-h1">Complete your activation</h1>
+        <p className="ow-pay-sub">{personalSub}</p>
 
-      {/* Primary tier — $100 → $150 with bonus. Visually dominant. */}
-      <div
-        className={`ow-activate-card ow-tier ow-tier-primary${tier === 100 ? ' selected' : ''}`}
-        role="radio"
-        aria-checked={tier === 100}
-        tabIndex={0}
-        onClick={() => setTier(100)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
-      >
-        <div className="ow-tier-head">
-          <span className="ow-activate-pill">Most movers start here</span>
-          <span className="ow-tier-radio" aria-hidden="true" />
-        </div>
-
-        <div className="ow-activate-bonus">
-          <span className="ow-activate-bonus-currency">$</span>
-          <span className="ow-activate-bonus-num">50</span>
-          <span className="ow-activate-bonus-tag">FREE</span>
-        </div>
-        <p className="ow-activate-label">unlock credit on us</p>
-        <p className="ow-activate-plus">+ 50% extra buying power on your first $100</p>
-
-        <div className="ow-activate-summary">
-          <div className="ow-activate-summary-row">
-            <span>You pay</span>
-            <span className="ow-activate-summary-pay">$100</span>
+        <div
+          className={`ow-pay-tier ow-pay-tier-primary${tier === 100 ? ' selected' : ''}`}
+          role="radio"
+          aria-checked={tier === 100}
+          tabIndex={0}
+          onClick={() => setTier(100)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
+        >
+          <div className="ow-pay-tier-head">
+            <span className="ow-activate-pill">Best value</span>
+            <span className="ow-tier-radio" aria-hidden="true" />
           </div>
-          <div className="ow-activate-summary-row">
-            <span>You receive</span>
-            <span className="ow-activate-summary-receive">$150 total balance</span>
+          <div className="ow-pay-tier-amount"><strong>$100</strong> <span>= $150 balance</span></div>
+          <div className="ow-pay-tier-bonus">$50 FREE onboarding credit included</div>
+        </div>
+
+        <div
+          className={`ow-pay-tier ow-pay-tier-secondary${tier === 50 ? ' selected' : ''}`}
+          role="radio"
+          aria-checked={tier === 50}
+          tabIndex={0}
+          onClick={() => setTier(50)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
+        >
+          <div className="ow-pay-tier-head">
+            <span className="ow-pay-tier-label">Starter balance</span>
+            <span className="ow-tier-radio" aria-hidden="true" />
           </div>
+          <div className="ow-pay-tier-amount"><strong>$50</strong> <span>= $50 balance</span></div>
+          <div className="ow-pay-tier-bonus muted">No onboarding bonus included</div>
         </div>
-      </div>
 
-      {/* Secondary tier — $50 starter, no bonus. Lower commitment. */}
-      <div
-        className={`ow-tier ow-tier-secondary${tier === 50 ? ' selected' : ''}`}
-        role="radio"
-        aria-checked={tier === 50}
-        tabIndex={0}
-        onClick={() => setTier(50)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
-      >
-        <div className="ow-tier-secondary-row">
-          <span className="ow-tier-radio" aria-hidden="true" />
-          <div className="ow-tier-secondary-text">
-            <div className="ow-tier-secondary-h">Start with $50</div>
-            <div className="ow-tier-secondary-sub">$50 starting balance · no onboarding bonus</div>
+        <ul className="ow-activate-trust ow-pay-trust">
+          <li>Refundable unused balance</li>
+          <li>No subscription</li>
+          <li>No contract</li>
+          <li>Credits never expire</li>
+          <li>Secure card payment</li>
+        </ul>
+      </aside>
+
+      {/* RIGHT — payment form */}
+      <section className="ow-pay-right">
+        <div className="ow-pay-element-wrap">
+          <PaymentElement
+            options={{ layout: 'tabs' }}
+            onReady={() => setElementReady(true)}
+          />
+        </div>
+
+        {paymentErr && (
+          <div className="ow-activate-err" role="alert" aria-live="polite">
+            <div className="ow-activate-err-msg">{paymentErr}</div>
           </div>
-          <div className="ow-tier-secondary-price">$50</div>
-        </div>
-      </div>
+        )}
 
-      {/* Single testimonial — flips the moment from transactional to social proof */}
-      <div className="ow-testimonial">
-        <div className="ow-testimonial-stars">★★★★★</div>
-        <blockquote className="ow-testimonial-quote">
-          "Booked 11 jobs in our first month. The activation balance paid itself back in the first week."
-        </blockquote>
-        <div className="ow-testimonial-attr">
-          <span className="ow-testimonial-name">Mike R.</span>
-          <span className="ow-testimonial-co">Houston Movers</span>
-        </div>
-      </div>
+        <button
+          type="submit"
+          className="ow-activate-cta"
+          disabled={!stripe || !elements || !elementReady || submitting}
+        >
+          {ctaLabel}
+        </button>
 
-      {/* Trust bullets — promoted to point-of-payment real estate */}
-      <ul className="ow-activate-trust">
-        <li>Refundable unused balance</li>
-        <li>No subscription, no contract</li>
-        <li>Credits never expire</li>
-        <li>Secure Stripe payment</li>
-      </ul>
-
-      {phase === 'error' && (
-        <div className="ow-activate-err">
-          <div className="ow-activate-err-msg">{errMsg}</div>
-          <div className="ow-activate-err-actions">
-            <button type="button" className="ow-activate-err-retry" onClick={handleActivate}>
-              Try again
-            </button>
-            <a className="ow-activate-err-link" href="mailto:support@moveleads.cloud?subject=Activation%20checkout%20failed">
-              Email support →
-            </a>
-          </div>
-        </div>
-      )}
-
-      <button
-        type="button"
-        className="ow-activate-cta"
-        onClick={handleActivate}
-        disabled={phase === 'loading'}
-      >
-        {ctaLabel}
-      </button>
-
-      <button type="button" className="ow-activate-skip" onClick={onSkip}>
-        I'll activate later
-      </button>
-    </div>
+        <button
+          type="button"
+          className="ow-activate-skip"
+          onClick={onSkip}
+          disabled={submitting}
+        >
+          I'll activate later
+        </button>
+      </section>
+    </form>
   );
 }
 

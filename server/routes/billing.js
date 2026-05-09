@@ -168,6 +168,205 @@ router.post('/confirm-payment', auth, async (req, res) => {
   }
 });
 
+// ──────────────────────────────────────────────────────────────────────────
+// Onboarding-activation Payment Element flow
+//
+// Architecture:
+//   1. Client → POST /create-payment-intent { amount: 50 | 100 } → server creates
+//      a PaymentIntent with metadata.source='onboarding_activation' and computes
+//      bonus eligibility server-side (only $100 + onboarding.bonusClaimedAt==null).
+//   2. Client mounts <PaymentElement>, user pays, stripe.confirmPayment returns.
+//   3. Client → POST /verify-payment-intent { paymentIntentId } (instant UX path).
+//   4. Stripe → webhook payment_intent.succeeded (safety-net path).
+//
+// Both paths converge on `applyOnboardingActivationCredit(paymentIntent)` which
+// is strictly idempotent: a unique index on Transaction.stripePaymentIntentId
+// is the database-level safety, plus a Transaction.findOne() pre-check, plus
+// a conditional User.updateOne() for the bonus stamp that races safely.
+// ──────────────────────────────────────────────────────────────────────────
+
+const ALLOWED_INTENT_AMOUNTS = [50, 100];
+
+async function applyOnboardingActivationCredit(paymentIntent) {
+  // Returns { applied: boolean, balance: number, totalCredits: number, alreadyProcessed: boolean }.
+  const md = paymentIntent.metadata || {};
+  if (md.source !== 'onboarding_activation') return { applied: false, alreadyProcessed: false, reason: 'wrong_source' };
+  if (paymentIntent.status !== 'succeeded')   return { applied: false, alreadyProcessed: false, reason: 'not_succeeded' };
+
+  const userId = md.userId;
+  const selectedAmount = Number(md.selectedAmount || 0);
+  const bonusCredits   = Number(md.bonusCredits   || 0);
+  const totalCredits   = Number(md.totalCredits   || selectedAmount + bonusCredits);
+  if (!userId || !totalCredits) {
+    console.error('[ApplyCredit] missing userId or totalCredits in PI metadata', paymentIntent.id, md);
+    return { applied: false, alreadyProcessed: false, reason: 'invalid_metadata' };
+  }
+
+  // Pre-check: same paymentIntent already credited?
+  const existing = await Transaction.findOne({ stripePaymentIntentId: paymentIntent.id });
+  if (existing) {
+    const u = await User.findById(userId).select('balance');
+    return { applied: false, alreadyProcessed: true, balance: u?.balance || 0, totalCredits };
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    console.error('[ApplyCredit] user not found for PI', paymentIntent.id, userId);
+    return { applied: false, alreadyProcessed: false, reason: 'user_not_found' };
+  }
+
+  // Insert the transaction first — the unique index on stripePaymentIntentId
+  // is the strict idempotency gate. If a concurrent request already inserted
+  // a transaction for this PI, .save() throws E11000 and we bail without
+  // ever incrementing the balance.
+  let txn;
+  try {
+    txn = await new Transaction({
+      user: userId,
+      type: 'Credit Deposit',
+      amount: totalCredits,
+      description: bonusCredits > 0
+        ? `Onboarding Activation +$${selectedAmount} (+$${bonusCredits} bonus) (PI: ${paymentIntent.id})`
+        : `Onboarding Activation +$${selectedAmount} (PI: ${paymentIntent.id})`,
+      status: 'Completed',
+      stripePaymentIntentId: paymentIntent.id,
+    }).save();
+  } catch (err) {
+    if (err && err.code === 11000) {
+      // Race: another request just inserted the same PI. Treat as already-credited.
+      const u = await User.findById(userId).select('balance');
+      return { applied: false, alreadyProcessed: true, balance: u?.balance || 0, totalCredits };
+    }
+    throw err;
+  }
+
+  // Increment the balance. The transaction insert above guarantees this runs
+  // exactly once per PI.
+  await User.updateOne({ _id: userId }, { $inc: { balance: totalCredits } });
+
+  // Stamp bonusClaimedAt only when bonusCredits > 0 — and only if not already
+  // stamped, so a concurrent flow can't double-stamp. The condition makes the
+  // update a no-op for the second writer.
+  if (bonusCredits > 0) {
+    await User.updateOne(
+      { _id: userId, 'onboarding.bonusClaimedAt': null },
+      { $set: { 'onboarding.bonusClaimedAt': new Date() } }
+    );
+  }
+
+  // Mark onboarding complete (in case user paid before clicking Confirm Setup).
+  await User.updateOne(
+    { _id: userId, 'onboarding.complete': { $ne: true } },
+    { $set: { 'onboarding.complete': true, 'onboarding.completedAt': new Date() } }
+  );
+
+  const fresh = await User.findById(userId).select('balance companyName email');
+
+  sendAdminNotification({
+    subject: `💰 Activation Payment — ${fresh.companyName}`,
+    html: `
+      <h2>New Activation Payment</h2>
+      <p><strong>Company:</strong> ${fresh.companyName}</p>
+      <p><strong>Email:</strong> ${fresh.email}</p>
+      <p><strong>Paid:</strong> $${selectedAmount.toFixed(2)}</p>
+      <p><strong>Bonus:</strong> $${bonusCredits.toFixed(2)}</p>
+      <p><strong>Credited:</strong> $${totalCredits.toFixed(2)}</p>
+      <p><strong>New Balance:</strong> $${(fresh.balance || 0).toFixed(2)}</p>
+      <p><strong>PaymentIntent:</strong> ${paymentIntent.id}</p>
+    `,
+  }).catch(() => {});
+
+  console.log(`[ApplyCredit] credited $${totalCredits} to ${userId} for PI ${paymentIntent.id}`);
+  return { applied: true, alreadyProcessed: false, balance: fresh.balance || 0, totalCredits };
+}
+
+// @route   POST /api/billing/create-payment-intent
+// @desc    Create a PaymentIntent for the onboarding activation flow
+// @access  Private (JWT)
+router.post('/create-payment-intent', auth, async (req, res) => {
+  try {
+    const amount = Number(req.body?.amount);
+    if (!ALLOWED_INTENT_AMOUNTS.includes(amount)) {
+      return res.status(400).json({ msg: 'Invalid amount' });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ msg: 'Payment configuration error' });
+    }
+    const stripe = stripeInit();
+
+    const userDoc = await User.findById(req.user.id).select('onboarding');
+    const isBonusTier = amount === 100;
+    const eligibleForBonus = !!userDoc && !userDoc.onboarding?.bonusClaimedAt && isBonusTier;
+    const bonusCredits = eligibleForBonus ? 50 : 0;
+    const totalCredits = amount + bonusCredits;
+
+    const intent = await stripe.paymentIntents.create({
+      amount: amount * 100,
+      currency: 'usd',
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        userId: req.user.id.toString(),
+        source: 'onboarding_activation',
+        selectedAmount: String(amount),
+        bonusCredits: String(bonusCredits),
+        totalCredits: String(totalCredits),
+        onboardingBonusEligible: eligibleForBonus ? 'true' : 'false',
+      },
+      description: eligibleForBonus
+        ? `MoveLeads onboarding activation: $${amount} → $${totalCredits} balance`
+        : `MoveLeads activation: $${amount}`,
+    });
+
+    res.json({
+      clientSecret: intent.client_secret,
+      selectedAmount: amount,
+      bonusCredits,
+      totalCredits,
+    });
+  } catch (err) {
+    console.error('[CreatePaymentIntent]', err);
+    res.status(500).json({ msg: 'Could not start payment' });
+  }
+});
+
+// @route   POST /api/billing/verify-payment-intent
+// @desc    Instant-UX confirmation that a PaymentIntent succeeded.
+//          Idempotent — webhook covers the case where this call doesn't run.
+// @access  Private (JWT)
+router.post('/verify-payment-intent', auth, async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body || {};
+    if (!paymentIntentId || typeof paymentIntentId !== 'string') {
+      return res.status(400).json({ msg: 'paymentIntentId required' });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ msg: 'Payment configuration error' });
+    }
+    const stripe = stripeInit();
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Authorization: the PaymentIntent must belong to the calling user.
+    if (intent.metadata?.userId !== req.user.id.toString()) {
+      return res.status(403).json({ msg: 'Unauthorized' });
+    }
+    if (intent.status !== 'succeeded') {
+      return res.status(409).json({ msg: `Payment not yet succeeded (status: ${intent.status})` });
+    }
+
+    const result = await applyOnboardingActivationCredit(intent);
+    const user = await User.findById(req.user.id).select('balance onboarding');
+    return res.json({
+      applied: result.applied,
+      alreadyProcessed: result.alreadyProcessed,
+      balance: user.balance || 0,
+      bonusClaimedAt: user.onboarding?.bonusClaimedAt || null,
+    });
+  } catch (err) {
+    console.error('[VerifyPaymentIntent]', err);
+    res.status(500).json({ msg: 'Verification failed' });
+  }
+});
+
 // @route   POST /api/billing/webhook
 // @desc    Stripe Webhook Listener
 // @access  Public (Stripe Signature Verification)
@@ -180,6 +379,24 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   } catch (err) {
     console.error(`Webhook Error: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // ── Handle payment_intent.succeeded for the activation flow ─────────────
+  if (event.type === 'payment_intent.succeeded') {
+    const intent = event.data.object;
+    if (intent?.metadata?.source === 'onboarding_activation') {
+      try {
+        const result = await applyOnboardingActivationCredit(intent);
+        if (result.applied) {
+          console.log(`[Webhook] PI ${intent.id} → credited $${result.totalCredits}`);
+        } else {
+          console.log(`[Webhook] PI ${intent.id} → no-op (${result.reason || 'already processed'})`);
+        }
+      } catch (err) {
+        console.error(`[Webhook] PI ${intent.id} apply error:`, err.message);
+      }
+    }
+    return res.json({ received: true });
   }
 
   // Handle successful payment
