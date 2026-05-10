@@ -50,14 +50,29 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      <button
-        type="button"
-        className="sidebar-toggle"
-        aria-label="Open admin navigation"
-        onClick={() => setSidebarOpen(true)}
-      >
-        <Menu size={22} />
-      </button>
+      {/* Mobile sticky app bar — hamburger + brand on the left, ADMIN
+          pill on the right. Hidden on desktop where the sidebar nav
+          handles everything. Same pattern as DashboardLayout so the
+          two surfaces share one app-shell vocabulary. */}
+      <div className="mobile-header">
+        <button
+          type="button"
+          className="sidebar-toggle"
+          aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
+          aria-expanded={sidebarOpen}
+          onClick={() => setSidebarOpen(prev => !prev)}
+        >
+          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
+        <div className="mobile-brand">
+          <span className="mobile-brand-mark" aria-hidden="true" />
+          <span className="mobile-brand-text">MoveLeads</span>
+        </div>
+        <span className="mobile-admin-pill" role="status">
+          <Shield size={11} aria-hidden="true" />
+          <span>Admin</span>
+        </span>
+      </div>
 
       <div
         className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}

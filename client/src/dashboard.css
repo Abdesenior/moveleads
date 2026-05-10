@@ -1042,6 +1042,28 @@
     color: #64748b;
     border: 1px solid rgba(148, 163, 184, 0.24);
   }
+
+  /* Admin context pill — sits in the same right-side slot as the live
+     status on the partner dashboard. Same compact rounded-full chip
+     shape, red/admin tones to make the privileged context obvious. */
+  .mobile-admin-pill {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px 5px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    line-height: 1;
+    background: rgba(239, 68, 68, 0.10);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.24);
+  }
+  .mobile-admin-pill svg { color: currentColor; }
   .mobile-live-reconnecting .mobile-live-dot,
   .mobile-live-connecting .mobile-live-dot {
     background: #94a3b8;
