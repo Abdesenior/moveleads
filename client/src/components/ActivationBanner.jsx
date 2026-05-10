@@ -21,7 +21,8 @@ export default function ActivationBanner({ onActivate }) {
       <div className="activation-banner-text">
         <span className="activation-banner-title">Your dispatch setup is ready</span>
         <span className="activation-banner-highlight">
-          Activate your <strong>$150 onboarding balance</strong>
+          {/* TEST MODE: production copy was "$150 onboarding balance" */}
+          Activate your <strong>$1 balance (test)</strong>
         </span>
       </div>
       <button
