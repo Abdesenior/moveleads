@@ -55,19 +55,14 @@ export default function Billing() {
 
   useEffect(() => {
     fetchBilling();
-    const sid = searchParams.get('session_id');
     const success = searchParams.get('success');
     const payment = searchParams.get('payment');
     const piId = searchParams.get('payment_intent');
-    if (sid && success === 'true' && !processedRef.current) {
-      processedRef.current = true;
-      confirmPayment(sid);
-      navigate('/dashboard/billing', { replace: true });
-    } else if (payment === 'success' && piId && !processedRef.current) {
+    if (payment === 'success' && piId && !processedRef.current) {
       processedRef.current = true;
       verifyTopUpIntent(piId);
       navigate('/dashboard/billing', { replace: true });
-    } else if (success === 'true' && !sid) {
+    } else if (success === 'true') {
       navigate('/dashboard/billing', { replace: true });
     }
   }, []); // eslint-disable-line
@@ -97,24 +92,6 @@ export default function Billing() {
       });
       const data = await res.json();
       if (!data.alreadyProcessed && (data.balance !== undefined || data.applied)) {
-        setShowSuccess(true);
-        setBalancePulse(true);
-        setTimeout(() => setShowSuccess(false), 5000);
-        setTimeout(() => setBalancePulse(false), 3000);
-      }
-      fetchBilling();
-    } catch (err) { console.error(err); }
-  };
-
-  const confirmPayment = async (sessionId) => {
-    try {
-      const res = await fetch(`${API_URL}/billing/confirm-payment`, {
-        method: 'POST',
-        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId }),
-      });
-      const data = await res.json();
-      if (!data.alreadyProcessed && (data.balance !== undefined || data.msg?.includes('confirmed'))) {
         setShowSuccess(true);
         setBalancePulse(true);
         setTimeout(() => setShowSuccess(false), 5000);
