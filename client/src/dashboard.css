@@ -971,11 +971,16 @@
     height: auto;
     min-height: 100vh;
     overflow: hidden;
+    /* Reserve space for the fixed mobile app bar. The header is removed
+       from flow (position: fixed below) so the rest of the page needs
+       a placeholder of equal height to avoid sliding under it. */
+    padding-top: 56px;
   }
 
-  /* Mobile sticky app bar — premium SaaS feel. Hamburger + brand on the
-     left, live status on the right. Soft white with backdrop blur so
-     content scrolls beneath it with a frosted-glass effect. */
+  /* Mobile fixed app bar — premium SaaS feel. position: fixed (rather than
+     sticky) is more reliable inside .dashboard-layout's overflow:hidden
+     scroll context — sticky was intermittently letting the bar disappear
+     during scroll on iOS Safari. */
   .mobile-header {
     display: flex;
     align-items: center;
@@ -986,9 +991,14 @@
     backdrop-filter: blur(14px) saturate(160%);
     -webkit-backdrop-filter: blur(14px) saturate(160%);
     border-bottom: 1px solid rgba(226, 232, 240, 0.85);
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 12100;
+    /* Subtle shadow when content scrolls beneath. Modern browsers can
+       composite this without paint cost. */
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
   }
 
   /* Live status pill on the right side of the app bar. */

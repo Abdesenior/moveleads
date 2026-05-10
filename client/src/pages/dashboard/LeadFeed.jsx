@@ -520,6 +520,21 @@ export default function LeadFeed() {
     <DashboardLayout>
       <div className="lead-feed-container">
 
+        {/* Mobile-only marketplace metric — sits below the activation banner
+            and above the page hero. Compact stat with a live pulse. */}
+        {displayedLeads.length > 0 && (
+          <div className="lead-count-mobile" role="status" aria-live="polite">
+            <div className="lead-count-number">{displayedLeads.length}</div>
+            <div className="lead-count-meta">
+              <span className="lead-count-label">Available Leads</span>
+              <span className="lead-count-status">
+                <span className="lead-count-status-dot" aria-hidden="true" />
+                Updated live
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* ── Page header ── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
           <div>
@@ -532,7 +547,7 @@ export default function LeadFeed() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {displayedLeads.length > 0 && (
-              <div style={{ background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', borderRadius: 20, padding: '7px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="hero-available-pill" style={{ background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', borderRadius: 20, padding: '7px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Zap size={13} /> {displayedLeads.length} Available
               </div>
             )}

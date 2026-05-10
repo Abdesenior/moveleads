@@ -415,6 +415,72 @@
    Default (desktop): hide the mobile list. Mobile media query inverts. */
 .leads-mobile-list { display: none; }
 
+/* Mobile-only marketplace stat — sits between the activation banner and
+   the page hero. Hidden on desktop where the inline orange pill carries
+   the same info next to the page H1. */
+.lead-count-mobile { display: none; }
+
+@media (max-width: 700px) {
+  /* Compact stat card: bold number on the left, label + live pulse on
+     the right. Less dominant than the page title (which still reads
+     "Live Leads Market" below this row). */
+  .lead-count-mobile {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    background: white;
+    border: 1px solid #e6ecf2;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+  .lead-count-number {
+    font-size: 26px;
+    font-weight: 800;
+    color: #ea580c;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .lead-count-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .lead-count-label {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.005em;
+  }
+  .lead-count-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #64748b;
+  }
+  .lead-count-status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18);
+    animation: leadCountPulse 2s ease-in-out infinite;
+  }
+  @keyframes leadCountPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+
+  /* Hide the inline orange "X Available" pill on mobile — the stat card
+     above carries the same metric in a calmer, more app-like form. */
+  .hero-available-pill { display: none !important; }
+}
+
 /* ── Mobile lead cards: pure div layout (no table inheritance) ───────────
    Below 700px we hide the desktop table entirely and show the
    .leads-mobile-list. This avoids every overflow class-of-bug that came
