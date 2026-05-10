@@ -554,8 +554,13 @@ export default function AdminLeads() {
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, minWidth: 150 }}>
           <option value="">All Status</option>
+          <option value="Pending Verification">Pending Verification</option>
+          <option value="READY_FOR_DISTRIBUTION">Ready for Distribution</option>
+          <option value="PENDING_MANUAL_REVIEW">Pending Manual Review</option>
+          <option value="REJECTED_FAKE">Rejected (Fake)</option>
           <option value="Available">Available</option>
           <option value="Purchased">Purchased</option>
+          <option value="Sold">Sold</option>
           <option value="Expired">Expired</option>
         </select>
       </div>

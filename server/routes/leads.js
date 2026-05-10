@@ -13,11 +13,13 @@ const { deductLeadBalance, runAutoRecharge } = require('../services/billingServi
 const { sendSpeedToLeadSMS } = require('../services/twilioService');
 const PlatformSettings = require('../models/PlatformSettings');
 const { validateLeadPayload } = require('../validators/leadIngest');
-const { sendReviewRequestEmail, sendAdminNotification } = require('../services/emailService');
+const { sendReviewRequestEmail, sendAdminNotification, sendDisputeApprovedEmail } = require('../services/emailService');
 const { verifyLeadPhone } = require('../services/twilioService');
 
 const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingEngine');
 const { calculateLeadScore } = require('../services/scoringService');
+const Transaction = require('../models/Transaction');
+const { logAdminAction } = require('../utils/auditLog');
 const zipcodes = require('zipcodes');
 
 /* ── Haversine distance (miles) between two lat/lon pairs ─────────────────── */
@@ -414,13 +416,40 @@ router.post('/', [auth, admin], async (req, res) => {
 // @route   PUT /api/leads/:id
 // @desc    Admin: Update lead
 // @access  Private (Admin)
+//
+// WP12.4b — Allowlist admin-writable fields. Previously the entire req.body
+// was spread into $set, which exposed lifecycle-critical fields (buyers,
+// bids, auctionStatus, auctionEndsAt, notifiedAt, winnerId, finalPrice,
+// sourceCompany). A typo in the admin UI could corrupt the auction state
+// machine or silently re-attribute revenue. Now we only allow a curated
+// set of editable fields.
+const ADMIN_LEAD_WRITABLE = [
+  'status', 'buyNowPrice', 'currentBidPrice', 'score', 'grade',
+  'customerName', 'customerPhone', 'customerEmail',
+  'originCity', 'originState', 'originZip',
+  'destinationCity', 'destinationState', 'destinationZip',
+  'homeSize', 'moveDate', 'distance', 'miles', 'specialInstructions',
+];
+
 router.put('/:id', [auth, admin], async (req, res) => {
   try {
     let lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
-    const update = { ...req.body };
-    if (update.price && !update.buyNowPrice) update.buyNowPrice = update.price;
+    // Build a clean update object from the allowlist only. Silently drop
+    // anything else — rejecting with 400 would surface as a confusing UX
+    // bug if the admin form ever submits an unmodified field.
+    const update = {};
+    for (const key of ADMIN_LEAD_WRITABLE) {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
+    }
+
+    // Backwards-compat: legacy admin UI submits `price`; treat it as buyNowPrice
+    // when buyNowPrice isn't explicitly set.
+    if (req.body.price !== undefined && update.buyNowPrice === undefined) {
+      update.buyNowPrice = req.body.price;
+    }
+
     if (update.moveDate) {
       // Treat plain YYYY-MM-DD as noon UTC so no timezone shifts the calendar day
       const raw = String(update.moveDate).trim();
@@ -437,17 +466,114 @@ router.put('/:id', [auth, admin], async (req, res) => {
 });
 
 // @route   DELETE /api/leads/:id
-// @desc    Admin: Delete a lead permanently
+// @desc    Admin: Delete a lead permanently (with refund cascade)
 // @access  Private (Admin)
+//
+// WP12.3 — Refund cascade: deleting a lead must reimburse every mover who
+// bought it. Previously, this route just dropped the Lead + PurchasedLead docs
+// and silently kept the mover's money. We now:
+//   1. Fetch all PurchasedLeads for this lead.
+//   2. For each non-refunded purchase, $inc the buyer's balance by pricePaid
+//      and write a 'Lead Refund' Transaction. The lead_refund_idempotency
+//      partial-unique index on Transaction { purchasedLead, type: 'Lead Refund' }
+//      ensures duplicate-key (E11000) → no-op, so a double-delete (or a prior
+//      admin refund) never double-credits the mover.
+//   3. Delete the Lead and PurchasedLead records.
+//   4. Audit row with refundedCount + refundedTotal in metadata.
 router.delete('/:id', [auth, admin], async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
+    // 1. Find all purchases for this lead.
+    const purchases = await PurchasedLead.find({ lead: req.params.id });
+
+    let refundedCount = 0;
+    let refundedTotal = 0;
+    const refundedCompanies = [];
+
+    for (const pl of purchases) {
+      // Skip if already refunded by admin/voice path.
+      if (pl.refunded === true) continue;
+
+      const refundAmount = Number(pl.pricePaid || 0);
+      if (!Number.isFinite(refundAmount) || refundAmount <= 0) continue;
+
+      try {
+        // Insert Transaction FIRST — the lead_refund_idempotency unique
+        // partial index is the strict gate. Duplicate key → already refunded
+        // via another path; skip the balance bump.
+        try {
+          await new Transaction({
+            user: pl.company,
+            type: 'Lead Refund',
+            amount: refundAmount,
+            description: `Admin lead deletion refund: lead ${req.params.id}`,
+            lead: pl.lead,
+            purchasedLead: pl._id,
+            status: 'Completed',
+          }).save();
+        } catch (txErr) {
+          if (txErr && txErr.code === 11000) {
+            // Already refunded — no-op, do not bump balance.
+            continue;
+          }
+          throw txErr;
+        }
+
+        // Atomic balance bump + flag flip — only runs if the Transaction
+        // insert above won the idempotency race.
+        const userAfter = await User.findByIdAndUpdate(
+          pl.company,
+          { $inc: { balance: refundAmount } },
+          { new: true }
+        ).select('balance email companyName');
+
+        await PurchasedLead.updateOne(
+          { _id: pl._id },
+          { $set: { refunded: true, refundedAt: new Date(), refundedBy: req.user.id } }
+        );
+
+        refundedCount += 1;
+        refundedTotal += refundAmount;
+        refundedCompanies.push({ company: pl.company, email: userAfter?.email, companyName: userAfter?.companyName, amount: refundAmount });
+      } catch (innerErr) {
+        // One bad refund must not block the rest. Logged for ops follow-up.
+        console.error('[Delete Lead] Refund failed for purchasedLead', pl._id, '-', innerErr.message);
+      }
+    }
+
+    // 2. Now delete the Lead + PurchasedLead docs.
     await Lead.findByIdAndDelete(req.params.id);
     await PurchasedLead.deleteMany({ lead: req.params.id });
 
-    res.json({ success: true, msg: 'Lead deleted successfully' });
+    // 3. Audit row.
+    logAdminAction({
+      actor: req.user.id,
+      action: 'lead.delete',
+      targetType: 'lead',
+      targetId: lead._id,
+      before: { status: lead.status, buyersCount: Array.isArray(lead.buyers) ? lead.buyers.length : 0 },
+      after: null,
+      metadata: { refundedCount, refundedTotal, route: lead.route },
+    });
+
+    // 4. Best-effort emails (reuse dispute-approved template — generic
+    //    "credit applied" copy fits the case). Non-blocking.
+    const route = lead.route || `${lead.originCity || ''} → ${lead.destinationCity || ''}`;
+    for (const r of refundedCompanies) {
+      if (!r.email) continue;
+      sendDisputeApprovedEmail({
+        toEmail: r.email,
+        companyName: r.companyName,
+        refundAmount: r.amount,
+        leadRoute: route,
+      }).catch(err => {
+        console.error('[Delete Lead] Refund email failed:', err.message);
+      });
+    }
+
+    res.json({ success: true, msg: 'Lead deleted successfully', refundedCount, refundedTotal });
   } catch (err) {
     console.error('[Delete Lead]', err.message);
     res.status(500).send('Server Error');
