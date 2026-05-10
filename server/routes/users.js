@@ -25,7 +25,7 @@ router.get('/', [auth, admin], async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   try {
     // If not admin, can only update own profile
-    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+    if (!['admin','super_admin'].includes(req.user.role) && req.user.id !== req.params.id) {
        return res.status(401).json({ msg: 'Not authorized' });
     }
 
