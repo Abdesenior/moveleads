@@ -1,0 +1,29 @@
+REPLACE_THIS_FILE_WITH_CONTENT_FROM_STRIPE_DASHBOARD
+
+Steps to complete Apple Pay domain verification:
+
+1. Open Stripe Dashboard (live mode):
+   https://dashboard.stripe.com/settings/payment_method_domains
+
+2. Click "Add a new domain" → enter: moveleads.cloud
+   (Repeat for www.moveleads.cloud if your production deploys to that hostname.)
+
+3. Stripe will display a long string (the merchant-id domain association
+   payload). Copy the ENTIRE contents — it should be a single multi-line
+   block of base64-looking text.
+
+4. Replace the entire contents of this file with that string. No extra
+   whitespace, no trailing newline issues, no quotes around it.
+
+5. Commit + push. Vercel will deploy and serve this file at:
+   https://moveleads.cloud/.well-known/apple-developer-merchantid-domain-association
+
+6. Back in Stripe Dashboard, click "Verify". On success, the domain status
+   flips to "Verified" and `availablePaymentMethods.applePay` will return
+   true on eligible Safari devices.
+
+This file MUST be served as plain text (Content-Type: text/plain) and the
+SPA rewrite in vercel.json MUST exclude /.well-known/* — both are already
+configured in this commit. Don't change vercel.json's rewrite without
+preserving the .well-known exclusion or Apple Pay verification will silently
+break again.
