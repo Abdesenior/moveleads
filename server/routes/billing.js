@@ -5,7 +5,11 @@ const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const stripeInit = () => require('stripe')(process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.trim() : '');
 const stripe = stripeInit();
-const { sendAdminNotification } = require('../services/emailService');
+const {
+  sendAdminNotification,
+  sendTopupReceiptEmail,
+  sendActivationReceiptEmail,
+} = require('../services/emailService');
 
 // @route   GET /api/billing/balance
 // @desc    Get user balance
@@ -145,6 +149,14 @@ async function applyOnboardingActivationCredit(paymentIntent) {
     `,
   }).catch(() => {});
 
+  // Mover-facing activation receipt. Best-effort — never block credit flow.
+  sendActivationReceiptEmail({
+    user: fresh,
+    amountPaid: selectedAmount,
+    balanceAfter: fresh.balance || 0,
+    isBonusPath: bonusCredits > 0,
+  }).catch(() => {});
+
   console.log(`[ApplyCredit] credited $${totalCredits} to ${userId} for PI ${paymentIntent.id}`);
   return { applied: true, alreadyProcessed: false, balance: fresh.balance || 0, totalCredits };
 }
@@ -281,8 +293,9 @@ async function applyTopUpCredit(paymentIntent) {
 
   // Insert Transaction first — unique index on stripePaymentIntentId is the
   // strict idempotency gate. E11000 race → treat as already-credited.
+  let topupTxn;
   try {
-    await new Transaction({
+    topupTxn = await new Transaction({
       user: userId,
       type: 'Credit Deposit',
       amount,
@@ -317,6 +330,14 @@ async function applyTopUpCredit(paymentIntent) {
       <p><strong>PaymentIntent:</strong> ${paymentIntent.id}</p>
       <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
     `,
+  }).catch(() => {});
+
+  // Mover-facing top-up receipt. Best-effort — never block credit flow.
+  sendTopupReceiptEmail({
+    user: fresh,
+    amount,
+    balanceAfter: fresh.balance || 0,
+    transactionId: topupTxn?._id?.toString(),
   }).catch(() => {});
 
   console.log(`[ApplyTopUp] credited $${amount} to ${userId} for PI ${paymentIntent.id}${isFirstTopup ? ' (first top-up)' : ''}`);

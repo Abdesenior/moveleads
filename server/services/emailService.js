@@ -11,6 +11,7 @@ const FROM     = process.env.EMAIL_FROM     || 'MoveLeads <support@moveleads.clo
 const REPLY_TO = process.env.EMAIL_REPLY_TO || 'support@moveleads.cloud';
 const SUPPORT  = process.env.EMAIL_SUPPORT  || 'support@moveleads.cloud';
 const BILLING  = process.env.EMAIL_BILLING  || 'billing@moveleads.cloud';
+const SUPPORT_PHONE = process.env.EMAIL_SUPPORT_PHONE || '+1 (307) 204-4792';
 
 /** Shared email footer HTML */
 function emailFooter({ billing = false } = {}) {
@@ -20,6 +21,7 @@ function emailFooter({ billing = false } = {}) {
         <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;text-align:center;">
           Questions? Email us at
           <a href="mailto:${SUPPORT}" style="color:#f97316;text-decoration:none;">${SUPPORT}</a>
+          or call <a href="tel:+13072044792" style="color:#f97316;text-decoration:none;">${SUPPORT_PHONE}</a>
         </p>
         ${billing ? `<p style="margin:0 0 6px;font-size:12px;color:#94a3b8;text-align:center;">Billing questions?
           <a href="mailto:${BILLING}" style="color:#f97316;text-decoration:none;">${BILLING}</a>
@@ -646,6 +648,7 @@ async function sendOnboardingRecovery12h(user) {
   `;
   return getResend().emails.send({
     from: 'MoveLeads <noreply@moveleads.cloud>',
+    replyTo: REPLY_TO,
     to: user.email,
     subject: `Your $50 onboarding credit is ready, ${user.companyName || 'mover'}`,
     html,
@@ -670,6 +673,7 @@ async function sendOnboardingRecovery24h(user) {
   `;
   return getResend().emails.send({
     from: 'MoveLeads <noreply@moveleads.cloud>',
+    replyTo: REPLY_TO,
     to: user.email,
     subject: `Movers in ${primary} are unlocking jobs`,
     html,
@@ -692,6 +696,7 @@ async function sendOnboardingRecovery72h(user) {
   `;
   return getResend().emails.send({
     from: 'MoveLeads Partner Team <noreply@moveleads.cloud>',
+    replyTo: REPLY_TO,
     to: user.email,
     subject: `Need help activating, ${user.companyName || 'mover'}?`,
     html,
@@ -717,6 +722,7 @@ async function sendOnboardingMidwizard12h(user) {
   `;
   return getResend().emails.send({
     from: 'MoveLeads <noreply@moveleads.cloud>',
+    replyTo: REPLY_TO,
     to: user.email,
     subject: `Your dispatch setup is half done, ${user.companyName || 'mover'}`,
     html,
@@ -741,6 +747,7 @@ async function sendOnboardingMidwizard24h(user) {
   `;
   return getResend().emails.send({
     from: 'MoveLeads <noreply@moveleads.cloud>',
+    replyTo: REPLY_TO,
     to: user.email,
     subject: `Verified moves are happening in ${primary}`,
     html,
@@ -763,6 +770,7 @@ async function sendOnboardingMidwizard72h(user) {
   `;
   return getResend().emails.send({
     from: 'MoveLeads Partner Team <noreply@moveleads.cloud>',
+    replyTo: REPLY_TO,
     to: user.email,
     subject: `Anything blocking your setup, ${user.companyName || 'mover'}?`,
     html,
@@ -787,6 +795,10 @@ async function sendMatchingLeadEmail({ toEmail, companyName, lead }) {
     from: FROM,
     to: toEmail,
     replyTo: REPLY_TO,
+    headers: {
+      'List-Unsubscribe': `<mailto:${SUPPORT}?subject=unsubscribe>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
     subject: `New move request: ${lead.originCity} → ${lead.destinationCity} · ${moveDateStr}`,
     html: `
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f8fafc;padding:24px 0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
@@ -913,6 +925,268 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
   }
 }
 
+/**
+ * Send a top-up receipt to the mover after a successful PaymentIntent.
+ * Mirrors the admin notification but addressed to the partner. Strictly a
+ * receipt — no marketing, no upsell.
+ */
+async function sendTopupReceiptEmail({ user, amount, balanceAfter, transactionId }) {
+  const appUrl = process.env.CLIENT_URL || 'https://moveleads.cloud';
+  const amt = Number(amount || 0);
+  const bal = Number(balanceAfter || 0);
+  const txnLine = transactionId ? `<p style="margin:0 0 4px;font-size:12px;color:#94a3b8;">Transaction: ${transactionId}</p>` : '';
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Top-up confirmed</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#0b1628 0%,#1a3154 100%);padding:32px 40px;">
+                  <p style="margin:0;font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
+                    MoveLeads<span style="color:#f97316;">.cloud</span>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#22c55e;padding:10px 40px;">
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">
+                    ✓ Top-up Confirmed
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px;">
+                  <p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f172a;">
+                    Thanks ${user.companyName || 'there'} — your top-up is in.
+                  </p>
+                  <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.6;">
+                    We received your payment of <strong>$${amt.toFixed(2)}</strong> and credited it to your MoveLeads balance. Your funds are available immediately — no waiting period.
+                  </p>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;margin-bottom:28px;">
+                    <tr>
+                      <td style="padding:20px 24px;">
+                        <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#16a34a;text-transform:uppercase;letter-spacing:0.5px;">Amount added</p>
+                        <p style="margin:0 0 12px;font-size:28px;font-weight:800;color:#15803d;">+$${amt.toFixed(2)}</p>
+                        <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#16a34a;text-transform:uppercase;letter-spacing:0.5px;">New balance</p>
+                        <p style="margin:0 0 4px;font-size:22px;font-weight:800;color:#0f172a;">$${bal.toFixed(2)}</p>
+                        ${txnLine}
+                      </td>
+                    </tr>
+                  </table>
+                  <a href="${appUrl}/dashboard/billing"
+                     style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px;letter-spacing:0.3px;">
+                    View Billing
+                  </a>
+                  <p style="margin:24px 0 0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                    This email is a receipt. Keep it for your records.
+                  </p>
+                </td>
+              </tr>
+              ${emailFooter({ billing: true })}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    replyTo: REPLY_TO,
+    to: [user.email],
+    subject: `Top-up confirmed — $${amt.toFixed(2)} added to MoveLeads`,
+    html,
+  });
+
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
+/**
+ * Send an activation receipt to the mover after a successful onboarding
+ * activation PaymentIntent. If isBonusPath is true, explicitly mentions the
+ * $50 + $50 onboarding credit. Otherwise just the paid amount.
+ */
+async function sendActivationReceiptEmail({ user, amountPaid, balanceAfter, isBonusPath }) {
+  const appUrl = process.env.CLIENT_URL || 'https://moveleads.cloud';
+  const paid = Number(amountPaid || 0);
+  const bal = Number(balanceAfter || 0);
+
+  const bonusBlock = isBonusPath
+    ? `<p style="margin:0 0 12px;font-size:14px;color:#15803d;font-weight:700;">$${paid.toFixed(2)} paid + $${paid.toFixed(2)} onboarding credit applied.</p>`
+    : `<p style="margin:0 0 12px;font-size:14px;color:#15803d;font-weight:700;">$${paid.toFixed(2)} paid and credited.</p>`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Activation confirmed</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#0b1628 0%,#1a3154 100%);padding:32px 40px;">
+                  <p style="margin:0;font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
+                    MoveLeads<span style="color:#f97316;">.cloud</span>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#22c55e;padding:10px 40px;">
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">
+                    ✓ Account Activated
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px;">
+                  <p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f172a;">
+                    You're activated, ${user.companyName || 'partner'}.
+                  </p>
+                  <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">
+                    Your MoveLeads account is live and ready for verified move requests in your service area.
+                  </p>
+                  ${bonusBlock}
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;margin-bottom:28px;">
+                    <tr>
+                      <td style="padding:20px 24px;">
+                        <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#16a34a;text-transform:uppercase;letter-spacing:0.5px;">Balance ready</p>
+                        <p style="margin:0;font-size:28px;font-weight:800;color:#15803d;">$${bal.toFixed(2)}</p>
+                        <p style="margin:6px 0 0;font-size:12px;color:#94a3b8;">Available now — no waiting period.</p>
+                      </td>
+                    </tr>
+                  </table>
+                  <a href="${appUrl}/dashboard/leads"
+                     style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px;letter-spacing:0.3px;">
+                    View Lead Feed
+                  </a>
+                  <p style="margin:24px 0 0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                    This email is your activation receipt. Keep it for your records.
+                  </p>
+                </td>
+              </tr>
+              ${emailFooter({ billing: true })}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    replyTo: REPLY_TO,
+    to: [user.email],
+    subject: `Activation confirmed — $${bal.toFixed(2)} balance ready`,
+    html,
+  });
+
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
+/**
+ * Send a welcome email after a new mover verifies their email. Confirms
+ * they're now an active partner and points them at next-step actions.
+ */
+async function sendWelcomeEmail(user) {
+  const appUrl = process.env.CLIENT_URL || 'https://moveleads.cloud';
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Welcome to MoveLeads</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#0b1628 0%,#1a3154 100%);padding:32px 40px;">
+                  <p style="margin:0;font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
+                    MoveLeads<span style="color:#f97316;">.cloud</span>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#f97316;padding:10px 40px;">
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">
+                    Welcome aboard
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px;">
+                  <p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f172a;">
+                    Welcome to MoveLeads, ${user.companyName || 'partner'}.
+                  </p>
+                  <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">
+                    Your email is verified and your partner account is live. Here is what to do next:
+                  </p>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                    <tr>
+                      <td style="padding:10px 0;font-size:14px;color:#0f172a;line-height:1.6;">
+                        <strong>1.</strong> Finish the onboarding wizard — set your service area, home-size mix, and dispatch hours.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;font-size:14px;color:#0f172a;line-height:1.6;">
+                        <strong>2.</strong> Claim your activation credit — $50 onboarding bonus on the $100 starter tier.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;font-size:14px;color:#0f172a;line-height:1.6;">
+                        <strong>3.</strong> Verified move requests start landing in your dashboard — first call wins.
+                      </td>
+                    </tr>
+                  </table>
+                  <a href="${appUrl}/dashboard/leads"
+                     style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px;letter-spacing:0.3px;">
+                    Go to Dashboard →
+                  </a>
+                  <p style="margin:24px 0 0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                    Partner reps respond Mon–Sat 8am–8pm CT. Reply to this email or call the number below — we're here to help you ramp up.
+                  </p>
+                </td>
+              </tr>
+              ${emailFooter()}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    replyTo: REPLY_TO,
+    to: [user.email],
+    subject: `Welcome to MoveLeads, ${user.companyName || 'partner'}`,
+    html,
+  });
+
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
 module.exports = {
   sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail,
   sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail,
@@ -920,4 +1194,5 @@ module.exports = {
   sendOnboardingRecovery12h, sendOnboardingRecovery24h, sendOnboardingRecovery72h,
   sendOnboardingMidwizard12h, sendOnboardingMidwizard24h, sendOnboardingMidwizard72h,
   sendMatchingLeadEmail, broadcastLeadEmail,
+  sendTopupReceiptEmail, sendActivationReceiptEmail, sendWelcomeEmail,
 };

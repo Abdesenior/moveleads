@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const PlatformSettings = require('../models/PlatformSettings');
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
+const { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } = require('../services/emailService');
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
@@ -189,6 +189,10 @@ router.get('/verify-email', async (req, res) => {
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     await user.save();
+
+    // Welcome email — fires the first time the user verifies. Best-effort,
+    // never block verification on email delivery.
+    sendWelcomeEmail(user).catch(() => {});
 
     // Issue JWT alongside the verified flag so a returning user (different
     // device, cleared cookies) lands authenticated and can be redirected
