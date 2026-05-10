@@ -731,6 +731,24 @@ export default function LeadFeed() {
                       {/* ── Move Date ── */}
                       <td className="col-date" style={{ padding: '18px 20px', fontSize: 13, color: '#475569', whiteSpace: 'nowrap' }}>
                         {fmtDate(lead.moveDate)}
+                        {/* Mobile-only inline urgency — replaces the urgency
+                            badges that get hidden in the tags row at <=700px. */}
+                        <span className="mobile-urgency-inline" aria-hidden="true">
+                          {(() => {
+                            if (isToday) return ' · Today';
+                            if (isAuction && lead.auctionEndsAt) {
+                              const diff = new Date(lead.auctionEndsAt) - Date.now();
+                              if (diff > 0) {
+                                const h = Math.floor(diff / 3600000);
+                                if (h >= 24) return ` · ${Math.floor(h / 24)}d left`;
+                                if (h >= 1)  return ` · ${h}h left`;
+                                return ' · Ending soon';
+                              }
+                            }
+                            if (isUrgent) return ' · Urgent';
+                            return '';
+                          })()}
+                        </span>
                       </td>
 
                       {/* ── Listed ── */}
@@ -773,24 +791,35 @@ export default function LeadFeed() {
                       {/* ── Action ── */}
                       <td className="col-action" style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {isAuction ? (
-                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <div className="cta-group" style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                             <button
+                              className="cta-bid"
                               onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); setBidLead(lead); }}
                               style={{ ...BTN_OUTLINE, padding: '8px 14px', fontSize: 12 }}>
-                              <Gavel size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Bid
+                              <Gavel size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                              <span className="cta-text-desktop">Bid</span>
+                              <span className="cta-text-mobile">Place bid</span>
                             </button>
                             <button
+                              className="cta-buy"
                               onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
                               disabled={claimingId === id}
                               style={{ ...BTN_PRIMARY, opacity: claimingId === id ? 0.6 : 1 }}>
-                              {claimingId === id ? 'Claiming…' : `Buy $${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›`}
+                              {claimingId === id ? 'Claiming…' : (
+                                <>
+                                  <span className="cta-text-desktop">Buy ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›</span>
+                                  <span className="cta-text-mobile">Unlock for ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}</span>
+                                </>
+                              )}
                             </button>
                           </div>
                         ) : (
                           <button
+                            className="cta-view"
                             onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); }}
                             style={{ ...BTN_PRIMARY }}>
-                            View ›
+                            <span className="cta-text-desktop">View ›</span>
+                            <span className="cta-text-mobile">View details</span>
                           </button>
                         )}
                       </td>

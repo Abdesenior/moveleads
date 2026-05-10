@@ -411,9 +411,11 @@
   .modal-actions { flex-direction: column; }
 }
 
-/* By default (desktop) hide the mobile-only price block. Inverted in the
-   mobile media query below. */
+/* By default (desktop) hide the mobile-only render variants. Inverted
+   in the mobile media query below. */
 .price-mobile { display: none; }
+.cta-text-mobile { display: none; }
+.mobile-urgency-inline { display: none; }
 
 /* ── Mobile leads table → marketplace card layout ──────────────────────────
    Mirrors patterns from Airbnb / Zillow / modern SaaS marketplaces:
@@ -463,10 +465,12 @@
     white-space: normal !important;
   }
 
-  /* Hide low-value / decorative tags on mobile. Keep urgency
-     (.tag-time-left, .tag-today, .tag-urgent) and match quality
-     (.tag-match) — those are the only signals that drive a buy decision. */
-  .lead-tag.tag-distance,
+  /* Mobile cap: max 2 badges per spec. Keep distance + match quality.
+     Urgency is moved INLINE into the specs row (.mobile-urgency-inline)
+     so the tag chip cluster stays calm. */
+  .lead-tag.tag-time-left,
+  .lead-tag.tag-today,
+  .lead-tag.tag-urgent,
   .lead-tag.tag-premium { display: none; }
 
   /* Listed-ago column hidden on mobile. */
@@ -525,55 +529,100 @@
     margin-top: 2px;
   }
 
-  /* CTA row: Bid + Unlock side-by-side, Unlock dominant. */
+  /* CTA: vertical stack on mobile. Buy/Unlock as full-width primary on top,
+     Bid as a small text-button below. Side-by-side caused intermittent
+     overflow because BTN_PRIMARY/BTN_OUTLINE inline styles use nowrap +
+     content-driven widths; vertical stacking removes that whole class of
+     bugs and produces a cleaner mobile thumb target. */
   .leads-table > tbody > tr.leads-row > td.col-action {
     display: block;
     margin-top: 10px;
     text-align: left !important;
     width: 100%;
+    box-sizing: border-box;
   }
-  /* Single button (View) — full width, contained in the card. */
+  .leads-table > tbody > tr.leads-row > td.col-action,
+  .leads-table > tbody > tr.leads-row > td.col-action > div,
+  .leads-table > tbody > tr.leads-row > td.col-action > button { max-width: 100%; }
+
+  /* Single button case (View on non-auction leads). */
   .leads-table > tbody > tr.leads-row > td.col-action > button {
+    display: flex !important;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    min-height: 44px;
+    min-height: 46px;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    font-size: 14px !important;
     justify-content: center;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  /* Auction: 2 buttons side-by-side, perfectly contained inside the card. */
-  .leads-table > tbody > tr.leads-row > td.col-action > div {
+
+  /* Auction case: stack column-reverse so Buy (rendered second) appears
+     ON TOP and Bid (rendered first) sits subtly below. */
+  .leads-table > tbody > tr.leads-row > td.col-action > div.cta-group {
     display: flex !important;
-    flex-direction: row !important;
-    gap: 8px !important;
+    flex-direction: column-reverse !important;
+    gap: 4px !important;
     align-items: stretch !important;
     justify-content: stretch !important;
     width: 100%;
-    /* min-width: 0 lets the flex container shrink to its parent's width
-       even when child buttons have whitespace:nowrap text — without this
-       Buy $15 was forcing the row past the card's right edge. */
     min-width: 0;
     box-sizing: border-box;
   }
-  .leads-table > tbody > tr.leads-row > td.col-action > div > button {
-    flex: 1 1 0;
-    /* Same min-width:0 here so each button can shrink to share row width
-       proportionally, even though BTN_PRIMARY/BTN_OUTLINE inline-style
-       buttons still keep nowrap text. The button stays readable; we just
-       allow it to shrink-fit instead of pushing the layout outward. */
+  /* Buy / Unlock — primary, full-width, dominant. */
+  .leads-table > tbody > tr.leads-row > td.col-action button.cta-buy {
+    width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    min-height: 44px;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+    min-height: 46px;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    display: flex !important;
     justify-content: center;
-    text-overflow: ellipsis;
+    align-items: center;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
-  /* Unlock (the second button) gets ~2x the visual weight of Bid. */
-  .leads-table > tbody > tr.leads-row > td.col-action > div > button:last-child {
-    flex: 2 1 0;
+  /* Bid — subtle text-button below the primary. No border, transparent bg,
+     muted color. Reads as a quiet alternative without competing with
+     the primary CTA. */
+  .leads-table > tbody > tr.leads-row > td.col-action button.cta-bid {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    box-sizing: border-box;
+    background: transparent !important;
+    border: none !important;
+    color: #64748b !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+  }
+  .leads-table > tbody > tr.leads-row > td.col-action button.cta-bid:hover {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+  }
+
+  /* Mobile/desktop text-variant switching inside CTAs. */
+  .cta-text-desktop { display: none !important; }
+  .cta-text-mobile { display: inline !important; }
+
+  /* Inline urgency text in the specs row (replaces the urgency badges). */
+  .mobile-urgency-inline {
+    display: inline;
+    color: #dc2626;
+    font-weight: 700;
   }
 }
 
