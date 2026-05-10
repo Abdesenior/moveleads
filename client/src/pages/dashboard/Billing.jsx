@@ -581,7 +581,8 @@ function TopUpPaymentModal({ amount, balance, API_URL, token, onClose, onSuccess
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>
-                Pay ${amount} — Add Credits
+                {/* TEST MODE: charged $1 in Stripe; credit = labeled amount */}
+                Pay $1 (TEST) — Add ${amount} Credits
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, margin: 0 }}>
                 Balance after: ${(balance + amount).toFixed(2)}
@@ -765,7 +766,8 @@ function TopUpPaymentForm({ amount, API_URL, token, onSuccess, onCancel }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >
-          <CreditCard size={16} /> {submitting ? 'Processing…' : `Pay $${amount}`}
+          {/* TEST MODE: Stripe will charge $1; credit = $${amount} */}
+          <CreditCard size={16} /> {submitting ? 'Processing…' : `Pay $1 (TEST)`}
         </button>
       </div>
     </form>
