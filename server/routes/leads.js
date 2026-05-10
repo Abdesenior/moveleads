@@ -279,10 +279,12 @@ router.get('/', auth, async (req, res) => {
 
     const leads = await Lead.find(query).sort({ createdAt: -1 }).lean();
 
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+
     // For non-admin users, annotate each lead with _matchesPreferences and
     // sort matched-first. The client uses this to drive the "Matched for
     // you" tab + a "Matches your setup" badge.
-    if (req.user.role !== 'admin') {
+    if (!isAdmin) {
       const me = await User.findById(req.user.id).select('maxDistance preferredHomeSizes').lean();
       const myZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
       const zipSet = new Set((myZips || []).map(z => String(z)));
@@ -292,6 +294,37 @@ router.get('/', auth, async (req, res) => {
       // Stable matched-first sort. Within each group, preserve the existing
       // createdAt-desc order from Mongo.
       leads.sort((a, b) => (b._matchesPreferences ? 1 : 0) - (a._matchesPreferences ? 1 : 0));
+    }
+
+    // ── PII redaction ─────────────────────────────────────────────────────────
+    // Customer contact/free-text fields must NEVER leak to non-buyers. A mover
+    // only earns access to customerName/phone/email/notes once they appear in
+    // lead.buyers. Admins see everything. Projection is unsafe here because
+    // some leads in this response ARE owned by req.user (matched via the
+    // 'buyers.company' branch of `query`) — so we post-process per-lead.
+    if (!isAdmin) {
+      const myId = String(req.user.id);
+      const redacted = leads.map(l => {
+        const isBuyer = Array.isArray(l.buyers) && l.buyers.some(b => b && b.company && String(b.company) === myId);
+        if (isBuyer) return l;
+        // Strip every customer-identifying / free-text field. Keep route,
+        // origin/destination city/state/zip, homeSize, moveDate, distance,
+        // score, grade, buyNowPrice, currentBidPrice, auctionEndsAt,
+        // _matchesPreferences, etc.
+        delete l.customerName;
+        delete l.customerPhone;
+        delete l.customerEmail;
+        delete l.specialInstructions;
+        delete l.customerNotes;
+        delete l.customerStatus;
+        delete l.statusHistory;
+        // No explicit street/address field in the schema, but redact defensively
+        // if older docs have one.
+        delete l.customerStreet;
+        delete l.customerAddress;
+        return l;
+      });
+      return res.json(redacted);
     }
 
     res.json(leads);
