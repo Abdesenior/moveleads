@@ -498,7 +498,20 @@ export default function SettingsPage() {
 
           {/* ── Service Areas tab (operating states) ── */}
           {activeTab === 'serviceAreas' && (
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+            <div
+              style={{
+                background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                // overflow stays visible so the absolute-positioned dropdown
+                // doesn't get clipped by the card's rounded boundary.
+                overflow: 'visible',
+                // Breathing room when the dropdown is open: pushes whatever
+                // sits below the section out of the way and gives the
+                // expanded state an intentional, premium feel.
+                marginBottom: stateMenuOpen ? 220 : 0,
+                transition: 'margin-bottom 0.2s cubic-bezier(0.16,1,0.3,1)',
+              }}
+            >
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
