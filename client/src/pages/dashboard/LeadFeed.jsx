@@ -186,35 +186,26 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
               </div>
             </div>
 
-            {/* Inline error — shown when claim/buy fails */}
-            {error && (
+            {/* Inline error — shown when claim/buy fails (other than the
+                insufficient-balance case, which is handled inline below). */}
+            {error && !(error.includes('balance') || error.includes('Insufficient')) && (
               <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600, marginBottom: error.includes('balance') || error.includes('Insufficient') ? 8 : 0 }}>
+                <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
                   {error}
                 </div>
-                {(error.includes('balance') || error.includes('Insufficient')) && (
-                  <button
-                    onClick={() => window.open('/dashboard/billing', '_blank')}
-                    style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Add Funds →
-                  </button>
-                )}
               </div>
             )}
 
             {balance < displayPrice ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600, marginBottom: 8 }}>
+                  Insufficient balance. Please add funds to your account.
+                </div>
                 <button
-                  onClick={() => {
-                    onClose();
-                    window.dispatchEvent(new CustomEvent('moveleads:open-activation'));
-                  }}
-                  style={{ width: '100%', background: '#ff6a14', color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 800, cursor: 'pointer', boxShadow: '0 10px 26px rgba(255, 106, 20, 0.28)' }}>
-                  🔒 Activate balance to unlock →
+                  onClick={() => window.open('/dashboard/billing', '_blank')}
+                  style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Add Funds →
                 </button>
-                <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-                  Claim your $50 onboarding credit to unlock this lead.
-                </p>
               </div>
             ) : isAuction ? (
               <div style={{ display: 'flex', gap: 10 }}>
