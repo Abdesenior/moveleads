@@ -4,7 +4,7 @@
   "framework": null,
   "rewrites": [
     {
-      "source": "/((?!assets/|\\.well-known/|.*\\.[a-zA-Z0-9]+$).*)",
+      "source": "/((?!assets/|api/|\\.well-known/|.*\\.[a-zA-Z0-9]+$).*)",
       "destination": "/index.html"
     }
   ],
@@ -21,13 +21,13 @@
     {
       "source": "/",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
       ]
     },
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
       ]
     },
     {
@@ -37,11 +37,10 @@
       ]
     },
     {
-      "source": "/.well-known/(.*)",
+      "source": "/.well-known/apple-developer-merchantid-domain-association",
       "headers": [
         { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=300" },
-        { "key": "X-Frame-Options", "value": "" }
+        { "key": "Cache-Control", "value": "public, max-age=300" }
       ]
     }
   ]
