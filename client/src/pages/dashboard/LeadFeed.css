@@ -411,5 +411,81 @@
   .modal-actions { flex-direction: column; }
 }
 
+/* ── Mobile leads table → card layout ───────────────────────────────────────
+   Below 700px the desktop table would force horizontal scrolling. Restyle
+   it into stacked cards: route + tags up top, size/date inline below,
+   price + action button on the bottom row. The Listed-time column is
+   hidden on mobile. The whole row remains tappable (handled in JSX with
+   onClick on the <tr>) so the user can open the preview modal by tapping
+   anywhere on the card; the explicit Buy / View / Bid button still works
+   independently via stopPropagation. */
+@media (max-width: 700px) {
+  .leads-table-wrap {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+  .leads-table,
+  .leads-table > tbody,
+  .leads-table > tbody > tr,
+  .leads-table > tbody > tr > td {
+    display: block;
+    width: 100%;
+  }
+  .leads-table > thead { display: none; }
+
+  .leads-table > tbody > tr.leads-row {
+    background: white;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  }
+
+  .leads-table > tbody > tr.leads-row > td {
+    padding: 0 !important;
+    text-align: left !important;
+    white-space: normal !important;
+  }
+
+  /* Listed-ago column is the lowest-value info; hide on mobile to save space. */
+  .leads-table > tbody > tr.leads-row > td.col-listed { display: none; }
+
+  /* Route stays on its own row at the top of the card. */
+  .leads-table > tbody > tr.leads-row > td.col-route { margin-bottom: 10px; }
+
+  /* Size + Date sit inline below the route as a meta row. */
+  .leads-table > tbody > tr.leads-row > td.col-size,
+  .leads-table > tbody > tr.leads-row > td.col-date {
+    display: inline-block;
+    margin-right: 16px;
+    font-size: 12.5px;
+  }
+
+  /* Bottom row: price on the left, Buy / View on the right. */
+  .leads-table > tbody > tr.leads-row > td.col-price {
+    display: inline-block;
+    margin-top: 12px;
+    vertical-align: middle;
+  }
+  .leads-table > tbody > tr.leads-row > td.col-action {
+    display: inline-block;
+    float: right;
+    margin-top: 8px;
+    text-align: right !important;
+  }
+  .leads-table > tbody > tr.leads-row > td.col-action button {
+    min-height: 40px; /* touch target */
+  }
+
+  /* Force any tap-highlight overrides to behave on iOS Safari. */
+  .leads-table > tbody > tr.leads-row {
+    -webkit-tap-highlight-color: rgba(255, 106, 20, 0.10);
+  }
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

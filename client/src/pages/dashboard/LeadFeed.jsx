@@ -644,8 +644,8 @@ export default function LeadFeed() {
             <p>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'Try a different search or filter.' : "We'll alert you the moment a verified request matches your setup."}</p>
           </div>
         ) : (
-          <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="leads-table-wrap" style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
+            <table className="leads-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                   {[
@@ -680,12 +680,14 @@ export default function LeadFeed() {
                   return (
                     <tr
                       key={id}
-                      style={{ borderBottom: i < displayedLeads.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.12s' }}
+                      className="leads-row"
+                      style={{ borderBottom: i < displayedLeads.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.12s', cursor: 'pointer' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#fafbff'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      onClick={() => { setClaimError(''); setPreviewLead(lead); }}
                     >
                       {/* ── Route ── */}
-                      <td style={{ padding: '18px 20px' }}>
+                      <td className="col-route" style={{ padding: '18px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 7 }}>
                           <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{lead.originZip || '—'}</div>
@@ -719,7 +721,7 @@ export default function LeadFeed() {
                       </td>
 
                       {/* ── Est. Size ── */}
-                      <td style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
+                      <td className="col-size" style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 13, fontWeight: 600 }}>
                           <Package size={14} color="#94a3b8" />
                           {lead.homeSize || '—'}
@@ -727,12 +729,12 @@ export default function LeadFeed() {
                       </td>
 
                       {/* ── Move Date ── */}
-                      <td style={{ padding: '18px 20px', fontSize: 13, color: '#475569', whiteSpace: 'nowrap' }}>
+                      <td className="col-date" style={{ padding: '18px 20px', fontSize: 13, color: '#475569', whiteSpace: 'nowrap' }}>
                         {fmtDate(lead.moveDate)}
                       </td>
 
                       {/* ── Listed ── */}
-                      <td style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
+                      <td className="col-listed" style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#94a3b8', fontSize: 13 }}>
                           <Clock size={13} />
                           {timeAgo(lead.createdAt)}
@@ -740,7 +742,7 @@ export default function LeadFeed() {
                       </td>
 
                       {/* ── Price ── */}
-                      <td style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
+                      <td className="col-price" style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
                         <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a' }}>
                           ${displayPrice.toFixed ? displayPrice.toFixed(2) : displayPrice}
                         </div>
@@ -753,16 +755,16 @@ export default function LeadFeed() {
                       </td>
 
                       {/* ── Action ── */}
-                      <td style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td className="col-action" style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {isAuction ? (
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                             <button
-                              onClick={() => { setClaimError(''); setPreviewLead(lead); setBidLead(lead); }}
+                              onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); setBidLead(lead); }}
                               style={{ ...BTN_OUTLINE, padding: '8px 14px', fontSize: 12 }}>
                               <Gavel size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Bid
                             </button>
                             <button
-                              onClick={() => { setClaimError(''); handleBuyNow(lead); }}
+                              onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
                               disabled={claimingId === id}
                               style={{ ...BTN_PRIMARY, opacity: claimingId === id ? 0.6 : 1 }}>
                               {claimingId === id ? 'Claiming…' : `Buy $${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›`}
@@ -770,7 +772,7 @@ export default function LeadFeed() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => { setClaimError(''); setPreviewLead(lead); }}
+                            onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); }}
                             style={{ ...BTN_PRIMARY }}>
                             View ›
                           </button>
