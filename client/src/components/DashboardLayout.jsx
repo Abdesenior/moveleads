@@ -9,6 +9,7 @@ import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
 import VerificationBanner from './VerificationBanner';
 import ActivationBanner from './ActivationBanner';
+import FirstTopupReassurancePopup from './FirstTopupReassurancePopup';
 import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
 import SidebarTooltip from './SidebarTooltip';
 import '../dashboard.css';
@@ -44,6 +45,13 @@ export default function DashboardLayout({ children }) {
   const [wizardInitialStep, setWizardInitialStep] = useState(null);
   const [showActivationSuccess, setShowActivationSuccess] = useState(false);
 
+  // First-balance-event reassurance popup. Triggered by the user's onboarding
+  // state (firstTopupAt set, firstTopupPopupShownAt null) — fires once per
+  // user across activation OR top-up. Once it mounts we mark it seen
+  // server-side so refresh/relog/future top-ups never re-trigger.
+  const [showFirstTopupPopup, setShowFirstTopupPopup] = useState(false);
+  const firstTopupHandledRef = React.useRef(false);
+
   // Show wizard for partner users who haven't completed onboarding. Delay
   // the auto-mount by ~3s so the dashboard has a moment to render and the
   // user sees their account land before the wizard takes over. Deep-link
@@ -64,6 +72,35 @@ export default function DashboardLayout({ children }) {
     const t = setTimeout(() => setShowWizard(true), 3000);
     return () => clearTimeout(t);
   }, [user]);
+
+  // First-balance-event popup trigger. Fires 3s after the dashboard renders
+  // for a user whose onboarding has firstTopupAt stamped but no
+  // firstTopupPopupShownAt. The mark-seen POST happens at the same instant
+  // we open the popup so a refresh during the 3s window won't double-trigger
+  // and a refresh AFTER the popup is open won't re-show it.
+  useEffect(() => {
+    if (firstTopupHandledRef.current) return;
+    if (!user) return;
+    if (user.role === 'admin' || user.role === 'super_admin') return;
+    const ob = user.onboarding;
+    if (!ob?.firstTopupAt) return;
+    if (ob.firstTopupPopupShownAt) return;
+
+    firstTopupHandledRef.current = true;
+    const timer = setTimeout(async () => {
+      setShowFirstTopupPopup(true);
+      try {
+        await fetch(`${API_URL}/onboarding/mark-first-topup-popup-seen`, {
+          method: 'POST',
+          headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        });
+        if (refreshUser) refreshUser();
+      } catch (_err) { /* non-blocking — server is the source of truth */ }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [user, API_URL, token, refreshUser]);
+
+  const dismissFirstTopupPopup = () => setShowFirstTopupPopup(false);
 
   // Banner CTA → reopen wizard at the balance picker (internal step 5 in the
   // current wizard: Dispatch=1, Coverage=2, Alerts=3, SetupComplete=4 [skipped
@@ -361,6 +398,7 @@ export default function DashboardLayout({ children }) {
 
       {showWizard && <OnboardingWizard onClose={handleCloseWizard} initialStep={wizardInitialStep} />}
       {showActivationSuccess && <ActivationSuccessModal onClose={handleCloseActivationSuccess} />}
+      {showFirstTopupPopup && <FirstTopupReassurancePopup onClose={dismissFirstTopupPopup} />}
     </div>
   );
 }

@@ -284,6 +284,15 @@ async function applyOnboardingActivationCredit(paymentIntent) {
     { $set: { 'onboarding.activatedAt': new Date() } }
   );
 
+  // Activation IS the partner's first balance event. Stamp firstTopupAt so
+  // the post-first-balance reassurance popup fires on the dashboard after
+  // the activation success screen — same trigger field the top-up flow uses.
+  // Conditional ensures it only stamps the very first time.
+  await User.updateOne(
+    { _id: userId, 'onboarding.firstTopupAt': null },
+    { $set: { 'onboarding.firstTopupAt': new Date() } }
+  );
+
   // Mark onboarding complete (in case user paid before clicking Confirm Setup).
   await User.updateOne(
     { _id: userId, 'onboarding.complete': { $ne: true } },
@@ -544,18 +553,15 @@ router.post('/verify-topup-intent', auth, async (req, res) => {
     }
 
     const result = await applyTopUpCredit(intent);
-    const user = await User.findById(req.user.id).select('balance onboarding.firstTopupAt onboarding.firstTopupPopupShownAt');
-    // Show the reassurance popup once: when this is the first top-up AND
-    // the popup hasn't already been marked seen for this user.
-    const showFirstTopupPopup =
-      !!user?.onboarding?.firstTopupAt &&
-      !user?.onboarding?.firstTopupPopupShownAt;
+    const user = await User.findById(req.user.id).select('balance');
+    // The reassurance popup is owned by DashboardLayout, which watches
+    // user.onboarding.firstTopupAt / firstTopupPopupShownAt directly via
+    // refreshUser — so we don't need to surface a flag here.
     return res.json({
       applied: result.applied,
       alreadyProcessed: result.alreadyProcessed,
       balance: user.balance || 0,
       amount: result.amount,
-      showFirstTopupPopup,
     });
   } catch (err) {
     console.error('[VerifyTopUpIntent]', err);

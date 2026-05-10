@@ -124,43 +124,21 @@ export default function Billing() {
     } catch (err) { console.error(err); }
   };
 
-  const [showFirstTopupPopup, setShowFirstTopupPopup] = useState(false);
-  const firstTopupTimerRef = useRef(null);
-
   const openTopUp = (amount) => {
     setConfirmAmount(null);
     setTopUpAmount(amount);
   };
 
-  const handleTopUpSuccess = async (info = {}) => {
+  // First-top-up reassurance popup is owned by DashboardLayout — it watches
+  // user.onboarding state. The refreshUser() inside TopUpPaymentForm flips
+  // firstTopupAt → DashboardLayout schedules the popup automatically.
+  const handleTopUpSuccess = async () => {
     setTopUpAmount(null);
     setShowSuccess(true);
     setBalancePulse(true);
     setTimeout(() => setShowSuccess(false), 5000);
     setTimeout(() => setBalancePulse(false), 3000);
     fetchBilling();
-    if (info.showFirstTopupPopup) {
-      if (firstTopupTimerRef.current) clearTimeout(firstTopupTimerRef.current);
-      firstTopupTimerRef.current = setTimeout(() => {
-        setShowFirstTopupPopup(true);
-      }, 3000);
-    }
-  };
-
-  useEffect(() => () => {
-    if (firstTopupTimerRef.current) clearTimeout(firstTopupTimerRef.current);
-  }, []);
-
-  const dismissFirstTopupPopup = async () => {
-    setShowFirstTopupPopup(false);
-    try {
-      await fetch(`${API_URL}/onboarding/mark-first-topup-popup-seen`, {
-        method: 'POST',
-        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-      });
-    } catch (_err) {
-      // Non-blocking — server is the source of truth, retry on next session if needed.
-    }
   };
 
   const toggleSort = (key) => {
@@ -519,10 +497,6 @@ export default function Billing() {
         />
       )}
 
-      {showFirstTopupPopup && (
-        <FirstTopupReassurancePopup onClose={dismissFirstTopupPopup} />
-      )}
-
       <style>{`
         @keyframes blSlideIn  { from { opacity:0; transform:translateX(40px) } to { opacity:1; transform:translateX(0) } }
         @keyframes blPulse    { 0%,100% { transform:scale(1) } 50% { transform:scale(1.04) } }
@@ -671,19 +645,19 @@ function TopUpPaymentForm({ amount, API_URL, token, onSuccess, onCancel }) {
         return;
       }
       if (paymentIntent && paymentIntent.status === 'succeeded') {
-        let verifyData = null;
         try {
-          const verifyRes = await fetch(`${API_URL}/billing/verify-topup-intent`, {
+          await fetch(`${API_URL}/billing/verify-topup-intent`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
             body: JSON.stringify({ paymentIntentId: paymentIntent.id }),
           });
-          verifyData = await verifyRes.json().catch(() => null);
         } catch (_verifyErr) {
           // Webhook will catch up — non-blocking.
         }
+        // refreshUser pulls fresh onboarding state — DashboardLayout watches
+        // user.onboarding.firstTopupAt and schedules the reassurance popup.
         if (refreshUser) await refreshUser();
-        if (onSuccess) onSuccess({ showFirstTopupPopup: !!verifyData?.showFirstTopupPopup });
+        if (onSuccess) onSuccess();
         return;
       }
       setPaymentErr(`Payment ended in unexpected status: ${paymentIntent?.status || 'unknown'}.`);
@@ -769,91 +743,5 @@ function TopUpPaymentForm({ amount, API_URL, token, onSuccess, onCancel }) {
         </button>
       </div>
     </form>
-  );
-}
-
-// ── First top-up reassurance popup — one-time, X-only dismiss ───────────────
-function FirstTopupReassurancePopup({ onClose }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="first-topup-popup-title"
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(10,25,47,0.7)', backdropFilter: 'blur(12px)',
-        // Sits above the top-up modal (10001) and the dashboard sticky header.
-        zIndex: 10050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-        animation: 'blFadeIn 0.25s ease',
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        style={{
-          background: '#fff', borderRadius: 22, width: '100%', maxWidth: 460,
-          maxHeight: '92vh', overflow: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.25)',
-          animation: 'blScaleIn 0.3s cubic-bezier(0.16,1,0.3,1)',
-          position: 'relative',
-        }}
-      >
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          type="button"
-          style={{
-            position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: 10,
-            background: '#f1f5f9', border: 'none', color: '#475569', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1,
-          }}
-        >
-          <X size={18} />
-        </button>
-
-        <div style={{ padding: '34px 28px 32px' }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 14,
-            background: 'linear-gradient(135deg,#fff7ed,#ffedd5)',
-            border: '1px solid #fed7aa',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 20,
-          }}>
-            <CheckCircle size={26} color="#ea580c" />
-          </div>
-
-          <h2
-            id="first-topup-popup-title"
-            style={{
-              margin: '0 0 22px', fontSize: 22, fontWeight: 800, color: '#0f172a',
-              fontFamily: 'var(--font-heading)', letterSpacing: -0.3, lineHeight: 1.2,
-            }}
-          >
-            Your balance is ready
-          </h2>
-
-          <p style={{ margin: '0 0 18px', fontSize: 15, lineHeight: 1.55, color: '#1f2937' }}>
-            We recommend waiting for{' '}
-            <span style={{ color: '#ea580c', fontWeight: 700 }}>fresh new moving leads</span>{' '}
-            entering your market.
-          </p>
-
-          <p style={{ margin: '0 0 18px', fontSize: 15, lineHeight: 1.55, color: '#1f2937' }}>
-            You'll be notified when{' '}
-            <span style={{ color: '#ea580c', fontWeight: 700 }}>matching opportunities</span>{' '}
-            become available.
-          </p>
-
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#475569' }}>
-            No worries: onboarding lead credits stay{' '}
-            <span style={{ color: '#ea580c', fontWeight: 700 }}>refundable</span>{' '}
-            if a lead becomes unreachable.
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }
