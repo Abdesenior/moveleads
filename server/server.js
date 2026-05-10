@@ -1,4 +1,10 @@
 require('dotenv').config();
+
+if (!process.env.JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET is not set. Refusing to start.');
+  process.exit(1);
+}
+
 console.log('SERVER VERSION: import-fix-v4', new Date().toISOString());
 const express = require('express');
 const cors = require('cors');
@@ -35,7 +41,7 @@ app.use(cors({
 
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
-app.use(express.json({ extended: false }));
+app.use(express.json({ limit: '100kb' }));
 
 app.use(requestLogger);
 app.use(responseTimeMiddleware());
