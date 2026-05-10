@@ -465,20 +465,33 @@
     font-size: 12.5px;
   }
 
-  /* Bottom row: price on the left, Buy / View on the right. */
+  /* Stack price → action vertically. Price sits as a full-width row, then
+     the Buy / View / Bid button(s) span the full card width below it. */
   .leads-table > tbody > tr.leads-row > td.col-price {
-    display: inline-block;
+    display: block;
     margin-top: 12px;
-    vertical-align: middle;
   }
   .leads-table > tbody > tr.leads-row > td.col-action {
-    display: inline-block;
-    float: right;
-    margin-top: 8px;
-    text-align: right !important;
+    display: block;
+    margin-top: 10px;
+    text-align: left !important;
   }
-  .leads-table > tbody > tr.leads-row > td.col-action button {
-    min-height: 40px; /* touch target */
+  /* Action button(s) go full-width on mobile for clean thumb targeting. */
+  .leads-table > tbody > tr.leads-row > td.col-action > button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+  /* Auction case renders TWO buttons (Bid + Buy) — stack them too. */
+  .leads-table > tbody > tr.leads-row > td.col-action > div {
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+  .leads-table > tbody > tr.leads-row > td.col-action > div > button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
   }
 
   /* Force any tap-highlight overrides to behave on iOS Safari. */
