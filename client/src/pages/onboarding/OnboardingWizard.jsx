@@ -1017,7 +1017,7 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/dashboard/leads?payment=success`,
+          return_url: `${window.location.origin}/dashboard/leads?onboarding=success`,
         },
         redirect: 'if_required',
       });
