@@ -411,20 +411,165 @@
   .modal-actions { flex-direction: column; }
 }
 
-/* By default (desktop) hide the mobile-only render variants. Inverted
-   in the mobile media query below. */
+/* The mobile lead-card list is rendered alongside the desktop table.
+   Default (desktop): hide the mobile list. Mobile media query inverts. */
+.leads-mobile-list { display: none; }
+
+/* ── Mobile lead cards: pure div layout (no table inheritance) ───────────
+   Below 700px we hide the desktop table entirely and show the
+   .leads-mobile-list. This avoids every overflow class-of-bug that came
+   from <td> + whitespace:nowrap + content-box sizing. Each card is a
+   simple <article> with width:100%, box-sizing:border-box and predictable
+   flex layout. */
+@media (max-width: 700px) {
+  .leads-table-wrap { display: none !important; }
+  .leads-mobile-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .lm-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(255, 106, 20, 0.10);
+    overflow: hidden;
+  }
+
+  .lm-route-row {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; min-width: 0;
+  }
+  .lm-route-zip {
+    display: flex; flex-direction: column;
+    min-width: 0; flex: 1 1 0;
+  }
+  .lm-zip {
+    font-size: 17px; font-weight: 800; color: #0f172a; line-height: 1.1;
+    letter-spacing: -0.005em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .lm-city {
+    font-size: 11.5px; color: #94a3b8; font-weight: 500;
+    margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .lm-arrow {
+    flex-shrink: 0;
+    color: #cbd5e1; font-size: 16px; font-weight: 300;
+  }
+
+  .lm-tags {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    margin-top: 8px;
+  }
+  .lm-tag {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.005em;
+    white-space: nowrap;
+  }
+  .lm-tag-local {
+    background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
+  }
+  .lm-tag-ld {
+    background: #f0f4ff; color: #3b5bdb; border: 1px solid #c5d3ff;
+  }
+  .lm-tag-match {
+    background: rgba(255, 106, 20, 0.10); color: #ea580c;
+    border: 1px solid rgba(255, 106, 20, 0.30);
+    font-weight: 800;
+  }
+
+  .lm-specs {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 10px;
+    font-size: 12.5px; color: #475569; font-weight: 500;
+  }
+  .lm-specs .lm-sep {
+    color: #cbd5e1; font-weight: 800;
+    margin: 0 2px;
+  }
+  .lm-urgency {
+    color: #dc2626; font-weight: 700;
+  }
+
+  .lm-price {
+    display: inline-flex; align-items: baseline; gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+    width: 100%;
+  }
+  .lm-price-amount {
+    font-size: 22px; font-weight: 800; color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+  .lm-price-label {
+    font-size: 11px; font-weight: 700; color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .lm-bid-caption {
+    margin-top: 2px;
+    font-size: 12.5px; font-weight: 600; color: #16a34a;
+  }
+
+  .lm-cta-primary {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-top: 12px;
+    padding: 13px 14px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f59e0b, #ea580c);
+    color: white;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(234, 88, 12, 0.20);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lm-cta-primary:disabled { opacity: 0.6; cursor: wait; }
+  .lm-cta-primary:hover:not(:disabled) {
+    box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
+  }
+
+  .lm-cta-secondary {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-top: 6px;
+    padding: 9px 14px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  .lm-cta-secondary:hover {
+    background: #f8fafc;
+    color: #0f172a;
+  }
+}
+
+/* ── (Old) mobile table-on-mobile overrides — DEAD on mobile because
+       the wrap is hidden. Kept harmless in case any in-flight session
+       still has the old structure cached. */
 .price-mobile { display: none; }
 .cta-text-mobile { display: none; }
 .mobile-urgency-inline { display: none; }
 
-/* ── Mobile leads table → marketplace card layout ──────────────────────────
-   Mirrors patterns from Airbnb / Zillow / modern SaaS marketplaces:
-     - Route + match indicator dominate the top
-     - Compact specs row (size · date · time-left) for fast scanning
-     - Unlock price visually dominant; current bid secondary
-     - Side-by-side Bid / Unlock buttons with Unlock dominant
-   Decorative tags (Local/Long Distance, Premium) are hidden on mobile to
-   reduce noise — desktop keeps them. */
 @media (max-width: 700px) {
   .leads-table-wrap {
     background: transparent !important;

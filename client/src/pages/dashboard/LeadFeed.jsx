@@ -644,6 +644,7 @@ export default function LeadFeed() {
             <p>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'Try a different search or filter.' : "We'll alert you the moment a verified request matches your setup."}</p>
           </div>
         ) : (
+          <>
           <div className="leads-table-wrap" style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
             <table className="leads-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -829,6 +830,118 @@ export default function LeadFeed() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile card list — completely separate from the desktop table.
+              CSS hides one or the other per breakpoint so neither layout
+              has to fight inherited <td> rules. Buying/bidding actions
+              call the exact same handlers as the desktop table rows. */}
+          <div className="leads-mobile-list" role="list">
+            {displayedLeads.map((lead) => {
+              const id        = (lead._id || lead.id)?.toString();
+              const isAuction = lead.auctionStatus === 'active';
+              const isLD      = lead.distance === 'Long Distance';
+              const daysToMove = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
+              const isToday   = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
+              const isUrgent  = daysToMove > 1 && daysToMove <= 7;
+              const currentBid = lead.currentBidPrice || 0;
+              const buyNowPrice = getLeadPrice(lead);
+              const startingBid = lead.startingBidPrice || buyNowPrice;
+
+              // Inline urgency text (replaces the urgency badges).
+              let urgencyText = '';
+              if (isToday) urgencyText = 'Today';
+              else if (isAuction && lead.auctionEndsAt) {
+                const diff = new Date(lead.auctionEndsAt) - Date.now();
+                if (diff > 0) {
+                  const h = Math.floor(diff / 3600000);
+                  if (h >= 24) urgencyText = `${Math.floor(h / 24)}d left`;
+                  else if (h >= 1) urgencyText = `${h}h left`;
+                  else urgencyText = 'Ending soon';
+                }
+              } else if (isUrgent) urgencyText = 'Urgent';
+
+              return (
+                <article
+                  key={id}
+                  role="listitem"
+                  className="lm-card"
+                  onClick={() => { setClaimError(''); setPreviewLead(lead); }}
+                >
+                  {/* Route */}
+                  <div className="lm-route-row">
+                    <div className="lm-route-zip">
+                      <span className="lm-zip">{lead.originZip || '—'}</span>
+                      <span className="lm-city">{lead.originCity}</span>
+                    </div>
+                    <span className="lm-arrow" aria-hidden="true">→</span>
+                    <div className="lm-route-zip">
+                      <span className="lm-zip">{lead.destinationZip || '—'}</span>
+                      <span className="lm-city">{lead.destinationCity}</span>
+                    </div>
+                  </div>
+
+                  {/* Badges (max 2) */}
+                  <div className="lm-tags">
+                    <span className={`lm-tag${isLD ? ' lm-tag-ld' : ' lm-tag-local'}`}>
+                      {isLD ? 'Long Distance' : 'Local'}
+                    </span>
+                    {lead._matchesPreferences && (
+                      <span className="lm-tag lm-tag-match">✓ Matches your setup</span>
+                    )}
+                  </div>
+
+                  {/* Specs row */}
+                  <div className="lm-specs">
+                    <Package size={13} color="#94a3b8" style={{ flexShrink: 0 }} />
+                    <span>{lead.homeSize || '—'}</span>
+                    <span className="lm-sep">·</span>
+                    <span>{fmtDate(lead.moveDate)}</span>
+                    {urgencyText && (
+                      <>
+                        <span className="lm-sep">·</span>
+                        <span className="lm-urgency">{urgencyText}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Price */}
+                  <div className="lm-price">
+                    <span className="lm-price-amount">${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}</span>
+                    <span className="lm-price-label">unlock</span>
+                  </div>
+                  {isAuction && (
+                    <div className="lm-bid-caption">
+                      {currentBid > 0
+                        ? `Current bid $${currentBid.toFixed ? currentBid.toFixed(2) : currentBid}`
+                        : `Starting bid $${startingBid.toFixed ? startingBid.toFixed(2) : startingBid}`}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <button
+                    type="button"
+                    className="lm-cta-primary"
+                    onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
+                    disabled={claimingId === id}
+                  >
+                    {claimingId === id
+                      ? 'Claiming…'
+                      : `Unlock for $${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}`}
+                  </button>
+                  {isAuction && (
+                    <button
+                      type="button"
+                      className="lm-cta-secondary"
+                      onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); setBidLead(lead); }}
+                    >
+                      Place bid
+                    </button>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
 
