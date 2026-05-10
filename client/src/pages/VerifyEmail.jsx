@@ -7,11 +7,12 @@ import '../auth.css';
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  const { API_URL, login } = useContext(AuthContext);
+  const { API_URL, login, user, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [status, setStatus]       = useState('loading'); // 'loading' | 'success' | 'error' | 'resending' | 'resent'
   const [message, setMessage]     = useState('');
+  const [redirectTarget, setRedirectTarget] = useState('/dashboard/leads');
   const [resendEmail, setResendEmail] = useState('');
   const [resendError, setResendError] = useState('');
 
@@ -24,26 +25,46 @@ export default function VerifyEmail() {
 
     fetch(`${API_URL}/auth/verify-email?token=${encodeURIComponent(token)}`)
       .then(r => r.json())
-      .then(data => {
+      .then(async data => {
         if (data.code) {
           setStatus('error');
           setMessage(data.msg || 'Verification failed. The link may be invalid or expired.');
           return;
         }
         setStatus('success');
-        setMessage(data.msg || 'Email verified successfully!');
-        // Server now issues a JWT alongside verification. If we got one, log
-        // the user in and redirect to the marketplace.
+        setMessage('Email verified! Redirecting to your dashboard…');
+
+        // ── WP-A5 — Post-verification redirect ──
+        // Server issues a JWT alongside verification. Three cases:
+        //  1. Server returned token+user → log in fresh; redirect to dashboard.
+        //  2. Already logged in (token in localStorage) → refresh user state
+        //     so isEmailVerified flips locally; redirect to dashboard.
+        //  3. Not logged in, no token returned → redirect to /login.
         if (data.token && data.user) {
           login(data.token, data.user);
+          setRedirectTarget('/dashboard/leads');
           setTimeout(() => navigate('/dashboard/leads'), 800);
+        } else if (user) {
+          // Logged in via existing token — pull fresh user state.
+          if (refreshUser) {
+            try { await refreshUser(); } catch { /* non-fatal */ }
+          }
+          setRedirectTarget('/dashboard/leads');
+          setTimeout(() => navigate('/dashboard/leads'), 800);
+        } else {
+          setMessage('Email verified! Please log in to continue.');
+          setRedirectTarget('/login');
+          setTimeout(() => navigate('/login', {
+            state: { message: 'Email verified — please log in.' }
+          }), 1200);
         }
       })
       .catch(() => {
         setStatus('error');
         setMessage('Something went wrong. Please try again later.');
       });
-  }, [token, API_URL, login, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, API_URL]);
 
   const handleResend = async (e) => {
     e.preventDefault();
@@ -100,13 +121,13 @@ export default function VerifyEmail() {
               <CheckCircle2 size={32} />
             </div>
             <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
-              Verification Successful!
+              Email verified!
             </h1>
             <p style={{ color: '#475569', fontSize: 16, lineHeight: 1.7, marginBottom: 32, maxWidth: 380 }}>
-              Your email has been verified. You can now log in and start receiving leads.
+              {message}
             </p>
-            <Link to="/login" className="auth-btn" style={{ display: 'inline-flex', textDecoration: 'none', maxWidth: 280 }}>
-              Go to Login <ArrowRight size={18} />
+            <Link to={redirectTarget} className="auth-btn" style={{ display: 'inline-flex', textDecoration: 'none', maxWidth: 280 }}>
+              {redirectTarget === '/login' ? 'Go to login' : 'Continue to dashboard'} <ArrowRight size={18} />
             </Link>
           </div>
         )}

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
 import { ButtonSpinner } from '../components/ui/Loading';
-import { CheckCircle2, Zap, Shield, Clock, ArrowRight, Lock, ShieldCheck, CreditCard, Mail } from 'lucide-react';
+import { CheckCircle2, Zap, Shield, Clock, ArrowRight, Lock, ShieldCheck, CreditCard, Mail, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import '../auth.css';
 
 export default function Register() {
@@ -12,6 +12,10 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   const navigate = useNavigate();
   const { login, API_URL } = useContext(AuthContext);
@@ -36,6 +40,29 @@ export default function Register() {
 
   const handlePhoneInput = (e) => {
     setFormData(prev => ({ ...prev, phone: formatPhone(e.target.value) }));
+  };
+
+  const handleResend = async () => {
+    if (!formData.email || resendLoading) return;
+    setResendLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      if (res.ok) {
+        setResendSuccess(true);
+        toast.success('Email sent', 'Verification link has been re-sent to your inbox');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error('Failed to send', data.msg || 'Please try again in a few minutes');
+      }
+    } catch {
+      toast.error('Failed to send', 'Please try again');
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -88,15 +115,18 @@ export default function Register() {
       }
 
       // Auto-login: backend now issues a JWT at register so the new partner
-      // lands straight in the wizard. Verification stays as an in-app banner.
+      // is authenticated immediately. We DON'T navigate yet — instead we show
+      // a "check your inbox" splash so they understand verification is required
+      // for activation. They CAN proceed to dashboard (token is set), but the
+      // wizard auto-mount + activation are gated on isEmailVerified.
       if (data.token && data.user) {
         login(data.token, data.user);
-        toast.success('Account created', 'Welcome — let’s set up your dispatch routing.');
-        navigate('/dashboard/leads');
+        setRegistrationSuccess(true);
+        toast.success('Account created!', 'Please check your email to verify your account');
         return;
       }
 
-      // Fallback (server still in old behavior): show check-your-email screen.
+      // Fallback (server in old behavior, no auto-login): show same splash.
       setRegistrationSuccess(true);
       toast.success('Account created!', 'Please check your email to verify your account');
     } catch (err) {
@@ -211,17 +241,46 @@ export default function Register() {
                 <Mail size={32} />
               </div>
               <h1 style={{ fontSize: 26, marginBottom: 12, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
-                Account Created!
+                Check your inbox
               </h1>
-              <p style={{ color: '#475569', fontSize: 16, lineHeight: 1.7, marginBottom: 8, maxWidth: 380 }}>
-                Please check your email to verify your account before logging in.
+              <p style={{ color: '#475569', fontSize: 16, lineHeight: 1.7, marginBottom: 10, maxWidth: 420 }}>
+                We sent a verification link to <strong style={{ color: '#0f172a' }}>{formData.email}</strong>.
+                Click it to claim your <strong style={{ color: '#ea580c' }}>$50 onboarding credit</strong> and unlock activation.
               </p>
-              <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 32 }}>
-                We sent a verification link to <strong style={{ color: '#0f172a' }}>{formData.email}</strong>
+              <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.6, marginBottom: 24, maxWidth: 420 }}>
+                Don't see it? Check your <strong>spam</strong> or <strong>promotions</strong> folder.
+                Still nothing? Email <a href="mailto:support@moveleads.cloud" style={{ color: '#ea580c', textDecoration: 'none', fontWeight: 600 }}>support@moveleads.cloud</a>.
               </p>
-              <Link to="/login" className="auth-btn" style={{ display: 'inline-flex', textDecoration: 'none', maxWidth: 280 }}>
-                Go to Login <ArrowRight size={18} />
-              </Link>
+              {resendSuccess ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#15803d', fontWeight: 600, fontSize: 14, marginBottom: 20 }}>
+                  <CheckCircle2 size={16} />
+                  Verification link re-sent — check your inbox.
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                  className="resend-btn"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    background: 'transparent', border: '1px solid #ea580c', color: '#ea580c',
+                    padding: '10px 18px', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                    cursor: resendLoading ? 'wait' : 'pointer', marginBottom: 20,
+                  }}
+                >
+                  {resendLoading ? <ButtonSpinner /> : <RefreshCw size={16} />}
+                  {resendLoading ? 'Sending…' : 'Resend verification email'}
+                </button>
+              )}
+              <div style={{ marginTop: 4 }}>
+                <Link
+                  to="/dashboard/leads"
+                  style={{ color: '#94a3b8', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}
+                >
+                  Continue to dashboard →
+                </Link>
+              </div>
             </div>
           ) : (
             <>
@@ -327,11 +386,61 @@ export default function Register() {
                 </div>
                 <div className="form-group">
                   <label>Password</label>
-                  <input type="password" name="password" value={formData.password} onChange={handleInput} required className="form-input" placeholder="••••••••" />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPwd ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInput}
+                      required
+                      className="form-input"
+                      placeholder="••••••••"
+                      style={{ paddingRight: 44 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd(s => !s)}
+                      aria-label={showPwd ? 'Hide password' : 'Show password'}
+                      style={{
+                        position: 'absolute', right: 12, top: '50%',
+                        transform: 'translateY(-50%)', background: 'transparent',
+                        border: 'none', cursor: 'pointer', color: '#94a3b8',
+                        display: 'inline-flex', alignItems: 'center',
+                        justifyContent: 'center', padding: 4,
+                      }}
+                    >
+                      {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Confirm Password</label>
-                  <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleInput} required className="form-input" placeholder="••••••••" />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPwd ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInput}
+                      required
+                      className="form-input"
+                      placeholder="••••••••"
+                      style={{ paddingRight: 44 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPwd(s => !s)}
+                      aria-label={showConfirmPwd ? 'Hide password' : 'Show password'}
+                      style={{
+                        position: 'absolute', right: 12, top: '50%',
+                        transform: 'translateY(-50%)', background: 'transparent',
+                        border: 'none', cursor: 'pointer', color: '#94a3b8',
+                        display: 'inline-flex', alignItems: 'center',
+                        justifyContent: 'center', padding: 4,
+                      }}
+                    >
+                      {showConfirmPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 16 }}>
                   <button type="button" className="secondary-btn" onClick={() => setStep(1)} style={{ flex: 1, padding: 14, justifyContent: 'center' }}>Back</button>

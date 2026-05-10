@@ -62,6 +62,11 @@ export default function DashboardLayout({ children }) {
     if (!user) return;
     if (user.role === 'admin' || user.role === 'super_admin') return;
     if (user.onboarding?.complete) return;
+    // WP-A4 — gate auto-mount on email verification. Unverified users see
+    // the dashboard (Lead Feed, Settings, Profile) but the activation wizard
+    // must NOT auto-mount — they have to verify their email first. The
+    // ActivationBanner handles the verification CTA in this state.
+    if (user.isEmailVerified !== true) return;
 
     // First-time visit: no stored preference yet → start collapsed.
     if (localStorage.getItem('sidebarCollapsed') === null) {

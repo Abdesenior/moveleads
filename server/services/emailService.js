@@ -151,14 +151,17 @@ async function sendVerificationEmail({ toEmail, companyName, token }) {
                   <p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f172a;">
                     Welcome to MoveLeads, ${companyName}!
                   </p>
-                  <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.6;">
-                    Thanks for signing up. Please verify your email address to activate your account and start receiving moving leads.
+                  <p style="margin:0 0 28px;font-size:16px;color:#0f172a;line-height:1.6;font-weight:600;">
+                    Verify your email to claim your <span style="color:#ea580c;">$50 free credit</span> and start booking jobs.
                   </p>
                   <a href="${verifyUrl}"
                      style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 36px;border-radius:10px;letter-spacing:0.3px;">
-                    Verify My Email
+                    Verify my email
                   </a>
-                  <p style="margin:28px 0 8px;font-size:13px;color:#64748b;">
+                  <p style="margin:20px 0 8px;font-size:13px;color:#475569;line-height:1.6;">
+                    If you don't see this email, please check your <strong>spam</strong> or <strong>promotions</strong> folder.
+                  </p>
+                  <p style="margin:20px 0 8px;font-size:13px;color:#64748b;">
                     Or copy and paste this link into your browser:
                   </p>
                   <p style="margin:0 0 28px;font-size:12px;color:#94a3b8;word-break:break-all;">
@@ -183,7 +186,7 @@ async function sendVerificationEmail({ toEmail, companyName, token }) {
     from: FROM,
     replyTo: REPLY_TO,
     to: [toEmail],
-    subject: 'Verify your MoveLeads Account',
+    subject: 'Verify your MoveLeads account',
     html,
   });
 

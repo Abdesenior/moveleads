@@ -175,7 +175,17 @@ router.post('/create-payment-intent', auth, async (req, res) => {
     }
     const stripe = stripeInit();
 
-    const userDoc = await User.findById(req.user.id).select('onboarding');
+    // ── WP-A4 — defense-in-depth email-verification gate ──
+    // Even if the client somehow bypasses the wizard auto-mount gate, we
+    // refuse to mint an activation PaymentIntent for an unverified user.
+    const userDoc = await User.findById(req.user.id).select('onboarding isEmailVerified');
+    if (!userDoc) return res.status(401).json({ msg: 'User not found' });
+    if (userDoc.isEmailVerified !== true) {
+      return res.status(403).json({
+        msg: 'Please verify your email before activating. Check your inbox (and spam folder) for the verification link.',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
+    }
     const isBonusTier = amount === 100;
     const eligibleForBonus = !!userDoc && !userDoc.onboarding?.bonusClaimedAt && isBonusTier;
     const bonusCredits = eligibleForBonus ? 50 : 0;
@@ -357,6 +367,18 @@ router.post('/create-topup-intent', auth, async (req, res) => {
       return res.status(500).json({ msg: 'Payment configuration error' });
     }
     const stripe = stripeInit();
+
+    // ── WP-A4 — top-ups also gated on email verification (cheap defense). ──
+    // Top-ups are typically post-activation, so by the time someone hits this
+    // they should already be verified — but block to be safe.
+    const userDoc = await User.findById(req.user.id).select('isEmailVerified');
+    if (!userDoc) return res.status(401).json({ msg: 'User not found' });
+    if (userDoc.isEmailVerified !== true) {
+      return res.status(403).json({
+        msg: 'Please verify your email before adding funds. Check your inbox (and spam folder) for the verification link.',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
+    }
 
     const intent = await stripe.paymentIntents.create({
       amount: amount * 100, // Stripe uses cents

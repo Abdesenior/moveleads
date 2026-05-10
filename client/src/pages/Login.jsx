@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Zap, CheckCircle, Lock, Mail, RefreshCw } from 'lucide-react';
+import { Shield, Zap, CheckCircle, Lock, Mail, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
 import { ButtonSpinner } from '../components/ui/Loading';
@@ -9,6 +9,7 @@ import '../auth.css';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [unverified, setUnverified] = useState(false);
@@ -182,7 +183,38 @@ export default function Login() {
             
             <div className="form-group" style={{ marginBottom: '8px' }}>
               <label>Password</label>
-              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required className="form-input" placeholder="••••••••" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  value={password}
+                  onChange={e=>setPassword(e.target.value)}
+                  required
+                  className="form-input"
+                  placeholder="••••••••"
+                  style={{ paddingRight: 44 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(s => !s)}
+                  aria-label={showPwd ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#94a3b8',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 4,
+                  }}
+                >
+                  {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
             
             <div style={{ textAlign: 'right', marginBottom: '32px' }}>
