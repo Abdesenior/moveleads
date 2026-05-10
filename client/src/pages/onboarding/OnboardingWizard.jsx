@@ -542,7 +542,7 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
         </div>
         {pickup.mode === 'states' && baseReady && (
           <p className="ow-states-note" role="note">
-            You can configure additional states later from your dashboard settings.
+            You can add more operating states later in Settings → Service Areas.
           </p>
         )}
       </div>
@@ -630,7 +630,7 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
         </div>
         {delivery.mode === 'states' && (
           <p className="ow-states-note" role="note">
-            You can configure additional delivery states later from your dashboard settings.
+            You can add more operating states later in Settings → Service Areas.
           </p>
         )}
       </div>

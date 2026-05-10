@@ -1,8 +1,9 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus, Star, ExternalLink } from 'lucide-react';
+import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus, Star, ExternalLink, Globe } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
+import { US_STATES } from '../../data/usStates';
 
 /* ── iOS-style toggle switch ── */
 function Toggle({ on, onChange }) {
@@ -104,6 +105,7 @@ function ZipTagInput({ tags, onAdd, onRemove }) {
 
 const TABS = [
   { id: 'notifications', label: 'Notifications',   icon: Bell },
+  { id: 'serviceAreas',  label: 'Service Areas',   icon: Globe },
   { id: 'coverage',      label: 'Coverage Areas',  icon: MapPin },
   { id: 'preferences',   label: 'Lead Preferences', icon: Filter },
   { id: 'profile',       label: 'Profile',          icon: Star },
@@ -126,6 +128,14 @@ export default function SettingsPage() {
   const [coverageZips, setCoverageZips] = useState(user?.serviceAreas || []);
   const [coverageSaving, setCoverageSaving] = useState(false);
   const [coverageMsg, setCoverageMsg] = useState('');
+
+  /* Service Areas (operating states) */
+  const [serviceStates, setServiceStates] = useState(user?.serviceStates || []);
+  const [statesSaving, setStatesSaving]   = useState(false);
+  const [statesMsg, setStatesMsg]         = useState('');
+  const [stateMenuOpen, setStateMenuOpen] = useState(false);
+  const [stateQuery, setStateQuery]       = useState('');
+  const stateMenuRef = useRef(null);
 
   /* Lead Preferences */
   const [homeSizePref, setHomeSizePref] = useState(() => {
@@ -203,8 +213,22 @@ export default function SettingsPage() {
     setSmsNotif(user.smsNotif ?? false);
     setReceiveLiveTransfers(user.receiveLiveTransfers ?? false);
     setProfilePhone(user.phone || '');
+    setServiceStates(Array.isArray(user.serviceStates) ? user.serviceStates : []);
     didInit.current = true;
   }, [user?._id]); // eslint-disable-line
+
+  /* Close the "Add state" dropdown when clicking outside */
+  useEffect(() => {
+    if (!stateMenuOpen) return;
+    const onDocClick = (e) => {
+      if (stateMenuRef.current && !stateMenuRef.current.contains(e.target)) {
+        setStateMenuOpen(false);
+        setStateQuery('');
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [stateMenuOpen]);
 
   /* Auto-save notifications — skips the initial sync fire */
   useEffect(() => {
@@ -251,6 +275,46 @@ export default function SettingsPage() {
     const next = coverageZips.filter(z => z !== zip);
     setCoverageZips(next);
     saveCoverageZips(next);
+  };
+
+  /* Service Areas (operating states) — save and add/remove handlers.
+     Persists to User.serviceStates via the standard self-update endpoint;
+     the server mirrors the value to onboarding.answers.pickup.states and
+     regenerates CoverageArea docs in the background. */
+  const saveServiceStates = async (next) => {
+    setStatesSaving(true);
+    setStatesMsg('');
+    try {
+      const res = await fetch(`${API_URL}/users/${user._id}`, {
+        method: 'PUT',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceStates: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.msg || 'Failed to save');
+      await refreshUser();
+      setStatesMsg('Service areas saved.');
+      setTimeout(() => setStatesMsg(''), 3000);
+    } catch (err) {
+      setStatesMsg('Failed to save: ' + (err.message || 'unknown error'));
+    } finally {
+      setStatesSaving(false);
+    }
+  };
+
+  const addServiceState = (code) => {
+    if (!code || serviceStates.includes(code)) return;
+    const next = [...serviceStates, code];
+    setServiceStates(next);
+    saveServiceStates(next);
+    setStateMenuOpen(false);
+    setStateQuery('');
+  };
+
+  const removeServiceState = (code) => {
+    const next = serviceStates.filter(s => s !== code);
+    setServiceStates(next);
+    saveServiceStates(next);
   };
 
   const saveLeadPreferences = async () => {
@@ -424,6 +488,151 @@ export default function SettingsPage() {
                 <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
                   Changes are saved automatically when you toggle.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Service Areas tab (operating states) ── */}
+          {activeTab === 'serviceAreas' && (
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Globe size={16} color="#ea580c" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>Operating States</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8' }}>States where your crews operate</div>
+                  </div>
+                </div>
+                {statesSaving && <span style={{ fontSize: 11, color: '#94a3b8', background: '#f1f5f9', padding: '3px 10px', borderRadius: 6 }}>Saving…</span>}
+              </div>
+
+              <div style={{ padding: '24px' }}>
+                {/* Chip row */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+                  {serviceStates.length === 0 && (
+                    <span style={{ fontSize: 13, color: '#94a3b8' }}>No states added yet.</span>
+                  )}
+                  {serviceStates.map(code => {
+                    const rec = US_STATES.find(s => s.code === code);
+                    const label = rec ? `${rec.name} (${rec.code})` : code;
+                    return (
+                      <span
+                        key={code}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa',
+                          borderRadius: 9999, padding: '6px 8px 6px 14px',
+                          fontSize: 13, fontWeight: 700,
+                        }}
+                      >
+                        {label}
+                        <button
+                          type="button"
+                          aria-label={`Remove ${rec?.name || code}`}
+                          onClick={() => removeServiceState(code)}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer', color: '#fb923c',
+                            padding: 0, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 32, height: 32, borderRadius: 9999,
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    );
+                  })}
+
+                  {/* Add state affordance + dropdown */}
+                  <div ref={stateMenuRef} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setStateMenuOpen(o => !o)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: '#ea580c', border: 'none', borderRadius: 9999,
+                        padding: '8px 14px', minHeight: 32,
+                        fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        boxShadow: '0 2px 6px rgba(234,88,12,0.25)',
+                      }}
+                    >
+                      <Plus size={13} /> Add state
+                    </button>
+                    {stateMenuOpen && (
+                      <div
+                        style={{
+                          position: 'absolute', zIndex: 20, top: 'calc(100% + 6px)', left: 0,
+                          width: 260, maxHeight: 320, overflow: 'hidden',
+                          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+                          boxShadow: '0 10px 30px rgba(15,23,42,0.12)',
+                          display: 'flex', flexDirection: 'column',
+                        }}
+                      >
+                        <input
+                          autoFocus
+                          type="text"
+                          value={stateQuery}
+                          onChange={e => setStateQuery(e.target.value)}
+                          placeholder="Search state…"
+                          style={{
+                            border: 'none', borderBottom: '1px solid #f1f5f9',
+                            padding: '10px 14px', fontSize: 13, outline: 'none',
+                            fontFamily: 'inherit',
+                          }}
+                        />
+                        <div style={{ overflowY: 'auto', flex: 1 }}>
+                          {US_STATES
+                            .filter(s => !serviceStates.includes(s.code))
+                            .filter(s => {
+                              const q = stateQuery.trim().toLowerCase();
+                              if (!q) return true;
+                              return s.name.toLowerCase().includes(q) || s.code.toLowerCase() === q;
+                            })
+                            .map(s => (
+                              <button
+                                key={s.code}
+                                type="button"
+                                onClick={() => addServiceState(s.code)}
+                                style={{
+                                  display: 'block', width: '100%', textAlign: 'left',
+                                  padding: '10px 14px', border: 'none', background: '#fff',
+                                  fontSize: 13, color: '#0f172a', cursor: 'pointer',
+                                  fontFamily: 'inherit',
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = '#fff7ed')}
+                                onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                              >
+                                <span style={{ fontWeight: 600 }}>{s.name}</span>
+                                <span style={{ color: '#94a3b8', marginLeft: 8, fontSize: 12 }}>{s.code}</span>
+                              </button>
+                            ))}
+                          {US_STATES.filter(s => !serviceStates.includes(s.code)).length === 0 && (
+                            <div style={{ padding: '14px', fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
+                              All states added.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
+                  Select the states where you operate. Used to match leads in those markets.
+                </p>
+
+                {statesMsg && (
+                  <div style={{
+                    marginTop: 14, padding: '10px 14px', borderRadius: 10,
+                    background: statesMsg.startsWith('Failed') ? '#fee2e2' : '#dcfce7',
+                    color: statesMsg.startsWith('Failed') ? '#dc2626' : '#16a34a',
+                    fontSize: 13, fontWeight: 700,
+                  }}>
+                    {statesMsg.startsWith('Failed') ? '✕' : '✓'} {statesMsg}
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -6,6 +6,18 @@ const bcrypt = require('bcryptjs');
 const Lead = require('../models/Lead');
 const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
+const { regenerateCoverageForUser_v2 } = require('../utils/coverageExpansion');
+
+// Canonical 50 US states + DC. Matches client/src/data/usStates.js. Used to
+// validate `serviceStates` in self-update payloads — unknown codes are
+// silently dropped (defensive) and we cap at 50 entries to bound impact.
+const VALID_STATE_CODES = new Set([
+  'AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN',
+  'IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH',
+  'NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT',
+  'VT','VA','WA','WV','WI','WY',
+]);
+const MAX_SERVICE_STATES = 50;
 
 // @route   GET /api/users
 // @desc    Admin: Get all users
@@ -38,7 +50,60 @@ router.put('/:id', auth, async (req, res) => {
     const { role, balance, isSuspended, password, isEmailVerified,
             emailVerificationToken, resetPasswordToken, ...safeBody } = req.body;
 
+    // ── serviceStates validation + canonical mirror ────────────────────────
+    // Source of truth for "what states does this mover operate in" is
+    // User.serviceStates. Coverage regen (regenerateCoverageForUser_v2) reads
+    // pickup/delivery from onboarding.answers, so we mirror serviceStates →
+    // onboarding.answers.pickup.states (mode='states') so the existing
+    // coverage helper produces the right ZIP set without a refactor.
+    let serviceStatesChanged = false;
+    let nextServiceStates = null;
+    if ('serviceStates' in safeBody) {
+      const raw = safeBody.serviceStates;
+      if (!Array.isArray(raw)) {
+        return res.status(400).json({ msg: 'serviceStates must be an array of state codes' });
+      }
+      // Normalize, dedupe, drop unknowns, cap.
+      const cleaned = [];
+      const seen = new Set();
+      for (const v of raw) {
+        if (typeof v !== 'string') continue;
+        const code = v.trim().toUpperCase();
+        if (!VALID_STATE_CODES.has(code)) continue; // silently drop
+        if (seen.has(code)) continue;
+        seen.add(code);
+        cleaned.push(code);
+        if (cleaned.length >= MAX_SERVICE_STATES) break;
+      }
+      safeBody.serviceStates = cleaned;
+      nextServiceStates = cleaned;
+      const prev = Array.isArray(user.serviceStates) ? user.serviceStates : [];
+      const same = prev.length === cleaned.length && prev.every((c, i) => c === cleaned[i]);
+      serviceStatesChanged = !same;
+
+      // Mirror into onboarding.answers.pickup.states so coverageExpansion
+      // (which reads pickup.states/delivery.states) regenerates correctly.
+      if (serviceStatesChanged && cleaned.length > 0) {
+        safeBody['onboarding.answers.pickup.mode']    = 'states';
+        safeBody['onboarding.answers.pickup.states']  = cleaned;
+      }
+    }
+
     user = await User.findByIdAndUpdate(req.params.id, { $set: safeBody }, { returnDocument: 'after' }).select('-password');
+
+    // Best-effort coverage regen: don't block the response. If it fails the
+    // user can still toggle states again or wait for the next save.
+    if (serviceStatesChanged && nextServiceStates && nextServiceStates.length > 0) {
+      const dispatchBase = user?.onboarding?.answers?.dispatchBase || {};
+      const delivery     = user?.onboarding?.answers?.delivery     || { mode: 'same', states: [] };
+      regenerateCoverageForUser_v2(
+        user._id,
+        dispatchBase,
+        { mode: 'states', states: nextServiceStates },
+        delivery,
+      ).catch(err => console.error('[Coverage] regen failed:', err.message));
+    }
+
     res.json(user);
   } catch (err) {
     console.error('[PUT /users/:id]', err.message);
