@@ -41,7 +41,7 @@ const LeadSchema = new mongoose.Schema({
       pricePaid:   { type: Number, default: 0 },
     }
   ],
-  maxBuyers:      { type: Number, default: 3 },
+  maxBuyers:      { type: Number, default: 1 },
   sourceCompany:  { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
   source:         { type: String },
   verifiedBy:     { type: String },
