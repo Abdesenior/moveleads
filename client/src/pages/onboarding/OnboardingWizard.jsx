@@ -144,19 +144,20 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // a11y: ESC closes the wizard. Steps 4 (setup-complete) and 5 (activate)
-  // already have explicit dismiss controls via `dismissSkip`; steps 1-3
-  // (data-entry) and 7 (success) had no close affordance — ESC now provides
-  // one. We default to the skip path so the user is never trapped.
+  // Onboarding is mandatory. ESC only escapes once the user has reached the
+  // offer/activate step (step 5) — earlier steps (data-entry + setup-complete
+  // celebration) cannot be dismissed by keyboard. Mid-payment (step 6) and
+  // success (step 7) also stay non-ESC-dismissable to avoid accidental aborts.
   useEffect(() => {
+    if (step < 5 || step > 5) return; // ESC only on step 5
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
-      dismissSkip();
+      dismissAndClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [step]);
 
   // Track the visual viewport on mobile so the modal stays sized correctly
   // when the iOS keyboard opens (keyboard reduces visualViewport.height but
@@ -265,28 +266,17 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
-  const completeCalledRef = useRef(false);
-  async function callComplete() {
-    try {
-      await fetch(`${API_URL}/onboarding/complete`, {
-        method: 'POST',
-        headers: { 'x-auth-token': localStorage.getItem('token') || '' },
-      });
-    } catch (err) {
-      console.error('[OnboardingWizard] complete failed:', err);
-    }
-  }
-
   async function next() {
     if (saving) return;
     setSaveError('');
     setSaving(true);
     try {
       await saveStep(step);
-      if (step === 3 && !completeCalledRef.current) {
-        completeCalledRef.current = true;
-        await callComplete();
-      }
+      // Onboarding is mandatory until activation. We DO NOT call
+      // /onboarding/complete here — `complete: true` is set server-side only
+      // by applyOnboardingActivationCredit when the user actually claims
+      // the credit. Marking complete after step 3 would let users dismiss
+      // from the offer step and never see onboarding again.
       if (step < 3) {
         setStep(step + 1);
       } else if (step === 3) {
@@ -311,8 +301,12 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
-  // Setup-complete → Activate transition. No save needed.
-  function continueToActivate() {
+  // Setup-complete → Activate transition. Persist currentStep=5 so a
+  // dismissal here (or a logout) resumes at the offer step on next login.
+  // Step 5 is the only step where the user is allowed to dismiss the
+  // wizard, and we want them to come back exactly there.
+  async function continueToActivate() {
+    try { await saveStep(5); } catch (err) { console.error('[OnboardingWizard] saveStep(5) failed:', err); }
     setStep(5);
   }
 
@@ -340,13 +334,13 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
-  async function dismissSkip() {
-    try {
-      await fetch(`${API_URL}/onboarding/skip`, {
-        method: 'POST',
-        headers: { 'x-auth-token': localStorage.getItem('token') || '' },
-      });
-    } catch { /* swallow */ }
+  // Mandatory-onboarding dismissal. The user has reached the offer/activate
+  // step (step 5) and chosen to defer activation. We do NOT call
+  // /onboarding/skip (which would stamp `complete: true` and prevent the
+  // wizard from remounting). Instead we just close the wizard locally.
+  // Server already holds `currentStep` and `complete: false`, so the
+  // DashboardLayout auto-mount effect re-opens the wizard on next login.
+  async function dismissAndClose() {
     if (refreshUser) await refreshUser();
     onClose && onClose();
   }
@@ -378,11 +372,13 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
       <div className="ow-blur" />
       <div className="ow-modal" style={{ position: 'relative' }}>
-        <button
+        {/* X button only appears once the user reaches step 5 (offer/activate).
+            Earlier steps are mandatory — no dismiss surface. */}
+        {step === 5 && <button
           type="button"
           className="ow-close"
           aria-label="Close"
-          onClick={dismissSkip}
+          onClick={dismissAndClose}
           style={{
             position: 'absolute', top: 14, right: 14,
             width: 44, height: 44, borderRadius: 12,
@@ -393,7 +389,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           }}
         >
           <X size={18} />
-        </button>
+        </button>}
         {showProgress && (
           <div
             className="ow-header"
@@ -414,8 +410,8 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             {step === 1 && <ScreenDispatchPickup answers={answers} setAnswer={setAnswer} companyName={user?.companyName} />}
             {step === 2 && <ScreenDeliveryCoverage answers={answers} setAnswer={setAnswer} API_URL={API_URL} />}
             {step === 3 && <ScreenAlerts answers={answers} setAnswer={setAnswer} userEmail={user?.email} />}
-            {step === 4 && <ScreenSetupComplete answers={answers} onClaim={continueToActivate} onSkip={dismissSkip} />}
-            {step === 5 && <ScreenBalance tier={tier} setTier={setTier} onContinue={continueToPayment} onSkip={dismissSkip} />}
+            {step === 4 && <ScreenSetupComplete answers={answers} onClaim={continueToActivate} />}
+            {step === 5 && <ScreenBalance tier={tier} setTier={setTier} onContinue={continueToPayment} onSkip={dismissAndClose} />}
             {step === 6 && intent && <ScreenPayment API_URL={API_URL} tier={tier} intent={intent} onBack={back} onDone={onActivationDone} />}
             {step === 7 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
           </div>
@@ -813,7 +809,7 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
 // mounted (next() in the wizard handler runs it on the 3 → 4 transition),
 // so the loading phase is purely a UX moment to legitimize the answers
 // the user just gave.
-function ScreenSetupComplete({ answers, onClaim, onSkip }) {
+function ScreenSetupComplete({ answers, onClaim }) {
   const persona = buildPersona(answers || {});
   const market = persona.market !== 'your market' ? persona.market : 'your service area';
 
@@ -899,11 +895,6 @@ function ScreenSetupComplete({ answers, onClaim, onSkip }) {
 
       <button type="button" className="ow-activate-cta" onClick={onClaim}>
         Claim your $50 FREE credit
-      </button>
-
-      <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip}>
-        <span>Continue without activating</span>
-        <span className="ow-skip-secondary-sub">Dashboard access stays limited until activation.</span>
       </button>
     </div>
   );
