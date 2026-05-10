@@ -1173,15 +1173,23 @@
     flex-direction: row;
     text-align: left;
     gap: 12px;
+    /* Desktop's collapsed rule centers the avatar horizontally — undo
+       that on mobile so the avatar + name + role stack to the LEFT, in
+       line with the rest of the drawer's content rail. Without this
+       override the company block feels "vertically centered" / floating. */
+    justify-content: flex-start;
   }
   /* Standard (non-collapsed) mobile rail — same gap as collapsed override
      so spacing is consistent regardless of localStorage state. */
   .sidebar .nav-item { gap: 12px; }
-  .sidebar .sidebar-user-info { gap: 12px; }
+  .sidebar .sidebar-user-info { gap: 12px; justify-content: flex-start; }
 
   /* Hide the desktop collapse-toggle button on mobile — it's irrelevant
      when the drawer is always full-width. */
   .sidebar-collapse-btn { display: none; }
+  /* Hide the X close button — overlay tap-outside + hamburger toggle
+     already provide drawer dismissal. The X added clutter at the top. */
+  .sidebar-close { display: none !important; }
 
   /* Hide the duplicate brand block inside the mobile drawer — the sticky
      header already shows MoveLeads. Use display: none !important so any
@@ -1483,6 +1491,16 @@
 
   .stat-value {
     font-size: 26px;
+  }
+
+  /* Top padding inside the mobile drawer so the first content section
+     (the balance card) starts clearly below the sticky 56px app bar
+     plus a small breathing margin. Applies to both .sidebar and
+     .sidebar.collapsed since either class state can be present on
+     mobile depending on prior localStorage. */
+  .sidebar,
+  .sidebar.collapsed {
+    padding-top: 60px;
   }
 }
 
