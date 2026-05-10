@@ -20,6 +20,7 @@ async function runPostSkipBatch(now) {
   const users = await User.find({
     'onboarding.complete': true,
     'onboarding.bonusClaimedAt': null,
+    'onboarding.activatedAt': null,
     role: { $in: ['customer', undefined] },
     isSuspended: { $ne: true },
   }).select('email companyName onboarding createdAt');
@@ -59,6 +60,7 @@ async function runMidwizardBatch(now) {
   const users = await User.find({
     'onboarding.complete': { $ne: true },
     'onboarding.currentStep': { $gt: 0 },
+    'onboarding.activatedAt': null,
     role: { $in: ['customer', undefined] },
     isSuspended: { $ne: true },
   }).select('email companyName onboarding createdAt');
