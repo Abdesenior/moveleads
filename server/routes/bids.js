@@ -15,6 +15,7 @@ const PurchasedLead = require('../models/PurchasedLead');
 const Transaction   = require('../models/Transaction');
 const { auth } = require('../middleware/auth');
 const { getIo } = require('../services/socketService');
+const { settleOneLead } = require('../jobs/settleAuctions');
 
 // Cron-secret guard for endpoints triggered out-of-band by schedulers.
 // Returns 401 instead of 403 so curious authenticated callers can't tell
@@ -170,43 +171,11 @@ router.post('/:leadId/buy-now', auth, async (req, res) => {
 // only affects manual / external invocations.
 router.post('/:leadId/settle', requireCronSecret, async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.leadId);
-    if (!lead || lead.auctionStatus !== 'active') return res.sendStatus(200);
-    if (new Date() < lead.auctionEndsAt)          return res.sendStatus(200);
-
-    if (lead.bids.length === 0) {
-      lead.auctionStatus = 'expired';
-      await lead.save();
-      return res.json({ result: 'expired' });
-    }
-
-    const winning = lead.bids.reduce((max, b) => b.amount > max.amount ? b : max);
-
-    await User.findByIdAndUpdate(winning.company, { $inc: { balance: -winning.amount } });
-
-    lead.winnerId      = winning.company;
-    lead.finalPrice    = winning.amount;
-    lead.auctionStatus = 'sold';
-    lead.status        = 'Purchased';
-    lead.buyers.push({ company: winning.company, purchasedAt: new Date(), pricePaid: winning.amount });
-    await lead.save();
-
-    await new PurchasedLead({
-      company:   winning.company,
-      lead:      lead._id,
-      pricePaid: winning.amount,
-    }).save().catch(err => { if (err.code !== 11000) throw err; });
-
-    const io = getIo();
-    if (io) {
-      io.to(`zip_${lead.originZip}`).to(`zip_${lead.destinationZip}`).emit('auction_settled', {
-        leadId:     lead._id,
-        winnerId:   winning.company,
-        finalPrice: winning.amount,
-      });
-    }
-
-    res.json({ result: 'sold', finalPrice: winning.amount });
+    // Delegate to the shared crash-safe settlement helper so the manual and
+    // cron paths can't drift.  The helper handles the atomic 'settling'
+    // claim, the runner-up fallback, the ledger row, and broadcast.
+    const result = await settleOneLead(req.params.leadId);
+    res.json({ result });
   } catch (err) {
     console.error('[Bids] Settle error:', err.message);
     res.status(500).json({ error: 'Server error' });

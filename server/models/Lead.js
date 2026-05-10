@@ -55,7 +55,9 @@ const LeadSchema = new mongoose.Schema({
   auctionEndsAt:    { type: Date },
   auctionStatus: {
     type: String,
-    enum: ['pending', 'active', 'sold', 'expired', 'buy_now'],
+    // 'settling' is an interim status used by the auction settlement cron so a
+    // crash mid-run can be recovered on the next tick (see jobs/settleAuctions.js).
+    enum: ['pending', 'active', 'sold', 'expired', 'buy_now', 'settling'],
     default: 'pending',
   },
   bids: [{
