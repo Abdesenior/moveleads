@@ -249,6 +249,28 @@ export default function DashboardLayout({ children }) {
             <X size={20} />
           </button>
 
+          {/* Mobile-only balance card — sits between the logo and the nav so
+              the user can see + top up their balance without scrolling to
+              the bottom of the drawer. Hidden on desktop where the bottom
+              user section already carries the balance pill. */}
+          <div className="mobile-balance-card">
+            <div className="mobile-balance-card-row">
+              <div className="mobile-balance-card-text">
+                <span className="mobile-balance-card-label">Available Balance</span>
+                <span className="mobile-balance-card-amount" style={{ color: balanceColor }}>
+                  ${balance.toFixed(2)}
+                </span>
+              </div>
+              <Link
+                to="/dashboard/billing"
+                onClick={() => setSidebarOpen(false)}
+                className="mobile-balance-card-cta"
+              >
+                Add balance
+              </Link>
+            </div>
+          </div>
+
           {/* Nav */}
           <nav className="sidebar-nav">
             {NAV_ITEMS.map(({ to, end, icon, label }) => (
