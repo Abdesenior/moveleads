@@ -63,7 +63,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     if (await User.findOne({ email })) {
-      return res.status(400).json({ msg: 'User already exists' });
+      return res.status(400).json({ msg: 'Registration failed. Please try a different email.' });
     }
 
     const verificationToken = generateVerificationToken();
@@ -78,7 +78,14 @@ router.post('/register', registerLimiter, async (req, res) => {
       emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (saveErr) {
+      if (saveErr && saveErr.code === 11000) {
+        return res.status(400).json({ msg: 'Registration failed. Please try a different email.' });
+      }
+      throw saveErr;
+    }
 
     // Send verification email asynchronously (banner reminds them in-app).
     sendVerificationEmail({ toEmail: email, companyName, token: verificationToken })
@@ -102,15 +109,14 @@ router.post('/login', loginLimiter, async (req, res) => {
   const email = req.body.email?.toLowerCase().trim();
 
   if (!password || !email) {
-    console.log(`[Login Failed] Missing email or password in request. Email: ${email}`);
+    console.log(`[Login Failed] Missing email or password`);
     return res.status(400).json({ msg: 'Invalid Credentials' });
   }
 
   try {
-    console.log(`[Login Attempt] Email: ${email}`);
     const user = await User.findOne({ email });
     if (!user) {
-      console.log(`[Login Failed] No user found in DB for email: ${email}`);
+      console.log(`[Login Failed] No user found`);
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
 
@@ -118,15 +124,16 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log(`[Login Failed] Password mismatch for email: ${email}`);
+      console.log(`[Login Failed] Password mismatch`);
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
 
     // Log unverified status but allow login so they can see the VerificationBanner in dashboard
     if (user.isEmailVerified === false && user.role === 'customer') {
-      console.log(`[Login] Unverified customer logged in: ${email}`);
+      console.log(`[Login] Unverified customer logged in: userId=${user.id}`);
     }
 
+    console.log(`[Login Success] userId=${user.id}`);
     issueJWT(user, res);
   } catch (err) {
     console.error('[Login Route Error]:', err);
@@ -213,7 +220,7 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
 // @access  Private
 router.get('/me', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password -emailVerificationToken -emailVerificationExpires -resetPasswordToken -resetPasswordExpires');
     if (!user) return res.status(401).json({ msg: 'User not found' });
     res.json(user);
   } catch (err) {

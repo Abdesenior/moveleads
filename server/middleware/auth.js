@@ -8,7 +8,7 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     const dbUser = await User.findById(decoded.user.id).select('role isSuspended');
     if (!dbUser) return res.status(401).json({ msg: 'User not found' });
     if (dbUser.isSuspended) return res.status(403).json({ msg: 'Account suspended' });
