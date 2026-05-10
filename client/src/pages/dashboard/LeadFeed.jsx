@@ -37,7 +37,7 @@ function TimeLeftTag({ endsAt }) {
 
   if (!t) return null;
   return (
-    <span style={{
+    <span className="lead-tag tag-time-left" style={{
       display: 'inline-block',
       background: t.urgent ? '#fef2f2' : '#fff7ed',
       color: t.urgent ? '#dc2626' : '#ea580c',
@@ -700,20 +700,20 @@ export default function LeadFeed() {
                           </div>
                         </div>
                         {/* Tags */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          <span style={{ ...TAG_BASE, background: isLD ? '#f0f4ff' : '#f0fdf4', color: isLD ? '#3b5bdb' : '#16a34a', border: `1px solid ${isLD ? '#c5d3ff' : '#bbf7d0'}` }}>
+                        <div className="lead-tags-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          <span className="lead-tag tag-distance" style={{ ...TAG_BASE, background: isLD ? '#f0f4ff' : '#f0fdf4', color: isLD ? '#3b5bdb' : '#16a34a', border: `1px solid ${isLD ? '#c5d3ff' : '#bbf7d0'}` }}>
                             {isLD ? 'Long Distance' : 'Local'}
                           </span>
                           {isAuction && lead.auctionEndsAt && <TimeLeftTag endsAt={lead.auctionEndsAt} />}
-                          {isToday  && <span style={{ ...TAG_BASE, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>Today!</span>}
-                          {isUrgent && <span style={{ ...TAG_BASE, background: '#fff7ed', color: '#d97706', border: '1px solid #fde68a' }}>Urgent</span>}
+                          {isToday  && <span className="lead-tag tag-today" style={{ ...TAG_BASE, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>Today!</span>}
+                          {isUrgent && <span className="lead-tag tag-urgent" style={{ ...TAG_BASE, background: '#fff7ed', color: '#d97706', border: '1px solid #fde68a' }}>Urgent</span>}
                           {isPremium && (
-                            <span style={{ ...TAG_BASE, background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', border: 'none' }}>
+                            <span className="lead-tag tag-premium" style={{ ...TAG_BASE, background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', border: 'none' }}>
                               ⭐ Premium Lead
                             </span>
                           )}
                           {lead._matchesPreferences && (
-                            <span style={{ ...TAG_BASE, background: 'rgba(255,106,20,0.10)', color: '#ea580c', border: '1px solid rgba(255,106,20,0.30)', fontWeight: 800 }}>
+                            <span className="lead-tag tag-match" style={{ ...TAG_BASE, background: 'rgba(255,106,20,0.10)', color: '#ea580c', border: '1px solid rgba(255,106,20,0.30)', fontWeight: 800 }}>
                               ✓ Matches your setup
                             </span>
                           )}
@@ -743,15 +743,31 @@ export default function LeadFeed() {
 
                       {/* ── Price ── */}
                       <td className="col-price" style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a' }}>
-                          ${displayPrice.toFixed ? displayPrice.toFixed(2) : displayPrice}
+                        {/* Desktop view — preserved exactly as before */}
+                        <div className="price-desktop">
+                          <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a' }}>
+                            ${displayPrice.toFixed ? displayPrice.toFixed(2) : displayPrice}
+                          </div>
+                          {isAuction && currentBid > 0 && (
+                            <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>current bid</div>
+                          )}
+                          {isAuction && currentBid === 0 && (
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>starting bid</div>
+                          )}
                         </div>
-                        {isAuction && currentBid > 0 && (
-                          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>current bid</div>
-                        )}
-                        {isAuction && currentBid === 0 && (
-                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>starting bid</div>
-                        )}
+                        {/* Mobile view — unlock price dominant, bid secondary */}
+                        <div className="price-mobile">
+                          <div className="price-unlock-row">
+                            <span className="price-unlock-amount">${buyNowPrice.toFixed ? buyNowPrice.toFixed(2) : buyNowPrice}</span>
+                            <span className="price-unlock-label">unlock</span>
+                          </div>
+                          {isAuction && currentBid > 0 && (
+                            <div className="price-bid-caption">Current bid ${currentBid.toFixed ? currentBid.toFixed(2) : currentBid}</div>
+                          )}
+                          {isAuction && currentBid === 0 && (
+                            <div className="price-bid-caption">Starting bid ${(lead.startingBidPrice || buyNowPrice).toFixed ? (lead.startingBidPrice || buyNowPrice).toFixed(2) : (lead.startingBidPrice || buyNowPrice)}</div>
+                          )}
+                        </div>
                       </td>
 
                       {/* ── Action ── */}
