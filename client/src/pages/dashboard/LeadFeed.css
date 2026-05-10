@@ -437,6 +437,11 @@
   .leads-table > tbody > tr > td {
     display: block;
     width: 100%;
+    /* Critical: card padding + width:100% would otherwise overflow the
+       parent because table elements default to content-box. Forcing
+       border-box keeps everything inside the card boundary. */
+    box-sizing: border-box;
+    max-width: 100%;
   }
   .leads-table > thead { display: none; }
 
@@ -448,6 +453,9 @@
     padding: 12px 14px;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
     -webkit-tap-highlight-color: rgba(255, 106, 20, 0.10);
+    /* Defensive: even with border-box, prevent any inline-style child
+       from forcing the row wider than its parent. */
+    overflow: hidden;
   }
   .leads-table > tbody > tr.leads-row > td {
     padding: 0 !important;
@@ -522,25 +530,46 @@
     display: block;
     margin-top: 10px;
     text-align: left !important;
+    width: 100%;
   }
-  /* Single button (View) — full width. */
+  /* Single button (View) — full width, contained in the card. */
   .leads-table > tbody > tr.leads-row > td.col-action > button {
     width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     min-height: 44px;
     justify-content: center;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
   }
-  /* Auction: 2 buttons side-by-side. */
+  /* Auction: 2 buttons side-by-side, perfectly contained inside the card. */
   .leads-table > tbody > tr.leads-row > td.col-action > div {
     display: flex !important;
     flex-direction: row !important;
     gap: 8px !important;
     align-items: stretch !important;
     justify-content: stretch !important;
+    width: 100%;
+    /* min-width: 0 lets the flex container shrink to its parent's width
+       even when child buttons have whitespace:nowrap text — without this
+       Buy $15 was forcing the row past the card's right edge. */
+    min-width: 0;
+    box-sizing: border-box;
   }
   .leads-table > tbody > tr.leads-row > td.col-action > div > button {
     flex: 1 1 0;
+    /* Same min-width:0 here so each button can shrink to share row width
+       proportionally, even though BTN_PRIMARY/BTN_OUTLINE inline-style
+       buttons still keep nowrap text. The button stays readable; we just
+       allow it to shrink-fit instead of pushing the layout outward. */
+    min-width: 0;
+    box-sizing: border-box;
     min-height: 44px;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
     justify-content: center;
+    text-overflow: ellipsis;
+    overflow: hidden;
   }
   /* Unlock (the second button) gets ~2x the visual weight of Bid. */
   .leads-table > tbody > tr.leads-row > td.col-action > div > button:last-child {
