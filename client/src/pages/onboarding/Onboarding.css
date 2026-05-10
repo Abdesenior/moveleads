@@ -71,11 +71,13 @@
   width: min(820px, calc(100vw - 32px));
 
   /* Adaptive height: min-height keeps a premium baseline so very short steps
-     (success / setup-complete) don't look like a tiny card; max-height
-     bounds tall steps (Step 5 activation) at 90vh and lets the body scroll
-     internally past that. dvh on the viewport math handles iOS Safari's
-     collapsing address bar so the footer CTA never slips behind the URL bar. */
-  min-height: 480px;
+     (success / setup-complete) don't look like a tiny card, but stays low
+     enough that short content doesn't leave an oversized empty bottom zone.
+     max-height bounds tall steps (Step 5 activation) at 90vh and lets the
+     body scroll internally past that. dvh on the viewport math handles iOS
+     Safari's collapsing address bar so the footer CTA never slips behind
+     the URL bar. */
+  min-height: 380px;
   max-height: min(800px, calc(100dvh - 32px), 90vh);
 
   margin: 16px auto;
@@ -154,22 +156,16 @@
    - max-width 560px gives the focused single-column SaaS-onboarding feel
      (Stripe / Linear / Ramp / Brex range)
    - margin: 0 auto centers horizontally inside the body
-   - min-height: 100% + flex column + justify-content: center vertically
-     centers SHORT step content (icon + title + sub + tight content) and
-     lets LONG step content (activation page) overflow + scroll naturally
-     — modern flexbox handles both cases without per-step rules.
-   - flex-shrink: 0 prevents content from being squeezed to fit the body
-     when total content height exceeds available space (long activation step). */
+   - top-anchored (no flex centering) so the title baseline is always at
+     the same vertical offset from the modal top regardless of how much
+     content lives below it. Vertical balance is achieved by the modal's
+     adaptive min-height/max-height shrink-wrap, not by pushing the title
+     down. */
 .ow-step-anim {
   animation: owStepIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
   max-width: 560px;
   width: 100%;
   margin: 0 auto;
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 /* "You can configure additional states later from your dashboard
@@ -216,11 +212,10 @@
 .ow-body {
   flex: 1 1 auto;
   min-height: 0;
-  /* Top breathing room is the single biggest fix for the "cramped near the
-     border" feel. 28px top + 18px bottom nudges content slightly above the
-     mathematical center which reads as visually centered, while keeping
-     the dead-zone under the secondary action minimal on short steps. */
-  padding: 28px 28px 18px;
+  /* Locked top spacing: every step's title starts at exactly this offset
+     from the modal's top border. 24/20 also keeps the dead-zone under the
+     secondary action minimal on short steps. */
+  padding: 24px 28px 20px;
   overflow-y: auto;
 }
 
@@ -532,18 +527,16 @@
   .ow-sub { font-size: 14px; margin-bottom: 14px; }
   .ow-step-header { min-height: 78px; margin-bottom: 14px; }
   .ow-step-header .ow-sub { margin: 0; }
-  /* On mobile the modal already fills the viewport — no need for an extra
-     centered cap, and forcing vertical centering causes scroll-clip on the
-     longer steps. Let content top-align and grow naturally. */
+  /* On mobile the modal already fills the viewport — release the desktop
+     560px column cap so content uses the full width naturally. */
   .ow-step-anim {
     max-width: none;
-    min-height: 0;
-    justify-content: flex-start;
   }
   .ow-field { margin-bottom: 12px; }
   .ow-states-note { font-size: 12px; padding: 8px 11px; }
   .ow-cards { grid-template-columns: 1fr; gap: 8px; }
-  .ow-body { padding: 14px 16px 20px; }
+  /* Same locked top spacing rhythm as desktop, just tighter side padding. */
+  .ow-body { padding: 18px 16px 16px; }
 
   /* iOS Safari auto-zooms any focused input/textarea/select with computed
      font-size below 16px. Bumping inputs to 16px on mobile blocks the
