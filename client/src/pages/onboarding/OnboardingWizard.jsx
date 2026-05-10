@@ -1072,8 +1072,17 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
 
   // onReady reports which express methods are eligible for this user/device.
   // Hide the divider entirely when the row would render empty.
+  //
+  // Console logging here is intentional and useful in production — the
+  // shape `event.availablePaymentMethods` is the single source of truth
+  // for "did Stripe deem Apple Pay / Google Pay eligible for this
+  // browser+device+domain+PI?". If applePay/googlePay show as undefined or
+  // false here while the buttons are forced visible (see options below),
+  // the gap is in Stripe Dashboard / domain registration, not in our code.
   function handleExpressReady(event) {
     const methods = event?.availablePaymentMethods;
+    // eslint-disable-next-line no-console
+    console.log('[ExpressCheckout] onReady — availablePaymentMethods:', methods, 'full event:', event);
     setHasExpressMethods(!!methods && Object.keys(methods).length > 0);
   }
 
@@ -1104,6 +1113,24 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
             buttonHeight: 48,
             buttonTheme: { applePay: 'black', googlePay: 'black' },
             layout: { maxColumns: 2, maxRows: 2 },
+            // Force Apple Pay / Google Pay buttons to render. Stripe's
+            // default 'auto' silently hides them when domain/account/
+            // device eligibility checks fail — which makes diagnosing the
+            // root cause hard. With 'always':
+            //   - If buttons render but tapping fails → Apple Pay domain
+            //     not verified in Stripe Dashboard, OR live-mode method
+            //     not enabled for the account.
+            //   - If buttons render and tap works → eligibility is fine,
+            //     'auto' was a false negative from older browsers.
+            //   - If buttons still don't render → SDK / HTTPS / publishable
+            //     key issue (check console for stripe.js errors).
+            // Link stays on 'auto' since it has no domain-verification
+            // dependency and Stripe's heuristic for Link is reliable.
+            paymentMethods: {
+              applePay: 'always',
+              googlePay: 'always',
+              link: 'auto',
+            },
           }}
         />
         {hasExpressMethods && (
