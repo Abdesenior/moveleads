@@ -6,6 +6,7 @@ const CoverageArea = require('../models/CoverageArea');
 const Communication = require('../models/Communication');
 const PurchasedLead = require('../models/PurchasedLead');
 const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
+const { wantsChannel, isWithinDispatchHours, matchesMoveTypes } = require('../utils/dispatchPolicy');
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
@@ -26,9 +27,20 @@ const LOOKUP_TIMEOUT_MS = 5000;
 /**
  * Broadcast SMS to all movers who have smsNotif enabled and a phone number on file.
  * Non-blocking — errors are logged but never propagate.
+ *
+ * @param {Object} lead
+ * @param {{force?: boolean}} [opts] - pass `force: true` from admin re-broadcast
+ *   endpoints to bypass the `notifiedAt` dedup guard.
  */
-async function broadcastLeadSMS(lead) {
+async function broadcastLeadSMS(lead, { force = false } = {}) {
   console.log('[SMS] Attempting to notify movers for lead:', lead._id);
+
+  // Dedup guard — skip if this lead has already been broadcast unless force.
+  if (lead.notifiedAt && !force) {
+    console.log(`[Broadcast] lead ${lead._id} already notified, skipping`);
+    return;
+  }
+
   try {
     // 1. Find companies whose CoverageArea covers either the origin or the
     //    destination ZIP. Plus: include companies with deliversNationwide=true
@@ -50,35 +62,67 @@ async function broadcastLeadSMS(lead) {
       return;
     }
 
-    // 2. Hydrate candidate movers, including the preference fields the
-    //    matching helper reads (maxDistance, preferredHomeSizes,
-    //    deliversNationwide).
+    // 2. Hydrate candidate movers. Keep the cheap hard filters in Mongo
+    //    (phone present, not suspended). We deliberately drop the
+    //    `smsNotif: true` mongo filter — the dispatch-policy helper now
+    //    owns the channel decision (alertChannels first, legacy smsNotif
+    //    as fallback). Pull onboarding.answers so the helper can read it.
     const candidates = await User.find({
       _id:      { $in: Array.from(candidateIdSet) },
       role:     'customer',
-      smsNotif: true,
       isSuspended: { $ne: true },
       phone:    { $exists: true, $nin: ['', null] },
-    }).select('phone companyName smsNotif maxDistance preferredHomeSizes deliversNationwide').lean();
+    }).select('phone companyName smsNotif emailNotif isSuspended maxDistance preferredHomeSizes deliversNationwide onboarding.answers').lean();
 
     if (!candidates.length) {
-      console.log('[SMS] No SMS-enabled candidates with phone on file');
+      console.log('[SMS] No candidates with phone on file');
       return;
     }
 
     // 3. Apply the full preference filter using the shared matching helper.
     //    Each mover already passes coverage (Stage 1), so we pass an empty
     //    Set to skip the coverage check inside the helper and only test
-    //    distance + home size.
+    //    distance + home size. Then layer on the dispatch-policy checks
+    //    (channel opt-in, dispatch hours, move types).
     const emptyZipSet = new Set();
-    const matched = candidates.filter(m => doesLeadMatchMoverPreferences(lead, m, emptyZipSet));
+    const now = new Date();
+    const matched = candidates.filter(m => {
+      if (!doesLeadMatchMoverPreferences(lead, m, emptyZipSet)) {
+        return false;
+      }
+      if (!wantsChannel(m, 'sms')) {
+        console.log(`[SMS] Drop ${m.companyName || m._id}: alertChannels does not include 'sms'`);
+        return false;
+      }
+      if (!isWithinDispatchHours(m, 'sms', now)) {
+        console.log(`[SMS] Drop ${m.companyName || m._id}: outside dispatch hours`);
+        return false;
+      }
+      if (!matchesMoveTypes(m, lead)) {
+        console.log(`[SMS] Drop ${m.companyName || m._id}: moveTypes does not match lead`);
+        return false;
+      }
+      return true;
+    });
 
-    console.log(`[SMS] ${matchingCompanyIds.length} cover this lead, ${candidates.length} SMS-enabled, ${matched.length} pass preferences`);
+    console.log(`[SMS] ${matchingCompanyIds.length} cover this lead, ${candidates.length} candidates, ${matched.length} pass full policy`);
     if (!matched.length) return;
     console.log(`[SMS] Broadcasting to: ${matched.map(m => m.companyName || m.phone).join(', ')}`);
 
     for (const mover of matched) {
       sendMoverLeadSMS(mover.phone, lead).catch(() => {});
+    }
+
+    // Mark lead as notified — atomic conditional so two parallel callers
+    // don't both fire and the email broadcast can short-circuit if it
+    // races. We only flip the flag if it's still null.
+    try {
+      await Lead.updateOne(
+        { _id: lead._id, notifiedAt: null },
+        { $set: { notifiedAt: new Date() } }
+      );
+    } catch (e) {
+      console.error('[SMS] Failed to set notifiedAt:', e.message);
     }
   } catch (err) {
     console.error('[SMS] broadcastLeadSMS error:', err.message);

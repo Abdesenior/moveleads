@@ -378,7 +378,12 @@ router.post('/', [auth, admin], async (req, res) => {
 
     const notify = String(req.query.notify || 'true').toLowerCase() !== 'false';
     if (notify) {
-      // Lazy-require to avoid a circular import at module-load time.
+      // First-time broadcast for a freshly-created lead. Intentionally NOT
+      // passing `force: true` — the in-memory `lead.notifiedAt` is null at
+      // this point so all three calls proceed, and the atomic Mongo update
+      // inside the broadcasts means subsequent re-runs (e.g. an admin
+      // re-pricing flow, if one is ever added) will short-circuit unless
+      // they pass `{ force: true }`.
       try {
         const socketService = require('../services/socketService');
         socketService.emitNewLead(lead);

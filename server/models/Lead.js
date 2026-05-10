@@ -67,6 +67,14 @@ const LeadSchema = new mongoose.Schema({
   }],
   winnerId:   { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
   finalPrice: { type: Number },
+
+  // ── Notification dedup ─────────────────────────────────────────────────
+  // Set the first time SMS/email broadcast fires for this lead. Subsequent
+  // broadcast callers short-circuit on this unless they pass `force: true`
+  // (e.g. an admin re-pricing flow that genuinely wants to re-fire).
+  // Updated atomically via `updateOne({_id, notifiedAt: null}, ...)` so two
+  // parallel broadcast paths (SMS+email) only flip it once.
+  notifiedAt: { type: Date, default: null },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

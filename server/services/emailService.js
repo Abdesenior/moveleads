@@ -825,12 +825,21 @@ async function sendMatchingLeadEmail({ toEmail, companyName, lead }) {
  * by the same shared preference helper used for SMS. Non-blocking — errors
  * are logged but never propagate.
  */
-async function broadcastLeadEmail(lead) {
+async function broadcastLeadEmail(lead, { force = false } = {}) {
   console.log('[LeadEmail] Attempting to notify movers for lead:', lead._id);
+
+  // Dedup guard — skip if this lead has already been broadcast unless force.
+  if (lead.notifiedAt && !force) {
+    console.log(`[Broadcast] lead ${lead._id} already notified, skipping`);
+    return;
+  }
+
   try {
     const CoverageArea = require('../models/CoverageArea');
     const User = require('../models/User');
+    const Lead = require('../models/Lead');
     const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
+    const { wantsChannel, matchesMoveTypes } = require('../utils/dispatchPolicy');
 
     // 1. Coverage candidates. Mirrors broadcastLeadSMS.
     const matchingCompanyIds = await CoverageArea.distinct('company', {
@@ -848,29 +857,56 @@ async function broadcastLeadEmail(lead) {
       return;
     }
 
-    // 2. Hydrate email-opted-in candidates.
+    // 2. Hydrate candidates. Drop the `emailNotif: true` Mongo filter — the
+    //    dispatch-policy helper now owns the channel decision. Hard filters
+    //    that remain: not suspended, email present, AND email verified
+    //    (new gate — we won't blast unverified inboxes).
     const candidates = await User.find({
-      _id:        { $in: Array.from(candidateIdSet) },
-      role:       'customer',
-      emailNotif: true,
-      isSuspended: { $ne: true },
-      email:      { $exists: true, $nin: ['', null] },
-    }).select('email companyName maxDistance preferredHomeSizes deliversNationwide').lean();
+      _id:             { $in: Array.from(candidateIdSet) },
+      role:            'customer',
+      isSuspended:     { $ne: true },
+      isEmailVerified: true,
+      email:           { $exists: true, $nin: ['', null] },
+    }).select('email companyName smsNotif emailNotif isSuspended isEmailVerified maxDistance preferredHomeSizes deliversNationwide onboarding.answers').lean();
     if (!candidates.length) {
-      console.log('[LeadEmail] No email-enabled candidates with email on file');
+      console.log('[LeadEmail] No verified email candidates');
       return;
     }
 
-    // 3. Apply preference filter via the shared helper. Pass an empty Set
-    //    for coverage since we already filtered by ZIP at Stage 1.
+    // 3. Apply preference filter via the shared helper, then layer on
+    //    dispatch-policy (channel opt-in + moveTypes). Email bypasses
+    //    dispatch hours by design (not a disturbing channel).
     const emptyZipSet = new Set();
-    const matched = candidates.filter(m => doesLeadMatchMoverPreferences(lead, m, emptyZipSet));
-    console.log(`[LeadEmail] ${matchingCompanyIds.length} cover, ${candidates.length} email-enabled, ${matched.length} pass preferences`);
+    const matched = candidates.filter(m => {
+      if (!doesLeadMatchMoverPreferences(lead, m, emptyZipSet)) return false;
+      if (!wantsChannel(m, 'email')) {
+        console.log(`[LeadEmail] Drop ${m.companyName || m._id}: alertChannels does not include 'email'`);
+        return false;
+      }
+      if (!matchesMoveTypes(m, lead)) {
+        console.log(`[LeadEmail] Drop ${m.companyName || m._id}: moveTypes does not match lead`);
+        return false;
+      }
+      return true;
+    });
+    console.log(`[LeadEmail] ${matchingCompanyIds.length} cover, ${candidates.length} candidates, ${matched.length} pass full policy`);
     if (!matched.length) return;
 
     for (const mover of matched) {
       sendMatchingLeadEmail({ toEmail: mover.email, companyName: mover.companyName, lead })
         .catch(err => console.error('[LeadEmail] send failed:', err?.message));
+    }
+
+    // Mark lead as notified (atomic conditional — see broadcastLeadSMS for
+    // the same pattern). One of SMS/email will win the race; the loser
+    // no-ops because the filter on `notifiedAt: null` matches nothing.
+    try {
+      await Lead.updateOne(
+        { _id: lead._id, notifiedAt: null },
+        { $set: { notifiedAt: new Date() } }
+      );
+    } catch (e) {
+      console.error('[LeadEmail] Failed to set notifiedAt:', e.message);
     }
   } catch (err) {
     console.error('[LeadEmail] broadcastLeadEmail error:', err.message);

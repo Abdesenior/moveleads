@@ -9,6 +9,8 @@
 // Pure function — no DB, no side effects. Caller pre-fetches the mover's
 // CoverageArea zips to keep this hot loop cheap.
 
+const { matchesMoveTypes } = require('./dispatchPolicy');
+
 /**
  * @param {Object} lead   Lead document (or lean object).
  * @param {Object} user   User document (or lean object) — at minimum:
@@ -56,6 +58,11 @@ function doesLeadMatchMoverPreferences(lead, user, coverageZips) {
   if (sizes.length > 0) {
     if (!lead.homeSize || !sizes.includes(lead.homeSize)) return false;
   }
+
+  // 4. Onboarding moveTypes preference (apartment/home/office/longDistance
+  //    /packing/storage/emergency + avoidMoveTypes). Permissive when not
+  //    configured — see dispatchPolicy.matchesMoveTypes.
+  if (!matchesMoveTypes(user, lead)) return false;
 
   return true;
 }

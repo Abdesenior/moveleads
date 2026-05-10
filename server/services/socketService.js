@@ -100,10 +100,20 @@ const init = (server) => {
 /**
  * Emit a new lead to relevant zip code rooms
  * @param {Object} lead - The Mongoose lead document
+ * @param {{force?: boolean}} [opts] - pass `force: true` from an admin
+ *   re-broadcast endpoint to bypass the `notifiedAt` dedup guard. Socket
+ *   emits are mostly idempotent (clients reconcile on their end), so this
+ *   guard is defensive — it keeps re-priced leads from triggering a fresh
+ *   "NEW LEAD" pop on every connected dashboard.
  */
-const emitNewLead = (lead) => {
+const emitNewLead = (lead, { force = false } = {}) => {
   if (!io) {
     console.error('[Socket] Cannot emit lead: Socket.io not initialized');
+    return;
+  }
+
+  if (lead.notifiedAt && !force) {
+    console.log(`[Broadcast] lead ${lead._id} already notified, skipping`);
     return;
   }
 
