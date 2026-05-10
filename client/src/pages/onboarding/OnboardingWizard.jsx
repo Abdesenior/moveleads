@@ -120,7 +120,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const [step, setStep] = useState(initialStep || 1);
   const [answers, setAnswers] = useState({
     dispatchBase: { input: '', zip: '', city: '', state: '' },
-    pickup:       { mode: 'near', states: [] },
+    pickup:       { mode: '', states: [] },
     delivery:     { mode: 'same', states: [] },
     primaryMarket: '',
     coverageRadius: '',
@@ -448,6 +448,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 function isStepValid(step, a) {
   if (step === 1) {
     if (!a.dispatchBase || !a.dispatchBase.zip) return false;
+    if (!a.pickup?.mode) return false;
     if (a.pickup?.mode === 'states' && !(a.pickup.states && a.pickup.states.length)) return false;
     return true;
   }
@@ -464,16 +465,21 @@ function isStepValid(step, a) {
 // ── Step 1: Dispatch base + pickup ──────────────────────────────────────────
 function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
   const dispatchBase = answers.dispatchBase || {};
-  const pickup       = answers.pickup   || { mode: 'near', states: [] };
+  const pickup       = answers.pickup   || { mode: '', states: [] };
   const baseReady    = !!dispatchBase.zip;
 
-  // When the user picks "Multiple states" we don't show an inline picker —
-  // it's clutter on mobile and most users don't need to specify all states
-  // during onboarding. Instead we default coverage to the dispatch base's
-  // home state and tell them they can expand from Settings later. The
-  // backend's typed coverage regen still gets a non-empty states array,
-  // so SMS/email matching keeps working out of the gate.
+  // Distinguishes "user has explicitly picked a coverage mode" from
+  // "schema default landed here". On first arrival no card should look
+  // active; on resume (where the user already advanced past step 1) the
+  // saved selection should reappear. We treat a saved mode as explicit
+  // only if a dispatch base is also set — that's the lifecycle order.
+  const [modeUserPicked, setModeUserPicked] = useState(
+    () => !!(answers.pickup && answers.pickup.mode && answers.dispatchBase && answers.dispatchBase.zip)
+  );
+
   function setPickupMode(mode) {
+    if (!baseReady) return;
+    setModeUserPicked(true);
     const next = { ...pickup, mode };
     if (mode === 'states' && (!next.states || next.states.length === 0) && dispatchBase.state) {
       next.states = [dispatchBase.state];
@@ -487,21 +493,32 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
     { id: 'states', label: 'Multiple states',        desc: 'Pick the states your crews cover.' },
   ];
 
+  // Subtle rotating placeholder examples so the input clearly signals
+  // "type a city or ZIP." Pauses on focus to avoid distracting the user.
+  const PLACEHOLDER_EXAMPLES = ['Houston, TX', 'Dallas, TX', '77001', 'Phoenix, AZ', '90001'];
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  useEffect(() => {
+    if (baseReady) return;
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDER_EXAMPLES.length), 2200);
+    return () => clearInterval(t);
+  }, [baseReady]);
+
   return (
     <>
       <header className="ow-step-header">
-        <h1 className="ow-h1">Where are your crews based?</h1>
-        <p className="ow-sub">We'll send you move requests near your dispatch base.</p>
+        <h1 className="ow-h1">Enter your main dispatch location</h1>
+        <p className="ow-sub">We'll use this to match move requests near your crew base.</p>
       </header>
 
-      <div className="ow-field">
+      <div className={`ow-field ow-dispatch-input-wrap${baseReady ? ' is-confirmed' : ' is-empty'}`}>
         <PlaceAutocomplete
           id="dispatchBaseInput"
           value={baseReady ? dispatchBase : null}
           onSelect={(p) => setAnswer('dispatchBase', { input: p.label, zip: p.zip, city: p.city, state: p.state })}
-          onClear={() => setAnswer('dispatchBase', { input: '', zip: '', city: '', state: '' })}
-          placeholder="Houston, TX or 77001"
+          onClear={() => { setAnswer('dispatchBase', { input: '', zip: '', city: '', state: '' }); setModeUserPicked(false); }}
+          placeholder={`e.g. ${PLACEHOLDER_EXAMPLES[placeholderIdx]}`}
           ariaLabel="Search dispatch base"
+          autoFocus={!baseReady}
         />
       </div>
 
@@ -509,7 +526,7 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
         <aside className="ow-market-open" role="note">
           <span className="ow-market-open-dot" aria-hidden="true" />
           <div>
-            <div className="ow-market-open-title">Your market is open</div>
+            <div className="ow-market-open-title">Dispatch base confirmed</div>
             <div className="ow-market-open-body">We're currently onboarding movers in your area.</div>
           </div>
         </aside>
@@ -517,17 +534,23 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
 
       <div className="ow-field" aria-disabled={!baseReady}>
         <label className="ow-label">Where do your crews start jobs?</label>
-        <div className="ow-cards">
+        {!baseReady && (
+          <p className="ow-cards-hint" role="note">
+            Enter your dispatch location first.
+          </p>
+        )}
+        <div className={`ow-cards${!baseReady ? ' is-disabled' : ''}`}>
           {PICKUP_OPTIONS.map(opt => {
-            const active = pickup.mode === opt.id;
+            const active = baseReady && modeUserPicked && pickup.mode === opt.id;
             return (
               <button
                 key={opt.id}
                 type="button"
                 className={`ow-card${active ? ' active' : ''}`}
-                onClick={() => baseReady && setPickupMode(opt.id)}
+                onClick={() => setPickupMode(opt.id)}
                 aria-pressed={active}
                 disabled={!baseReady}
+                tabIndex={baseReady ? 0 : -1}
               >
                 <div className="ow-card-row">
                   <div>
@@ -540,7 +563,7 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
             );
           })}
         </div>
-        {pickup.mode === 'states' && baseReady && (
+        {pickup.mode === 'states' && modeUserPicked && baseReady && (
           <p className="ow-states-note" role="note">
             You can add more operating states later in Settings → Service Areas.
           </p>

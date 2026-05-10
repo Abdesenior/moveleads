@@ -29,6 +29,7 @@ export default function PlaceAutocomplete({
   placeholder = 'Houston, TX or 77001',
   ariaLabel = 'Search city or ZIP',
   id,
+  autoFocus = false,
 }) {
   const { API_URL } = useContext(AuthContext);
   const inputRef = useRef(null);
@@ -134,6 +135,7 @@ export default function PlaceAutocomplete({
         onFocus={() => { if (suggestions.length) setOpen(true); }}
         onBlur={handleBlur}
         onKeyDown={handleKey}
+        autoFocus={autoFocus}
         autoComplete="off"
         role="combobox"
         aria-expanded={open && suggestions.length > 0}
