@@ -58,12 +58,14 @@ async function calculateAuctionPrice(lead) {
   else if (miles > 500) base = 25;
   else if (miles > 100) base = 18;
 
+  const days = moveDate ? (new Date(moveDate) - new Date()) / 86400000 : 60;
+  const urgencyLabel = days <= 7 ? 'Urgent' : days <= 14 ? 'Soon' : 'Standard';
+
   // Apply DB pricing rules (DISTANCE + HOME_SIZE multipliers set by admin)
   let dbMult = 1.0;
   try {
     const distance = miles > 100 ? 'Long Distance' : 'Local';
     const rules = await PricingRule.find({ isActive: true });
-    const urgencyLabel = days <= 7 ? 'Urgent' : days <= 14 ? 'Soon' : 'Standard';
     console.log(`[Pricing] miles=${miles} distance=${distance} homeSize=${homeSize} grade=${grade} urgency=${urgencyLabel} | active rules: ${rules.length} | ${rules.map(r => `${r.category}:${r.matchValue}:${r.multiplier}`).join(', ')}`);
     for (const rule of rules) {
       if (rule.category === 'HOME_SIZE'  && homeSize === rule.matchValue) dbMult *= rule.multiplier;
@@ -80,7 +82,6 @@ async function calculateAuctionPrice(lead) {
     console.error('[PricingEngine] DB rule fetch failed, using defaults:', err.message);
   }
 
-  const days = moveDate ? (new Date(moveDate) - new Date()) / 86400000 : 60;
   const urgencyMult = days <= 7 ? 1.5 : days <= 14 ? 1.3 : days <= 30 ? 1.15 : 1.0;
 
   const mo = moveDate ? new Date(moveDate).getMonth() + 1 : new Date().getMonth() + 1;
