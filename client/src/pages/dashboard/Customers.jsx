@@ -255,7 +255,7 @@ export default function Customers() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <Users size={22} color="#ea580c" />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
             My Customers
           </h1>
           <span style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa', borderRadius: 9999, fontSize: 12, fontWeight: 700, padding: '2px 10px', marginLeft: 4 }}>
@@ -276,7 +276,7 @@ export default function Customers() {
           <div key={s.label} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>{s.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif", marginTop: 2 }}>{s.value}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)', marginTop: 2 }}>{s.value}</div>
             </div>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color }}>
               {s.icon}
@@ -368,7 +368,7 @@ export default function Customers() {
                           width: 36, height: 36, borderRadius: 10, flexShrink: 0,
                           background: `linear-gradient(135deg,${meta.color}20,${meta.color}10)`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: meta.color, fontSize: 12, fontWeight: 800, fontFamily: "'Poppins',sans-serif",
+                          color: meta.color, fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-heading)',
                         }}>
                           {getInitials(p.lead?.customerName)}
                         </div>
@@ -397,7 +397,7 @@ export default function Customers() {
 
                     {/* Price */}
                     <td style={{ padding: '14px 12px' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
                         ${p.pricePaid?.toFixed(2) || '—'}
                       </span>
                     </td>
@@ -494,7 +494,7 @@ export default function Customers() {
             }}>
               <div style={{ position: 'absolute', top: '-30%', right: '-5%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle,rgba(234,88,12,0.12),transparent 70%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative' }}>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 4px', fontFamily: "'Poppins',sans-serif" }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>
                   {detailLead.lead?.customerName}
                 </h2>
                 <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
@@ -562,7 +562,7 @@ export default function Customers() {
                     <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
                       <CheckCircle size={26} color="#16a34a" />
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Dispute Submitted</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 6, fontFamily: 'var(--font-heading)' }}>Dispute Submitted</div>
                     <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
                       Your dispute has been received. An admin will review it and you'll be notified of the outcome by email.
                     </p>

@@ -87,7 +87,7 @@ export default function AdminLayout({ children }) {
 
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-hidden={!sidebarOpen}>
         <div className="logo-container">
-          <div className="logo" style={{ fontSize: '24px', fontFamily: 'Poppins' }}>
+          <div className="logo" style={{ fontSize: '24px', fontFamily: 'var(--font-heading)' }}>
             <span style={{ fontWeight: 800, color: '#0f172a' }}>MoveLeads</span>
             <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
           </div>
@@ -99,7 +99,7 @@ export default function AdminLayout({ children }) {
             <Shield size={12} color="#f97316" />
             <span style={{ fontSize: 10, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', letterSpacing: 1 }}>Admin Portal</span>
           </div>
-          <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#f97316', fontFamily: 'Poppins, sans-serif' }}>A</span>
+          <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#f97316', fontFamily: 'var(--font-heading)' }}>A</span>
         </div>
         <button
           type="button"

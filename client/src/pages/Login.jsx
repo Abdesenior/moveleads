@@ -87,14 +87,14 @@ export default function Login() {
       <div className="login-brand">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: 48 }}>
-            <div style={{ fontSize: 28, fontFamily: "'Poppins', sans-serif", marginBottom: 4 }}>
+            <div style={{ fontSize: 28, fontFamily: 'var(--font-heading)', marginBottom: 4 }}>
               <span style={{ fontWeight: 800, color: '#fff' }}>MoveLeads</span>
               <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
             </div>
             <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, margin: 0 }}>Lead Marketplace Platform</p>
           </div>
 
-          <h2 style={{ fontSize: 36, fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 16, fontFamily: "'Poppins', sans-serif" }}>
+          <h2 style={{ fontSize: 36, fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 16, fontFamily: 'var(--font-heading)' }}>
             Grow your moving<br />business with<br />
             <span style={{ color: '#f97316' }}>verified leads</span>
           </h2>
@@ -127,12 +127,12 @@ export default function Login() {
 
       <div className="login-form-side">
         <div className="login-card">
-          <div className="logo" style={{ marginBottom: '40px', fontFamily: 'Poppins' }}>
+          <div className="logo" style={{ marginBottom: '40px', fontFamily: 'var(--font-heading)' }}>
             <span style={{ fontWeight: 800, fontSize: '32px', color: '#0f172a' }}>MoveLeads</span>
             <span style={{ fontWeight: 800, fontSize: '32px', color: '#f97316' }}>.cloud</span>
           </div>
           
-          <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '8px', color: 'var(--bg-navy)', fontFamily: 'Poppins' }}>Welcome back</h2>
+          <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '8px', color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)' }}>Welcome back</h2>
           <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 32 }}>Sign in to access your dashboard</p>
           
           {unverified && (

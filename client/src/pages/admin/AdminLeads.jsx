@@ -483,7 +483,7 @@ export default function AdminLeads() {
     <AdminLayout>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: 16 }}>
         <header className="dashboard-header" style={{ marginBottom: 0 }}>
-          <h1 style={{ fontFamily: 'Poppins' }}>Manage Leads</h1>
+          <h1 style={{ fontFamily: 'var(--font-heading)' }}>Manage Leads</h1>
           <p>Create, edit, and manage all marketplace leads</p>
         </header>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -492,7 +492,7 @@ export default function AdminLeads() {
               display: 'flex', alignItems: 'center', gap: 8,
               background: '#fff', color: '#374151', border: '1.5px solid #e2e8f0',
               borderRadius: 14, padding: '14px 20px',
-              fontSize: 14, fontWeight: 600, fontFamily: "'Poppins', sans-serif",
+              fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-heading)',
               cursor: 'pointer', transition: 'all 0.2s'
             }}>
             <Upload size={16} /> Import CSV/Excel
@@ -502,7 +502,7 @@ export default function AdminLeads() {
               display: 'flex', alignItems: 'center', gap: 8,
               background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
               color: '#fff', border: 'none', borderRadius: 14, padding: '14px 24px',
-              fontSize: 14, fontWeight: 700, fontFamily: "'Poppins', sans-serif",
+              fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)',
               cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
               transition: 'all 0.2s'
             }}>
@@ -694,7 +694,7 @@ export default function AdminLeads() {
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(249,115,22,0.2)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {editingId ? <Edit2 size={16} color="#f97316" /> : <Plus size={16} color="#f97316" />}
                   </div>
-                  <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, fontFamily: 'Poppins', letterSpacing: '-0.3px' }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, fontFamily: 'var(--font-heading)', letterSpacing: '-0.3px' }}>
                     {editingId ? 'Edit Lead' : 'Create New Lead'}
                   </h2>
                 </div>
@@ -827,7 +827,7 @@ export default function AdminLeads() {
                     style={{
                       padding: '12px 24px', borderRadius: 12, border: '1.5px solid #e2e8f0',
                       background: 'transparent', color: '#64748b', fontSize: 14, fontWeight: 600,
-                      cursor: 'pointer', fontFamily: "'Poppins', sans-serif", transition: 'all 0.2s'
+                      cursor: 'pointer', fontFamily: 'var(--font-heading)', transition: 'all 0.2s'
                     }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'transparent'; }}>
@@ -838,7 +838,7 @@ export default function AdminLeads() {
                       padding: '12px 32px', borderRadius: 12, border: 'none',
                       background: submitting ? '#94a3b8' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                       color: '#fff', fontSize: 14, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer',
-                      fontFamily: "'Poppins', sans-serif",
+                      fontFamily: 'var(--font-heading)',
                       boxShadow: submitting ? 'none' : '0 4px 16px rgba(245,158,11,0.35)',
                       transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 8
                     }}
@@ -889,7 +889,7 @@ export default function AdminLeads() {
                   <Upload size={22} color="#fff" />
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, color: '#fff', fontSize: 20, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>Import Leads from CSV / Excel</h2>
+                  <h2 style={{ margin: 0, color: '#fff', fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Import Leads from CSV / Excel</h2>
                   <p style={{ margin: 0, color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>Upload a spreadsheet to bulk-import leads into the marketplace</p>
                 </div>
               </div>
@@ -1012,7 +1012,7 @@ export default function AdminLeads() {
                     background: importing ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #15803d)',
                     color: '#fff', fontSize: 14, fontWeight: 700, cursor: importing ? 'not-allowed' : 'pointer',
                     display: 'flex', alignItems: 'center', gap: 8,
-                    fontFamily: "'Poppins', sans-serif"
+                    fontFamily: 'var(--font-heading)'
                   }}
                 >
                   {importing ? (

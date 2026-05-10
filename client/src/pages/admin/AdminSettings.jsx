@@ -63,7 +63,7 @@ export default function AdminSettings() {
   return (
     <AdminLayout>
       <header className="dashboard-header">
-        <h1 style={{ fontFamily: 'Poppins' }}>Platform Settings</h1>
+        <h1 style={{ fontFamily: 'var(--font-heading)' }}>Platform Settings</h1>
         <p>Global configurations and pricing</p>
       </header>
 

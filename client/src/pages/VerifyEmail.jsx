@@ -73,7 +73,7 @@ export default function VerifyEmail() {
     <div className="verify-email-wrapper">
       <div className="verify-email-card">
         {/* Logo */}
-        <div style={{ marginBottom: 40, fontFamily: 'Poppins' }}>
+        <div style={{ marginBottom: 40, fontFamily: 'var(--font-heading)' }}>
           <span style={{ fontWeight: 800, fontSize: 28, color: 'var(--bg-navy)' }}>MoveLeads</span>
           <span style={{ fontWeight: 800, fontSize: 28, color: '#f97316' }}>.cloud</span>
         </div>
@@ -84,7 +84,7 @@ export default function VerifyEmail() {
             <div className="verification-icon-circle loading">
               <Loader2 size={32} className="spin-animation" />
             </div>
-            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
               Verifying your account…
             </h1>
             <p style={{ color: '#94a3b8', fontSize: 15 }}>
@@ -99,7 +99,7 @@ export default function VerifyEmail() {
             <div className="verification-icon-circle success">
               <CheckCircle2 size={32} />
             </div>
-            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
               Verification Successful!
             </h1>
             <p style={{ color: '#475569', fontSize: 16, lineHeight: 1.7, marginBottom: 32, maxWidth: 380 }}>
@@ -117,7 +117,7 @@ export default function VerifyEmail() {
             <div className="verification-icon-circle error">
               <XCircle size={32} />
             </div>
-            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
               Verification Failed
             </h1>
             <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, marginBottom: 28, maxWidth: 380 }}>
@@ -158,7 +158,7 @@ export default function VerifyEmail() {
             <div className="verification-icon-circle loading">
               <Loader2 size={32} className="spin-animation" />
             </div>
-            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
               Sending…
             </h1>
           </div>
@@ -170,7 +170,7 @@ export default function VerifyEmail() {
             <div className="verification-icon-circle loading">
               <Mail size={32} />
             </div>
-            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+            <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
               Check your inbox
             </h1>
             <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, marginBottom: 32, maxWidth: 380 }}>

@@ -93,7 +93,7 @@ export default function Profile() {
   return (
     <DashboardLayout>
       <header className="dashboard-header">
-        <h1 style={{ fontFamily: 'Poppins' }}>Company Profile</h1>
+        <h1 style={{ fontFamily: 'var(--font-heading)' }}>Company Profile</h1>
         <p>Update your business information and credentials</p>
       </header>
 
@@ -110,11 +110,11 @@ export default function Profile() {
           width: 72, height: 72, borderRadius: 20,
           background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontSize: 24, fontWeight: 800, fontFamily: "'Poppins', sans-serif",
+          color: '#fff', fontSize: 24, fontWeight: 800, fontFamily: 'var(--font-heading)',
           flexShrink: 0, boxShadow: '0 8px 24px rgba(249,115,22,0.3)'
         }}>{initials}</div>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: '0 0 4px', fontFamily: "'Poppins', sans-serif" }}>
+          <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>
             {user?.companyName || 'Your Company'}
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0, fontSize: 14 }}>{user?.email || 'your@email.com'}</p>

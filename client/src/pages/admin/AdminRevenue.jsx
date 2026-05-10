@@ -105,7 +105,7 @@ export default function AdminRevenue() {
   return (
     <AdminLayout>
       <header className="dashboard-header">
-        <h1 style={{ fontFamily: 'Poppins' }}>Revenue Analytics</h1>
+        <h1 style={{ fontFamily: 'var(--font-heading)' }}>Revenue Analytics</h1>
         <p>Monitor platform-wide financial performance</p>
       </header>
 
@@ -129,7 +129,7 @@ export default function AdminRevenue() {
           <div style={{ position: 'absolute', top: '-30%', right: '-5%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
             <p style={{ color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px', fontWeight: 600, margin: '0 0 10px 0' }}>Est. Current Month</p>
-            <div style={{ fontSize: 40, fontWeight: 800, fontFamily: "'Poppins', sans-serif", letterSpacing: -1 }}>${stats.currentMonth.toFixed(2)}</div>
+            <div style={{ fontSize: 40, fontWeight: 800, fontFamily: 'var(--font-heading)', letterSpacing: -1 }}>${stats.currentMonth.toFixed(2)}</div>
           </div>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
             <DollarSign size={24} color="rgba(255,255,255,0.8)" />
@@ -144,7 +144,7 @@ export default function AdminRevenue() {
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Clock size={16} color="#3b82f6" />
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--bg-navy)', margin: 0, fontFamily: 'Poppins' }}>All Transactions</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--bg-navy)', margin: 0, fontFamily: 'var(--font-heading)' }}>All Transactions</h2>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <div style={{ position: 'relative' }}>

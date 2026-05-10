@@ -108,7 +108,7 @@ function StepProgress({ current, total = 5 }) {
 function StepHeading({ children }) {
     return (
         <div style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 7px', fontFamily: "'Poppins',sans-serif", lineHeight: 1.2 }}>{children}</h3>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 7px', fontFamily: 'var(--font-heading)', lineHeight: 1.2 }}>{children}</h3>
             <div style={{ width: 40, height: 3, background: '#ea580c', borderRadius: 999 }} />
         </div>
     );
@@ -409,7 +409,7 @@ export function DemoWidget({ companyId }) {
     const focusStyle = { borderColor: '#ea580c', boxShadow: '0 0 0 3px rgba(234,88,12,0.1)' };
 
     const nextBtn = (label, onClick, disabled) => (
-        <button type="button" onClick={onClick} disabled={disabled} style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: !disabled ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0', color: !disabled ? '#fff' : '#94a3b8', fontSize: 14, fontWeight: 700, cursor: !disabled ? 'pointer' : 'not-allowed', fontFamily: "'Poppins',sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s' }}>
+        <button type="button" onClick={onClick} disabled={disabled} style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: !disabled ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0', color: !disabled ? '#fff' : '#94a3b8', fontSize: 14, fontWeight: 700, cursor: !disabled ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s' }}>
             {label} <ChevronRight size={15} />
         </button>
     );
@@ -432,7 +432,7 @@ export function DemoWidget({ companyId }) {
                     <Home size={15} color="#fff" />
                 </div>
                 <div>
-                    <div style={{ color: '#fff', fontWeight: 700, fontSize: 13, fontFamily: "'Poppins',sans-serif" }}>Get a Moving Quote</div>
+                    <div style={{ color: '#fff', fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-heading)' }}>Get a Moving Quote</div>
                     <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>Free • Instant • No commitment</div>
                 </div>
             </div>
@@ -456,7 +456,7 @@ export function DemoWidget({ companyId }) {
                                 );
                             })}
                         </div>
-                        <button type="button" onClick={() => size && setStep(2)} disabled={!size} style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none', background: size ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0', color: size ? '#fff' : '#94a3b8', fontSize: 14, fontWeight: 700, cursor: size ? 'pointer' : 'not-allowed', fontFamily: "'Poppins',sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s' }}>
+                        <button type="button" onClick={() => size && setStep(2)} disabled={!size} style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none', background: size ? 'linear-gradient(135deg,#ea580c,#c2410c)' : '#e2e8f0', color: size ? '#fff' : '#94a3b8', fontSize: 14, fontWeight: 700, cursor: size ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s' }}>
                             Next Step <ChevronRight size={15} />
                         </button>
                     </div>
@@ -618,7 +618,7 @@ export function DemoWidget({ companyId }) {
                                 <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                                     <CheckCircle size={26} color="#16a34a" />
                                 </div>
-                                <h3 style={{ fontSize: 19, fontWeight: 800, color: '#0f172a', marginBottom: 5, fontFamily: "'Poppins',sans-serif" }}>Quote Confirmed!</h3>
+                                <h3 style={{ fontSize: 19, fontWeight: 800, color: '#0f172a', marginBottom: 5, fontFamily: 'var(--font-heading)' }}>Quote Confirmed!</h3>
                                 <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
                                     Thanks, <strong>{name}</strong>! A local mover will contact <strong>{phone}</strong> shortly.
                                 </p>
@@ -696,14 +696,14 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#fff7ed', color: '#ea580c', padding: '6px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, marginBottom: 28, border: '1px solid #fed7aa' }}>
                         <Zap size={14} fill="#ea580c" /> Free for MoveLeads members
                     </div>
-                    <h1 className={insideDashboard ? 'wp-hero-h1sm' : 'wp-hero-h1'} style={{ fontWeight: 900, color: '#0f172a', marginBottom: 22, letterSpacing: '-0.03em', lineHeight: 1.1, fontFamily: "'Poppins',sans-serif" }}>
+                    <h1 className={insideDashboard ? 'wp-hero-h1sm' : 'wp-hero-h1'} style={{ fontWeight: 900, color: '#0f172a', marginBottom: 22, letterSpacing: '-0.03em', lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
                         Turn your website into<br />a lead machine
                     </h1>
                     <p style={{ fontSize: 18, color: '#475569', maxWidth: 600, margin: '0 auto 36px', lineHeight: 1.7 }}>
                         Add our booking widget to your website in under 2 minutes. Live map, instant quotes, and every lead synced to your dashboard automatically.
                     </p>
                     <div className="wp-hero-btns">
-                        <button onClick={scrollToEmbed} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px rgba(234,88,12,0.3)', fontFamily: "'Poppins',sans-serif" }}>
+                        <button onClick={scrollToEmbed} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px rgba(234,88,12,0.3)', fontFamily: 'var(--font-heading)' }}>
                             Get Your Embed Code <ChevronRight size={16} />
                         </button>
                         <a href="#demo-section" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#f1f5f9', color: '#0f172a', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: '1px solid #e2e8f0', cursor: 'pointer', textDecoration: 'none' }}>
@@ -725,7 +725,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                                     <TrendingUp size={18} color="#fff" />
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif", letterSpacing: '-0.02em', lineHeight: 1.2 }}>Widget Performance</div>
+                                    <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>Widget Performance</div>
                                     <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 2 }}>Leads captured via your embedded widget</div>
                                 </div>
                             </div>
@@ -789,7 +789,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                                         </div>
                                         <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{card.label}</span>
                                     </div>
-                                    <div style={{ fontSize: 38, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', fontFamily: "'Poppins',sans-serif", lineHeight: 1 }}>{card.value}</div>
+                                    <div style={{ fontSize: 38, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', fontFamily: 'var(--font-heading)', lineHeight: 1 }}>{card.value}</div>
                                     <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{card.sub}</div>
                                 </div>
                             ))}
@@ -842,7 +842,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)'; }}
                             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'; }}>
                             <div style={{ width: 46, height: 46, background: f.bg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: f.color, marginBottom: 18 }}>{f.icon}</div>
-                            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 10, fontFamily: "'Poppins',sans-serif" }}>{f.title}</h3>
+                            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 10, fontFamily: 'var(--font-heading)' }}>{f.title}</h3>
                             <p style={{ color: '#64748b', lineHeight: 1.65, fontSize: 14, margin: 0 }}>{f.text}</p>
                         </div>
                     ))}
@@ -860,7 +860,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                         <div style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', color: '#64748b', padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, marginBottom: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                             LIVE DEMO
                         </div>
-                        <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', margin: '0 0 12px', fontFamily: "'Poppins',sans-serif", letterSpacing: '-0.02em' }}>Test drive the widget</h2>
+                        <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', margin: '0 0 12px', fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}>Test drive the widget</h2>
                         <p style={{ fontSize: 16, color: '#64748b', maxWidth: 500, margin: '0 auto' }}>
                             Type two real US ZIP codes — watch the live route animate.
                         </p>
@@ -870,7 +870,7 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
 
                         {/* Left: embed code */}
                         <div>
-                            <h3 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>Your embed snippet</h3>
+                            <h3 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 14, fontFamily: 'var(--font-heading)' }}>Your embed snippet</h3>
                             <p style={{ fontSize: 15, color: '#475569', marginBottom: 28, lineHeight: 1.65 }}>
                                 {user ? "Your personalized snippet is ready. Copy and paste it into any page on your website." : "Sign up free to get your personalized embed snippet with your company ID pre-filled."}
                             </p>
@@ -934,13 +934,13 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
 
             {/* ── How it works ── */}
             <div style={{ maxWidth: 960, margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
-                <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', marginBottom: 12, fontFamily: "'Poppins',sans-serif" }}>How to get started</h2>
+                <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', marginBottom: 12, fontFamily: 'var(--font-heading)' }}>How to get started</h2>
                 <p style={{ color: '#64748b', fontSize: 16, margin: '0 auto 52px', maxWidth: 500 }}>You can be live in under 2 minutes.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 40 }}>
                     {[{ num: '1', title: 'Sign up free', text: 'Create your MoveLeads account in seconds. No credit card required.', color: '#ea580c' }, { num: '2', title: 'Get your snippet', text: 'Copy your personalized embed code from the Widget tab in your dashboard.', color: '#3b82f6' }, { num: '3', title: 'Paste & go live', text: 'Drop the code into your website. The widget appears instantly for every visitor.', color: '#16a34a' }].map(s => (
                         <div key={s.num}>
-                            <div style={{ width: 52, height: 52, background: s.color, color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, margin: '0 auto 18px', boxShadow: `0 6px 20px ${s.color}40`, fontFamily: "'Poppins',sans-serif" }}>{s.num}</div>
-                            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 8, fontFamily: "'Poppins',sans-serif" }}>{s.title}</h3>
+                            <div style={{ width: 52, height: 52, background: s.color, color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, margin: '0 auto 18px', boxShadow: `0 6px 20px ${s.color}40`, fontFamily: 'var(--font-heading)' }}>{s.num}</div>
+                            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 8, fontFamily: 'var(--font-heading)' }}>{s.title}</h3>
                             <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.65, margin: 0 }}>{s.text}</p>
                         </div>
                     ))}
@@ -953,13 +953,13 @@ export default function WidgetPage({ user, token, apiUrl, insideDashboard = fals
                     <div style={{ position: 'absolute', top: '-30%', right: '-5%', width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle,rgba(234,88,12,0.12),transparent 70%)', pointerEvents: 'none' }} />
                     <div style={{ position: 'relative' }}>
                         <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '5px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, marginBottom: 22, border: '1px solid rgba(255,255,255,0.15)' }}>Free while in beta</div>
-                        <h2 style={{ fontSize: 34, fontWeight: 800, color: '#fff', marginBottom: 14, fontFamily: "'Poppins',sans-serif", letterSpacing: '-0.02em' }}>Want this widget on your website?</h2>
+                        <h2 style={{ fontSize: 34, fontWeight: 800, color: '#fff', marginBottom: 14, fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}>Want this widget on your website?</h2>
                         <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 16, margin: '0 auto 36px', maxWidth: 520 }}>Contact us and we'll set everything up for you — no technical knowledge needed.</p>
                         <div className="wp-cta-btns">
-                            <a href="mailto:support@moveleads.cloud?subject=Widget%20Setup%20Request" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 6px 20px rgba(234,88,12,0.4)', fontFamily: "'Poppins',sans-serif" }}>
+                            <a href="mailto:support@moveleads.cloud?subject=Widget%20Setup%20Request" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 6px 20px rgba(234,88,12,0.4)', fontFamily: 'var(--font-heading)' }}>
                                 <Mail size={16} /> Contact us to get started
                             </a>
-                            <button onClick={scrollToEmbed} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', fontFamily: "'Poppins',sans-serif" }}>
+                            <button onClick={scrollToEmbed} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '14px 28px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', fontFamily: 'var(--font-heading)' }}>
                                 <Code size={16} /> See the embed code
                             </button>
                         </div>

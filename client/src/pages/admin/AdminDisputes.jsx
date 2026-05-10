@@ -73,7 +73,7 @@ export default function AdminDisputes() {
   return (
     <AdminLayout>
       <header className="dashboard-header">
-        <h1 style={{ fontFamily: 'Poppins' }}>Dispute Resolution</h1>
+        <h1 style={{ fontFamily: 'var(--font-heading)' }}>Dispute Resolution</h1>
         <p>Review and resolve lead refund requests from movers</p>
       </header>
 

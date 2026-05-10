@@ -79,7 +79,7 @@ export default function Feedback() {
                             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                                 <CheckCircle size={32} color="#16a34a" />
                             </div>
-                            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 12, fontFamily: "'Poppins', sans-serif" }}>Feedback Received</h2>
+                            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 12, fontFamily: 'var(--font-heading)' }}>Feedback Received</h2>
                             <p style={{ color: '#64748b', lineHeight: 1.6, marginBottom: 24 }}>
                                 Thank you for letting us know. A ticket has been opened and the moving company will be notified to resolve this with you directly.
                             </p>
@@ -93,7 +93,7 @@ export default function Feedback() {
                                 <div style={{ width: 56, height: 56, borderRadius: 16, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                                     <MessageSquareWarning size={28} color="#ea580c" />
                                 </div>
-                                <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 8, fontFamily: "'Poppins', sans-serif" }}>Report an Issue</h2>
+                                <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 8, fontFamily: 'var(--font-heading)' }}>Report an Issue</h2>
                                 <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
                                     Experiencing a problem with your moving company? Let us know and we'll help resolve it quickly.
                                 </p>
@@ -164,7 +164,7 @@ export default function Feedback() {
                                     background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff',
                                     padding: '14px', borderRadius: 12, fontSize: 15, fontWeight: 700,
                                     border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-                                    fontFamily: "'Poppins', sans-serif", opacity: loading ? 0.7 : 1,
+                                    fontFamily: 'var(--font-heading)', opacity: loading ? 0.7 : 1,
                                 }}>
                                     <Send size={18} /> {loading ? 'Submitting…' : 'Submit Feedback'}
                                 </button>

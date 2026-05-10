@@ -69,7 +69,7 @@ function KpiCard({ title, value, sub, icon, accent, cta, onCta, loading }) {
         </div>
       </div>
 
-      <div style={{ fontSize: 34, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins', sans-serif", lineHeight: 1, letterSpacing: '-1px' }}>
+      <div style={{ fontSize: 34, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)', lineHeight: 1, letterSpacing: '-1px' }}>
         {loading ? <span style={{ display: 'inline-block', width: 80, height: 32, borderRadius: 8, background: '#f1f5f9', animation: 'pulse 1.4s ease infinite' }} /> : value}
       </div>
 
@@ -81,7 +81,7 @@ function KpiCard({ title, value, sub, icon, accent, cta, onCta, loading }) {
             background: `linear-gradient(135deg, ${accent} 0%, ${accent}cc 100%)`,
             color: '#fff', border: 'none', borderRadius: 10,
             padding: '6px 14px', fontSize: 12, fontWeight: 700,
-            cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+            cursor: 'pointer', fontFamily: 'var(--font-heading)',
             boxShadow: `0 4px 12px ${accent}44`
           }}>
             <Plus size={13} /> {cta}
@@ -238,7 +238,7 @@ export default function Dashboard() {
     <DashboardLayout>
       {/* ── Page header ───────────────────────────────── */}
       <header className="dashboard-header" style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'Poppins', margin: '0 0 4px', fontSize: 26, fontWeight: 800, color: '#0f172a' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', margin: '0 0 4px', fontSize: 26, fontWeight: 800, color: '#0f172a' }}>
           {getGreeting()}{user?.companyName ? `, ${user.companyName.split(' ')[0]}` : ''} 👋
         </h1>
         <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>Here's your real-time business overview</p>
@@ -261,7 +261,7 @@ export default function Dashboard() {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>Lead Volume</h3>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Lead Volume</h3>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>Your purchases — last 7 days</p>
             </div>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', background: '#f1f5f9', padding: '5px 12px', borderRadius: 8, letterSpacing: '0.04em' }}>
@@ -294,7 +294,7 @@ export default function Dashboard() {
           display: 'flex', flexDirection: 'column'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>Recent Activity</h3>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Recent Activity</h3>
             <button onClick={() => navigate('/dashboard/billing')} style={{ background: 'none', border: 'none', fontSize: 12, color: '#3b82f6', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
               View all <ChevronRight size={13} />
             </button>
@@ -341,7 +341,7 @@ export default function Dashboard() {
               <Zap size={15} color="#f59e0b" />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>Available Leads</h3>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Available Leads</h3>
               <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>Live marketplace — act fast</p>
             </div>
           </div>
@@ -349,7 +349,7 @@ export default function Dashboard() {
             display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
             background: 'linear-gradient(135deg, #0a192f 0%, #1e3a5f 100%)',
             color: '#fff', border: 'none', borderRadius: 10,
-            fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'Poppins',sans-serif"
+            fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-heading)'
           }}>
             View Live Feed <ChevronRight size={13} />
           </button>
@@ -410,7 +410,7 @@ export default function Dashboard() {
                       )}
                     </td>
                     <td style={{ padding: '13px 16px' }}>
-                      <span style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>${lead.price || 25}</span>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>${lead.price || 25}</span>
                     </td>
                   </tr>
                 );

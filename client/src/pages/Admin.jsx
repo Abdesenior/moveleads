@@ -103,7 +103,7 @@ export default function Admin() {
     <AdminLayout>
       <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontFamily: 'Poppins' }}>Platform Overview</h1>
+          <h1 style={{ fontFamily: 'var(--font-heading)' }}>Platform Overview</h1>
           <p>Real-time metrics and operations health</p>
         </div>
         <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>
@@ -209,7 +209,7 @@ export default function Admin() {
               display: 'flex', alignItems: 'center', gap: 14,
               background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
               color: '#fff', border: 'none', borderRadius: 14, padding: '18px 22px',
-              fontSize: 14, fontWeight: 700, fontFamily: "'Poppins', sans-serif",
+              fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)',
               cursor: 'pointer', transition: 'all 0.25s',
               boxShadow: '0 4px 16px rgba(245,158,11,0.3)'
             }}>
@@ -224,7 +224,7 @@ export default function Admin() {
               display: 'flex', alignItems: 'center', gap: 14,
               background: '#fff', color: '#0f172a',
               border: '1px solid #e2e8f0', borderRadius: 14, padding: '18px 22px',
-              fontSize: 14, fontWeight: 600, fontFamily: "'Poppins', sans-serif",
+              fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-heading)',
               cursor: 'pointer', transition: 'all 0.25s'
             }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -238,7 +238,7 @@ export default function Admin() {
               display: 'flex', alignItems: 'center', gap: 14,
               background: '#fff', color: '#0f172a',
               border: '1px solid #e2e8f0', borderRadius: 14, padding: '18px 22px',
-              fontSize: 14, fontWeight: 600, fontFamily: "'Poppins', sans-serif",
+              fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-heading)',
               cursor: 'pointer', transition: 'all 0.25s'
             }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

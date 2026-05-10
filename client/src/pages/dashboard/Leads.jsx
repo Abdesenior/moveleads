@@ -117,7 +117,7 @@ function LeadDetailModal({ lead, user, onClose, onBuy }) {
                   </span>
                 )}
               </div>
-              <h2 style={{ color: '#fff', fontSize: 19, fontWeight: 800, margin: 0, fontFamily: "'Poppins',sans-serif" }}>
+              <h2 style={{ color: '#fff', fontSize: 19, fontWeight: 800, margin: 0, fontFamily: 'var(--font-heading)' }}>
                 {lead.originCity} → {lead.destinationCity}
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: '3px 0 0' }}>Listed {timeAgo(lead.createdAt)}</p>
@@ -143,7 +143,7 @@ function LeadDetailModal({ lead, user, onClose, onBuy }) {
                 {/* Origin */}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Origin</div>
-                  <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a', fontFamily: "'Poppins',sans-serif", lineHeight: 1 }}>{lead.originZip || '—'}</div>
+                  <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a', fontFamily: 'var(--font-heading)', lineHeight: 1 }}>{lead.originZip || '—'}</div>
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{lead.originCity}</div>
                 </div>
 
@@ -158,7 +158,7 @@ function LeadDetailModal({ lead, user, onClose, onBuy }) {
                 {/* Destination */}
                 <div style={{ flex: 1, textAlign: 'right' }}>
                   <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Destination</div>
-                  <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a', fontFamily: "'Poppins',sans-serif", lineHeight: 1 }}>{lead.destinationZip || '—'}</div>
+                  <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a', fontFamily: 'var(--font-heading)', lineHeight: 1 }}>{lead.destinationZip || '—'}</div>
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{lead.destinationCity}</div>
                 </div>
               </div>
@@ -225,7 +225,7 @@ function LeadDetailModal({ lead, user, onClose, onBuy }) {
             <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Lead Price</span>
-                <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+                <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
                   ${(lead.price || 25).toFixed(2)}
                 </span>
               </div>
@@ -249,7 +249,7 @@ function LeadDetailModal({ lead, user, onClose, onBuy }) {
               style={{
                 width: '100%', padding: '13px', border: 'none', borderRadius: 12,
                 fontWeight: 800, fontSize: 14, cursor: 'pointer',
-                fontFamily: "'Poppins',sans-serif",
+                fontFamily: 'var(--font-heading)',
                 background: 'linear-gradient(135deg,#ea580c,#c2410c)',
                 color: '#fff', boxShadow: '0 4px 14px rgba(234,88,12,0.30)',
                 opacity: (user?.balance ?? 0) < (lead.price || 25) ? 0.5 : 1,
@@ -363,7 +363,7 @@ export default function Leads() {
       {/* ── Page header ──────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
-          <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+          <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
             Live Leads Market
           </h1>
           <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>
@@ -454,7 +454,7 @@ export default function Leads() {
                     <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fff7ed', border: '2px solid #fed7aa', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                       <Zap size={28} color="#ea580c" />
                     </div>
-                    <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+                    <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
                       No live leads right now
                     </h3>
                     <p style={{ margin: '0 0 16px', fontSize: 13, color: '#94a3b8' }}>
@@ -530,7 +530,7 @@ export default function Leads() {
 
                   {/* Price */}
                   <td style={{ padding: '14px 12px' }}>
-                    <span style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+                    <span style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
                       ${(lead.price || 25).toFixed(2)}
                     </span>
                   </td>
@@ -545,7 +545,7 @@ export default function Leads() {
                         background: 'linear-gradient(135deg,#ea580c,#c2410c)',
                         color: '#fff', border: 'none', borderRadius: 9,
                         padding: '8px 14px', fontSize: 12, fontWeight: 700,
-                        cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+                        cursor: 'pointer', fontFamily: 'var(--font-heading)',
                         boxShadow: '0 2px 8px rgba(234,88,12,0.30)',
                         whiteSpace: 'nowrap',
                       }}>
@@ -596,7 +596,7 @@ export default function Leads() {
               <div style={{ position: 'absolute', top: '-30%', right: '-8%', width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle,rgba(234,88,12,0.2),transparent 70%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 3px', fontFamily: "'Poppins',sans-serif" }}>Confirm Purchase</h2>
+                  <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 3px', fontFamily: 'var(--font-heading)' }}>Confirm Purchase</h2>
                   <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>Review before you buy</p>
                 </div>
                 <button onClick={() => setConfirmLead(null)} style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -621,7 +621,7 @@ export default function Leads() {
               ].map(r => (
                 <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: 13, color: '#64748b' }}>{r.label}</span>
-                  <span style={{ fontSize: r.bold ? 17 : 13, fontWeight: r.bold ? 800 : 600, color: r.color||'#0f172a', fontFamily: r.bold ? "'Poppins',sans-serif" : 'inherit' }}>{r.value}</span>
+                  <span style={{ fontSize: r.bold ? 17 : 13, fontWeight: r.bold ? 800 : 600, color: r.color||'#0f172a', fontFamily: r.bold ? 'var(--font-heading)' : 'inherit' }}>{r.value}</span>
                 </div>
               ))}
               {(user?.balance??0) < (confirmLead.price||25) && (
@@ -636,7 +636,7 @@ export default function Leads() {
                   disabled={purchasing || (user?.balance??0) < (confirmLead.price||25)}
                   style={{
                     flex: 2, padding: 12, border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 13,
-                    cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+                    cursor: 'pointer', fontFamily: 'var(--font-heading)',
                     background: 'linear-gradient(135deg,#ea580c,#c2410c)',
                     color: '#fff', boxShadow: '0 4px 14px rgba(234,88,12,0.3)',
                     opacity: purchasing||(user?.balance??0)<(confirmLead.price||25) ? 0.5 : 1,
@@ -657,7 +657,7 @@ export default function Leads() {
             <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <CheckCircle size={34} color="#16a34a" />
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Lead Unlocked!</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 6, fontFamily: 'var(--font-heading)' }}>Lead Unlocked!</h2>
             <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>Contact details revealed. Reach out fast for the best chance to convert.</p>
             <div style={{ background: '#f8fafc', borderRadius: 14, padding: '18px 20px', marginBottom: 20, textAlign: 'left' }}>
               {[
@@ -675,8 +675,8 @@ export default function Leads() {
               ))}
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setSuccessData(null); navigate('/dashboard/my-leads'); }} style={{ flex: 1, padding: 12, background: '#0f172a', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: "'Poppins',sans-serif" }}>View My Leads</button>
-              <button onClick={() => setSuccessData(null)} style={{ flex: 1, padding: 12, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: "'Poppins',sans-serif", boxShadow: '0 4px 14px rgba(234,88,12,0.3)' }}>Keep Browsing</button>
+              <button onClick={() => { setSuccessData(null); navigate('/dashboard/my-leads'); }} style={{ flex: 1, padding: 12, background: '#0f172a', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-heading)' }}>View My Leads</button>
+              <button onClick={() => setSuccessData(null)} style={{ flex: 1, padding: 12, background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-heading)', boxShadow: '0 4px 14px rgba(234,88,12,0.3)' }}>Keep Browsing</button>
             </div>
           </div>
         </div>

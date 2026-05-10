@@ -236,7 +236,7 @@ export default function DashboardLayout({ children }) {
               </span>
               <p className="logo-tagline">Moving leads marketplace</p>
               {/* Collapsed icon fallback */}
-              <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#ea580c', fontFamily: 'Poppins, sans-serif' }}>M</span>
+              <span className="logo-icon" style={{ display: 'none', fontSize: 20, fontWeight: 800, color: '#ea580c', fontFamily: 'var(--font-heading)' }}>M</span>
             </Link>
           </SidebarTooltip>
 
@@ -332,7 +332,7 @@ export default function DashboardLayout({ children }) {
               style={{ background: balanceBg, marginBottom: 10 }}
             >
               <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Balance</span>
-              <span style={{ fontSize: 14, fontWeight: 800, color: balanceColor, fontFamily: "'Poppins', sans-serif" }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: balanceColor, fontFamily: 'var(--font-heading)' }}>
                 ${balance.toFixed(2)}
               </span>
             </div>

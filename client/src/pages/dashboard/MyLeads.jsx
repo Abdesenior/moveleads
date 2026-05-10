@@ -236,7 +236,7 @@ function LeadRow({ purchase, onUpdate }) {
           </div>
         </td>
         <td style={{ padding: '14px 12px' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'Poppins, sans-serif' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
             ${purchase.pricePaid?.toFixed(2)}
           </span>
         </td>
@@ -309,7 +309,7 @@ export default function MyLeads() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <Briefcase size={22} color="#ea580c" />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'Poppins, sans-serif' }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
             My Leads
           </h1>
           <span style={{

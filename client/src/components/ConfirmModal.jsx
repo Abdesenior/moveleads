@@ -53,7 +53,7 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
           <IconComponent size={32} />
         </div>
 
-        <h2 style={{ fontSize: 22, color: '#0f172a', marginBottom: 12, fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>{title}</h2>
+        <h2 style={{ fontSize: 22, color: '#0f172a', marginBottom: 12, fontFamily: 'var(--font-heading)', fontWeight: 800 }}>{title}</h2>
         <p style={{ color: '#64748b', marginBottom: 32, fontSize: 15, lineHeight: 1.6 }}>{message}</p>
 
         <div style={{ display: 'flex', gap: 12 }}>
@@ -66,7 +66,7 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
               border: 'none', borderRadius: 14,
               fontWeight: 700, fontSize: 14,
               cursor: 'pointer',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--font-heading)',
               boxShadow: `0 4px 14px ${c.shadow}`,
               transition: 'all 0.25s'
             }}

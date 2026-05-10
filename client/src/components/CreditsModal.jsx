@@ -22,7 +22,7 @@ export default function CreditsModal({ isOpen, onClose, onSelect }) {
           <div style={{ display: 'inline-flex', padding: '12px', background: '#f0f9ff', borderRadius: '16px', color: '#0369a1', marginBottom: '16px' }}>
             <Zap size={32} />
           </div>
-          <h2 style={{ fontSize: '28px', color: '#0f172a', fontWeight: 800, fontFamily: 'Poppins', margin: '0 0 8px 0' }}>Add Credits</h2>
+          <h2 style={{ fontSize: '28px', color: '#0f172a', fontWeight: 800, fontFamily: 'var(--font-heading)', margin: '0 0 8px 0' }}>Add Credits</h2>
           <p style={{ color: '#64748b', fontSize: '16px' }}>Select a package to top up your balance instantly</p>
         </div>
 

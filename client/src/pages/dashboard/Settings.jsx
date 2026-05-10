@@ -307,7 +307,7 @@ export default function SettingsPage() {
     <DashboardLayout>
       {/* Page header */}
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+        <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
           Account Settings
         </h1>
         <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Manage notifications, coverage areas, and preferences</p>
@@ -555,7 +555,7 @@ export default function SettingsPage() {
                     padding: '11px 24px', borderRadius: 12, border: 'none',
                     background: 'linear-gradient(135deg,#f59e0b,#d97706)',
                     color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Poppins',sans-serif",
+                    fontFamily: 'var(--font-heading)',
                     boxShadow: '0 4px 12px rgba(245,158,11,0.25)',
                     opacity: prefsSaving ? 0.6 : 1,
                   }}
@@ -635,7 +635,7 @@ export default function SettingsPage() {
                     padding: '11px 24px', borderRadius: 12, border: 'none',
                     background: 'linear-gradient(135deg,#f59e0b,#d97706)',
                     color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Poppins',sans-serif",
+                    fontFamily: 'var(--font-heading)',
                     boxShadow: '0 4px 12px rgba(245,158,11,0.25)',
                     opacity: profileSaving ? 0.6 : 1,
                   }}
@@ -675,7 +675,7 @@ export default function SettingsPage() {
                     padding: '11px 24px', borderRadius: 12, border: 'none',
                     background: 'linear-gradient(135deg,#ef4444,#dc2626)',
                     color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Poppins',sans-serif",
+                    fontFamily: 'var(--font-heading)',
                     boxShadow: '0 4px 12px rgba(239,68,68,0.25)',
                   }}
                 >

@@ -19,7 +19,7 @@ export default function ImpersonationBanner() {
       top: 0,
       zIndex: 11000,
       boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
-      fontFamily: 'Poppins, sans-serif'
+      fontFamily: 'var(--font-heading)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <ShieldAlert size={20} />

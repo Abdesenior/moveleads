@@ -59,7 +59,7 @@ const pricingPageFaqSchema = {
 const ORANGE = '#f97316';
 const NAVY   = '#0b1628';
 const BL     = '#e8edf4';
-const F      = "'Poppins', sans-serif";
+const F      = 'var(--font-heading)';
 
 /* ── Scroll-reveal (simple intersection observer) ─────────────── */
 function Reveal({ children, delay = 0 }) {

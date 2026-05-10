@@ -166,7 +166,7 @@ export default function Billing() {
 
       {/* Page header */}
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>
+        <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
           Billing & Credits
         </h1>
         <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Manage your balance and view transaction history</p>
@@ -188,7 +188,7 @@ export default function Billing() {
             Available Balance
           </p>
           <div className="billing-balance-amount" style={{
-            fontSize: 52, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif",
+            fontSize: 52, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)',
             lineHeight: 1, letterSpacing: -1, marginBottom: 12,
             animation: balancePulse ? 'blPulse 0.5s ease' : 'none',
           }}>
@@ -252,7 +252,7 @@ export default function Billing() {
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               background: 'linear-gradient(135deg,#ea580c,#c2410c)',
               color: '#fff', border: 'none', borderRadius: 12, padding: '14px 20px',
-              fontSize: 14, fontWeight: 700, fontFamily: "'Poppins',sans-serif",
+              fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)',
               cursor: 'pointer', boxShadow: '0 4px 16px rgba(234,88,12,0.3)',
               transition: 'all 0.2s',
             }}
@@ -273,7 +273,7 @@ export default function Billing() {
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Clock size={15} color="#3b82f6" />
             </div>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: "'Poppins',sans-serif" }}>Transaction History</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Transaction History</span>
           </div>
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
@@ -395,7 +395,7 @@ export default function Billing() {
               <div style={{ position: 'absolute', top: '-30%', right: '-10%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle,rgba(249,115,22,0.15),transparent 70%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ color: '#fff', fontSize: 19, fontWeight: 800, margin: '0 0 4px', fontFamily: "'Poppins',sans-serif" }}>Confirm Top Up</h2>
+                  <h2 style={{ color: '#fff', fontSize: 19, fontWeight: 800, margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>Confirm Top Up</h2>
                   <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>You're adding credits to your account</p>
                 </div>
                 <button
@@ -411,7 +411,7 @@ export default function Billing() {
               {/* Amount display */}
               <div style={{ textAlign: 'center', padding: '20px', background: '#f8fafc', borderRadius: 16, marginBottom: 22 }}>
                 <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Adding to your account</div>
-                <div style={{ fontSize: 48, fontWeight: 800, color: '#0a192f', fontFamily: "'Poppins',sans-serif", letterSpacing: -1 }}>${confirmAmount}</div>
+                <div style={{ fontSize: 48, fontWeight: 800, color: '#0a192f', fontFamily: 'var(--font-heading)', letterSpacing: -1 }}>${confirmAmount}</div>
                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>credits</div>
               </div>
 
@@ -422,7 +422,7 @@ export default function Billing() {
               ].map(r => (
                 <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: 13, color: '#64748b' }}>{r.label}</span>
-                  <span style={{ fontSize: r.bold ? 16 : 13, fontWeight: r.bold ? 800 : 600, color: r.color, fontFamily: r.bold ? "'Poppins',sans-serif" : 'inherit' }}>{r.value}</span>
+                  <span style={{ fontSize: r.bold ? 16 : 13, fontWeight: r.bold ? 800 : 600, color: r.color, fontFamily: r.bold ? 'var(--font-heading)' : 'inherit' }}>{r.value}</span>
                 </div>
               ))}
 
@@ -440,7 +440,7 @@ export default function Billing() {
                   disabled={redirecting}
                   style={{
                     flex: 2, padding: 13, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14,
-                    cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+                    cursor: 'pointer', fontFamily: 'var(--font-heading)',
                     background: 'linear-gradient(135deg,#f59e0b,#d97706)',
                     color: '#fff', boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
                     opacity: redirecting ? 0.6 : 1, transition: 'all 0.25s',

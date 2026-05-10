@@ -112,7 +112,7 @@ export default function Register() {
       <div className="auth-left">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: 48 }}>
-            <div style={{ fontSize: 28, fontFamily: "'Poppins', sans-serif", marginBottom: 4 }}>
+            <div style={{ fontSize: 28, fontFamily: 'var(--font-heading)', marginBottom: 4 }}>
               <span style={{ fontWeight: 800, color: '#fff' }}>MoveLeads</span>
               <span style={{ fontWeight: 800, color: '#f97316' }}>.cloud</span>
             </div>
@@ -138,7 +138,7 @@ export default function Register() {
               color: 'rgba(255,255,255,0.55)',
               fontSize: 20, fontWeight: 500, lineHeight: 1.1,
               margin: '0 0 4px',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--font-heading)',
               letterSpacing: '-0.005em',
             }}>
               Claim your free
@@ -146,7 +146,7 @@ export default function Register() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4, flexWrap: 'wrap' }}>
               <span style={{
                 fontSize: 68, fontWeight: 900, color: '#f97316',
-                lineHeight: 1, fontFamily: "'Poppins', sans-serif",
+                lineHeight: 1, fontFamily: 'var(--font-heading)',
                 letterSpacing: '-0.04em',
               }}>$50</span>
               <span style={{
@@ -162,7 +162,7 @@ export default function Register() {
             <p style={{
               color: '#fff', fontSize: 22, fontWeight: 700,
               margin: '0 0 26px',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--font-heading)',
               letterSpacing: '-0.01em', lineHeight: 1.2,
             }}>
               unlock credit
@@ -171,7 +171,7 @@ export default function Register() {
           </div>
 
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 28 }}>
-            <h3 style={{ fontSize: 18, color: '#fff', marginBottom: 24, fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}>What you get</h3>
+            <h3 style={{ fontSize: 18, color: '#fff', marginBottom: 24, fontFamily: 'var(--font-heading)', fontWeight: 700 }}>What you get</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {[
                 { icon: <CheckCircle2 size={18} />, title: 'Turnkey Booking Platform', desc: 'Customers build their own quotes' },
@@ -210,7 +210,7 @@ export default function Register() {
               <div className="verification-icon-circle success">
                 <Mail size={32} />
               </div>
-              <h1 style={{ fontSize: 26, marginBottom: 12, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>
+              <h1 style={{ fontSize: 26, marginBottom: 12, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
                 Account Created!
               </h1>
               <p style={{ color: '#475569', fontSize: 16, lineHeight: 1.7, marginBottom: 8, maxWidth: 380 }}>
@@ -225,7 +225,7 @@ export default function Register() {
             </div>
           ) : (
             <>
-          <h1 style={{ fontSize: 28, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: "'Poppins', sans-serif", fontWeight: 800 }}>Create your account</h1>
+          <h1 style={{ fontSize: 28, marginBottom: 8, color: 'var(--bg-navy)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Create your account</h1>
           <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 32 }}>Get started with qualified moving leads</p>
 
           <div style={{ marginBottom: 28 }}>

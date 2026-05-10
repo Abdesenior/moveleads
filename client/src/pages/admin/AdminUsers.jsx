@@ -148,7 +148,7 @@ export default function AdminUsers() {
   return (
     <AdminLayout>
       <header className="dashboard-header">
-        <h1 style={{ fontFamily: 'Poppins' }}>Manage Users</h1>
+        <h1 style={{ fontFamily: 'var(--font-heading)' }}>Manage Users</h1>
         <p>Monitor and control all registered customer accounts</p>
       </header>
 
@@ -185,7 +185,7 @@ export default function AdminUsers() {
 
       <div className="panel" style={{ padding: 0, overflow: 'hidden', borderRadius: 18 }}>
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid #f1f5f9' }}>
-          <div style={{ fontWeight: 800, fontFamily: 'Poppins', color: 'var(--bg-navy)', fontSize: 16 }}>Customer Directory</div>
+          <div style={{ fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--bg-navy)', fontSize: 16 }}>Customer Directory</div>
           <div style={{ position: 'relative', minWidth: 260, flex: '1 1 260px' }}>
             <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}

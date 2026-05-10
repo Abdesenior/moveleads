@@ -119,7 +119,7 @@ export default function AdminPricing() {
     <AdminLayout>
       <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontFamily: 'Poppins' }}>Pricing Rules</h1>
+          <h1 style={{ fontFamily: 'var(--font-heading)' }}>Pricing Rules</h1>
           <p>Configure dynamic lead prices based on move characteristics</p>
         </div>
         <button onClick={() => { setShowForm(true); setEditingId(null); }} className="btn-primary" style={{
