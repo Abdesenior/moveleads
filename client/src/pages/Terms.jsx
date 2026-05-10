@@ -35,7 +35,7 @@ These terms apply to all users, including homeowners requesting moving quotes ("
 
 **Pay per lead:** You agree to pay per lead as shown at time of purchase. Prices are dynamic and may vary based on lead quality, distance, home size, and demand.
 
-**All sales final:** All lead purchases are final. Refunds are only available if a lead is proven invalid (disconnected phone, duplicate, or fraudulent) and a dispute is filed within 24 hours of purchase.
+**All sales final:** All lead purchases are final. Refunds are only available if a lead is proven invalid (disconnected phone, duplicate, fraudulent, or the lead becomes unreachable after reasonable contact attempts) and a dispute is filed within 7 days of purchase.
 
 **Lead exclusivity:** Leads may be sold to multiple moving companies unless explicitly marked as exclusive.
 
@@ -55,12 +55,13 @@ MoveLeads reserves the right to change pricing at any time with notice.`,
   {
     id: 'disputes',
     title: '5. Dispute Resolution',
-    content: `If you believe a lead is invalid, you may file a dispute within 24 hours of purchase through your dashboard.
+    content: `If you believe a lead is invalid, you may file a dispute within 7 days of purchase through your dashboard.
 
 A lead is considered invalid if:
 - The phone number is disconnected or non-functional
 - The lead is a duplicate of one you previously purchased
 - The lead is demonstrably fraudulent
+- The lead becomes unreachable after reasonable contact attempts
 
 Approved disputes result in a credit to your MoveLeads account balance. MoveLeads decisions on disputes are final.`,
   },

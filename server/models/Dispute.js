@@ -32,6 +32,13 @@ const DisputeSchema = new mongoose.Schema({
   resolvedAt: {
     type: Date
   },
+  resolvedBy: {
+    // ── WP10.3 ──────────────────────────────────────────────────────────
+    // Audit trail for which admin won the atomic claim on a PENDING dispute.
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'user',
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now

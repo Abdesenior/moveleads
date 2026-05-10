@@ -4,6 +4,7 @@ const twilio = require('twilio');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const PurchasedLead = require('../models/PurchasedLead');
+const Transaction = require('../models/Transaction');
 const findEligibleMovers = require('../utils/findEligibleMovers');
 const { deductLeadBalance } = require('../services/billingService');
 
@@ -176,8 +177,10 @@ router.post('/mover-accept', twilioWebhook, async (req, res) => {
 /**
  * 5. Dial Complete — Refund if call dropped or lasted under 10 seconds
  *
- * FIX 4: If the mover was charged but the call failed or was < 10 s,
- * refund the $40 credit, remove them from buyers, and reset the lead.
+ * FIX 4 (WP10.4): If the mover was charged but the call failed or was < 10s,
+ * refund the actual pricePaid (not a hardcoded $40), write a Transaction row,
+ * and gate the whole operation behind an atomic PurchasedLead.refunded flip
+ * so Twilio retries cannot double-refund.
  */
 router.post('/dial-complete', twilioWebhook, async (req, res) => {
   const { DialCallStatus, DialCallDuration } = req.body;
@@ -192,17 +195,65 @@ router.post('/dial-complete', twilioWebhook, async (req, res) => {
         const callFailed = DialCallStatus !== 'completed' || duration < 10;
 
         if (callFailed) {
-          await User.findByIdAndUpdate(moverId, { $inc: { balance: 40 } });
-          await Lead.findByIdAndUpdate(leadId, {
-            $pull: { buyers: { company: moverId } },
-            $set: { status: 'Available', isWarmTransfer: false }
-          });
-          await PurchasedLead.findOneAndDelete({
+          // Resolve the matching purchase to read the *actual* pricePaid
+          // at time of purchase, not a stale hardcoded $40.
+          const purchase = await PurchasedLead.findOne({
             lead: leadId,
             company: moverId,
-            isLiveTransfer: true
+            isLiveTransfer: true,
           });
-          console.log(`[Voice] Refunded mover ${moverId} — status=${DialCallStatus}, duration=${duration}s`);
+
+          if (!purchase) {
+            console.log(`[Voice] dial-complete — no live-transfer purchase for lead ${leadId} mover ${moverId}; skipping`);
+          } else {
+            // Atomic idempotency gate: only the first invocation flips
+            // refunded:false → true. Twilio retries (which can fire the
+            // callback multiple times) observe `null` here and skip the
+            // refund silently. refundedBy=null marks a system refund.
+            const claimed = await PurchasedLead.findOneAndUpdate(
+              { _id: purchase._id, refunded: false },
+              { $set: { refunded: true, refundedAt: new Date(), refundedBy: null } },
+              { new: true }
+            );
+
+            if (!claimed) {
+              console.log(`[Voice] dial-complete — already refunded for purchase ${purchase._id}; skipping`);
+            } else {
+              const refundAmount = Number(purchase.pricePaid || 0);
+
+              // Write Transaction row (also unique-indexed on
+              // {purchasedLead, type:'Lead Refund'} as a second-layer guard).
+              try {
+                await new Transaction({
+                  user: moverId,
+                  type: 'Lead Refund',
+                  amount: refundAmount,
+                  description: `Voice auto-refund — call ${DialCallStatus}, duration=${duration}s, lead ${leadId}`,
+                  lead: leadId,
+                  purchasedLead: purchase._id,
+                  status: 'Completed',
+                }).save();
+              } catch (err) {
+                if (err && err.code === 11000) {
+                  // Already-written Transaction means a prior refund won
+                  // the race even though we claimed the flag. Don't double
+                  // credit balance.
+                  console.log(`[Voice] dial-complete — duplicate Transaction for purchase ${purchase._id}; balance not adjusted`);
+                  const twimlSkip = new VoiceResponse();
+                  twimlSkip.hangup();
+                  return res.type('text/xml').send(twimlSkip.toString());
+                }
+                throw err;
+              }
+
+              await User.findByIdAndUpdate(moverId, { $inc: { balance: refundAmount } });
+              await Lead.findByIdAndUpdate(leadId, {
+                $pull: { buyers: { company: moverId } },
+                $set: { status: 'Available', isWarmTransfer: false }
+              });
+              console.log(`[Voice] Refunded mover ${moverId} $${refundAmount} — status=${DialCallStatus}, duration=${duration}s`);
+            }
+          }
         }
       }
     } catch (err) {

@@ -11,8 +11,9 @@ const zipcodes = require('zipcodes');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
 const { calculateLeadScore } = require('../services/scoringService');
 const { emitNewLead } = require('../services/socketService');
-const { sendAdminLeadNotification } = require('../services/emailService');
+const { sendAdminLeadNotification, sendDisputeApprovedEmail } = require('../services/emailService');
 const { sendMoverLeadSMS } = require('../services/smsService');
+const Transaction = require('../models/Transaction');
 
 // ── Helpers for bulk import ───────────────────────────────────────────────────
 function milesFromZips(originZip, destinationZip) {
@@ -332,6 +333,96 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
 
   console.log(`[Import] Done — imported: ${imported}, skipped: ${skipped}`);
   res.json({ success: true, imported, skipped, errors });
+});
+
+// ── WP10.2 — Admin-initiated refund for a PurchasedLead ─────────────────────
+// POST /api/admin/refund/:purchasedLeadId
+//
+// Policy note (known compromise — Phase 1):
+//   We mark the PurchasedLead refunded but do NOT remove the buyer from
+//   `lead.buyers`. The PII-redaction work in Block B filters contact info
+//   by buyers membership, so the mover retains contact-info access even
+//   after a refund. This keeps MyLeads able to render the row + refund
+//   badge. Phase 2 may flip this policy (remove from buyers → PII gated).
+//
+// Idempotency gate: unique partial index `lead_refund_idempotency` on
+// Transaction { purchasedLead, type: 'Lead Refund' }. Duplicate-key
+// (E11000) → 409 Already refunded.
+router.post('/refund/:purchasedLeadId', [auth, admin], async (req, res) => {
+  try {
+    const pl = await PurchasedLead.findById(req.params.purchasedLeadId);
+    if (!pl) return res.status(404).json({ msg: 'Purchase record not found' });
+
+    if (pl.refunded === true) {
+      return res.status(409).json({ msg: 'Already refunded' });
+    }
+
+    const refundAmount = Number(pl.pricePaid || 0);
+    if (!refundAmount || refundAmount < 0) {
+      return res.status(400).json({ msg: 'Invalid pricePaid on purchase record' });
+    }
+
+    // 1. Insert the Transaction row first — unique partial index is the
+    //    strict idempotency gate. If two admins click at once, only one
+    //    insert wins; the loser's E11000 maps to 409.
+    let transaction;
+    try {
+      transaction = await new Transaction({
+        user: pl.company,
+        type: 'Lead Refund',
+        amount: refundAmount,
+        description: `Admin refund for purchased lead ${pl._id} (admin: ${req.user.id})`,
+        lead: pl.lead,
+        purchasedLead: pl._id,
+        status: 'Completed',
+      }).save();
+    } catch (err) {
+      if (err && err.code === 11000) {
+        return res.status(409).json({ msg: 'Already refunded' });
+      }
+      throw err;
+    }
+
+    // 2. Atomic balance bump + flag flip on the PurchasedLead.
+    //    The Transaction insert above already guaranteed single-execution;
+    //    these two updates are now safe to run unconditionally.
+    const userAfter = await User.findByIdAndUpdate(
+      pl.company,
+      { $inc: { balance: refundAmount } },
+      { new: true }
+    ).select('balance email companyName');
+
+    await PurchasedLead.updateOne(
+      { _id: pl._id },
+      { $set: { refunded: true, refundedAt: new Date(), refundedBy: req.user.id } }
+    );
+
+    console.log(`[Admin Refund] purchasedLead=${pl._id} amount=$${refundAmount} → user ${pl.company} balance=$${userAfter?.balance?.toFixed?.(2)}`);
+
+    // 3. Best-effort mover notification — reuse the dispute-approved email
+    //    template (generic "credit applied" copy fits both flows).
+    if (userAfter?.email) {
+      const lead = await Lead.findById(pl.lead).select('route originCity destinationCity').lean();
+      const route = lead?.route || (lead ? `${lead.originCity} → ${lead.destinationCity}` : 'your move');
+      sendDisputeApprovedEmail({
+        toEmail: userAfter.email,
+        companyName: userAfter.companyName,
+        refundAmount,
+        leadRoute: route,
+      }).catch((err) => {
+        console.error('[Admin Refund Email Error]', err.message);
+      });
+    }
+
+    return res.json({
+      ok: true,
+      balanceAfter: userAfter?.balance || 0,
+      transactionId: transaction._id,
+    });
+  } catch (err) {
+    console.error('[Admin Refund] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
 });
 
 module.exports = router;

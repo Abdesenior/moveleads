@@ -2,7 +2,22 @@ const mongoose = require('mongoose');
 
 const TransactionSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
-  type: { type: String, enum: ['Credit Deposit', 'Lead Purchase', 'Lead Dispute Refund'], required: true },
+  type: {
+    type: String,
+    enum: [
+      'Credit Deposit',
+      'Lead Purchase',
+      'Lead Dispute Refund',
+      // ── WP10 (refund-credibility sprint) ──────────────────────────────────
+      // 'Stripe Refund'      → clawback for charge.refunded webhook
+      // 'Stripe Chargeback'  → clawback for charge.dispute.created webhook
+      // 'Lead Refund'        → admin-initiated refund OR voice auto-refund
+      'Stripe Refund',
+      'Stripe Chargeback',
+      'Lead Refund',
+    ],
+    required: true,
+  },
   amount: { type: Number, required: true },
   description: { type: String, required: true },
   status: { type: String, enum: ['Completed', 'Pending', 'Failed'], default: 'Completed' },
@@ -16,5 +31,36 @@ const TransactionSchema = new mongoose.Schema({
   purchasedLead: { type: mongoose.Schema.Types.ObjectId, ref: 'purchased_lead' },
   date: { type: Date, default: Date.now }
 });
+
+// ── WP10.2 idempotency gate ─────────────────────────────────────────────────
+// One 'Lead Refund' per PurchasedLead. The admin refund route AND the voice
+// auto-refund path both write this type — the unique partial index ensures
+// duplicate-key error (E11000) on any second attempt, so we never double-credit.
+// Partial filter (rather than sparse-on-compound) keeps the index null-safe
+// for legacy non-refund Transactions which don't carry a purchasedLead.
+TransactionSchema.index(
+  { purchasedLead: 1, type: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { type: 'Lead Refund', purchasedLead: { $exists: true } },
+    name: 'lead_refund_idempotency',
+  }
+);
+
+// ── WP10.1 idempotency gate ─────────────────────────────────────────────────
+// One 'Stripe Refund' / 'Stripe Chargeback' per charge.id. Sparse partial
+// index keyed off stripeChargeId — pre-check + insert-on-conflict pattern
+// in the webhook handlers.
+TransactionSchema.index(
+  { stripeChargeId: 1, type: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      stripeChargeId: { $exists: true },
+      type: { $in: ['Stripe Refund', 'Stripe Chargeback'] },
+    },
+    name: 'stripe_charge_clawback_idempotency',
+  }
+);
 
 module.exports = mongoose.model('transaction', TransactionSchema);

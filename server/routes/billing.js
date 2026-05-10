@@ -614,6 +614,164 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     return res.json({ received: true });
   }
 
+  // ── WP10.1 — Stripe chargeback / refund clawback handlers ───────────────
+  // Both branches mutate user balance with $inc: { balance: -amount } and
+  // write a NEW Transaction row of negative amount. Idempotency is keyed off
+  // charge.id via the partial-unique index on (stripeChargeId, type) in the
+  // Transaction model. Balance may go negative — that's the correct accounting
+  // state when a refunded user already spent the credit; admin can settle.
+  if (event.type === 'charge.refunded') {
+    const charge = event.data.object;
+    try {
+      const piId = charge.payment_intent;
+      const original = piId
+        ? await Transaction.findOne({ stripePaymentIntentId: piId })
+        : null;
+
+      if (!original) {
+        console.log(`[Webhook] charge.refunded → no matching Transaction for PI ${piId || '?'} (charge ${charge.id})`);
+        return res.json({ received: true });
+      }
+
+      // Idempotency pre-check: already clawed back?
+      const already = await Transaction.findOne({ stripeChargeId: charge.id, type: 'Stripe Refund' });
+      if (already) {
+        console.log(`[Webhook] charge.refunded → already processed for charge ${charge.id}`);
+        return res.json({ received: true });
+      }
+
+      const refundedCents = Number(charge.amount_refunded || 0);
+      const refundedDollars = Math.round(refundedCents) / 100;
+      if (!refundedDollars || refundedDollars <= 0) {
+        console.log(`[Webhook] charge.refunded → zero refund amount for charge ${charge.id}; skipping`);
+        return res.json({ received: true });
+      }
+
+      // Insert clawback Transaction first — unique partial index on
+      // (stripeChargeId, type) is the database-level idempotency gate.
+      // E11000 → another worker handled this webhook delivery first.
+      try {
+        await new Transaction({
+          user: original.user,
+          type: 'Stripe Refund',
+          amount: -refundedDollars,
+          description: `Stripe refund of charge ${charge.id} (PI: ${piId})`,
+          stripeChargeId: charge.id,
+          status: 'Completed',
+        }).save();
+      } catch (err) {
+        if (err && err.code === 11000) {
+          console.log(`[Webhook] charge.refunded → race: already processed for charge ${charge.id}`);
+          return res.json({ received: true });
+        }
+        throw err;
+      }
+
+      await User.updateOne({ _id: original.user }, { $inc: { balance: -refundedDollars } });
+
+      console.log(`[Webhook] charge.refunded → clawed back $${refundedDollars} from user ${original.user} (charge ${charge.id})`);
+
+      // Best-effort mover notification — never block the webhook on email.
+      User.findById(original.user).select('email companyName').lean().then((u) => {
+        if (!u?.email) return;
+        return sendAdminNotification({
+          subject: `🔁 Stripe refund processed — ${u.companyName}`,
+          html: `
+            <h2>Stripe Refund Processed</h2>
+            <p><strong>Company:</strong> ${u.companyName}</p>
+            <p><strong>Email:</strong> ${u.email}</p>
+            <p><strong>Amount Refunded:</strong> $${refundedDollars.toFixed(2)}</p>
+            <p><strong>Charge:</strong> ${charge.id}</p>
+            <p><strong>PaymentIntent:</strong> ${piId}</p>
+            <p>The user's MoveLeads balance has been decremented accordingly. Review for any negative-balance follow-up.</p>
+          `,
+        });
+      }).catch(() => {});
+    } catch (err) {
+      console.error(`[Webhook] charge.refunded error:`, err.message);
+    }
+    return res.json({ received: true });
+  }
+
+  if (event.type === 'charge.dispute.created') {
+    const dispute = event.data.object; // Stripe Dispute object
+    const charge = dispute.charge;     // charge id (string) or expanded charge
+    const chargeId = typeof charge === 'string' ? charge : charge?.id;
+    try {
+      // Look up the original Transaction by stripePaymentIntentId. The Stripe
+      // dispute payload exposes the charge id directly but the payment_intent
+      // id requires an extra retrieve — we use whichever is available.
+      let original = null;
+      if (dispute.payment_intent) {
+        original = await Transaction.findOne({ stripePaymentIntentId: dispute.payment_intent });
+      }
+      if (!original && chargeId) {
+        // Fallback: maybe an old transaction stored only the charge id
+        original = await Transaction.findOne({ stripeChargeId: chargeId });
+      }
+
+      if (!original) {
+        console.log(`[Webhook] charge.dispute.created → no matching Transaction for charge ${chargeId || '?'}`);
+        return res.json({ received: true });
+      }
+
+      // Idempotency pre-check
+      const already = await Transaction.findOne({ stripeChargeId: chargeId, type: 'Stripe Chargeback' });
+      if (already) {
+        console.log(`[Webhook] charge.dispute.created → already processed for charge ${chargeId}`);
+        return res.json({ received: true });
+      }
+
+      const disputedCents = Number(dispute.amount || 0);
+      const disputedDollars = Math.round(disputedCents) / 100;
+      if (!disputedDollars || disputedDollars <= 0) {
+        console.log(`[Webhook] charge.dispute.created → zero disputed amount; skipping (charge ${chargeId})`);
+        return res.json({ received: true });
+      }
+
+      try {
+        await new Transaction({
+          user: original.user,
+          type: 'Stripe Chargeback',
+          amount: -disputedDollars,
+          description: `Stripe chargeback on charge ${chargeId} (reason: ${dispute.reason || 'unspecified'})`,
+          stripeChargeId: chargeId,
+          status: 'Completed',
+        }).save();
+      } catch (err) {
+        if (err && err.code === 11000) {
+          console.log(`[Webhook] charge.dispute.created → race: already processed for charge ${chargeId}`);
+          return res.json({ received: true });
+        }
+        throw err;
+      }
+
+      await User.updateOne({ _id: original.user }, { $inc: { balance: -disputedDollars } });
+
+      console.log(`[Webhook] charge.dispute.created → clawed back $${disputedDollars} from user ${original.user} (charge ${chargeId})`);
+
+      // Admin notification — chargebacks need eyeballs (fee + fraud risk).
+      User.findById(original.user).select('email companyName').lean().then((u) => {
+        if (!u) return;
+        return sendAdminNotification({
+          subject: `⚠️ Stripe Chargeback opened — ${u.companyName}`,
+          html: `
+            <h2>Stripe Chargeback Opened</h2>
+            <p><strong>Company:</strong> ${u.companyName}</p>
+            <p><strong>Email:</strong> ${u.email}</p>
+            <p><strong>Amount Disputed:</strong> $${disputedDollars.toFixed(2)}</p>
+            <p><strong>Reason:</strong> ${dispute.reason || 'unspecified'}</p>
+            <p><strong>Charge:</strong> ${chargeId}</p>
+            <p>Credit has been clawed back from the mover's balance. Stripe dispute response required separately.</p>
+          `,
+        });
+      }).catch(() => {});
+    } catch (err) {
+      console.error(`[Webhook] charge.dispute.created error:`, err.message);
+    }
+    return res.json({ received: true });
+  }
+
   // Handle successful payment
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;

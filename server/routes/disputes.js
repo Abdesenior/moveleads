@@ -26,11 +26,15 @@ router.post('/', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Purchase record not found for this lead' });
     }
 
-    // 2. Enforce 24-hour dispute window
+    // 2. Enforce 7-day dispute window (WP10.5 — was 24h).
+    //    Widened to match the FirstTopupReassurancePopup promise that
+    //    "onboarding lead credits stay refundable if a lead becomes unreachable".
+    //    A single business day was too short for a mover to realize the
+    //    customer never picked up after multiple attempts.
     const purchasedAt = purchasedLead.purchasedAt || purchasedLead.createdAt;
     const hoursSincePurchase = (Date.now() - new Date(purchasedAt).getTime()) / (1000 * 60 * 60);
-    if (hoursSincePurchase > 24) {
-      return res.status(400).json({ msg: 'Dispute window has closed. Disputes must be submitted within 24 hours of purchase.' });
+    if (hoursSincePurchase > 7 * 24) {
+      return res.status(400).json({ msg: 'Dispute window has closed. Disputes must be submitted within 7 days of purchase.' });
     }
 
     // 3. Check for existing dispute
@@ -78,49 +82,67 @@ router.post('/admin/:id/resolve', [auth, admin], async (req, res) => {
   const { approve, adminNotes } = req.body;
 
   try {
-    const dispute = await Dispute.findById(req.params.id);
-    if (!dispute) return res.status(404).json({ msg: 'Dispute not found' });
+    // ── WP10.3 — atomic claim ──────────────────────────────────────────────
+    // Replace previous "fetch → check status → start transaction" pattern,
+    // which had a race window between the status check and the
+    // refund-transaction body. Two concurrent admin clicks both passed the
+    // pre-check and double-credited the mover. The findOneAndUpdate below
+    // is itself the gate: only one writer can flip PENDING → APPROVED/DENIED.
+    const targetStatus = approve ? 'APPROVED' : 'DENIED';
+    const claimed = await Dispute.findOneAndUpdate(
+      { _id: req.params.id, status: 'PENDING' },
+      {
+        $set: {
+          status: targetStatus,
+          adminNotes: adminNotes || '',
+          resolvedAt: new Date(),
+          resolvedBy: req.user.id,
+        },
+      },
+      { new: true }
+    );
 
-    if (dispute.status !== 'PENDING') {
-      return res.status(400).json({ msg: 'Dispute already resolved' });
+    if (!claimed) {
+      // Either the id is wrong OR it's no longer PENDING (already resolved
+      // by a competing request). 409 conveys both cleanly.
+      const exists = await Dispute.findById(req.params.id).select('_id').lean();
+      if (!exists) return res.status(404).json({ msg: 'Dispute not found' });
+      return res.status(409).json({ msg: 'Dispute already resolved' });
     }
 
-    const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-      if (approve) {
-        // 1. Find the purchase to get the amount paid
-        const purchase = await PurchasedLead.findById(dispute.purchasedLead).session(session);
-        if (!purchase) throw new Error('Purchase record missing');
+    // Refund logic only runs on approval. Status flip is already committed
+    // — even if the refund transaction below fails, we have an admin trail
+    // (resolvedBy / resolvedAt) and can replay manually via the admin
+    // refund route (WP10.2).
+    if (approve) {
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          const purchase = await PurchasedLead.findById(claimed.purchasedLead).session(session);
+          if (!purchase) throw new Error('Purchase record missing');
 
-        // 2. Credit the user's balance
-        await User.findByIdAndUpdate(
-          dispute.company,
-          { $inc: { balance: purchase.pricePaid } },
-          { session }
-        );
+          await User.findByIdAndUpdate(
+            claimed.company,
+            { $inc: { balance: purchase.pricePaid } },
+            { session }
+          );
 
-        // 3. Log the refund transaction
-        const transaction = new Transaction({
-          user: dispute.company,
-          type: 'Lead Dispute Refund',
-          amount: purchase.pricePaid,
-          description: `Refund for disputed lead: ${dispute.lead}`,
-          lead: dispute.lead,
-          status: 'Completed'
+          const transaction = new Transaction({
+            user: claimed.company,
+            type: 'Lead Dispute Refund',
+            amount: purchase.pricePaid,
+            description: `Refund for disputed lead: ${claimed.lead}`,
+            lead: claimed.lead,
+            status: 'Completed'
+          });
+          await transaction.save({ session });
         });
-        await transaction.save({ session });
-
-        dispute.status = 'APPROVED';
-      } else {
-        dispute.status = 'DENIED';
+      } finally {
+        session.endSession();
       }
+    }
 
-      dispute.adminNotes = adminNotes || '';
-      dispute.resolvedAt = new Date();
-      await dispute.save({ session });
-    });
-
-    session.endSession();
+    const dispute = claimed;
     res.json(dispute);
 
     // Post-commit side effect: notify the mover by email (non-blocking).
