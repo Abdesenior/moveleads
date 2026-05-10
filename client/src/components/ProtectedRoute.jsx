@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
   //   return <Navigate to="/login" replace />;
   // }
 
-  if (requireAdmin && user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  if (requireAdmin && !['admin','super_admin'].includes(user?.role)) return <Navigate to="/dashboard" replace />;
 
   return children;
 }
