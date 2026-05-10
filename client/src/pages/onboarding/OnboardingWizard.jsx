@@ -249,7 +249,10 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           primaryMarket: answers.primaryMarket,
           coverageRadius: answers.coverageRadius,
           additionalMarkets: answers.additionalMarkets,
-          phone: answers.phone,
+          // Send digits-only so the server / Twilio store a single canonical
+          // shape. The wizard keeps the formatted version in local state for
+          // display; we normalize at the network boundary.
+          phone: normalizeUSDigits(answers.phone),
           smsNotif: answers.smsNotif,
           emailNotif: answers.emailNotif,
           receiveLiveTransfers: answers.receiveLiveTransfers,
@@ -739,7 +742,10 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
           type="tel"
           className={`ow-input${phoneError ? ' ow-input-err' : ''}`}
           placeholder="(555) 555-5555"
-          value={answers.phone || ''}
+          // Defensive: re-run formatUSPhone on every render so a state value
+          // that ever slips through unformatted (legacy save, server-side
+          // normalization, etc.) still displays as "(555) 555-5555".
+          value={formatUSPhone(answers.phone || '')}
           onChange={e => setAnswer('phone', formatUSPhone(e.target.value))}
           onBlur={e => setAnswer('phone', formatUSPhone(e.target.value))}
           autoComplete="tel"

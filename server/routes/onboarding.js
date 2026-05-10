@@ -72,7 +72,20 @@ router.post('/save-step', auth, async (req, res) => {
       //    Settings page can write them later.
       if (step === 3) {
         if (typeof answers.phone === 'string' && answers.phone.trim()) {
-          update['phone'] = answers.phone.trim();
+          // Normalize to digits-only at the storage boundary. Accepts
+          // anything from the client (formatted "(555) 555-5555", E.164
+          // "+15555555555", or raw "5555555555") and stores a single
+          // canonical 10-digit string. Drops a leading "1" if present.
+          let phoneDigits = answers.phone.replace(/\D/g, '');
+          if (phoneDigits.length === 11 && phoneDigits.startsWith('1')) phoneDigits = phoneDigits.slice(1);
+          phoneDigits = phoneDigits.slice(0, 10);
+          if (phoneDigits) {
+            update['phone'] = phoneDigits;
+            // Also persist the normalized form in answers so resumes show
+            // the same canonical value back through the wizard's display
+            // formatter.
+            answers.phone = phoneDigits;
+          }
         }
         if (typeof answers.smsNotif === 'boolean') {
           update['smsNotif'] = answers.smsNotif;
