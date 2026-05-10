@@ -317,7 +317,8 @@ export default function Customers() {
 
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(15,23,42,0.06)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               <th style={{ padding: '12px 12px 12px 20px', textAlign: 'left' }}><SortBtn k="customerName" label="Customer" /></th>
@@ -461,6 +462,7 @@ export default function Customers() {
             )}
           </tbody>
         </table>
+        </div>
 
         {!loading && totalPages > 1 && (
           <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9' }}>

@@ -37,7 +37,7 @@ export default function FirstTopupReassurancePopup({ onClose }) {
           aria-label="Close"
           type="button"
           style={{
-            position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: 10,
+            position: 'absolute', top: 12, right: 12, width: 44, height: 44, borderRadius: 10,
             background: '#f1f5f9', border: 'none', color: '#475569', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1,
           }}

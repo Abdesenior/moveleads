@@ -1008,7 +1008,7 @@ export default function LeadFeed() {
           background: '#1e293b', color: '#f1f5f9', borderRadius: 12,
           padding: '14px 22px', fontSize: 14, fontWeight: 600,
           display: 'flex', alignItems: 'center', gap: 12,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.25)', zIndex: 9999,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)', zIndex: 13600,
           animation: 'fadeInUp 0.2s ease',
         }}>
           <ZapOff size={16} color="#f59e0b" />

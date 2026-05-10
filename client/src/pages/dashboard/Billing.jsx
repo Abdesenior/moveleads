@@ -296,7 +296,8 @@ export default function Billing() {
           </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               <th style={{ padding: '11px 12px 11px 20px', textAlign: 'left' }}><SortBtn k="date" label="Date" /></th>
@@ -373,6 +374,7 @@ export default function Billing() {
             )}
           </tbody>
         </table>
+        </div>
 
         {!loading && totalPages > 1 && (
           <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9' }}>
@@ -409,7 +411,7 @@ export default function Billing() {
                 </div>
                 <button
                   onClick={() => setConfirmAmount(null)}
-                  style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: 44, height: 44, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <X size={16} />
                 </button>
@@ -541,7 +543,7 @@ function TopUpPaymentModal({ amount, balance, API_URL, token, onClose, onSuccess
             <button
               onClick={onClose}
               aria-label="Close"
-              style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 44, height: 44, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <X size={16} />
             </button>
