@@ -25,7 +25,7 @@ router.get('/balance', auth, async (req, res) => {
 // @access  Private
 router.post('/create-checkout-session', auth, async (req, res) => {
   const { amount, embedded } = req.body;
-  if (![10, 50, 100, 200, 500].includes(amount)) {
+  if (![50, 100, 200, 500].includes(amount)) {
     return res.status(400).json({ msg: 'Invalid amount selected' });
   }
 

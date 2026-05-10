@@ -15,7 +15,6 @@ const cleanDescription = (desc) => {
 };
 
 const CREDIT_PACKS = [
-  { amount: 10,  label: '$10'  },
   { amount: 50,  label: '$50'  },
   { amount: 100, label: '$100', popular: true },
   { amount: 200, label: '$200' },
