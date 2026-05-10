@@ -1502,6 +1502,54 @@
   .sidebar.collapsed {
     padding-top: 60px;
   }
+
+  /* ── Billing balance + top-up card (mobile) ────────────────────────
+     Stack the two columns vertically, hide the vertical divider, and
+     turn the amount-selector pills into a comfortable 2×2 grid. */
+  .billing-card {
+    grid-template-columns: 1fr !important;
+    margin-bottom: 18px !important;
+  }
+  .billing-divider {
+    display: none !important;
+  }
+  .billing-balance-col {
+    padding: 24px 22px 20px !important;
+  }
+  .billing-balance-col .billing-balance-amount {
+    font-size: 42px !important;
+    margin-bottom: 8px !important;
+  }
+  .billing-balance-helper {
+    display: block !important;
+    margin: 0 0 12px !important;
+    font-size: 12.5px;
+    color: #64748b;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+  .billing-topup-col {
+    padding: 18px 22px 24px !important;
+    border-top: 1px solid #f1f5f9;
+  }
+  .billing-pack-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+  .billing-pack-pill {
+    width: 100% !important;
+    padding: 12px 10px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    min-height: 46px;
+  }
+  .billing-cta {
+    width: 100% !important;
+    padding: 14px 16px !important;
+    font-size: 14.5px !important;
+  }
 }
 
 /* ── Sidebar tooltip (portal-rendered for collapsed mode) ─────────────── */

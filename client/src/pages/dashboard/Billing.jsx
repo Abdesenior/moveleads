@@ -175,25 +175,28 @@ export default function Billing() {
       {/* ══════════════════════════════════════════════
           BALANCE CARD — balance + top-up inline
           ══════════════════════════════════════════════ */}
-      <div style={{
+      <div className="billing-card" style={{
         display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 0,
         background: '#fff', borderRadius: 20, marginBottom: 28,
         border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(15,23,42,0.06)',
         overflow: 'hidden',
       }}>
         {/* Left: balance */}
-        <div style={{ padding: '32px 36px', position: 'relative', overflow: 'hidden' }}>
+        <div className="billing-balance-col" style={{ padding: '32px 36px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg,#ea580c,#f59e0b)' }} />
           <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>
             Available Balance
           </p>
-          <div style={{
+          <div className="billing-balance-amount" style={{
             fontSize: 52, fontWeight: 800, color: '#0f172a', fontFamily: "'Poppins',sans-serif",
             lineHeight: 1, letterSpacing: -1, marginBottom: 12,
             animation: balancePulse ? 'blPulse 0.5s ease' : 'none',
           }}>
             ${balance.toFixed(2)}
           </div>
+          <p className="billing-balance-helper" style={{ display: 'none' }}>
+            Use credits to unlock verified moving leads.
+          </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 20, padding: '4px 10px' }}>
               <Wallet size={12} color="#94a3b8" />
@@ -203,22 +206,23 @@ export default function Billing() {
         </div>
 
         {/* Divider */}
-        <div style={{ background: '#e2e8f0' }} />
+        <div className="billing-divider" style={{ background: '#e2e8f0' }} />
 
         {/* Right: quick top-up */}
-        <div style={{ padding: '32px 36px' }}>
+        <div className="billing-topup-col" style={{ padding: '32px 36px' }}>
           <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 12px' }}>
             Quick Top Up
           </p>
 
           {/* Amount selector pills */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div className="billing-pack-grid" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
             {CREDIT_PACKS.map(pkg => {
               const active = selectedAmount === pkg.amount;
               return (
                 <button
                   key={pkg.amount}
                   type="button"
+                  className={`billing-pack-pill${active ? ' billing-pack-pill-active' : ''}`}
                   onClick={() => setSelectedAmount(pkg.amount)}
                   style={{
                     padding: '7px 16px', borderRadius: 9999, fontSize: 13, fontWeight: 700,
@@ -242,6 +246,7 @@ export default function Billing() {
 
           {/* Checkout button */}
           <button
+            className="billing-cta"
             onClick={() => setConfirmAmount(selectedAmount)}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
