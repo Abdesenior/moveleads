@@ -3,9 +3,18 @@
 /* All styles scoped under .onboarding-wizard so they don't leak.
    z-index: 13000 sits above the mobile sidebar-toggle (12000 in
    dashboard.css) and the sidebar-backdrop (11900) so the wizard never
-   gets covered by the hamburger button on small screens. */
+   gets covered by the hamburger button on small screens.
+
+   Flex centering + safe padding: the modal sits in the visual middle
+   of the viewport (premium SaaS onboarding/checkout pattern), with
+   16px gutter so the rounded corners always have breathing room from
+   the screen edges. */
 .onboarding-wizard {
   position: fixed; inset: 0; z-index: 13000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
@@ -68,19 +77,18 @@
   /* Narrower frame so the modal feels intentionally framed for the content
      density inside, rather than a giant card with empty horizontal sides.
      820px sits inside the 760-900px SaaS-onboarding range. */
-  width: min(820px, calc(100vw - 32px));
+  width: min(820px, 100%);
 
   /* Adaptive height: min-height keeps a premium baseline so very short steps
      (success / setup-complete) don't look like a tiny card, but stays low
      enough that short content doesn't leave an oversized empty bottom zone.
-     max-height bounds tall steps (Step 5 activation) at 90vh and lets the
-     body scroll internally past that. dvh on the viewport math handles iOS
-     Safari's collapsing address bar so the footer CTA never slips behind
-     the URL bar. */
+     max-height bounds tall steps (Step 5 activation) at 90vh / 800px so the
+     wizard's flex centering keeps it visually middle even when content
+     would otherwise stretch the modal full-height. */
   min-height: 380px;
-  max-height: min(800px, calc(100dvh - 32px), 90vh);
+  max-height: min(800px, 90vh);
 
-  margin: 16px auto;
+  margin: 0; /* viewport centering handled by .onboarding-wizard flex */
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
@@ -507,20 +515,15 @@
 }
 
 @media (max-width: 600px) {
-  /* Near-fullscreen sheet on mobile. The CSS variable --ow-vh is set by the
-     OnboardingWizard via window.visualViewport when available, so the modal
-     shrinks correctly when the iOS keyboard opens. Falls back to dvh on
-     browsers without visualViewport.
-
-     On mobile we let the modal hug content too (min-height: auto) so very
-     short steps don't anchor at a forced 480 — the bounded max-height
-     prevents accidental overflow past the keyboard area. */
+  /* Near-fullscreen sheet on mobile. Tighter wizard gutter so the modal
+     still reads as the active layer; max-height tracks --ow-vh from the
+     visualViewport listener so the iOS keyboard never covers the CTA. */
+  .onboarding-wizard { padding: 8px; }
   .ow-modal {
-    width: calc(100vw - 12px);
+    width: 100%;
     min-height: auto;
-    max-height: calc(var(--ow-vh, 100dvh) - 12px);
-    margin: 6px auto;
-    border-radius: 12px;
+    max-height: calc(var(--ow-vh, 100dvh) - 16px);
+    border-radius: 14px;
     overflow-x: hidden;
   }
   .ow-h1 { font-size: 21px; }
