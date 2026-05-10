@@ -397,6 +397,159 @@ router.post('/verify-payment-intent', auth, async (req, res) => {
   }
 });
 
+// ──────────────────────────────────────────────────────────────────────────
+// Inline Top-Up flow (Stripe Payment Element on /dashboard/billing)
+//
+// Mirrors the activation flow but is purpose-built for plain top-ups:
+//   - No bonus, no `onboarding.bonusClaimedAt` stamp
+//   - No `onboarding.activatedAt` / `complete` flag stamps
+//   - Just credits the balance, writes a Transaction row, and returns
+//
+// Keyed off PaymentIntent.metadata.source === 'topup' so webhook + verify
+// both route to applyTopUpCredit (parallel to applyOnboardingActivationCredit).
+// Strict idempotency via Transaction.stripePaymentIntentId unique-sparse index.
+// ──────────────────────────────────────────────────────────────────────────
+
+const ALLOWED_TOPUP_AMOUNTS = [50, 100, 200, 500];
+
+async function applyTopUpCredit(paymentIntent) {
+  const md = paymentIntent.metadata || {};
+  if (md.source !== 'topup')                  return { applied: false, alreadyProcessed: false, reason: 'wrong_source' };
+  if (paymentIntent.status !== 'succeeded')   return { applied: false, alreadyProcessed: false, reason: 'not_succeeded' };
+
+  const userId = md.userId;
+  const amount = Number(md.amount || 0);
+  if (!userId || !amount) {
+    console.error('[ApplyTopUp] missing userId or amount in PI metadata', paymentIntent.id, md);
+    return { applied: false, alreadyProcessed: false, reason: 'invalid_metadata' };
+  }
+
+  // Idempotency pre-check (transaction insert below is the database-level guard).
+  const existing = await Transaction.findOne({ stripePaymentIntentId: paymentIntent.id });
+  if (existing) {
+    const u = await User.findById(userId).select('balance');
+    return { applied: false, alreadyProcessed: true, balance: u?.balance || 0, amount };
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    console.error('[ApplyTopUp] user not found for PI', paymentIntent.id, userId);
+    return { applied: false, alreadyProcessed: false, reason: 'user_not_found' };
+  }
+
+  // Insert Transaction first — unique index on stripePaymentIntentId is the
+  // strict idempotency gate. E11000 race → treat as already-credited.
+  try {
+    await new Transaction({
+      user: userId,
+      type: 'Credit Deposit',
+      amount,
+      description: `Top Up +$${amount} (PI: ${paymentIntent.id})`,
+      status: 'Completed',
+      stripePaymentIntentId: paymentIntent.id,
+    }).save();
+  } catch (err) {
+    if (err && err.code === 11000) {
+      const u = await User.findById(userId).select('balance');
+      return { applied: false, alreadyProcessed: true, balance: u?.balance || 0, amount };
+    }
+    throw err;
+  }
+
+  await User.updateOne({ _id: userId }, { $inc: { balance: amount } });
+
+  const fresh = await User.findById(userId).select('balance companyName email');
+
+  sendAdminNotification({
+    subject: `💰 Top-Up Payment — ${fresh.companyName}`,
+    html: `
+      <h2>Top-Up Payment</h2>
+      <p><strong>Company:</strong> ${fresh.companyName}</p>
+      <p><strong>Email:</strong> ${fresh.email}</p>
+      <p><strong>Amount Added:</strong> $${amount.toFixed(2)}</p>
+      <p><strong>New Balance:</strong> $${fresh.balance.toFixed(2)}</p>
+      <p><strong>PaymentIntent:</strong> ${paymentIntent.id}</p>
+      <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
+    `,
+  }).catch(() => {});
+
+  console.log(`[ApplyTopUp] credited $${amount} to ${userId} for PI ${paymentIntent.id}`);
+  return { applied: true, alreadyProcessed: false, balance: fresh.balance || 0, amount };
+}
+
+// @route   POST /api/billing/create-topup-intent
+// @desc    Create a PaymentIntent for an inline top-up (no redirect)
+// @access  Private (JWT)
+router.post('/create-topup-intent', auth, async (req, res) => {
+  try {
+    const amount = Number(req.body?.amount);
+    if (!ALLOWED_TOPUP_AMOUNTS.includes(amount)) {
+      return res.status(400).json({ msg: 'Invalid amount' });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ msg: 'Payment configuration error' });
+    }
+    const stripe = stripeInit();
+
+    const intent = await stripe.paymentIntents.create({
+      amount: amount * 100, // Stripe uses cents
+      currency: 'usd',
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        userId: req.user.id.toString(),
+        source: 'topup',
+        amount: String(amount),
+      },
+      description: `MoveLeads top-up: $${amount}`,
+    });
+
+    res.json({ clientSecret: intent.client_secret, amount });
+  } catch (err) {
+    console.error('[CreateTopUpIntent]', err);
+    res.status(500).json({ msg: 'Could not start payment' });
+  }
+});
+
+// @route   POST /api/billing/verify-topup-intent
+// @desc    Fast-UX confirmation that a top-up PI succeeded. Webhook is the
+//          safety-net — both call applyTopUpCredit, which is idempotent.
+// @access  Private (JWT)
+router.post('/verify-topup-intent', auth, async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body || {};
+    if (!paymentIntentId || typeof paymentIntentId !== 'string') {
+      return res.status(400).json({ msg: 'paymentIntentId required' });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ msg: 'Payment configuration error' });
+    }
+    const stripe = stripeInit();
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (intent.metadata?.userId !== req.user.id.toString()) {
+      return res.status(403).json({ msg: 'Unauthorized' });
+    }
+    if (intent.metadata?.source !== 'topup') {
+      return res.status(400).json({ msg: 'Not a top-up intent' });
+    }
+    if (intent.status !== 'succeeded') {
+      return res.status(409).json({ msg: `Payment not yet succeeded (status: ${intent.status})` });
+    }
+
+    const result = await applyTopUpCredit(intent);
+    const user = await User.findById(req.user.id).select('balance');
+    return res.json({
+      applied: result.applied,
+      alreadyProcessed: result.alreadyProcessed,
+      balance: user.balance || 0,
+      amount: result.amount,
+    });
+  } catch (err) {
+    console.error('[VerifyTopUpIntent]', err);
+    res.status(500).json({ msg: 'Verification failed' });
+  }
+});
+
 // @route   POST /api/billing/webhook
 // @desc    Stripe Webhook Listener
 // @access  Public (Stripe Signature Verification)
@@ -411,19 +564,32 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // ── Handle payment_intent.succeeded for the activation flow ─────────────
+  // ── Handle payment_intent.succeeded for the activation + top-up flows ──
   if (event.type === 'payment_intent.succeeded') {
     const intent = event.data.object;
-    if (intent?.metadata?.source === 'onboarding_activation') {
+    const source = intent?.metadata?.source;
+
+    if (source === 'onboarding_activation') {
       try {
         const result = await applyOnboardingActivationCredit(intent);
         if (result.applied) {
-          console.log(`[Webhook] PI ${intent.id} → credited $${result.totalCredits}`);
+          console.log(`[Webhook] PI ${intent.id} (activation) → credited $${result.totalCredits}`);
         } else {
-          console.log(`[Webhook] PI ${intent.id} → no-op (${result.reason || 'already processed'})`);
+          console.log(`[Webhook] PI ${intent.id} (activation) → no-op (${result.reason || 'already processed'})`);
         }
       } catch (err) {
-        console.error(`[Webhook] PI ${intent.id} apply error:`, err.message);
+        console.error(`[Webhook] PI ${intent.id} (activation) apply error:`, err.message);
+      }
+    } else if (source === 'topup') {
+      try {
+        const result = await applyTopUpCredit(intent);
+        if (result.applied) {
+          console.log(`[Webhook] PI ${intent.id} (topup) → credited $${result.amount}`);
+        } else {
+          console.log(`[Webhook] PI ${intent.id} (topup) → no-op (${result.reason || 'already processed'})`);
+        }
+      } catch (err) {
+        console.error(`[Webhook] PI ${intent.id} (topup) apply error:`, err.message);
       }
     }
     return res.json({ received: true });

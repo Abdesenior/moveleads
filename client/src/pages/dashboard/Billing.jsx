@@ -3,11 +3,23 @@ import {
   Clock, ArrowUpCircle, ShoppingBag, CreditCard,
   Plus, Search, Wallet, X, CheckCircle, Zap
 } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, ExpressCheckoutElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import TablePagination from '../../components/ui/TablePagination';
 import TableSkeleton from '../../components/ui/TableSkeleton';
+
+const stripePromiseSingleton = (() => {
+  let promise = null;
+  return () => {
+    if (promise) return promise;
+    const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    promise = pubKey ? loadStripe(pubKey) : Promise.resolve(null);
+    return promise;
+  };
+})();
 
 const cleanDescription = (desc) => {
   if (!desc) return '';
@@ -34,8 +46,8 @@ export default function Billing() {
   const [sortKey, setSortKey]           = useState('date');
   const [sortDir, setSortDir]           = useState('desc');
   const [confirmAmount, setConfirmAmount] = useState(null);
-  const [redirecting, setRedirecting]   = useState(false);
   const [selectedAmount, setSelectedAmount] = useState(100);
+  const [topUpAmount, setTopUpAmount] = useState(null);
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -45,9 +57,15 @@ export default function Billing() {
     fetchBilling();
     const sid = searchParams.get('session_id');
     const success = searchParams.get('success');
+    const payment = searchParams.get('payment');
+    const piId = searchParams.get('payment_intent');
     if (sid && success === 'true' && !processedRef.current) {
       processedRef.current = true;
       confirmPayment(sid);
+      navigate('/dashboard/billing', { replace: true });
+    } else if (payment === 'success' && piId && !processedRef.current) {
+      processedRef.current = true;
+      verifyTopUpIntent(piId);
       navigate('/dashboard/billing', { replace: true });
     } else if (success === 'true' && !sid) {
       navigate('/dashboard/billing', { replace: true });
@@ -70,6 +88,24 @@ export default function Billing() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
+  const verifyTopUpIntent = async (paymentIntentId) => {
+    try {
+      const res = await fetch(`${API_URL}/billing/verify-topup-intent`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId }),
+      });
+      const data = await res.json();
+      if (!data.alreadyProcessed && (data.balance !== undefined || data.applied)) {
+        setShowSuccess(true);
+        setBalancePulse(true);
+        setTimeout(() => setShowSuccess(false), 5000);
+        setTimeout(() => setBalancePulse(false), 3000);
+      }
+      fetchBilling();
+    } catch (err) { console.error(err); }
+  };
+
   const confirmPayment = async (sessionId) => {
     try {
       const res = await fetch(`${API_URL}/billing/confirm-payment`, {
@@ -88,25 +124,18 @@ export default function Billing() {
     } catch (err) { console.error(err); }
   };
 
-  const addCredits = async (amount) => {
-    setRedirecting(true);
-    try {
-      const res = await fetch(`${API_URL}/billing/create-checkout-session`, {
-        method: 'POST',
-        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.msg || 'Failed to create checkout session');
-      }
-    } catch (err) {
-      alert(err.message);
-      setRedirecting(false);
-      setConfirmAmount(null);
-    }
+  const openTopUp = (amount) => {
+    setConfirmAmount(null);
+    setTopUpAmount(amount);
+  };
+
+  const handleTopUpSuccess = async () => {
+    setTopUpAmount(null);
+    setShowSuccess(true);
+    setBalancePulse(true);
+    setTimeout(() => setShowSuccess(false), 5000);
+    setTimeout(() => setBalancePulse(false), 3000);
+    fetchBilling();
   };
 
   const toggleSort = (key) => {
@@ -399,7 +428,7 @@ export default function Billing() {
                   <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>You're adding credits to your account</p>
                 </div>
                 <button
-                  onClick={() => { setConfirmAmount(null); setRedirecting(false); }}
+                  onClick={() => setConfirmAmount(null)}
                   style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <X size={16} />
@@ -429,30 +458,40 @@ export default function Billing() {
               {/* Actions */}
               <div style={{ display: 'flex', gap: 12, marginTop: 22 }}>
                 <button
-                  onClick={() => { setConfirmAmount(null); setRedirecting(false); }}
+                  onClick={() => setConfirmAmount(null)}
                   className="secondary-btn"
                   style={{ flex: 1, padding: 13, justifyContent: 'center' }}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => addCredits(confirmAmount)}
-                  disabled={redirecting}
+                  onClick={() => openTopUp(confirmAmount)}
                   style={{
                     flex: 2, padding: 13, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14,
                     cursor: 'pointer', fontFamily: 'var(--font-heading)',
                     background: 'linear-gradient(135deg,#f59e0b,#d97706)',
                     color: '#fff', boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
-                    opacity: redirecting ? 0.6 : 1, transition: 'all 0.25s',
+                    transition: 'all 0.25s',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   }}
                 >
-                  <CreditCard size={16} /> {redirecting ? 'Redirecting…' : 'Proceed to Payment'}
+                  <CreditCard size={16} /> Proceed to Payment
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {topUpAmount !== null && (
+        <TopUpPaymentModal
+          amount={topUpAmount}
+          balance={balance}
+          API_URL={API_URL}
+          token={token}
+          onClose={() => setTopUpAmount(null)}
+          onSuccess={handleTopUpSuccess}
+        />
       )}
 
       <style>{`
@@ -462,5 +501,242 @@ export default function Billing() {
         @keyframes blScaleIn  { from { opacity:0; transform:scale(0.9) translateY(20px) } to { opacity:1; transform:scale(1) translateY(0) } }
       `}</style>
     </DashboardLayout>
+  );
+}
+
+// ── Inline top-up modal — Stripe Elements (no redirect) ─────────────────────
+function TopUpPaymentModal({ amount, balance, API_URL, token, onClose, onSuccess }) {
+  const [clientSecret, setClientSecret] = useState(null);
+  const [loadErr, setLoadErr] = useState('');
+  const createdRef = useRef(false);
+
+  useEffect(() => {
+    if (createdRef.current) return;
+    createdRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/billing/create-topup-intent`, {
+          method: 'POST',
+          headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.clientSecret) {
+          throw new Error(data.msg || 'Could not initialize payment.');
+        }
+        setClientSecret(data.clientSecret);
+      } catch (err) {
+        setLoadErr(err.message || 'Could not initialize payment.');
+      }
+    })();
+  }, [amount, API_URL, token]);
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(10,25,47,0.7)', backdropFilter: 'blur(12px)',
+        zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        animation: 'blFadeIn 0.25s ease',
+      }}
+    >
+      <div style={{
+        background: 'white', borderRadius: 24, width: '100%', maxWidth: 480,
+        maxHeight: '92vh', overflow: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.25)',
+        animation: 'blScaleIn 0.3s cubic-bezier(0.16,1,0.3,1)',
+      }}>
+        <div style={{
+          background: 'linear-gradient(135deg,#0a192f,#112240)',
+          padding: '22px 26px', position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: '-30%', right: '-10%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle,rgba(249,115,22,0.15),transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>
+                Pay ${amount} — Add Credits
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, margin: 0 }}>
+                Balance after: ${(balance + amount).toFixed(2)}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding: '22px 26px' }}>
+          {loadErr && (
+            <div style={{ padding: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, color: '#b91c1c', fontSize: 13, marginBottom: 12 }}>
+              {loadErr}
+            </div>
+          )}
+
+          {!clientSecret && !loadErr && (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+              Preparing secure payment…
+            </div>
+          )}
+
+          {clientSecret && (
+            <Elements
+              key={clientSecret}
+              stripe={stripePromiseSingleton()}
+              options={{
+                clientSecret,
+                appearance: {
+                  theme: 'stripe',
+                  variables: {
+                    colorPrimary: '#ea580c',
+                    colorText: '#0f172a',
+                    colorBackground: '#ffffff',
+                    colorDanger: '#dc2626',
+                    fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+                    borderRadius: '10px',
+                    spacingUnit: '4px',
+                  },
+                },
+              }}
+            >
+              <TopUpPaymentForm
+                amount={amount}
+                API_URL={API_URL}
+                token={token}
+                onSuccess={onSuccess}
+                onCancel={onClose}
+              />
+            </Elements>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopUpPaymentForm({ amount, API_URL, token, onSuccess, onCancel }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const { refreshUser } = useContext(AuthContext);
+  const [submitting, setSubmitting] = useState(false);
+  const [paymentErr, setPaymentErr] = useState('');
+  const [elementReady, setElementReady] = useState(false);
+  const [hasExpressMethods, setHasExpressMethods] = useState(false);
+
+  async function confirmAndComplete() {
+    setPaymentErr('');
+    setSubmitting(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/dashboard/billing?payment=success`,
+        },
+        redirect: 'if_required',
+      });
+      if (error) {
+        setPaymentErr(error.message || 'Payment could not be completed.');
+        setSubmitting(false);
+        return;
+      }
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
+        try {
+          await fetch(`${API_URL}/billing/verify-topup-intent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
+            body: JSON.stringify({ paymentIntentId: paymentIntent.id }),
+          });
+        } catch (_verifyErr) {
+          // Webhook will catch up — non-blocking.
+        }
+        if (refreshUser) await refreshUser();
+        if (onSuccess) onSuccess();
+        return;
+      }
+      setPaymentErr(`Payment ended in unexpected status: ${paymentIntent?.status || 'unknown'}.`);
+      setSubmitting(false);
+    } catch (err) {
+      setPaymentErr(err?.message || 'Unexpected error during payment.');
+      setSubmitting(false);
+    }
+  }
+
+  function handlePay(e) {
+    e.preventDefault();
+    if (!stripe || !elements || submitting) return;
+    confirmAndComplete();
+  }
+
+  function handleExpressConfirm() {
+    if (!stripe || !elements || submitting) return;
+    confirmAndComplete();
+  }
+
+  function handleExpressReady(event) {
+    const methods = event?.availablePaymentMethods;
+    setHasExpressMethods(!!methods && Object.keys(methods).length > 0);
+  }
+
+  return (
+    <form onSubmit={handlePay}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <ExpressCheckoutElement
+          onConfirm={handleExpressConfirm}
+          onReady={handleExpressReady}
+          options={{
+            buttonHeight: 46,
+            buttonTheme: { applePay: 'black', googlePay: 'black' },
+            layout: { maxColumns: 2, maxRows: 2 },
+            paymentMethods: { applePay: 'always', googlePay: 'always', link: 'auto' },
+          }}
+        />
+        {hasExpressMethods && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '4px 0' }}>
+            <span style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+            <span>or pay with card</span>
+            <span style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+          </div>
+        )}
+        <PaymentElement
+          options={{ layout: 'tabs' }}
+          onReady={() => setElementReady(true)}
+        />
+      </div>
+
+      {paymentErr && (
+        <div style={{ marginTop: 14, padding: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, color: '#b91c1c', fontSize: 13 }} role="alert" aria-live="polite">
+          {paymentErr}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={submitting}
+          className="secondary-btn"
+          style={{ flex: 1, padding: 13, justifyContent: 'center', opacity: submitting ? 0.6 : 1 }}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={!stripe || !elements || !elementReady || submitting}
+          style={{
+            flex: 2, padding: 13, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14,
+            cursor: (!stripe || !elements || !elementReady || submitting) ? 'not-allowed' : 'pointer',
+            fontFamily: 'var(--font-heading)',
+            background: 'linear-gradient(135deg,#ea580c,#c2410c)',
+            color: '#fff', boxShadow: '0 4px 14px rgba(234,88,12,0.3)',
+            opacity: (!stripe || !elements || !elementReady || submitting) ? 0.6 : 1, transition: 'all 0.25s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          <CreditCard size={16} /> {submitting ? 'Processing…' : `Pay $${amount}`}
+        </button>
+      </div>
+    </form>
   );
 }
