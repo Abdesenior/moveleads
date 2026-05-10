@@ -1173,10 +1173,25 @@
      when the drawer is always full-width. */
   .sidebar-collapse-btn { display: none; }
 
-  /* Mobile balance card — prominent, sits below the logo. */
+  /* Hide the duplicate brand block inside the mobile drawer — the sticky
+     header already shows MoveLeads, so showing it again here is clutter.
+     Desktop drawer keeps the logo (no media-query change there). */
+  .sidebar > .logo-container { display: none; }
+
+  /* Align the user/account section with nav items so avatar and nav icons
+     share the same 26px left edge. Nav-item icons live at 12 (sidebar-nav
+     padding) + 14 (item padding) = 26px from the drawer edge. The user
+     section was at 16px padding only — moved to 12 horizontal so the
+     inner items (with their own 14px padding) hit the same rail. */
+  .sidebar-user-section { padding: 16px 12px; }
+  .sidebar-user-info { padding: 0 14px; gap: 12px; }
+
+  /* Mobile balance card — prominent, sits at the top of the drawer where
+     the logo used to be. Aligned to the same 26px content rail as the
+     nav items below. */
   .mobile-balance-card {
     display: block;
-    margin: 14px 14px 4px;
+    margin: 14px 12px 8px;
     padding: 12px 14px;
     background: linear-gradient(180deg, #fff8f3 0%, #ffffff 100%);
     border: 1px solid rgba(255, 106, 20, 0.20);
