@@ -39,7 +39,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'x-auth-token'],
 }));
 
-app.post('/api/billing/webhook', express.raw({ type: 'application/json' }));
+// Stripe webhook must be mounted BEFORE the global express.json() middleware
+// so the route's express.raw() handler can read the un-parsed body for
+// signature verification. Also mounted BEFORE the verifiedGate-wrapped
+// /api/billing router because Stripe deliveries carry no JWT.
+app.use('/api/billing/webhook', require('./routes/billingWebhook'));
 
 app.use(express.json({ limit: '100kb' }));
 
@@ -72,23 +76,41 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/leads', require('./routes/leads'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/admin/settings', require('./routes/settings'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/disputes', require('./routes/disputes'));
-app.use('/api/admin/pricing', require('./routes/pricing'));
-app.use('/api/billing', require('./routes/billing'));
-app.use('/api/onboarding', require('./routes/onboarding'));
-app.use('/api/purchases', require('./routes/purchases'));
-app.use('/api/routing', require('./routes/routing'));
-app.use('/api/public', require('./routes/public'));
-app.use('/api/voice',  require('./routes/voice'));
-app.use('/api/twilio', require('./routes/twilio'));
-app.use('/api/bids', require('./routes/bids'));
-app.use('/api/complaints', require('./routes/complaints'));
-app.use('/api/images', require('./routes/images'));
+// ── Email-verification gate ────────────────────────────────────────────────
+// `auth` populates req.user (re-querying DB for role+isEmailVerified each
+// request). `requireEmailVerified` then blocks any non-admin user whose
+// email isn't verified. Admin / super_admin bypass — they need access to
+// admin tools even if their seed account doesn't have the verified flag.
+//
+// Exemptions (no gate applied):
+//   /api/auth         — the verification mechanism itself + /me which the
+//                       client polls to discover verification status.
+//   /api/twilio       — Twilio webhooks (signature verified, no JWT).
+//   /api/voice        — Twilio voice webhooks (signature verified, no JWT).
+//   /api/public       — unauthenticated lead-volume + quote-ingest endpoints.
+//   /api/billing/webhook — Stripe webhook (mounted above, signature verified).
+const { auth, requireEmailVerified } = require('./middleware/auth');
+const verifiedGate = [auth, requireEmailVerified];
+
+app.use('/api/auth',   require('./routes/auth'));    // PUBLIC: verification mechanism
+app.use('/api/public', require('./routes/public'));  // PUBLIC: lead-volume / quote ingest
+app.use('/api/twilio', require('./routes/twilio'));  // PUBLIC: Twilio signature-verified webhooks
+app.use('/api/voice',  require('./routes/voice'));   // PUBLIC: Twilio voice webhooks
+
+// Dashboard data routes — gated on verified email
+app.use('/api/leads',          verifiedGate, require('./routes/leads'));
+app.use('/api/users',          verifiedGate, require('./routes/users'));
+app.use('/api/admin/settings', verifiedGate, require('./routes/settings'));
+app.use('/api/admin',          verifiedGate, require('./routes/admin'));
+app.use('/api/disputes',       verifiedGate, require('./routes/disputes'));
+app.use('/api/admin/pricing',  verifiedGate, require('./routes/pricing'));
+app.use('/api/billing',        verifiedGate, require('./routes/billing'));   // webhook mounted separately above
+app.use('/api/onboarding',     verifiedGate, require('./routes/onboarding'));
+app.use('/api/purchases',      verifiedGate, require('./routes/purchases'));
+app.use('/api/routing',        verifiedGate, require('./routes/routing'));
+app.use('/api/bids',           verifiedGate, require('./routes/bids'));
+app.use('/api/complaints',     verifiedGate, require('./routes/complaints'));
+app.use('/api/images',         verifiedGate, require('./routes/images'));
 
 require('./jobs/settleAuctions');
 require('./jobs/requestFeedback');
