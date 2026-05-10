@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements, PaymentElement, ExpressCheckoutElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
 import PlaceAutocomplete from '../../components/PlaceAutocomplete';
@@ -996,6 +996,10 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   const [submitting, setSubmitting] = useState(false);
   const [paymentErr, setPaymentErr] = useState('');
   const [elementReady, setElementReady] = useState(false);
+  // Set true once the ExpressCheckoutElement reports at least one eligible
+  // wallet (Apple Pay / Google Pay / Link). Drives the "or pay with card"
+  // divider — only shown when the wallet row actually rendered something.
+  const [hasExpressMethods, setHasExpressMethods] = useState(false);
 
   const ctaLabel = submitting
     ? 'Processing payment…'
@@ -1007,9 +1011,10 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
     ? `$${intent.selectedAmount} → $${intent.totalCredits} balance`
     : `$${intent.selectedAmount} → $${intent.selectedAmount} balance`;
 
-  async function handlePay(e) {
-    e.preventDefault();
-    if (!stripe || !elements || submitting) return;
+  // Shared confirmation handler — used by both the card form submit and the
+  // ExpressCheckoutElement onConfirm. stripe.confirmPayment with elements
+  // automatically uses whichever method the user chose (card or wallet).
+  async function confirmAndComplete() {
     setPaymentErr('');
     setSubmitting(true);
     try {
@@ -1052,6 +1057,26 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
     }
   }
 
+  function handlePay(e) {
+    e.preventDefault();
+    if (!stripe || !elements || submitting) return;
+    confirmAndComplete();
+  }
+
+  // ExpressCheckoutElement event — fires when the user taps an Apple Pay /
+  // Google Pay / Link button. We delegate to the same confirm flow.
+  function handleExpressConfirm() {
+    if (!stripe || !elements || submitting) return;
+    confirmAndComplete();
+  }
+
+  // onReady reports which express methods are eligible for this user/device.
+  // Hide the divider entirely when the row would render empty.
+  function handleExpressReady(event) {
+    const methods = event?.availablePaymentMethods;
+    setHasExpressMethods(!!methods && Object.keys(methods).length > 0);
+  }
+
   return (
     <form className="ow-pay" onSubmit={handlePay}>
       <button type="button" className="ow-pay-back" onClick={onBack} disabled={submitting}>
@@ -1069,6 +1094,23 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
       </div>
 
       <div className="ow-pay-element-wrap">
+        {/* Express wallets (Apple Pay / Google Pay / Link). Renders nothing
+            on browsers/devices that don't support any of them — the
+            PaymentElement below stays the only payment surface in that case. */}
+        <ExpressCheckoutElement
+          onConfirm={handleExpressConfirm}
+          onReady={handleExpressReady}
+          options={{
+            buttonHeight: 48,
+            buttonTheme: { applePay: 'black', googlePay: 'black' },
+            layout: { maxColumns: 2, maxRows: 2 },
+          }}
+        />
+        {hasExpressMethods && (
+          <div className="ow-pay-divider" aria-hidden="true">
+            <span>or pay with card</span>
+          </div>
+        )}
         <PaymentElement
           options={{ layout: 'tabs' }}
           onReady={() => setElementReady(true)}
