@@ -148,8 +148,8 @@ const FAQS = [
   { q: 'Is there a contract?',                        a: "No long-term contract. Buy a credit pack, test the platform, and walk away if it doesn't work for your business. Credits never expire." },
 ];
 
-const PHONE = '+18005550199';
-const PHONE_DISPLAY = '+1 (800) 555-0199';
+const PHONE = '+13072044792';
+const PHONE_DISPLAY = '+1 (307) 204-4792';
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 

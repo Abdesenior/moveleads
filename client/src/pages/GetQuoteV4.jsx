@@ -705,7 +705,7 @@ function TopBar() {
         <img src="/movesmart-logo.webp" alt="MoveSmart" className="gqv4-logo-mark" />
         <span className="gqv4-logo-text">MoveSmart</span>
       </a>
-      <a href="tel:+18005550199" className="gqv4-top-call" aria-label="Call MoveSmart">
+      <a href="tel:+13072044792" className="gqv4-top-call" aria-label="Call MoveSmart">
         {Ico.phone(14, T.accent)}
         <span>Call</span>
       </a>
