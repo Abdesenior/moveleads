@@ -1,3 +1,12 @@
+/**
+ * Runbook:
+ *   POST /api/bids/:leadId/settle requires the x-cron-secret header to match
+ *   the CRON_SECRET environment variable. The in-process cron at
+ *   server/jobs/settleAuctions.js does NOT hit this route — it talks to
+ *   Mongoose directly — so this endpoint is only used for manual/external
+ *   re-settlement. Set CRON_SECRET in the server env before deploying.
+ */
+
 const express  = require('express');
 const router   = express.Router();
 const Lead     = require('../models/Lead');
@@ -5,6 +14,18 @@ const User     = require('../models/User');
 const PurchasedLead = require('../models/PurchasedLead');
 const { auth } = require('../middleware/auth');
 const { getIo } = require('../services/socketService');
+
+// Cron-secret guard for endpoints triggered out-of-band by schedulers.
+// Returns 401 instead of 403 so curious authenticated callers can't tell
+// whether the route exists vs. requires a different role.
+function requireCronSecret(req, res, next) {
+  const expected = process.env.CRON_SECRET;
+  const provided = req.headers['x-cron-secret'];
+  if (!expected || !provided || provided !== expected) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function broadcastBidUpdate(lead) {
@@ -102,7 +123,11 @@ router.post('/:leadId/buy-now', auth, async (req, res) => {
 });
 
 // ── POST /api/bids/:leadId/settle — Called by cron when auction expires ───────
-router.post('/:leadId/settle', async (req, res) => {
+// Requires x-cron-secret header matching process.env.CRON_SECRET. The
+// internal node-cron job in server/jobs/settleAuctions.js does NOT call
+// this route, it operates on Mongoose directly, so requiring auth here
+// only affects manual / external invocations.
+router.post('/:leadId/settle', requireCronSecret, async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.leadId);
     if (!lead || lead.auctionStatus !== 'active') return res.sendStatus(200);

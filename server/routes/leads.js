@@ -115,6 +115,26 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       grade,
     });
 
+    // 5b. Validate sourceCompany. The intake form is public, so anyone can
+    //     stamp an attribution. We only accept it if it resolves to an
+    //     existing User in a legitimate attribution role. Invalid ObjectIds
+    //     or unknown ids are dropped silently — returning 400 would leak
+    //     which company ids exist in the system.
+    let resolvedSourceCompany;
+    if (data.sourceCompany) {
+      try {
+        if (mongoose.isValidObjectId(data.sourceCompany)) {
+          const exists = await User.exists({
+            _id: data.sourceCompany,
+            role: { $in: ['customer'] },
+          });
+          if (exists) resolvedSourceCompany = data.sourceCompany;
+        }
+      } catch (_e) {
+        // swallow — drop the field silently
+      }
+    }
+
     // 6. Save lead with auction fields
     const lead = new Lead({
       route,
@@ -142,7 +162,7 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       currentBidPrice: auctionPricing.startingBidPrice,
       auctionStatus: 'active',
       auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24-hour window
-      ...(data.sourceCompany && mongoose.isValidObjectId(data.sourceCompany) && { sourceCompany: data.sourceCompany }),
+      ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }]
     });
 
