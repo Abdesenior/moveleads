@@ -301,6 +301,19 @@ export default function LeadFeed() {
   const [leads, setLeads]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [socketStatus, setSocketStatus] = useState('connecting');
+
+  // Bridge socket-status up to DashboardLayout's mobile sticky app bar via
+  // a window CustomEvent. This keeps the socket lifecycle owned by the page
+  // (LeadFeed is the only component that opens the socket), while letting
+  // the global mobile app bar render a live indicator on the right side.
+  // On unmount we clear by dispatching null so the indicator hides on
+  // pages that don't have a live socket.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('moveleads:socket-status', { detail: socketStatus }));
+  }, [socketStatus]);
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent('moveleads:socket-status', { detail: null }));
+  }, []);
   const [successData, setSuccessData]   = useState(null);
   const [previewLead, setPreviewLead]   = useState(null);
   const [claimError, setClaimError]     = useState('');

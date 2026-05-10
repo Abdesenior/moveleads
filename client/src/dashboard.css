@@ -973,21 +973,72 @@
     overflow: hidden;
   }
 
-  /* Mobile header — compact app-shell row. Hamburger + MoveLeads brand
-     sit inline with consistent padding. Sticky to the top of the viewport
-     so navigation stays reachable when scrolling. */
+  /* Mobile sticky app bar — premium SaaS feel. Hamburger + brand on the
+     left, live status on the right. Soft white with backdrop blur so
+     content scrolls beneath it with a frosted-glass effect. */
   .mobile-header {
     display: flex;
     align-items: center;
     gap: 10px;
     height: 56px;
     padding: 0 14px;
-    background: white;
-    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.85);
     position: sticky;
     top: 0;
     z-index: 12100;
   }
+
+  /* Live status pill on the right side of the app bar. */
+  .mobile-live-status {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px 5px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .mobile-live-status .mobile-live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .mobile-live-connected {
+    background: rgba(34, 197, 94, 0.10);
+    color: #15803d;
+    border: 1px solid rgba(34, 197, 94, 0.22);
+  }
+  .mobile-live-connected .mobile-live-dot {
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+    animation: livePulse 2s ease-in-out infinite;
+  }
+  .mobile-live-reconnecting,
+  .mobile-live-connecting {
+    background: rgba(148, 163, 184, 0.12);
+    color: #64748b;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+  }
+  .mobile-live-reconnecting .mobile-live-dot,
+  .mobile-live-connecting .mobile-live-dot {
+    background: #94a3b8;
+    animation: livePulse 1.4s ease-in-out infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45); }
+    50%       { opacity: 0.65; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
+  }
+
+  /* Hide the duplicate connection badge inside the page hero on mobile —
+     the sticky app bar now carries the Live status. */
+  .connection-badge { display: none !important; }
   .mobile-brand {
     display: inline-flex;
     align-items: center;

@@ -29,6 +29,15 @@ export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
   const [openComplaints, setOpenComplaints] = useState(0);
+  // Live socket status published by pages that own real-time data (e.g.
+  // LeadFeed). null = page doesn't have a live connection; we hide the
+  // indicator in that case.
+  const [liveStatus, setLiveStatus] = useState(null);
+  useEffect(() => {
+    const handler = (e) => setLiveStatus(e?.detail || null);
+    window.addEventListener('moveleads:socket-status', handler);
+    return () => window.removeEventListener('moveleads:socket-status', handler);
+  }, []);
   const { user, logout, token, API_URL, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [showWizard, setShowWizard] = useState(false);
@@ -174,9 +183,8 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      {/* Mobile header — compact app-shell row with hamburger + brand.
-          Hidden on desktop (the sidebar handles navigation there). Sitting
-          above the banner means the hamburger never overlaps banner text. */}
+      {/* Mobile sticky app bar — hamburger + brand on the left, live status
+          on the right. Hidden on desktop. */}
       <div className="mobile-header">
         <button
           type="button"
@@ -190,6 +198,18 @@ export default function DashboardLayout({ children }) {
           <span className="mobile-brand-mark" aria-hidden="true" />
           <span className="mobile-brand-text">MoveLeads</span>
         </div>
+        {liveStatus && (
+          <span className={`mobile-live-status mobile-live-${liveStatus}`} role="status" aria-live="polite">
+            <span className="mobile-live-dot" aria-hidden="true" />
+            <span className="mobile-live-label">
+              {liveStatus === 'connected'
+                ? 'Live'
+                : liveStatus === 'reconnecting'
+                  ? 'Reconnecting'
+                  : 'Connecting'}
+            </span>
+          </span>
+        )}
       </div>
 
       <ActivationBanner onActivate={openActivation} />
