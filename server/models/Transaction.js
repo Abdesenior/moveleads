@@ -13,6 +13,7 @@ const TransactionSchema = new mongoose.Schema({
   // single-source-of-truth at the database level.
   stripePaymentIntentId: { type: String, index: { unique: true, sparse: true } },
   lead: { type: mongoose.Schema.Types.ObjectId, ref: 'lead' },
+  purchasedLead: { type: mongoose.Schema.Types.ObjectId, ref: 'purchased_lead' },
   date: { type: Date, default: Date.now }
 });
 

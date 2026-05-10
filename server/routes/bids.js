@@ -12,6 +12,7 @@ const router   = express.Router();
 const Lead     = require('../models/Lead');
 const User     = require('../models/User');
 const PurchasedLead = require('../models/PurchasedLead');
+const Transaction   = require('../models/Transaction');
 const { auth } = require('../middleware/auth');
 const { getIo } = require('../services/socketService');
 
@@ -89,33 +90,73 @@ router.post('/:leadId/buy-now', auth, async (req, res) => {
     );
     if (!lead) return res.status(400).json({ error: 'Lead no longer available' });
 
-    const mover = await User.findById(req.user.id);
-    if (!mover || mover.balance < lead.buyNowPrice) {
-      // Revert — not enough balance
-      lead.auctionStatus = 'active';
-      await lead.save();
-      return res.status(400).json({ error: 'Insufficient balance' });
+    const price = lead.buyNowPrice;
+
+    // Atomic conditional debit — single op enforces balance >= price.
+    // Eliminates the read-then-write race where two concurrent buy-nows
+    // on different leads can drive a single account negative.
+    const debited = await User.findOneAndUpdate(
+      { _id: req.user.id, balance: { $gte: price } },
+      { $inc: { balance: -price } },
+      { new: true }
+    );
+
+    if (!debited) {
+      // Insufficient balance (or concurrent debit drained it).
+      // Revert the lead claim atomically (only if we still own the 'buy_now' flip).
+      await Lead.findOneAndUpdate(
+        { _id: lead._id, auctionStatus: 'buy_now' },
+        { $set: { auctionStatus: 'active' } }
+      );
+      return res.status(402).json({ msg: 'Insufficient balance', error: 'Insufficient balance' });
     }
 
-    await User.findByIdAndUpdate(req.user.id, { $inc: { balance: -lead.buyNowPrice } });
+    // Create audit row first so a duplicate { company, lead } trips before we
+    // mutate lead.buyers / status. On E11000 we refund and revert.
+    let purchasedLeadDoc;
+    try {
+      purchasedLeadDoc = await new PurchasedLead({
+        company:   req.user.id,
+        lead:      lead._id,
+        pricePaid: price,
+      }).save();
+    } catch (err) {
+      if (err.code === 11000) {
+        // Another concurrent claim won — refund and revert.
+        await User.findOneAndUpdate(
+          { _id: req.user.id },
+          { $inc: { balance: price } }
+        );
+        await Lead.findOneAndUpdate(
+          { _id: lead._id, auctionStatus: 'buy_now' },
+          { $set: { auctionStatus: 'active' } }
+        );
+        return res.status(409).json({ error: 'Lead already claimed' });
+      }
+      throw err;
+    }
 
     lead.winnerId   = req.user.id;
-    lead.finalPrice = lead.buyNowPrice;
+    lead.finalPrice = price;
     lead.auctionStatus = 'sold';
     lead.status     = 'Purchased';
-    lead.buyers.push({ company: req.user.id, purchasedAt: new Date(), pricePaid: lead.buyNowPrice });
+    lead.buyers.push({ company: req.user.id, purchasedAt: new Date(), pricePaid: price });
     await lead.save();
 
-    // Create audit record so the purchase appears in My Leads
-    await new PurchasedLead({
-      company:   req.user.id,
-      lead:      lead._id,
-      pricePaid: lead.buyNowPrice,
-    }).save().catch(err => { if (err.code !== 11000) throw err; });
+    // Ledger entry — closes the gap so buy-now appears in transaction history.
+    await Transaction.create({
+      user:        req.user.id,
+      type:        'Lead Purchase',
+      amount:      price,
+      description: `Buy-now purchase: lead ${lead._id}`,
+      lead:        lead._id,
+      purchasedLead: purchasedLeadDoc?._id,
+      status:      'Completed',
+    });
 
     broadcastLeadSold(lead, req.user.id);
 
-    res.json({ success: true, message: 'Lead claimed!', pricePaid: lead.buyNowPrice, lead });
+    res.json({ success: true, message: 'Lead claimed!', pricePaid: price, lead });
   } catch (err) {
     console.error('[Bids] Buy-now error:', err.message);
     res.status(500).json({ error: 'Server error' });
