@@ -49,8 +49,20 @@ function TimeLeftTag({ endsAt }) {
   );
 }
 
+/* ─── Body scroll lock — used by all lead modals so opening a modal on
+       mobile prevents the dashboard from scrolling behind it and keeps
+       the sticky app bar from competing for taps. ───────────────────────── */
+function useBodyScrollLock() {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+}
+
 /* ─── Bid modal ────────────────────────────────────────────────────────────── */
 function BidModal({ lead, balance, onClose, onBid }) {
+  useBodyScrollLock();
   const minBid = (lead.currentBidPrice || lead.startingBidPrice || 9) + 5;
   const [amount, setAmount] = useState(minBid);
   const [submitting, setSubmitting] = useState(false);
@@ -118,6 +130,7 @@ function Row({ label, value }) {
 
 /* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
 function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error }) {
+  useBodyScrollLock();
   const isAuction   = lead.auctionStatus === 'active';
   const currentBid  = lead.currentBidPrice || 0;
   const buyNowPrice = getLeadPrice(lead);
@@ -238,6 +251,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
 
 /* ─── Success modal (buy-now + auction win) ─────────────────────────────────── */
 function SuccessModal({ data, onClose, onNavigate }) {
+  useBodyScrollLock();
   const fromAuction = data.fromAuction;
   const hasContact  = data.lead?.customerName && data.lead?.customerPhone;
   return (
