@@ -74,6 +74,12 @@ export default function AdminLayout({ children }) {
         </span>
       </div>
 
+      {/* Inner row: sidebar + main side-by-side. Without this wrapper the
+          parent .dashboard-layout (flex-direction: column) stacks the
+          sidebar above the main content vertically — exactly the bug
+          where Platform Overview was sliding to the bottom of the
+          viewport. */}
+      <div className="dashboard-shell">
       <div
         className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
         onClick={() => setSidebarOpen(false)}
@@ -163,6 +169,7 @@ export default function AdminLayout({ children }) {
       <main className="dashboard-main">
         {children}
       </main>
+      </div>
     </div>
   );
 }
