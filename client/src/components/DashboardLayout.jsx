@@ -174,7 +174,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      {/* Mobile header — hamburger lives here in normal layout flow on mobile.
+      {/* Mobile header — compact app-shell row with hamburger + brand.
           Hidden on desktop (the sidebar handles navigation there). Sitting
           above the banner means the hamburger never overlaps banner text. */}
       <div className="mobile-header">
@@ -184,8 +184,12 @@ export default function DashboardLayout({ children }) {
           aria-label="Open navigation"
           onClick={() => setSidebarOpen(true)}
         >
-          <Menu size={20} />
+          <Menu size={18} />
         </button>
+        <div className="mobile-brand">
+          <span className="mobile-brand-mark" aria-hidden="true" />
+          <span className="mobile-brand-text">MoveLeads</span>
+        </div>
       </div>
 
       <ActivationBanner onActivate={openActivation} />

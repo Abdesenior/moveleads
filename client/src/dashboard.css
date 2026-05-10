@@ -879,10 +879,90 @@
 }
 
 /* Mobile header row — hidden on desktop. On mobile it's sticky at top,
-   contains the hamburger menu button, and sits ABOVE the activation
-   banner so the menu icon never overlaps banner text. */
+   contains the hamburger menu button + brand, and sits ABOVE the
+   activation banner so the menu icon never overlaps banner text. */
 .mobile-header {
   display: none;
+}
+
+/* ── Activation banner — premium app-shell card ──────────────────────────
+   Same horizontal padding as the mobile header (14px) for visual
+   continuity. Compact hierarchy: small label → bold offer → CTA. */
+.activation-banner {
+  background: linear-gradient(180deg, #07111f 0%, #06101d 100%);
+  border-bottom: 1px solid rgba(255, 106, 20, 0.20);
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap;
+  color: #fff;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.activation-banner-text {
+  display: flex; flex-direction: column;
+  gap: 2px; line-height: 1.3;
+  min-width: 0;
+}
+.activation-banner-title {
+  font-size: 12px; font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.activation-banner-highlight {
+  font-size: 15px; font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.005em;
+}
+.activation-banner-highlight strong {
+  color: #ff6a14;
+  font-weight: 800;
+}
+.activation-banner-cta {
+  background: #ff6a14;
+  color: #fff;
+  border: none;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13.5px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(255, 106, 20, 0.32);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.activation-banner-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(255, 106, 20, 0.40);
+}
+
+@media (max-width: 600px) {
+  /* Mobile: same horizontal padding as the header (14px) so the banner
+     reads as one connected app shell rather than a stacked block. */
+  .activation-banner {
+    padding: 12px 14px;
+    gap: 10px;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  .activation-banner-text {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .activation-banner-title {
+    font-size: 10.5px;
+  }
+  .activation-banner-highlight {
+    font-size: 13.5px;
+    line-height: 1.35;
+  }
+  .activation-banner-cta {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 12.5px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -893,42 +973,69 @@
     overflow: hidden;
   }
 
-  /* Mobile header — full-width row with the hamburger inline. Sticky to the
-     top of the viewport so it stays reachable when scrolling. */
+  /* Mobile header — compact app-shell row. Hamburger + MoveLeads brand
+     sit inline with consistent padding. Sticky to the top of the viewport
+     so navigation stays reachable when scrolling. */
   .mobile-header {
     display: flex;
     align-items: center;
+    gap: 10px;
     height: 56px;
-    padding: 0 12px;
+    padding: 0 14px;
     background: white;
     border-bottom: 1px solid #e2e8f0;
     position: sticky;
     top: 0;
     z-index: 12100;
   }
+  .mobile-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 800;
+    font-size: 16px;
+    color: #0f172a;
+    letter-spacing: -0.015em;
+    line-height: 1;
+  }
+  .mobile-brand-mark {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #ff6a14;
+    box-shadow: 0 0 0 3px rgba(255, 106, 20, 0.15);
+    flex-shrink: 0;
+  }
+  .mobile-brand-text {
+    /* The "Move" + "Leads" wordmark — single weight, slight tracking. */
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 
   .sidebar-toggle {
-    display: flex;
+    display: inline-flex;
     /* No longer position: fixed — the mobile-header container handles its
-       placement via normal flow / sticky. This is the change that stops the
-       button from overlapping the activation banner below. */
+       placement via normal flow / sticky. Compact integrated treatment
+       instead of the previous floating-button shadow. */
     position: static;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    background: transparent;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(15,23,42,0.10);
-    transition: all 0.2s;
     color: #334155;
+    transition: background 0.15s;
+    flex-shrink: 0;
   }
 
-  .sidebar-toggle:hover {
-    box-shadow: 0 6px 20px rgba(15,23,42,0.14);
-    background: #f8fafc;
+  .sidebar-toggle:hover,
+  .sidebar-toggle:active {
+    background: #f1f5f9;
+    color: #0f172a;
   }
 
   .sidebar-backdrop {
