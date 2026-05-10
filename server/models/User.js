@@ -47,6 +47,8 @@ const UserSchema = new mongoose.Schema({
     currentStep: { type: Number, default: 0 },     // 0..5 (0=not started, 5=activation pending)
     bonusClaimedAt: { type: Date, default: null }, // set on first $100 onboarding payment only
     activatedAt:    { type: Date, default: null }, // set on ANY successful onboarding activation payment ($50 OR $100)
+    firstTopupAt:           { type: Date, default: null }, // set on the first successful dashboard top-up (any amount)
+    firstTopupPopupShownAt: { type: Date, default: null }, // set when the post-first-topup reassurance popup is dismissed/seen
     recovery: {
       // Post-skip cadence (completed setup, didn't claim bonus)
       sent12h: { type: Boolean, default: false },

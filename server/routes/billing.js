@@ -437,6 +437,9 @@ async function applyTopUpCredit(paymentIntent) {
     return { applied: false, alreadyProcessed: false, reason: 'user_not_found' };
   }
 
+  // Snapshot whether this is the first top-up before we mutate state.
+  const isFirstTopup = !user.onboarding?.firstTopupAt;
+
   // Insert Transaction first — unique index on stripePaymentIntentId is the
   // strict idempotency gate. E11000 race → treat as already-credited.
   try {
@@ -456,7 +459,11 @@ async function applyTopUpCredit(paymentIntent) {
     throw err;
   }
 
-  await User.updateOne({ _id: userId }, { $inc: { balance: amount } });
+  const update = { $inc: { balance: amount } };
+  if (isFirstTopup) {
+    update.$set = { 'onboarding.firstTopupAt': new Date() };
+  }
+  await User.updateOne({ _id: userId }, update);
 
   const fresh = await User.findById(userId).select('balance companyName email');
 
@@ -473,8 +480,8 @@ async function applyTopUpCredit(paymentIntent) {
     `,
   }).catch(() => {});
 
-  console.log(`[ApplyTopUp] credited $${amount} to ${userId} for PI ${paymentIntent.id}`);
-  return { applied: true, alreadyProcessed: false, balance: fresh.balance || 0, amount };
+  console.log(`[ApplyTopUp] credited $${amount} to ${userId} for PI ${paymentIntent.id}${isFirstTopup ? ' (first top-up)' : ''}`);
+  return { applied: true, alreadyProcessed: false, balance: fresh.balance || 0, amount, isFirstTopup };
 }
 
 // @route   POST /api/billing/create-topup-intent
@@ -537,12 +544,18 @@ router.post('/verify-topup-intent', auth, async (req, res) => {
     }
 
     const result = await applyTopUpCredit(intent);
-    const user = await User.findById(req.user.id).select('balance');
+    const user = await User.findById(req.user.id).select('balance onboarding.firstTopupAt onboarding.firstTopupPopupShownAt');
+    // Show the reassurance popup once: when this is the first top-up AND
+    // the popup hasn't already been marked seen for this user.
+    const showFirstTopupPopup =
+      !!user?.onboarding?.firstTopupAt &&
+      !user?.onboarding?.firstTopupPopupShownAt;
     return res.json({
       applied: result.applied,
       alreadyProcessed: result.alreadyProcessed,
       balance: user.balance || 0,
       amount: result.amount,
+      showFirstTopupPopup,
     });
   } catch (err) {
     console.error('[VerifyTopUpIntent]', err);

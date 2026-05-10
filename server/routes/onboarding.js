@@ -331,4 +331,22 @@ router.post('/complete', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/onboarding/mark-first-topup-popup-seen
+// @desc    Stamps onboarding.firstTopupPopupShownAt so the reassurance popup
+//          never shows again. Idempotent — only sets the timestamp the first
+//          time it's called.
+// @access  Private (JWT)
+router.post('/mark-first-topup-popup-seen', auth, async (req, res) => {
+  try {
+    await User.updateOne(
+      { _id: req.user.id, 'onboarding.firstTopupPopupShownAt': null },
+      { $set: { 'onboarding.firstTopupPopupShownAt': new Date() } }
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[Onboarding] mark-first-topup-popup-seen error', err);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 module.exports = router;
