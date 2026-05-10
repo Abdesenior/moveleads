@@ -56,6 +56,26 @@ function issueJWT(user, res) {
 router.post('/register', registerLimiter, async (req, res) => {
   const { companyName, dotNumber, mcNumber, phone, password } = req.body;
   const email = req.body.email?.toLowerCase().trim();
+
+  // ── WP12.1 — Server-side input validation ─────────────────────────────────
+  // The client (Register.jsx:43-68) performs these same checks before submit,
+  // but a scripted POST could bypass them and end up with weak credentials,
+  // blank phone numbers, or junk company names landing in the DB.
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ msg: 'Invalid email' });
+  }
+  if (typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ msg: 'Password must be at least 8 characters' });
+  }
+  const trimmedCompanyName = typeof companyName === 'string' ? companyName.trim() : '';
+  if (trimmedCompanyName.length < 2 || trimmedCompanyName.length > 120) {
+    return res.status(400).json({ msg: 'Company name must be 2–120 characters' });
+  }
+  const phoneDigits = String(phone || '').replace(/\D/g, '');
+  if (phoneDigits.length < 10) {
+    return res.status(400).json({ msg: 'Invalid phone number' });
+  }
+
   try {
     const settings = await PlatformSettings.findOne({});
     if (settings && !settings.acceptNewUserSignups) {
@@ -69,7 +89,11 @@ router.post('/register', registerLimiter, async (req, res) => {
     const verificationToken = generateVerificationToken();
 
     const user = new User({
-      companyName, dotNumber, mcNumber, phone, email,
+      companyName: trimmedCompanyName,
+      dotNumber,
+      mcNumber,
+      phone: phoneDigits,
+      email,
       password: await bcrypt.hash(password, 10),
       role: 'customer',   // public registration always creates customers — never admin
       balance: 0,
@@ -88,7 +112,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     // Send verification email asynchronously (banner reminds them in-app).
-    sendVerificationEmail({ toEmail: email, companyName, token: verificationToken })
+    sendVerificationEmail({ toEmail: email, companyName: trimmedCompanyName, token: verificationToken })
       .catch(err => console.error('[VerifyEmail] Failed to send:', err.message));
 
     // Auto-login at register: issue a JWT immediately so the new partner lands

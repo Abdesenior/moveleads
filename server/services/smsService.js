@@ -28,13 +28,13 @@ async function sendMoverLeadSMS(toPhone, lead) {
     ? new Date(lead.moveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'TBD';
 
-  const body =
-    `🚨 New MoveLeads Alert!\n` +
-    `${lead.homeSize} | ${lead.originCity} → ${lead.destinationCity}\n` +
-    `Move Date: ${moveDateStr}\n` +
-    `Grade: ${lead.grade} | Price: $${lead.buyNowPrice}\n` +
-    `Claim now: moveleads.cloud/login\n` +
-    `MoveLeads • Reply STOP to opt out • HELP +1 (307) 204-4792`;
+  // Body kept ≤160 chars to fit a single GSM-7 SMS segment. Long lead routes
+  // can push us close to the limit; we trim the route portion if needed.
+  let body =
+    `MoveLeads: ${lead.homeSize} | ${lead.originCity}→${lead.destinationCity}\n` +
+    `${moveDateStr} | Grade ${lead.grade} | $${lead.buyNowPrice}\n` +
+    `Claim: moveleads.cloud/login\nReply STOP to opt out`;
+  if (body.length > 160) body = body.slice(0, 157) + '...';
 
   console.log(`[SMS] Sending to ${e164}…`);
 

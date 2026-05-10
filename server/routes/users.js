@@ -5,6 +5,7 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const Lead = require('../models/Lead');
 const Transaction = require('../models/Transaction');
+const { logAdminAction } = require('../utils/auditLog');
 
 // @route   GET /api/users
 // @desc    Admin: Get all users
@@ -90,13 +91,26 @@ router.put('/:id/suspend', [auth, admin], async (req, res) => {
       return res.status(400).json({ msg: 'isSuspended is required' });
     }
 
+    const before = await User.findById(req.params.id).select('isSuspended').lean();
+    const nextSuspended = Boolean(isSuspended);
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { $set: { isSuspended: Boolean(isSuspended) } },
+      { $set: { isSuspended: nextSuspended } },
       { returnDocument: 'after' }
     ).select('-password');
 
     if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    logAdminAction({
+      actor: req.user.id,
+      action: nextSuspended ? 'user.suspend' : 'user.unsuspend',
+      targetType: 'user',
+      targetId: user._id,
+      before: { isSuspended: before?.isSuspended ?? null },
+      after: { isSuspended: nextSuspended },
+    });
+
     res.json(user);
   } catch (err) {
     console.error(err.message);
@@ -139,6 +153,22 @@ router.delete('/:id', [auth, admin], async (req, res) => {
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
     await User.findByIdAndDelete(req.params.id);
+
+    logAdminAction({
+      actor: req.user.id,
+      action: 'user.delete',
+      targetType: 'user',
+      targetId: user._id,
+      before: {
+        email: user.email,
+        companyName: user.companyName,
+        role: user.role,
+        balance: user.balance,
+        isSuspended: user.isSuspended,
+      },
+      after: null,
+    });
+
     res.json({ msg: 'User removed' });
   } catch (err) {
     console.error(err.message);

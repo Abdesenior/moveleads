@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth, admin } = require('../middleware/auth');
 const PlatformSettings = require('../models/PlatformSettings');
+const { logAdminAction } = require('../utils/auditLog');
 
 // Admin: get global platform configuration
 router.get('/', [auth, admin], async (req, res) => {
@@ -38,11 +39,29 @@ router.put('/', [auth, admin], async (req, res) => {
     if (acceptNewUserSignups !== undefined) updates.acceptNewUserSignups = Boolean(acceptNewUserSignups);
     if (automatedStripeRefunds !== undefined) updates.automatedStripeRefunds = Boolean(automatedStripeRefunds);
 
+    const before = await PlatformSettings.findOne({}).lean();
+
     const settings = await PlatformSettings.findOneAndUpdate(
       {},
       { $set: updates },
       { returnDocument: 'after', upsert: true }
     );
+
+    logAdminAction({
+      actor: req.user.id,
+      action: 'settings.update',
+      targetType: 'platformSettings',
+      targetId: settings._id,
+      before: before
+        ? {
+            standardLeadPrice: before.standardLeadPrice,
+            exclusiveLeadMultiplier: before.exclusiveLeadMultiplier,
+            acceptNewUserSignups: before.acceptNewUserSignups,
+            automatedStripeRefunds: before.automatedStripeRefunds,
+          }
+        : null,
+      after: updates,
+    });
 
     res.json(settings);
   } catch (err) {

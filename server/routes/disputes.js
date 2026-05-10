@@ -8,6 +8,7 @@ const Transaction = require('../models/Transaction');
 const Lead = require('../models/Lead');
 const mongoose = require('mongoose');
 const { sendDisputeApprovedEmail } = require('../services/emailService');
+const { logAdminAction } = require('../utils/auditLog');
 
 // @route   POST /api/disputes
 // @desc    Mover: Create a dispute for a purchased lead
@@ -143,6 +144,22 @@ router.post('/admin/:id/resolve', [auth, admin], async (req, res) => {
     }
 
     const dispute = claimed;
+
+    logAdminAction({
+      actor: req.user.id,
+      action: approve ? 'dispute.approve' : 'dispute.deny',
+      targetType: 'dispute',
+      targetId: dispute._id,
+      before: { status: 'PENDING' },
+      after: { status: targetStatus },
+      metadata: {
+        lead: dispute.lead,
+        company: dispute.company,
+        purchasedLead: dispute.purchasedLead,
+        adminNotes: adminNotes || null,
+      },
+    });
+
     res.json(dispute);
 
     // Post-commit side effect: notify the mover by email (non-blocking).

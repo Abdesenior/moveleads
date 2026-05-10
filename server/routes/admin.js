@@ -14,6 +14,7 @@ const { emitNewLead } = require('../services/socketService');
 const { sendAdminLeadNotification, sendDisputeApprovedEmail } = require('../services/emailService');
 const { sendMoverLeadSMS } = require('../services/smsService');
 const Transaction = require('../models/Transaction');
+const { logAdminAction } = require('../utils/auditLog');
 
 // ── Helpers for bulk import ───────────────────────────────────────────────────
 function milesFromZips(originZip, destinationZip) {
@@ -213,6 +214,9 @@ router.post('/users/:id/balance', [auth, admin], async (req, res) => {
   }
 
   try {
+    // Capture before-balance for audit log (single read; the $inc below is atomic).
+    const before = await User.findById(req.params.id).select('balance').lean();
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { $inc: { balance: parsed } },
@@ -222,6 +226,17 @@ router.post('/users/:id/balance', [auth, admin], async (req, res) => {
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
     console.log(`[Admin] Balance adjusted for ${user.email}: ${parsed >= 0 ? '+' : ''}${parsed} → new balance $${user.balance.toFixed(2)}${note ? ` (${note})` : ''}`);
+
+    logAdminAction({
+      actor: req.user.id,
+      action: 'balance.adjust',
+      targetType: 'user',
+      targetId: user._id,
+      before: { balance: before?.balance ?? null },
+      after: { balance: user.balance },
+      metadata: { delta: parsed, note: note || null },
+    });
+
     res.json({ success: true, newBalance: user.balance });
   } catch (err) {
     console.error('[Admin] Balance adjust error:', err.message);
@@ -398,6 +413,16 @@ router.post('/refund/:purchasedLeadId', [auth, admin], async (req, res) => {
     );
 
     console.log(`[Admin Refund] purchasedLead=${pl._id} amount=$${refundAmount} → user ${pl.company} balance=$${userAfter?.balance?.toFixed?.(2)}`);
+
+    logAdminAction({
+      actor: req.user.id,
+      action: 'refund.issue',
+      targetType: 'purchasedLead',
+      targetId: pl._id,
+      before: { refunded: false },
+      after: { refunded: true, refundAmount },
+      metadata: { lead: pl.lead, company: pl.company, transactionId: transaction._id },
+    });
 
     // 3. Best-effort mover notification — reuse the dispute-approved email
     //    template (generic "credit applied" copy fits both flows).
