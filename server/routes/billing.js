@@ -207,9 +207,7 @@ router.post('/confirm-payment', auth, async (req, res) => {
 // a conditional User.updateOne() for the bonus stamp that races safely.
 // ──────────────────────────────────────────────────────────────────────────
 
-// TEST MODE: $1 added so the activation flow can be tested cheaply.
-// Revert to [50, 100] before going back to production pricing.
-const ALLOWED_INTENT_AMOUNTS = [1, 50, 100];
+const ALLOWED_INTENT_AMOUNTS = [50, 100];
 
 async function applyOnboardingActivationCredit(paymentIntent) {
   // Returns { applied: boolean, balance: number, totalCredits: number, alreadyProcessed: boolean }.

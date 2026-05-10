@@ -130,10 +130,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     receiveLiveTransfers: !!user?.receiveLiveTransfers,
   });
 
-  // TEST MODE: tier state stays as 100/50 internally so the rest of the
-  // flow is unchanged, but the amount sent to /create-payment-intent is
-  // overridden to 1 below. Revert to useState(100) when going back to
-  // production pricing.
   const [tier, setTier] = useState(100);
   const [intent, setIntent] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -303,10 +299,7 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           'Content-Type': 'application/json',
           'x-auth-token': localStorage.getItem('token') || '',
         },
-        // TEST MODE: charge $1 regardless of selected tier so the full
-        // Stripe flow can be exercised cheaply. Revert to `amount: tier`
-        // when going back to production pricing.
-        body: JSON.stringify({ amount: 1, source: 'onboarding_activation' }),
+        body: JSON.stringify({ amount: tier, source: 'onboarding_activation' }),
       });
       const data = await res.json();
       if (!res.ok || !data?.clientSecret) {
@@ -837,8 +830,7 @@ function ScreenSetupComplete({ answers, onClaim, onSkip }) {
       </ul>
 
       <button type="button" className="ow-activate-cta" onClick={onClaim}>
-        {/* TEST MODE — production copy was "Claim your $50 FREE credit" */}
-        Claim your $1 test credit
+        Claim your $50 FREE credit
       </button>
 
       <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip}>
@@ -856,9 +848,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
 
   const ctaLabel = fetching
     ? 'Preparing secure payment…'
-    /* TEST MODE — both tiers charge $1. Production copy:
-       tier === 100 ? 'Claim Your $150 Balance' : 'Activate $50 Starter Balance' */
-    : tier === 100 ? 'Claim Your $1 Balance (Test)' : 'Activate $1 Starter Balance (Test)';
+    : tier === 100 ? 'Claim Your $150 Balance' : 'Activate $50 Starter Balance';
 
   async function handleContinue() {
     setFetching(true);
@@ -894,26 +884,24 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         </li>
       </ul>
 
-      {/* TEST MODE: amounts shown as $1 → $1 so the test charge is $1.
-          Production copy was $100 → $150 balance / $50 → $50 balance. */}
       <div className="ow-tiers">
         <button
           type="button"
           className={`ow-tier-v2 ow-tier-v2-primary${tier === 100 ? ' selected' : ''}`}
           role="radio"
           aria-checked={tier === 100}
-          aria-label="Pay $1 and receive $1 balance (test)"
+          aria-label="Pay $100 and receive $150 balance"
           onClick={() => setTier(100)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
         >
           {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-recommended">Test mode · $1 charge</span>
+            <span className="ow-tier-pill-recommended">Includes $50 Free Credits</span>
           </div>
           <div className="ow-tier-amount-row">
-            <span className="ow-tier-pay">$1</span>
+            <span className="ow-tier-pay">$100</span>
             <span className="ow-tier-arrow">→</span>
-            <span className="ow-tier-receive">$1 balance</span>
+            <span className="ow-tier-receive">$150 balance</span>
           </div>
           <div className="ow-tier-support">Unlock verified homeowner move requests.</div>
         </button>
@@ -923,18 +911,18 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
           className={`ow-tier-v2 ow-tier-v2-secondary${tier === 50 ? ' selected' : ''}`}
           role="radio"
           aria-checked={tier === 50}
-          aria-label="Pay $1 and receive $1 starter balance (test)"
+          aria-label="Pay $50 and receive $50 starter balance"
           onClick={() => setTier(50)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
         >
           {tier === 50 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-starter">Test mode · $1 charge</span>
+            <span className="ow-tier-pill-starter">Limited starter balance</span>
           </div>
           <div className="ow-tier-amount-row">
-            <span className="ow-tier-pay">$1</span>
+            <span className="ow-tier-pay">$50</span>
             <span className="ow-tier-arrow">→</span>
-            <span className="ow-tier-receive ow-tier-receive-muted">$1 balance</span>
+            <span className="ow-tier-receive ow-tier-receive-muted">$50 balance</span>
           </div>
         </button>
       </div>
@@ -1013,12 +1001,11 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
   // divider — only shown when the wallet row actually rendered something.
   const [hasExpressMethods, setHasExpressMethods] = useState(false);
 
-  // TEST MODE: both tiers charge $1. Production strings:
-  //   tier === 100 → `Pay $100 and activate $${intent.totalCredits} balance →`
-  //   else         → `Pay $${tier} and activate balance →`
   const ctaLabel = submitting
     ? 'Processing payment…'
-    : `Pay $1 and activate balance (Test) →`;
+    : tier === 100
+      ? `Pay $100 and activate $${intent.totalCredits} balance →`
+      : `Pay $${tier} and activate balance →`;
 
   // Shared confirmation handler — used by both the card form submit and the
   // ExpressCheckoutElement onConfirm. stripe.confirmPayment with elements
@@ -1104,10 +1091,9 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
       <header className="ow-step-header">
         <h1 className="ow-h1">Secure payment</h1>
         <p className="ow-sub">
-          {/* TEST MODE: $1 charge regardless of tier. Production copy:
-              tier === 100 → "You'll be charged $100 — your $150 balance ..."
-              else         → "You'll be charged $50 — your $50 balance ..." */}
-          You'll be charged <strong>$1</strong> (test) — your $1 balance will be added immediately after payment.
+          {tier === 100
+            ? `You'll be charged $100 — your $${intent.totalCredits} balance will be added immediately after payment.`
+            : `You'll be charged $${tier} — your $${tier} balance will be added immediately after payment.`}
         </p>
       </header>
 
