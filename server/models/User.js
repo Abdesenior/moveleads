@@ -22,6 +22,22 @@ const UserSchema = new mongoose.Schema({
   maxDistance: { type: String },
   emailNotif: { type: Boolean, default: true },
   smsNotif: { type: Boolean, default: false },
+  // ── TCPA compliance (Phase 1 / Block E.2) ───────────────────────────────
+  // smsOptOut: partner-side STOP keyword flag. Set true when this mover's
+  // phone replies STOP/STOPALL/UNSUBSCRIBE/CANCEL/END/QUIT to our Twilio
+  // number; reset false on START/UNSTOP/YES. Independent of onboarding.
+  smsOptOut: { type: Boolean, default: false },
+  // phoneVerified: partner-side phone verification gate. Outbound lead
+  // alert SMS only fires when this is true. (Distinct from any lead-side
+  // phone verification on the Lead model.)
+  phoneVerified: { type: Boolean, default: false },
+  // smsCounters: per-mover daily Twilio SMS counter for the cap enforced
+  // in twilioService.broadcastLeadSMS. `date` is the UTC start-of-day of
+  // the count; resets when a new UTC day rolls over.
+  smsCounters: {
+    date:  { type: Date,   default: null },
+    count: { type: Number, default: 0 },
+  },
   isSuspended: { type: Boolean, default: false },
   receiveLiveTransfers: { type: Boolean, default: false },
   // Set true when the partner picks "Nationwide" delivery in onboarding.

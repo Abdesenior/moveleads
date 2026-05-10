@@ -24,6 +24,18 @@ const ABSTRACT_API_KEY = process.env.ABSTRACT_API_KEY;
 
 const LOOKUP_TIMEOUT_MS = 5000;
 
+// ── TCPA / cost-cap constants (Phase 1 / Block E.2) ────────────────────────
+// Per-mover daily Twilio SMS cap. PlatformSettings has no SMS-cap knob yet,
+// so this is a constant; lift to PlatformSettings if/when an admin UI is
+// added. The counter lives on User.smsCounters (UTC day-aligned).
+const MAX_SMS_PER_MOVER_PER_DAY = 25;
+
+/** Return the JS Date for the start of "today" in UTC. */
+function startOfTodayUTC() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
 /**
  * Broadcast SMS to all movers who have smsNotif enabled and a phone number on file.
  * Non-blocking — errors are logged but never propagate.
@@ -67,12 +79,18 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     //    `smsNotif: true` mongo filter — the dispatch-policy helper now
     //    owns the channel decision (alertChannels first, legacy smsNotif
     //    as fallback). Pull onboarding.answers so the helper can read it.
+    //
+    //    TCPA / Block E.2: also require smsOptOut !== true and
+    //    phoneVerified === true so STOP-replied or unverified partner
+    //    phones never receive a broadcast.
     const candidates = await User.find({
       _id:      { $in: Array.from(candidateIdSet) },
       role:     'customer',
-      isSuspended: { $ne: true },
+      isSuspended:   { $ne: true },
+      smsOptOut:     { $ne: true },
+      phoneVerified: true,
       phone:    { $exists: true, $nin: ['', null] },
-    }).select('phone companyName smsNotif emailNotif isSuspended maxDistance preferredHomeSizes deliversNationwide onboarding.answers').lean();
+    }).select('phone companyName smsNotif emailNotif isSuspended smsOptOut phoneVerified smsCounters maxDistance preferredHomeSizes deliversNationwide onboarding.answers').lean();
 
     if (!candidates.length) {
       console.log('[SMS] No candidates with phone on file');
@@ -109,8 +127,60 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     if (!matched.length) return;
     console.log(`[SMS] Broadcasting to: ${matched.map(m => m.companyName || m.phone).join(', ')}`);
 
+    // Per-mover daily cap (TCPA / cost-control). Read the persisted
+    // counter on each candidate; if today's count has hit the cap, skip.
+    // On send success, bump the counter atomically (resetting it when the
+    // stored date is older than today).
+    const todayStart = startOfTodayUTC();
     for (const mover of matched) {
-      sendMoverLeadSMS(mover.phone, lead).catch(() => {});
+      const counters = mover.smsCounters || { date: null, count: 0 };
+      const counterDate = counters.date ? new Date(counters.date) : null;
+      const sameDay = counterDate && counterDate.getTime() >= todayStart.getTime();
+      const usedToday = sameDay ? Number(counters.count || 0) : 0;
+      if (usedToday >= MAX_SMS_PER_MOVER_PER_DAY) {
+        console.log(`[SMS] Drop ${mover.companyName || mover._id}: daily SMS cap reached (${usedToday}/${MAX_SMS_PER_MOVER_PER_DAY})`);
+        continue;
+      }
+
+      sendMoverLeadSMS(mover.phone, lead)
+        .then(async (result) => {
+          // Only bump the counter on a confirmed send. sendMoverLeadSMS
+          // returns { ok: false } on Twilio errors and (legacy) undefined
+          // when credentials are missing; both are no-counter-bump cases.
+          if (!result || result.ok !== true) return;
+          // The reset (new UTC day → count=1) and bump (same day → +1) are
+          // encoded as a single aggregation-pipeline updateOne so the read
+          // and write happen atomically. Failures are non-fatal; the cap
+          // is best-effort.
+          try {
+            await User.updateOne(
+              { _id: mover._id },
+              [
+                {
+                  $set: {
+                    'smsCounters.date': {
+                      $cond: [
+                        { $lt: [{ $ifNull: ['$smsCounters.date', new Date(0)] }, todayStart] },
+                        todayStart,
+                        '$smsCounters.date',
+                      ],
+                    },
+                    'smsCounters.count': {
+                      $cond: [
+                        { $lt: [{ $ifNull: ['$smsCounters.date', new Date(0)] }, todayStart] },
+                        1,
+                        { $add: [{ $ifNull: ['$smsCounters.count', 0] }, 1] },
+                      ],
+                    },
+                  },
+                },
+              ]
+            );
+          } catch (e) {
+            console.error('[SMS] Failed to bump smsCounters for', mover._id, e.message);
+          }
+        })
+        .catch(() => {});
     }
 
     // Mark lead as notified — atomic conditional so two parallel callers

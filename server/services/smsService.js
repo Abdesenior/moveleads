@@ -33,7 +33,8 @@ async function sendMoverLeadSMS(toPhone, lead) {
     `${lead.homeSize} | ${lead.originCity} → ${lead.destinationCity}\n` +
     `Move Date: ${moveDateStr}\n` +
     `Grade: ${lead.grade} | Price: $${lead.buyNowPrice}\n` +
-    `Claim now: moveleads.cloud/login`;
+    `Claim now: moveleads.cloud/login\n` +
+    `MoveLeads • Reply STOP to opt out • HELP +1 (307) 204-4792`;
 
   console.log(`[SMS] Sending to ${e164}…`);
 
@@ -44,8 +45,11 @@ async function sendMoverLeadSMS(toPhone, lead) {
       body,
     });
     console.log(`[SMS] Sent to ${e164} — SID: ${result.sid}`);
+    // Returning a truthy value lets callers gate counter bumps on success.
+    return { ok: true, sid: result.sid };
   } catch (err) {
     console.error(`[SMS] Failed to ${e164}:`, err.message);
+    return { ok: false, error: err.message };
   }
 }
 
