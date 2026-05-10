@@ -816,13 +816,13 @@ function FirstTopupReassurancePopup({ onClose }) {
           <X size={18} />
         </button>
 
-        <div style={{ padding: '34px 32px 30px' }}>
+        <div style={{ padding: '34px 28px 32px' }}>
           <div style={{
             width: 52, height: 52, borderRadius: 14,
             background: 'linear-gradient(135deg,#fff7ed,#ffedd5)',
             border: '1px solid #fed7aa',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 18,
+            marginBottom: 20,
           }}>
             <CheckCircle size={26} color="#ea580c" />
           </div>
@@ -830,19 +830,29 @@ function FirstTopupReassurancePopup({ onClose }) {
           <h2
             id="first-topup-popup-title"
             style={{
-              margin: '0 0 12px', fontSize: 20, fontWeight: 800, color: '#0f172a',
-              fontFamily: 'var(--font-heading)', letterSpacing: -0.2,
+              margin: '0 0 22px', fontSize: 22, fontWeight: 800, color: '#0f172a',
+              fontFamily: 'var(--font-heading)', letterSpacing: -0.3, lineHeight: 1.2,
             }}
           >
-            Balance added — what happens next
+            Your balance is ready
           </h2>
 
-          <p style={{ margin: '0 0 14px', fontSize: 14, lineHeight: 1.6, color: '#334155' }}>
-            We recommend waiting for fresh new moving leads entering your market. We'll notify you as soon as matching opportunities become available.
+          <p style={{ margin: '0 0 18px', fontSize: 15, lineHeight: 1.55, color: '#1f2937' }}>
+            We recommend waiting for{' '}
+            <span style={{ color: '#ea580c', fontWeight: 700 }}>fresh new moving leads</span>{' '}
+            entering your market.
           </p>
 
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#334155' }}>
-            No worries if you unlock current opportunities already in the dashboard — onboarding lead credits remain refundable if a lead becomes unreachable.
+          <p style={{ margin: '0 0 18px', fontSize: 15, lineHeight: 1.55, color: '#1f2937' }}>
+            You'll be notified when{' '}
+            <span style={{ color: '#ea580c', fontWeight: 700 }}>matching opportunities</span>{' '}
+            become available.
+          </p>
+
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#475569' }}>
+            No worries: onboarding lead credits stay{' '}
+            <span style={{ color: '#ea580c', fontWeight: 700 }}>refundable</span>{' '}
+            if a lead becomes unreachable.
           </p>
         </div>
       </div>
