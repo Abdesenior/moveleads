@@ -498,12 +498,8 @@ router.post('/create-topup-intent', auth, async (req, res) => {
     }
     const stripe = stripeInit();
 
-    // TEST MODE: charge $1 in Stripe regardless of selected tier. The
-    // `metadata.amount` still carries the labeled tier so applyTopUpCredit
-    // credits the user's balance with the labeled amount. Revert: change
-    // `amount: 100` back to `amount: amount * 100`.
     const intent = await stripe.paymentIntents.create({
-      amount: 100, // TEST MODE — was: amount * 100
+      amount: amount * 100, // Stripe uses cents
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
       metadata: {
@@ -511,7 +507,7 @@ router.post('/create-topup-intent', auth, async (req, res) => {
         source: 'topup',
         amount: String(amount),
       },
-      description: `MoveLeads top-up: $${amount} (TEST MODE — charged $1)`,
+      description: `MoveLeads top-up: $${amount}`,
     });
 
     res.json({ clientSecret: intent.client_secret, amount });
