@@ -1007,10 +1007,6 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
       ? `Pay $100 and activate $${intent.totalCredits} balance →`
       : `Pay $${tier} and activate balance →`;
 
-  const summaryRight = tier === 100
-    ? `$${intent.selectedAmount} → $${intent.totalCredits} balance`
-    : `$${intent.selectedAmount} → $${intent.selectedAmount} balance`;
-
   // Shared confirmation handler — used by both the card form submit and the
   // ExpressCheckoutElement onConfirm. stripe.confirmPayment with elements
   // automatically uses whichever method the user chose (card or wallet).
@@ -1094,13 +1090,12 @@ function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
 
       <header className="ow-step-header">
         <h1 className="ow-h1">Secure payment</h1>
-        <p className="ow-sub">Your selected balance will be added immediately after payment.</p>
+        <p className="ow-sub">
+          {tier === 100
+            ? `You'll be charged $100 — your $${intent.totalCredits} balance will be added immediately after payment.`
+            : `You'll be charged $${tier} — your $${tier} balance will be added immediately after payment.`}
+        </p>
       </header>
-
-      <div className="ow-pay-summary">
-        <span className="ow-pay-summary-label">Selected</span>
-        <span className="ow-pay-summary-value">{summaryRight}</span>
-      </div>
 
       <div className="ow-pay-element-wrap">
         {/* Express wallets (Apple Pay / Google Pay / Link). Renders nothing
