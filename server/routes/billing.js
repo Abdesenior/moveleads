@@ -136,14 +136,36 @@ router.post('/confirm-payment', auth, async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    user.balance += Number(credits);
+    // Re-validate the first-purchase bonus at apply time. The session
+    // metadata's `credits` was computed when the session was created — if
+    // the user already claimed the bonus elsewhere (concurrent session,
+    // earlier deploy, manual support credit, etc.) we must NOT grant it
+    // again. Atomic conditional update wins exactly once.
+    const baseCredits = Number(session.metadata.baseCredits || credits);
+    let amountToCredit = Number(credits);
+    let bonusGranted = false;
+    if (session.metadata.firstPurchaseBonus === 'true') {
+      const claim = await User.updateOne(
+        { _id: userId, 'onboarding.bonusClaimedAt': null },
+        { $set: { 'onboarding.bonusClaimedAt': new Date() } }
+      );
+      if (claim.modifiedCount > 0) {
+        bonusGranted = true; // we won the race; full metadata credits stand
+      } else {
+        amountToCredit = baseCredits; // already claimed → drop the bonus
+      }
+    }
+
+    user.balance += amountToCredit;
     await user.save();
 
     const transaction = new Transaction({
       user: userId,
       type: 'Credit Deposit',
-      amount: Number(credits),
-      description: `Credit Top Up +$${credits} (Session: ${session_id})`,
+      amount: amountToCredit,
+      description: bonusGranted
+        ? `Onboarding Top Up +$${baseCredits} (+$${amountToCredit - baseCredits} bonus) (Session: ${session_id})`
+        : `Credit Top Up +$${amountToCredit} (Session: ${session_id})`,
       status: 'Completed'
     });
     await transaction.save();
@@ -154,7 +176,7 @@ router.post('/confirm-payment', auth, async (req, res) => {
         <h2>New Balance Top-Up</h2>
         <p><strong>Company:</strong> ${user.companyName}</p>
         <p><strong>Email:</strong> ${user.email}</p>
-        <p><strong>Amount Added:</strong> $${Number(credits).toFixed(2)}</p>
+        <p><strong>Amount Added:</strong> $${amountToCredit.toFixed(2)}</p>
         <p><strong>New Balance:</strong> $${user.balance.toFixed(2)}</p>
         <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
         <a href="https://moveleads.cloud/admin/users">View in Admin Panel →</a>
@@ -424,24 +446,35 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
       const user = await User.findById(userId);
       if (user) {
-        user.balance += Number(credits);
-        await user.save();
-
-        // If this was the first-time-mover bonus purchase, record claim time
-        if (session.metadata.firstPurchaseBonus === 'true' && !user.onboarding?.bonusClaimedAt) {
-          await User.updateOne(
-            { _id: userId },
+        // Re-validate first-purchase bonus at apply time. Two concurrent
+        // sessions could both have been created with bonus baked into
+        // their metadata; the conditional update on bonusClaimedAt wins
+        // exactly once. Loser drops the bonus and applies only baseCredits.
+        const baseCredits = Number(session.metadata.baseCredits || credits);
+        let amountToCredit = Number(credits);
+        let bonusGranted = false;
+        if (session.metadata.firstPurchaseBonus === 'true') {
+          const claim = await User.updateOne(
+            { _id: userId, 'onboarding.bonusClaimedAt': null },
             { $set: { 'onboarding.bonusClaimedAt': new Date() } }
           );
+          if (claim.modifiedCount > 0) {
+            bonusGranted = true;
+          } else {
+            amountToCredit = baseCredits;
+          }
         }
+
+        user.balance += amountToCredit;
+        await user.save();
 
         await new Transaction({
           user: userId,
           type: 'Credit Deposit',
-          amount: Number(credits),
-          description: session.metadata.firstPurchaseBonus === 'true'
-            ? `Onboarding Top Up +$${session.metadata.baseCredits} (+$${session.metadata.bonusCredits} bonus) (Session: ${session.id})`
-            : `Credit Top Up +$${credits} (Session: ${session.id})`,
+          amount: amountToCredit,
+          description: bonusGranted
+            ? `Onboarding Top Up +$${baseCredits} (+$${amountToCredit - baseCredits} bonus) (Session: ${session.id})`
+            : `Credit Top Up +$${amountToCredit} (Session: ${session.id})`,
           status: 'Completed'
         }).save();
 
@@ -451,14 +484,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             <h2>New Balance Top-Up</h2>
             <p><strong>Company:</strong> ${user.companyName}</p>
             <p><strong>Email:</strong> ${user.email}</p>
-            <p><strong>Amount Added:</strong> $${Number(credits).toFixed(2)}</p>
+            <p><strong>Amount Added:</strong> $${amountToCredit.toFixed(2)}</p>
             <p><strong>New Balance:</strong> $${user.balance.toFixed(2)}</p>
             <p><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
             <a href="https://moveleads.cloud/admin/users">View in Admin Panel →</a>
           `
         }).catch(() => {});
 
-        console.log(`[Webhook] Added ${credits} credits to user ${userId}`);
+        console.log(`[Webhook] Added ${amountToCredit} credits to user ${userId} (bonus: ${bonusGranted})`);
       }
     } catch (dbErr) {
       console.error(`[Webhook] Database error: ${dbErr.message}`);
