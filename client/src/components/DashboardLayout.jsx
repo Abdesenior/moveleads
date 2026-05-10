@@ -189,10 +189,11 @@ export default function DashboardLayout({ children }) {
         <button
           type="button"
           className="sidebar-toggle"
-          aria-label="Open navigation"
-          onClick={() => setSidebarOpen(true)}
+          aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
+          aria-expanded={sidebarOpen}
+          onClick={() => setSidebarOpen(prev => !prev)}
         >
-          <Menu size={18} />
+          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
         <div className="mobile-brand">
           <span className="mobile-brand-mark" aria-hidden="true" />
