@@ -135,6 +135,7 @@ export default function SettingsPage() {
   const [statesMsg, setStatesMsg]         = useState('');
   const [stateMenuOpen, setStateMenuOpen] = useState(false);
   const [stateQuery, setStateQuery]       = useState('');
+  const [stateActiveIdx, setStateActiveIdx] = useState(0);
   const stateMenuRef = useRef(null);
 
   /* Lead Preferences */
@@ -219,11 +220,14 @@ export default function SettingsPage() {
 
   /* Close the "Add state" dropdown when clicking outside */
   useEffect(() => {
-    if (!stateMenuOpen) return;
+    if (!stateMenuOpen) {
+      setStateQuery('');
+      setStateActiveIdx(0);
+      return;
+    }
     const onDocClick = (e) => {
       if (stateMenuRef.current && !stateMenuRef.current.contains(e.target)) {
         setStateMenuOpen(false);
-        setStateQuery('');
       }
     };
     document.addEventListener('mousedown', onDocClick);
@@ -560,62 +564,96 @@ export default function SettingsPage() {
                     >
                       <Plus size={13} /> Add state
                     </button>
-                    {stateMenuOpen && (
-                      <div
-                        style={{
-                          position: 'absolute', zIndex: 20, top: 'calc(100% + 6px)', left: 0,
-                          width: 260, maxHeight: 320, overflow: 'hidden',
-                          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
-                          boxShadow: '0 10px 30px rgba(15,23,42,0.12)',
-                          display: 'flex', flexDirection: 'column',
-                        }}
-                      >
-                        <input
-                          autoFocus
-                          type="text"
-                          value={stateQuery}
-                          onChange={e => setStateQuery(e.target.value)}
-                          placeholder="Search state…"
+                    {stateMenuOpen && (() => {
+                      const q = stateQuery.trim().toLowerCase();
+                      const available = US_STATES.filter(s => !serviceStates.includes(s.code));
+                      const filtered = (q
+                        ? available.filter(s =>
+                            s.name.toLowerCase().includes(q) || s.code.toLowerCase().startsWith(q)
+                          )
+                        : available
+                      ).sort((a, b) => {
+                        if (!q) return a.name.localeCompare(b.name);
+                        const aPref = a.name.toLowerCase().startsWith(q) || a.code.toLowerCase().startsWith(q) ? 0 : 1;
+                        const bPref = b.name.toLowerCase().startsWith(q) || b.code.toLowerCase().startsWith(q) ? 0 : 1;
+                        if (aPref !== bPref) return aPref - bPref;
+                        return a.name.localeCompare(b.name);
+                      }).slice(0, 5);
+                      const handleKey = (e) => {
+                        if (e.key === 'ArrowDown') { e.preventDefault(); setStateActiveIdx(i => Math.min(i + 1, filtered.length - 1)); }
+                        else if (e.key === 'ArrowUp') { e.preventDefault(); setStateActiveIdx(i => Math.max(i - 1, 0)); }
+                        else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const pick = filtered[stateActiveIdx] || filtered[0];
+                          if (pick) addServiceState(pick.code);
+                        } else if (e.key === 'Escape') {
+                          setStateMenuOpen(false);
+                        }
+                      };
+                      return (
+                        <div
+                          role="combobox"
+                          aria-expanded="true"
                           style={{
-                            border: 'none', borderBottom: '1px solid #f1f5f9',
-                            padding: '10px 14px', fontSize: 13, outline: 'none',
-                            fontFamily: 'inherit',
+                            position: 'absolute', zIndex: 20, top: 'calc(100% + 8px)', left: 0,
+                            width: 280, background: '#fff',
+                            border: '1px solid #e2e8f0', borderRadius: 14,
+                            boxShadow: '0 12px 32px rgba(15,23,42,0.12), 0 2px 6px rgba(15,23,42,0.06)',
+                            overflow: 'hidden',
+                            animation: 'stateDropdownIn 0.15s cubic-bezier(0.16,1,0.3,1)',
                           }}
-                        />
-                        <div style={{ overflowY: 'auto', flex: 1 }}>
-                          {US_STATES
-                            .filter(s => !serviceStates.includes(s.code))
-                            .filter(s => {
-                              const q = stateQuery.trim().toLowerCase();
-                              if (!q) return true;
-                              return s.name.toLowerCase().includes(q) || s.code.toLowerCase() === q;
-                            })
-                            .map(s => (
-                              <button
-                                key={s.code}
-                                type="button"
-                                onClick={() => addServiceState(s.code)}
-                                style={{
-                                  display: 'block', width: '100%', textAlign: 'left',
-                                  padding: '10px 14px', border: 'none', background: '#fff',
-                                  fontSize: 13, color: '#0f172a', cursor: 'pointer',
-                                  fontFamily: 'inherit',
-                                }}
-                                onMouseEnter={e => (e.currentTarget.style.background = '#fff7ed')}
-                                onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-                              >
-                                <span style={{ fontWeight: 600 }}>{s.name}</span>
-                                <span style={{ color: '#94a3b8', marginLeft: 8, fontSize: 12 }}>{s.code}</span>
-                              </button>
-                            ))}
-                          {US_STATES.filter(s => !serviceStates.includes(s.code)).length === 0 && (
-                            <div style={{ padding: '14px', fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-                              All states added.
+                        >
+                          <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9' }}>
+                            <input
+                              autoFocus
+                              type="text"
+                              value={stateQuery}
+                              onChange={e => { setStateQuery(e.target.value); setStateActiveIdx(0); }}
+                              onKeyDown={handleKey}
+                              placeholder="Search states..."
+                              aria-label="Search states"
+                              aria-autocomplete="list"
+                              style={{
+                                width: '100%', border: 'none', outline: 'none',
+                                padding: '6px 8px', fontSize: 14, fontFamily: 'inherit',
+                                color: '#0f172a', background: 'transparent',
+                              }}
+                            />
+                          </div>
+                          {filtered.length > 0 ? (
+                            <div role="listbox" style={{ maxHeight: 220, overflowY: 'auto', padding: 4 }}>
+                              {filtered.map((s, i) => (
+                                <button
+                                  key={s.code}
+                                  role="option"
+                                  aria-selected={i === stateActiveIdx}
+                                  type="button"
+                                  onClick={() => addServiceState(s.code)}
+                                  onMouseEnter={() => setStateActiveIdx(i)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center',
+                                    width: '100%', height: 44,
+                                    padding: '0 12px', borderRadius: 8, border: 'none',
+                                    background: i === stateActiveIdx ? '#fff7ed' : '#fff',
+                                    fontSize: 14,
+                                    color: '#0f172a', cursor: 'pointer',
+                                    fontFamily: 'inherit', textAlign: 'left',
+                                    transition: 'background 0.12s',
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 600 }}>{s.name}</span>
+                                  <span style={{ color: '#94a3b8', marginLeft: 6, fontSize: 13, fontWeight: 500 }}>({s.code})</span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ padding: '16px 14px', fontSize: 13, color: '#94a3b8', textAlign: 'center' }}>
+                              {available.length === 0 ? 'All states added.' : 'No matches.'}
                             </div>
                           )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -956,6 +994,10 @@ export default function SettingsPage() {
           .settings-two-col { grid-template-columns: 1fr !important; }
         }
         select.input-field:focus { border-color: #ea580c !important; box-shadow: 0 0 0 3px rgba(234,88,12,0.12) !important; }
+        @keyframes stateDropdownIn {
+          from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
       `}</style>
     </DashboardLayout>
   );
