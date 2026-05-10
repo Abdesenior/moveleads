@@ -254,7 +254,7 @@ export default function DashboardLayout({ children }) {
       <ImpersonationBanner />
       <VerificationBanner />
 
-      <div className="dashboard-shell">
+      <div className="dashboard-shell" inert={showWizard ? '' : undefined}>
 
         {/* Backdrop */}
         <div

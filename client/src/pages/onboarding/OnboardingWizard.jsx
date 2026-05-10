@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, ExpressCheckoutElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { X } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
 import PlaceAutocomplete from '../../components/PlaceAutocomplete';
@@ -134,6 +135,28 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const [intent, setIntent] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  // a11y: lock body scroll while the wizard is mounted so the dashboard
+  // underneath can't rubber-band on iOS Safari.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // a11y: ESC closes the wizard. Steps 4 (setup-complete) and 5 (activate)
+  // already have explicit dismiss controls via `dismissSkip`; steps 1-3
+  // (data-entry) and 7 (success) had no close affordance — ESC now provides
+  // one. We default to the skip path so the user is never trapped.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      dismissSkip();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Track the visual viewport on mobile so the modal stays sized correctly
   // when the iOS keyboard opens (keyboard reduces visualViewport.height but
@@ -351,7 +374,23 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   return (
     <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
       <div className="ow-blur" />
-      <div className="ow-modal">
+      <div className="ow-modal" style={{ position: 'relative' }}>
+        <button
+          type="button"
+          className="ow-close"
+          aria-label="Close"
+          onClick={dismissSkip}
+          style={{
+            position: 'absolute', top: 14, right: 14,
+            width: 44, height: 44, borderRadius: 12,
+            background: 'rgba(15,23,42,0.06)', border: 'none',
+            color: 'rgba(15,23,42,0.7)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2,
+          }}
+        >
+          <X size={18} />
+        </button>
         {showProgress && (
           <div
             className="ow-header"
