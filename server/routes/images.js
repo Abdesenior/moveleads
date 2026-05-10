@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const CF_API_TOKEN = process.env.CF_API_TOKEN || '1988052ba6dd3454827190adde07c934';
+const CF_API_TOKEN = process.env.CF_API_TOKEN || '';
 
 const PROMPTS = {
   hero:    'happy American family moving into beautiful new home, professional movers helping, sunny day, photorealistic, warm colors, high quality',
@@ -54,6 +54,10 @@ router.get('/generate/:type', async (req, res) => {
     return res.send(imageCache.get(type));
   }
 
+  if (!CF_API_TOKEN) {
+    return res.status(503).json({ msg: 'Image generation not configured' });
+  }
+
   const accountId = process.env.CF_ACCOUNT_ID;
   if (!accountId) {
     console.warn(`[Image] CF_ACCOUNT_ID not set — falling back to Unsplash for "${type}"`);
@@ -75,8 +79,7 @@ router.get('/generate/:type', async (req, res) => {
     );
 
     if (!cfRes.ok) {
-      const text = await cfRes.text();
-      throw new Error(`CF API ${cfRes.status}: ${text.slice(0, 200)}`);
+      throw new Error(`CF API ${cfRes.status}`);
     }
 
     const buffer = Buffer.from(await cfRes.arrayBuffer());
