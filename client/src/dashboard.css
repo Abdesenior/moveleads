@@ -878,6 +878,13 @@
   display: none;
 }
 
+/* Mobile header row — hidden on desktop. On mobile it's sticky at top,
+   contains the hamburger menu button, and sits ABOVE the activation
+   banner so the menu icon never overlaps banner text. */
+.mobile-header {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .dashboard-layout {
     position: relative;
@@ -886,12 +893,26 @@
     overflow: hidden;
   }
 
+  /* Mobile header — full-width row with the hamburger inline. Sticky to the
+     top of the viewport so it stays reachable when scrolling. */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    padding: 0 12px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 12100;
+  }
+
   .sidebar-toggle {
     display: flex;
-    position: fixed;
-    top: 14px;
-    left: 14px;
-    z-index: 12000;
+    /* No longer position: fixed — the mobile-header container handles its
+       placement via normal flow / sticky. This is the change that stops the
+       button from overlapping the activation banner below. */
+    position: static;
     background: #fff;
     border: 1px solid #e2e8f0;
     width: 44px;

@@ -174,12 +174,10 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      <ActivationBanner onActivate={openActivation} />
-      <ImpersonationBanner />
-      <VerificationBanner />
-
-      <div className="dashboard-shell">
-      {/* Mobile hamburger */}
+      {/* Mobile header — hamburger lives here in normal layout flow on mobile.
+          Hidden on desktop (the sidebar handles navigation there). Sitting
+          above the banner means the hamburger never overlaps banner text. */}
+      <div className="mobile-header">
         <button
           type="button"
           className="sidebar-toggle"
@@ -188,6 +186,13 @@ export default function DashboardLayout({ children }) {
         >
           <Menu size={20} />
         </button>
+      </div>
+
+      <ActivationBanner onActivate={openActivation} />
+      <ImpersonationBanner />
+      <VerificationBanner />
+
+      <div className="dashboard-shell">
 
         {/* Backdrop */}
         <div
