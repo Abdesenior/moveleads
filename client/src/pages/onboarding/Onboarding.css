@@ -221,9 +221,8 @@
   flex: 1 1 auto;
   min-height: 0;
   /* Locked top spacing: every step's title starts at exactly this offset
-     from the modal's top border. 24/20 also keeps the dead-zone under the
-     secondary action minimal on short steps. */
-  padding: 24px 28px 20px;
+     from the modal's top border. */
+  padding: 50px 28px 20px;
   overflow-y: auto;
 }
 
