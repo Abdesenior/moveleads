@@ -275,10 +275,10 @@ export default function Register() {
               )}
               <div style={{ marginTop: 4 }}>
                 <Link
-                  to="/dashboard/leads"
+                  to="/login"
                   style={{ color: '#94a3b8', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}
                 >
-                  Continue to dashboard →
+                  Already verified? Log in →
                 </Link>
               </div>
             </div>

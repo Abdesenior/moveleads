@@ -23,6 +23,7 @@ const Partners = lazy(() => import('./pages/Partners'));
 const ThankYou = lazy(() => import('./pages/ThankYou'));
 const ForMovers = lazy(() => import('./pages/ForMovers'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const VerifyEmailPending = lazy(() => import('./pages/VerifyEmailPending'));
 const Feedback = lazy(() => import('./pages/Feedback'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 
@@ -83,6 +84,8 @@ function App() {
               <Route path="/thank-you" element={<ThankYou />} />
               <Route path="/for-movers" element={<ForMovers />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              {/* Auth required, verification NOT required (would cause infinite loop) */}
+              <Route path="/verify-email-pending" element={<ProtectedRoute skipVerificationCheck><VerifyEmailPending /></ProtectedRoute>} />
               <Route path="/widget-page" element={<WidgetPage />} />
               <Route path="/embed/widget/:companyId" element={<WidgetEmbedPage />} />
               <Route path="/embed/widget" element={<WidgetEmbedPage />} />

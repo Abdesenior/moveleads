@@ -45,7 +45,16 @@ function issueJWT(user, res) {
     if (err) throw err;
     res.json({
       token,
-      user: { id: user.id, email: user.email, role: user.role, companyName: user.companyName }
+      // isEmailVerified surfaced so the client can route conditionally
+      // (login → /dashboard or /verify-email-pending) without an extra
+      // /auth/me round-trip.
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        companyName: user.companyName,
+        isEmailVerified: !!user.isEmailVerified,
+      },
     });
   });
 }

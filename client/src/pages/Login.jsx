@@ -52,7 +52,21 @@ export default function Login() {
       
       login(data.token, data.user);
       toast.success('Welcome back!', 'Successfully signed in');
-      navigate(data.user.role === 'admin' ? '/admin' : '/dashboard/leads');
+
+      // ── Verification-gate redirect ───────────────────────────────────────
+      // Admin / super_admin always go to /admin (verification bypassed).
+      // Everyone else: if their email isn't verified, send them to the
+      // hard-gate verification-pending page instead of the dashboard.
+      // This mirrors ProtectedRoute logic so a manual /dashboard hit also
+      // gets redirected — but doing it here avoids a second hop.
+      const isAdminUser = data.user.role === 'admin' || data.user.role === 'super_admin';
+      if (isAdminUser) {
+        navigate(data.user.role === 'admin' ? '/admin' : '/admin', { replace: true });
+      } else if (data.user.isEmailVerified !== true) {
+        navigate('/verify-email-pending', { replace: true });
+      } else {
+        navigate('/dashboard/leads', { replace: true });
+      }
     } catch (err) {
       setError(err.message);
       toast.error('Login failed', err.message);

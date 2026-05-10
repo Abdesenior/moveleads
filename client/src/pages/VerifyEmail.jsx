@@ -42,10 +42,19 @@ export default function VerifyEmail() {
         //  3. Not logged in, no token returned → redirect to /login.
         if (data.token && data.user) {
           login(data.token, data.user);
+          // /auth/verify-email's JWT response payload doesn't include
+          // isEmailVerified, but the server DID flip it to true (line 188
+          // of routes/auth.js). Pull fresh user state so ProtectedRoute
+          // sees isEmailVerified=true before we navigate — otherwise the
+          // guard bounces us right back to /verify-email-pending.
+          if (refreshUser) {
+            try { await refreshUser(); } catch { /* non-fatal */ }
+          }
           setRedirectTarget('/dashboard/leads');
           setTimeout(() => navigate('/dashboard/leads'), 800);
         } else if (user) {
-          // Logged in via existing token — pull fresh user state.
+          // Logged in via existing token — pull fresh user state so
+          // isEmailVerified flips locally before navigating.
           if (refreshUser) {
             try { await refreshUser(); } catch { /* non-fatal */ }
           }
