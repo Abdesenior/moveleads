@@ -4,33 +4,43 @@ Public funnel at `/founding-movers`. One question per step after the intro. No a
 
 **Tone:** dispatch-native, operational, confident. We talk to dispatchers and owners, not "users." We use *crews / requests / jobs / routes*, not *leads / users / features*.
 
+**Option-label convention:** options are stored as `{ value, label, subline? }`. `value` is the stable string written to the schema (don't rename — the auto-tagger keys on it). `label` is the short visible title. `subline` (optional) is a one-line clarifier.
+
 ---
 
-## Step 1 — Intro (the only multi-field step)
+## Step 1 — Intro
 
-**Heading:** Tell us about your operation
-**Subhead:** We're building MoveLeads around how real moving companies actually work.
+**Heading:** Get early access to MoveLeads
+**Subhead:** Answer a few quick questions so we can match your company with the right moving requests when we open your market.
 
-Three stacked text inputs (all required before Continue enables):
+**Three bullets visible above the inputs:**
+
+- Founding mover access
+- Request matching tailored to your crews
+- $50 onboarding credit
+
+**Three input fields below the bullets:**
 
 - First name
 - Company name
-- Main state (e.g., Texas)
+- Main operating state — **autocomplete typeahead** over the 50 US states. Match by name or two-letter abbreviation. Selected state renders as a removable chip. Keyboard support (↑ ↓ Enter Esc). No free-typed commits.
 
-**CTA:** Continue →
+**CTA:** Continue → (disabled until all 3 fields satisfied)
 
 ---
 
 ## Step 2 — Move types
 
 **Heading:** What jobs do your crews run most?
-**Helper:** Pick up to 3 — the type of work you actually want more of.
+**Helper:** Pick up to 3.
 **Type:** Multi-select cards (max 3)
 
-- Local residential moves
-- Long-distance moves
-- Office / commercial moves
-- Same-day / urgent moves
+| value (stored) | label (shown) |
+|---|---|
+| Local residential moves | Local residential |
+| Long-distance moves | Long-distance |
+| Office / commercial moves | Office / commercial |
+| Same-day / urgent moves | Same-day / urgent |
 
 **CTA:** Continue →
 
@@ -39,15 +49,16 @@ Three stacked text inputs (all required before Continue enables):
 ## Step 3 — Job sizes
 
 **Heading:** What size jobs fit your crews?
-**Helper:** The jobs you can handle without thinking twice.
 **Type:** Multi-select cards
 
-- Studio / 1-bedroom
-- 2-bedroom
-- 3-bedroom
-- 4+ bedroom
-- Office / commercial
-- Specialty-item moves
+| value | label |
+|---|---|
+| Studio / 1-bedroom | Studio / 1-bedroom |
+| 2-bedroom | 2-bedroom |
+| 3-bedroom | 3-bedroom |
+| 4+ bedroom | 4+ bedroom |
+| Office / commercial | Office / commercial |
+| Specialty-item moves | Specialty items |
 
 **CTA:** Continue →
 
@@ -55,16 +66,17 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 4 — Value signals
 
-**Heading:** What makes your dispatch team jump on a request immediately?
-**Helper:** Pick what actually moves the needle for your crews.
+**Heading:** What makes your dispatch jump on a request?
 **Type:** Multi-select cards
 
-- Customer answers the phone
-- Move date is close
-- Inventory is explained properly
-- Customer sounds serious about moving
-- Request reaches us quickly
-- Exclusive access to the request
+| value | label |
+|---|---|
+| Customer answers the phone | Customer picks up |
+| Move date is close | Move date is close |
+| Inventory is explained properly | Clear inventory details |
+| Customer sounds serious about moving | Serious customer |
+| Request reaches us quickly | Fast request delivery |
+| Exclusive access to the request | Exclusive access |
 
 **CTA:** Continue →
 
@@ -72,17 +84,19 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 5 — Confirmations
 
-**Heading:** Before your dispatch team calls a customer, what should already be confirmed?
-**Helper:** The details that save your crews time and avoid bad requests.
+**Heading:** Before your team calls, what should be confirmed?
+**Helper:** The details that save your crews time.
 **Type:** Multi-select cards
 
-- Pickup location
-- Delivery location
-- Move date
-- Move size
-- Inventory / heavy items
-- Customer availability
-- Whether the customer is ready to move forward
+| value | label |
+|---|---|
+| Pickup location | Pickup location |
+| Delivery location | Delivery location |
+| Move date | Move date |
+| Move size | Move size |
+| Inventory / heavy items | Inventory / heavy items |
+| Customer availability | Customer availability confirmed |
+| Whether the customer is ready to move forward | Ready to book |
 
 **CTA:** Continue →
 
@@ -90,80 +104,83 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 6 — Shared or exclusive?
 
-**Heading:** Shared or exclusive — how does your company prefer to buy?
-**Helper:** No wrong answer. We're figuring out the right balance.
-**Type:** Single-select cards
+**Heading:** Shared or exclusive?
+**Helper:** Pick what your company usually prefers.
+**Type:** Single-select cards (with subline)
 
-- **Lower-cost shared requests** → branches to step 7a
-- **Higher-cost exclusive requests** → branches to step 7c
-- **Depends on the move** → branches to step 7d
+| value | label | subline |
+|---|---|---|
+| shared | Shared requests | Lower cost · more competition |
+| exclusive | Exclusive requests | Only your company receives it |
+| depends | Depends on the job | Varies by route and size |
 
 **CTA:** Continue →
 
 ---
 
-### Step 7a — Shared: when sharing is OK  *(only if step 6 = shared)*
+### Step 7a — When is sharing OK?  *(only if step 6 = shared)*
 
 **Heading:** When is sharing OK?
-**Helper:** Pick everything that fits how your team thinks about it.
 **Type:** Multi-select cards
 
-- If only a few movers receive the request
-- If the request cost is lower
-- If the customer is verified
-- If it's a long-distance move
+| value | label |
+|---|---|
+| If only a few movers receive the request | Only a few movers see it |
+| If the request cost is lower | Lower request cost |
+| If the customer is verified | Verified customer |
+| If it's a long-distance move | Long-distance move |
 
 **CTA:** Continue →
 
 ---
 
-### Step 7b — Shared: max movers  *(only if step 6 = shared)*
+### Step 7b — Max movers per request  *(only if step 6 = shared)*
 
-**Heading:** How many movers max should see the same request?
+**Heading:** How many movers max per request?
 **Type:** Single-select cards
 
 - 2 movers max
 - 3 movers max
 - 4+ movers
 
-**CTA:** Continue → (then to Step 8)
+**CTA:** Continue →
 
 ---
 
 ### Step 7c — Exclusive triggers  *(only if step 6 = exclusive)*
 
-**Heading:** Which requests are worth paying more to get exclusively?
+**Heading:** Which requests are worth paying more for?
 **Type:** Multi-select cards
 
 - Long-distance moves
 - Commercial jobs
 - High-intent customers
 
-**CTA:** Continue → (then to Step 8)
+**CTA:** Continue →
 
 ---
 
 ### Step 7d — Depends triggers  *(only if step 6 = depends)*
 
-**Heading:** Which requests should always stay exclusive?
+**Heading:** Which should always stay exclusive?
 **Type:** Multi-select cards
 
 - Long-distance moves
 - Commercial jobs
 - High-intent customers
 
-**CTA:** Continue → (then to Step 8)
+**CTA:** Continue →
 
 ---
 
 ## Step 8 — Priority scenario
 
 **Heading:** Which request would your dispatch grab first?
-**Helper:** Pretend all three landed in your inbox right now.
-**Type:** Single-select large cards (3 cards, label + detail bullets)
+**Helper:** Pretend all three just landed.
+**Type:** Single-select large cards (label + 3 detail bullets each)
 
 **Card 1 — Exclusive 4-bedroom long-distance move**
-- Houston → Denver, customer ready within 7 days
+- Houston → Denver, customer ready in 7 days
 - Yours alone — no other movers see it
 - Verified, high-intent
 
@@ -174,7 +191,7 @@ Three stacked text inputs (all required before Continue enables):
 
 **Card 3 — Commercial office relocation**
 - Mid-size office, weekend timeline
-- Decision-maker already on the call
+- Decision-maker on the call
 - Exclusive request
 
 **CTA:** Continue →
@@ -184,13 +201,14 @@ Three stacked text inputs (all required before Continue enables):
 ## Step 9 — Speed expectation
 
 **Heading:** How fast does your team need to hit a fresh request?
-**Helper:** After the customer submits — when does it matter most?
-**Type:** Single-select cards
+**Type:** Single-select cards (with subline)
 
-- First 5 minutes
-- First 15 minutes
-- First hour
-- Same day is fine
+| value | label | subline |
+|---|---|---|
+| 5min | First 5 minutes | Critical urgency |
+| 15min | First 15 minutes | Still hot |
+| 1hour | First hour | Solid window |
+| sameday | Same day | Flexible |
 
 **CTA:** Continue →
 
@@ -198,27 +216,31 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 10 — Platform quality (grouped multi-select)
 
-**Heading:** What separates a good request platform from a bad one?
-**Helper:** Pick the things that matter most to your dispatch team.
-**Type:** Grouped multi-select. Two labeled groups on one screen. Each option toggles selection in its group's underlying schema field.
+**Heading:** Good platform vs bad platform — what matters?
+**Helper:** Pick what matters most.
+**Type:** Grouped multi-select. Two labeled groups on one screen.
 
 **Group A — What makes one great** (writes to `retentionDrivers`)
 
-- Accurate move details
-- Fair pricing
-- Fast delivery
-- Requests are not overshared
-- Better request matching
-- Customers answer the phone
+| value | label |
+|---|---|
+| Customers answer the phone | Customers pick up |
+| Accurate move details | Accurate move details |
+| Fair pricing | Fair pricing |
+| Requests are not overshared | Not overshared |
+| Fast delivery | Fast delivery |
+| Better request matching | Better matching |
 
 **Group B — What makes one painful** (writes to `overpricedSignals`)
 
-- Customer doesn't answer
-- Move details are incomplete
-- Wrong service area
-- Too many movers received it
-- Request delivered too slowly
-- Customer is not ready to move
+| value | label |
+|---|---|
+| Customer doesn't answer | Customer doesn't pick up |
+| Move details are incomplete | Incomplete move details |
+| Wrong service area | Wrong service area |
+| Too many movers received it | Sent to too many movers |
+| Request delivered too slowly | Delivered too slowly |
+| Customer is not ready to move | Customer not ready |
 
 **Continue enables:** when at least one option from either group is selected.
 
@@ -228,14 +250,16 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 11 — Broker experience
 
-**Heading:** Have you bought leads or worked with a broker before?
-**Helper:** Honest is best — we won't sell you anything based on this.
-**Type:** Single-select cards
+**Heading:** Bought leads or used a broker before?
+**Helper:** Honest is best.
+**Type:** Single-select cards (with subline)
 
-- **Yes, regularly** → step 12a
-- **Yes, occasionally** → step 12a
-- **No, but we're interested** → step 13
-- **No** → step 13
+| value | label | subline |
+|---|---|---|
+| regularly | Yes, regularly | Multiple platforms |
+| occasionally | Yes, occasionally | Tried a few |
+| interested | Not yet — interested | Considering it |
+| no | No | First time looking |
 
 **CTA:** Continue →
 
@@ -243,16 +267,18 @@ Three stacked text inputs (all required before Continue enables):
 
 ### Step 12a — Broker frustrations  *(only if step 11 = regularly or occasionally)*
 
-**Heading:** Where do lead providers usually let movers down?
-**Helper:** Pick everything you've actually run into.
+**Heading:** Where do lead providers let movers down?
+**Helper:** Pick anything that applies.
 **Type:** Multi-select cards
 
-- Requests sent to too many movers
-- Fake or unreachable customers
-- Wrong move details
-- Low-quality requests
-- Requests delivered too slowly
-- Paying too much for small jobs
+| value | label |
+|---|---|
+| Requests sent to too many movers | Sent to too many movers |
+| Fake or unreachable customers | Fake or unreachable customers |
+| Wrong move details | Wrong move details |
+| Low-quality requests | Low-quality requests |
+| Requests delivered too slowly | Delivered too slowly |
+| Paying too much for small jobs | Overpaying for small jobs |
 
 **CTA:** Continue →
 
@@ -260,11 +286,9 @@ Three stacked text inputs (all required before Continue enables):
 
 ### Step 12b — Platform wish  *(only if step 11 = regularly or occasionally)*
 
-**Heading:** If you could fix one thing about lead providers, what would it be?
-**Helper:** Optional — every answer here shapes how we route requests.
+**Heading:** If you could fix one thing about lead providers?
+**Helper:** Optional.
 **Type:** Free text (textarea, optional)
-
-**Placeholder:** Be as direct as you'd like…
 
 **Actions:** Skip → or Continue →
 
@@ -272,8 +296,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 13 — Biggest problem (optional)
 
-**Heading:** What's the biggest headache your crews face with move requests today?
-**Helper:** Optional — be as honest as you'd like.
+**Heading:** Biggest headache with move requests today?
+**Helper:** Optional.
 **Type:** Free text (textarea, optional)
 
 **Actions:** Skip → or Continue →
@@ -290,24 +314,22 @@ Two stacked text inputs (both required):
 - Work email
 - Phone number
 
-**Below the inputs, 3 bullets reinforcing what they're claiming:**
+**Three bullets below the inputs:**
 
 - Early marketplace access
 - Priority market availability
 - $50 onboarding credit
 
-**Helper line below the bullets:** We'll only use this to contact you about founding access and your onboarding credit.
+**Helper line:** We'll only use this for founding access and your onboarding credit.
 
 **CTA:** Lock in my founding access →
 
-On submit → POST `/api/founding-movers/submit` → advance to Step 15.
-
 ---
 
-## Step 15 — Thank you (terminal)
+## Step 15 — Thank you
 
 **Heading:** You're on the founding partner list
-**Subhead:** Your answers help us improve request quality, matching, and pricing — before we open more markets.
+**Subhead:** Your answers help us match your company with the right requests when we open your market.
 
 **Three checkmark bullets:**
 
@@ -315,88 +337,71 @@ On submit → POST `/api/founding-movers/submit` → advance to Step 15.
 - Priority market availability
 - $50 onboarding credit when your market opens
 
-No CTA. Soft outbound link back to `moveleads.cloud` if natural.
-
 ---
 
-## Branching map (quick reference)
+## Branching map
 
-| Source step | Answer | Next step |
+| Source | Answer | Next |
 |---|---|---|
-| 6 (shared/exclusive) | shared | 7a → 7b → 8 |
+| 6 | shared | 7a → 7b → 8 |
 | 6 | exclusive | 7c → 8 |
 | 6 | depends | 7d → 8 |
-| 11 (broker exp) | regularly / occasionally | 12a → 12b → 13 |
+| 11 | regularly / occasionally | 12a → 12b → 13 |
 | 11 | interested / no | 13 |
 
 ---
 
-## Steps a user actually sees (by path)
+## Steps a user sees (by path)
 
-| Path | Path key | Step count (excl. thank-you) |
-|---|---|---|
-| Fastest | depends + no broker history | **12** |
-| Typical | exclusive + yes broker | **14** |
-| Maximum | shared + yes broker | **16** |
-
-Compare to the v2 flow before this refinement: fastest 14, typical 17, max 20. Saved 2–4 screens across every path.
+| Path | Count |
+|---|---|
+| Fastest (depends + no broker) | 12 |
+| Typical (exclusive + yes broker) | 14 |
+| Maximum (shared + yes broker) | 16 |
 
 ---
 
-## Copy guardrails (what every step does to tone)
+## Copy guardrails
 
-The funnel must read like a conversation with someone who *runs* a moving company. Quick check before shipping any copy change:
+- ✅ "What makes your dispatch jump on a request?"
+- ❌ "Which features do you value most in a lead?"
+- ✅ "Shared requests / Lower cost · more competition"
+- ❌ "Lower-cost shared requests"
+- ✅ "Customer picks up"
+- ❌ "Customer answers the phone"
+- ✅ "Ready to book"
+- ❌ "Whether the customer is ready to move forward"
 
-- ✅ "What makes your dispatch team jump on a request immediately?"
-- ❌ "What features do you value most in a lead?"
-
-- ✅ "What separates a good request platform from a bad one?"
-- ❌ "Rate the importance of the following platform attributes."
-
-- ✅ "Before your dispatch team calls a customer, what should already be confirmed?"
-- ❌ "Which fields should be required at intake?"
-
-- ✅ "How fast does your team need to hit a fresh request?"
-- ❌ "What is your expected response-time SLA?"
-
-- ✅ "We won't sell you anything based on this."
-- ❌ "This information will not be used for sales purposes."
-
-**Vocabulary swaps applied throughout:**
+**Vocabulary swaps:**
 
 | Use | Avoid |
 |---|---|
-| crews | users |
-| dispatch / dispatchers | recipients |
-| requests | leads (in user copy; "leads" stays in dev/admin/internal) |
-| jobs | tickets |
-| routes | journeys |
-| customer is ready to move | customer intent score |
-| move date | service window |
-| markets | regions |
-| trucks today | service-day availability |
+| crews / dispatch | users / recipients |
+| requests | leads (user copy only) |
+| jobs / routes | tickets / journeys |
+| picks up | answers the phone |
+| ready to book | ready to move forward |
 | founding access | beta access |
 
 ---
 
-## UX guardrails (applied to every step)
+## UX guardrails
 
 - **One question per screen** (except intro)
 - **No auto-advance** — Continue button on every step
 - **Selected cards** = `#fff7ed` background, 2px `#ff6a14` border, filled orange check
-- **Progress** = 3px orange filling line at the top. No counter. No phase labels. No step names.
+- **Progress** = 3px orange filling line at the top
 - **Back chevron** = top-left, 44×44 hit area, hidden on intro + thank-you
-- **Skip link** = only on optional textareas (12b, 13)
 - **Transitions** = 220ms fade + 12px slide-up per step
 - **Mobile-first** padding: 32px horizontal, 64px+ card height, 56px Continue button
-- **Persistence** = localStorage key `ml_founder_v2`, 7-day TTL, restored on mount
+- **Persistence** = localStorage key `ml_founder_v2`, 7-day TTL
 
 ---
 
-## Data captured per submission
+## Data captured (schema stable)
 
-Stored in `MoverResearchSubmission` (server) with auto-generated tags. The funnel populates:
+Stored in `MoverResearchSubmission`. The funnel writes the **option `value`** strings (not the shortened labels) so the auto-tagger and admin analytics keep working unchanged. Schema fields populated by v2:
 
-`companyName`, `contactName` (= first name), `email`, `phone`, `mainStateOrMarket`, `desiredMoveTypes`, `preferredJobSizes`, `valueSignals`, `requiredConfirmations`, `sharedExclusivePreference`, `sharedAcceptableConditions`, `sharedMaxMovers`, `exclusiveTriggers`, `exclusiveTriggersDepends`, `priorityScenario`, `speedExpectation`, `overpricedSignals` *(from Group B of step 10)*, `retentionDrivers` *(from Group A of step 10)*, `leadProviderExperience`, `leadProviderFrustrations`, `platformWish`, `biggestProblem`, `autoTags`, `utm`, `source: 'founding-movers-v2'`, `completionTimeSeconds`, `submittedAt`.
+`companyName`, `contactName`, `email`, `phone`, `mainStateOrMarket` (now stored as `XX` two-letter code from autocomplete), `desiredMoveTypes`, `preferredJobSizes`, `valueSignals`, `requiredConfirmations`, `sharedExclusivePreference`, `sharedAcceptableConditions`, `sharedMaxMovers`, `exclusiveTriggers`, `exclusiveTriggersDepends`, `priorityScenario`, `speedExpectation`, `overpricedSignals`, `retentionDrivers`, `leadProviderExperience`, `leadProviderFrustrations`, `platformWish`, `biggestProblem`, `autoTags`, `utm`, `source: 'founding-movers-v2'`, `completionTimeSeconds`, `submittedAt`.
 
-**Schema fields no longer populated by v2 (kept on server for backward compatibility with prior submissions):** `marketplacePreference`, `biddingTriggers`, `paidRequestReason`, `trustToTry`.
+**Schema fields no longer populated by v2** (kept for v1 backward compat): `marketplacePreference`, `biddingTriggers`, `paidRequestReason`, `trustToTry`.

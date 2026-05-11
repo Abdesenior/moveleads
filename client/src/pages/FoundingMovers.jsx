@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { US_STATES } from '../data/usStates';
 import './FoundingMovers.css';
 
 // ── API base ─────────────────────────────────────────────────────────────
@@ -10,60 +11,67 @@ const STORAGE_KEY = 'ml_founder_v2';
 const STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // ── Option catalogues ───────────────────────────────────────────────────
+// All options are { value, label, subline? }. `value` is the stable schema
+// string (the tagger keys on it — don't rename). `label` is the short visible
+// title. `subline` is an optional one-line clarifier.
 const MOVE_TYPES = [
-  'Local residential moves',
-  'Long-distance moves',
-  'Office / commercial moves',
-  'Same-day / urgent moves',
+  { value: 'Local residential moves',   label: 'Local residential' },
+  { value: 'Long-distance moves',       label: 'Long-distance' },
+  { value: 'Office / commercial moves', label: 'Office / commercial' },
+  { value: 'Same-day / urgent moves',   label: 'Same-day / urgent' },
 ];
 const JOB_SIZES = [
-  'Studio / 1-bedroom',
-  '2-bedroom',
-  '3-bedroom',
-  '4+ bedroom',
-  'Office / commercial',
-  'Specialty-item moves',
+  { value: 'Studio / 1-bedroom',  label: 'Studio / 1-bedroom' },
+  { value: '2-bedroom',           label: '2-bedroom' },
+  { value: '3-bedroom',           label: '3-bedroom' },
+  { value: '4+ bedroom',          label: '4+ bedroom' },
+  { value: 'Office / commercial', label: 'Office / commercial' },
+  { value: 'Specialty-item moves', label: 'Specialty items' },
 ];
 const VALUE_SIGNALS = [
-  'Customer answers the phone',
-  'Move date is close',
-  'Inventory is explained properly',
-  'Customer sounds serious about moving',
-  'Request reaches us quickly',
-  'Exclusive access to the request',
+  { value: 'Customer answers the phone',         label: 'Customer picks up' },
+  { value: 'Move date is close',                 label: 'Move date is close' },
+  { value: 'Inventory is explained properly',    label: 'Clear inventory details' },
+  { value: 'Customer sounds serious about moving', label: 'Serious customer' },
+  { value: 'Request reaches us quickly',         label: 'Fast request delivery' },
+  { value: 'Exclusive access to the request',    label: 'Exclusive access' },
 ];
 const REQUIRED_CONFIRMATIONS = [
-  'Pickup location',
-  'Delivery location',
-  'Move date',
-  'Move size',
-  'Inventory / heavy items',
-  'Customer availability',
-  'Whether the customer is ready to move forward',
+  { value: 'Pickup location',                                label: 'Pickup location' },
+  { value: 'Delivery location',                              label: 'Delivery location' },
+  { value: 'Move date',                                      label: 'Move date' },
+  { value: 'Move size',                                      label: 'Move size' },
+  { value: 'Inventory / heavy items',                        label: 'Inventory / heavy items' },
+  { value: 'Customer availability',                          label: 'Customer availability confirmed' },
+  { value: 'Whether the customer is ready to move forward',  label: 'Ready to book' },
 ];
 const SHARED_ACCEPTABLE_CONDITIONS = [
-  'If only a few movers receive the request',
-  'If the request cost is lower',
-  'If the customer is verified',
-  'If it\'s a long-distance move',
+  { value: 'If only a few movers receive the request', label: 'Only a few movers see it' },
+  { value: 'If the request cost is lower',             label: 'Lower request cost' },
+  { value: 'If the customer is verified',              label: 'Verified customer' },
+  { value: 'If it\'s a long-distance move',            label: 'Long-distance move' },
 ];
-const SHARED_MAX_MOVERS = ['2 movers max', '3 movers max', '4+ movers'];
+const SHARED_MAX_MOVERS = [
+  { value: '2 movers max', label: '2 movers max' },
+  { value: '3 movers max', label: '3 movers max' },
+  { value: '4+ movers',    label: '4+ movers' },
+];
 const EXCLUSIVE_TRIGGERS = [
-  'Long-distance moves',
-  'Commercial jobs',
-  'High-intent customers',
+  { value: 'Long-distance moves', label: 'Long-distance moves' },
+  { value: 'Commercial jobs',     label: 'Commercial jobs' },
+  { value: 'High-intent customers', label: 'High-intent customers' },
 ];
 const EXCLUSIVE_TRIGGERS_DEPENDS = [
-  'Long-distance moves',
-  'Commercial jobs',
-  'High-intent customers',
+  { value: 'Long-distance moves', label: 'Long-distance moves' },
+  { value: 'Commercial jobs',     label: 'Commercial jobs' },
+  { value: 'High-intent customers', label: 'High-intent customers' },
 ];
 const SCENARIOS = [
   {
     id: 'exclusive_4br_long_distance',
     label: 'Exclusive 4-bedroom long-distance move',
     details: [
-      'Houston → Denver, customer ready within 7 days',
+      'Houston → Denver, customer ready in 7 days',
       'Yours alone — no other movers see it',
       'Verified, high-intent',
     ],
@@ -82,48 +90,40 @@ const SCENARIOS = [
     label: 'Commercial office relocation',
     details: [
       'Mid-size office, weekend timeline',
-      'Decision-maker already on the call',
+      'Decision-maker on the call',
       'Exclusive request',
     ],
   },
 ];
 const SPEED_OPTIONS = [
-  { value: '5min',    label: 'First 5 minutes' },
-  { value: '15min',   label: 'First 15 minutes' },
-  { value: '1hour',   label: 'First hour' },
-  { value: 'sameday', label: 'Same day is fine' },
+  { value: '5min',    label: 'First 5 minutes',  subline: 'Critical urgency' },
+  { value: '15min',   label: 'First 15 minutes', subline: 'Still hot' },
+  { value: '1hour',   label: 'First hour',       subline: 'Solid window' },
+  { value: 'sameday', label: 'Same day',         subline: 'Flexible' },
 ];
 const OVERPRICED_SIGNALS = [
-  'Customer doesn\'t answer',
-  'Too many movers received it',
-  'Move details are incomplete',
-  'Customer is not ready to move',
-  'Wrong service area',
-  'Request delivered too slowly',
-];
-const BIDDING_TRIGGERS = [
-  'Long-distance moves',
-  'Large house moves',
-  'Commercial jobs',
-  'Same-day / urgent moves',
-  'Verified high-intent customers',
-  'Specialty-item moves',
+  { value: 'Customer doesn\'t answer',       label: 'Customer doesn\'t pick up' },
+  { value: 'Move details are incomplete',    label: 'Incomplete move details' },
+  { value: 'Wrong service area',             label: 'Wrong service area' },
+  { value: 'Too many movers received it',    label: 'Sent to too many movers' },
+  { value: 'Request delivered too slowly',   label: 'Delivered too slowly' },
+  { value: 'Customer is not ready to move',  label: 'Customer not ready' },
 ];
 const FRUSTRATIONS = [
-  'Requests sent to too many movers',
-  'Fake or unreachable customers',
-  'Wrong move details',
-  'Low-quality requests',
-  'Requests delivered too slowly',
-  'Paying too much for small jobs',
+  { value: 'Requests sent to too many movers', label: 'Sent to too many movers' },
+  { value: 'Fake or unreachable customers',    label: 'Fake or unreachable customers' },
+  { value: 'Wrong move details',               label: 'Wrong move details' },
+  { value: 'Low-quality requests',             label: 'Low-quality requests' },
+  { value: 'Requests delivered too slowly',    label: 'Delivered too slowly' },
+  { value: 'Paying too much for small jobs',   label: 'Overpaying for small jobs' },
 ];
 const RETENTION_DRIVERS = [
-  'Customers answer the phone',
-  'Accurate move details',
-  'Fair pricing',
-  'Requests are not overshared',
-  'Fast delivery',
-  'Better request matching',
+  { value: 'Customers answer the phone',  label: 'Customers pick up' },
+  { value: 'Accurate move details',       label: 'Accurate move details' },
+  { value: 'Fair pricing',                label: 'Fair pricing' },
+  { value: 'Requests are not overshared', label: 'Not overshared' },
+  { value: 'Fast delivery',               label: 'Fast delivery' },
+  { value: 'Better request matching',     label: 'Better matching' },
 ];
 
 // ── Step descriptors ────────────────────────────────────────────────────
@@ -132,32 +132,30 @@ const STEPS = [
 
   { id: 'moveTypes', type: 'multi', field: 'desiredMoveTypes',
     question: 'What jobs do your crews run most?',
-    helper: 'Pick up to 3 — the type of work you actually want more of.',
+    helper: 'Pick up to 3.',
     options: MOVE_TYPES, max: 3,
     nextStep: 'jobSizes' },
 
   { id: 'jobSizes', type: 'multi', field: 'preferredJobSizes',
     question: 'What size jobs fit your crews?',
-    helper: 'The jobs you can handle without thinking twice.',
     options: JOB_SIZES, nextStep: 'valueSignals' },
 
   { id: 'valueSignals', type: 'multi', field: 'valueSignals',
-    question: 'What makes your dispatch team jump on a request immediately?',
-    helper: 'Pick what actually moves the needle for your crews.',
+    question: 'What makes your dispatch jump on a request?',
     options: VALUE_SIGNALS, nextStep: 'confirmations' },
 
   { id: 'confirmations', type: 'multi', field: 'requiredConfirmations',
-    question: 'Before your dispatch team calls a customer, what should already be confirmed?',
-    helper: 'The details that save your crews time and avoid bad requests.',
+    question: 'Before your team calls, what should be confirmed?',
+    helper: 'The details that save your crews time.',
     options: REQUIRED_CONFIRMATIONS, nextStep: 'sharedOrExclusive' },
 
   { id: 'sharedOrExclusive', type: 'single', field: 'sharedExclusivePreference',
-    question: 'Shared or exclusive — how does your company prefer to buy?',
-    helper: 'No wrong answer. We\'re figuring out the right balance.',
+    question: 'Shared or exclusive?',
+    helper: 'Pick what your company usually prefers.',
     options: [
-      { value: 'shared',    label: 'Lower-cost shared requests' },
-      { value: 'exclusive', label: 'Higher-cost exclusive requests' },
-      { value: 'depends',   label: 'Depends on the move' },
+      { value: 'shared',    label: 'Shared requests',    subline: 'Lower cost · more competition' },
+      { value: 'exclusive', label: 'Exclusive requests', subline: 'Only your company receives it' },
+      { value: 'depends',   label: 'Depends on the job', subline: 'Varies by route and size' },
     ],
     nextStep: (a) => {
       if (a.sharedExclusivePreference === 'shared')    return 'sharedConditions';
@@ -167,37 +165,35 @@ const STEPS = [
 
   { id: 'sharedConditions', type: 'multi', field: 'sharedAcceptableConditions',
     question: 'When is sharing OK?',
-    helper: 'Pick everything that fits how your team thinks about it.',
     options: SHARED_ACCEPTABLE_CONDITIONS, nextStep: 'sharedMaxMovers' },
 
   { id: 'sharedMaxMovers', type: 'single', field: 'sharedMaxMovers',
-    question: 'How many movers max should see the same request?',
-    options: SHARED_MAX_MOVERS.map(v => ({ value: v, label: v })),
+    question: 'How many movers max per request?',
+    options: SHARED_MAX_MOVERS,
     nextStep: 'priorityScenario' },
 
   { id: 'exclusiveTriggers', type: 'multi', field: 'exclusiveTriggers',
-    question: 'Which requests are worth paying more to get exclusively?',
+    question: 'Which requests are worth paying more for?',
     options: EXCLUSIVE_TRIGGERS, nextStep: 'priorityScenario' },
 
   { id: 'dependsTriggers', type: 'multi', field: 'exclusiveTriggersDepends',
-    question: 'Which requests should always stay exclusive?',
+    question: 'Which should always stay exclusive?',
     options: EXCLUSIVE_TRIGGERS_DEPENDS, nextStep: 'priorityScenario' },
 
   { id: 'priorityScenario', type: 'cards', field: 'priorityScenario',
     question: 'Which request would your dispatch grab first?',
-    helper: 'Pretend all three landed in your inbox right now.',
+    helper: 'Pretend all three just landed.',
     options: SCENARIOS, nextStep: 'speedExpectation' },
 
   { id: 'speedExpectation', type: 'single', field: 'speedExpectation',
     question: 'How fast does your team need to hit a fresh request?',
-    helper: 'After the customer submits — when does it matter most?',
     options: SPEED_OPTIONS, nextStep: 'platformQuality' },
 
   // Merged step: writes to retentionDrivers (Group A) AND overpricedSignals
   // (Group B) from a single screen.
   { id: 'platformQuality', type: 'grouped-multi',
-    question: 'What separates a good request platform from a bad one?',
-    helper: 'Pick the things that matter most to your dispatch team.',
+    question: 'Good platform vs bad platform — what matters?',
+    helper: 'Pick what matters most.',
     groups: [
       {
         label: 'What makes one great',
@@ -213,13 +209,13 @@ const STEPS = [
     nextStep: 'brokerExperience' },
 
   { id: 'brokerExperience', type: 'single', field: 'leadProviderExperience',
-    question: 'Have you bought leads or worked with a broker before?',
-    helper: 'Honest is best — we won\'t sell you anything based on this.',
+    question: 'Bought leads or used a broker before?',
+    helper: 'Honest is best.',
     options: [
-      { value: 'regularly',    label: 'Yes, regularly' },
-      { value: 'occasionally', label: 'Yes, occasionally' },
-      { value: 'interested',   label: 'No, but we\'re interested' },
-      { value: 'no',           label: 'No' },
+      { value: 'regularly',    label: 'Yes, regularly',     subline: 'Multiple platforms' },
+      { value: 'occasionally', label: 'Yes, occasionally',  subline: 'Tried a few' },
+      { value: 'interested',   label: 'Not yet — interested', subline: 'Considering it' },
+      { value: 'no',           label: 'No',                 subline: 'First time looking' },
     ],
     nextStep: (a) => {
       const v = a.leadProviderExperience;
@@ -228,19 +224,19 @@ const STEPS = [
     } },
 
   { id: 'brokerFrustrations', type: 'multi', field: 'leadProviderFrustrations',
-    question: 'Where do lead providers usually let movers down?',
-    helper: 'Pick everything you\'ve actually run into.',
+    question: 'Where do lead providers let movers down?',
+    helper: 'Pick anything that applies.',
     options: FRUSTRATIONS, nextStep: 'platformWish' },
 
   { id: 'platformWish', type: 'textarea', field: 'platformWish',
-    question: 'If you could fix one thing about lead providers, what would it be?',
-    helper: 'Optional — every answer here shapes how we route requests.',
+    question: 'If you could fix one thing about lead providers?',
+    helper: 'Optional.',
     placeholder: 'Share anything that comes to mind…',
     optional: true, nextStep: 'biggestProblem' },
 
   { id: 'biggestProblem', type: 'textarea', field: 'biggestProblem',
-    question: 'What\'s the biggest headache your crews face with move requests today?',
-    helper: 'Optional — be as honest as you\'d like.',
+    question: 'Biggest headache with move requests today?',
+    helper: 'Optional.',
     placeholder: 'Share anything that comes to mind…',
     optional: true, nextStep: 'contact' },
 
@@ -591,12 +587,21 @@ function ContinueBar({ disabled, onClick, label = 'Continue', secondary }) {
   );
 }
 
-// ── Step: intro (3 stacked fields) ──────────────────────────────────────
+// ── Step: intro (3 stacked fields + bullets above) ──────────────────────
 function IntroStep({ answers, setField, onAdvance, canContinue }) {
   return (
     <>
-      <h1 className="fm-question">Tell us about your operation</h1>
-      <p className="fm-helper">We're building MoveLeads around how real moving companies actually work.</p>
+      <h1 className="fm-question">Get early access to MoveLeads</h1>
+      <p className="fm-helper">
+        Answer a few quick questions so we can match your company with the right moving
+        requests when we open your market.
+      </p>
+
+      <ul className="fm-intro-bullets">
+        <li><span className="fm-trust-check">✓</span> Founding mover access</li>
+        <li><span className="fm-trust-check">✓</span> Request matching tailored to your crews</li>
+        <li><span className="fm-trust-check">✓</span> $50 onboarding credit</li>
+      </ul>
 
       <div className="fm-stack">
         <input
@@ -615,17 +620,123 @@ function IntroStep({ answers, setField, onAdvance, canContinue }) {
           placeholder="Company name"
           autoComplete="organization"
         />
-        <input
-          className="fm-input"
-          type="text"
+        <StateAutocomplete
           value={answers.mainStateOrMarket}
-          onChange={e => setField('mainStateOrMarket', e.target.value)}
-          placeholder="Main state (e.g., Texas)"
+          onChange={(code) => setField('mainStateOrMarket', code)}
         />
       </div>
 
       <ContinueBar disabled={!canContinue} onClick={onAdvance} />
     </>
+  );
+}
+
+// ── State autocomplete (50 US states, name + abbrev match) ──────────────
+function StateAutocomplete({ value, onChange }) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const wrapRef = useRef(null);
+
+  // The current selection rendered as a chip; when set, the input is hidden.
+  const selected = useMemo(() => {
+    if (!value) return null;
+    return US_STATES.find(s => s.code === value || s.name === value) || null;
+  }, [value]);
+
+  // Filtered + prefix-priority sorted results, capped to 6.
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return US_STATES.slice(0, 6);
+    const matches = US_STATES.filter(s =>
+      s.name.toLowerCase().includes(q) || s.code.toLowerCase().startsWith(q)
+    );
+    return matches.sort((a, b) => {
+      const aPref = a.name.toLowerCase().startsWith(q) || a.code.toLowerCase().startsWith(q) ? 0 : 1;
+      const bPref = b.name.toLowerCase().startsWith(q) || b.code.toLowerCase().startsWith(q) ? 0 : 1;
+      if (aPref !== bPref) return aPref - bPref;
+      return a.name.localeCompare(b.name);
+    }).slice(0, 6);
+  }, [query]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  function commit(state) {
+    onChange(state.code);
+    setQuery('');
+    setOpen(false);
+    setActiveIdx(0);
+  }
+
+  function handleKey(e) {
+    if (!open) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter')     {
+      e.preventDefault();
+      const pick = filtered[activeIdx] || filtered[0];
+      if (pick) commit(pick);
+    }
+    else if (e.key === 'Escape')    { setOpen(false); }
+  }
+
+  if (selected) {
+    return (
+      <div className="fm-state-chip-row">
+        <span className="fm-state-chip">
+          {selected.name} <span className="fm-state-chip-code">({selected.code})</span>
+          <button
+            type="button"
+            className="fm-state-chip-x"
+            aria-label={`Remove ${selected.name}`}
+            onClick={() => onChange('')}
+          >×</button>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fm-state-wrap" ref={wrapRef}>
+      <input
+        className="fm-input"
+        type="text"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIdx(0); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={handleKey}
+        placeholder="Main operating state"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <div className="fm-state-dropdown" role="listbox">
+          {filtered.map((s, i) => (
+            <button
+              key={s.code}
+              type="button"
+              role="option"
+              aria-selected={i === activeIdx}
+              className={`fm-state-option${i === activeIdx ? ' active' : ''}`}
+              onMouseEnter={() => setActiveIdx(i)}
+              onClick={() => commit(s)}
+            >
+              <span className="fm-state-name">{s.name}</span>
+              <span className="fm-state-code">({s.code})</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -643,16 +754,18 @@ function GroupedMultiStep({ step, answers, toggleField, onAdvance, canContinue }
             <div className="fm-group-label">{group.label}</div>
             <div className="fm-choices">
               {group.options.map(opt => {
-                const isSelected = selected.includes(opt);
+                const v = opt.value;
+                const label = opt.label;
+                const isSelected = selected.includes(v);
                 return (
                   <button
-                    key={opt}
+                    key={v}
                     type="button"
                     className={`fm-choice${isSelected ? ' selected' : ''}`}
-                    onClick={() => toggleField(group.field, opt)}
+                    onClick={() => toggleField(group.field, v)}
                     aria-pressed={isSelected}
                   >
-                    <span className="fm-choice-label">{opt}</span>
+                    <span className="fm-choice-label">{label}</span>
                     <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
                   </button>
                 );
@@ -677,18 +790,20 @@ function MultiStep({ step, answers, toggleField, onAdvance, canContinue }) {
 
       <div className="fm-choices">
         {step.options.map(opt => {
-          const isSelected = selected.includes(opt);
+          const v = opt.value;
+          const label = opt.label;
+          const isSelected = selected.includes(v);
           const capReached = typeof step.max === 'number' && selected.length >= step.max && !isSelected;
           return (
             <button
-              key={opt}
+              key={v}
               type="button"
               className={`fm-choice${isSelected ? ' selected' : ''}${capReached ? ' disabled' : ''}`}
-              onClick={capReached ? undefined : () => toggleField(step.field, opt, step.max)}
+              onClick={capReached ? undefined : () => toggleField(step.field, v, step.max)}
               aria-pressed={isSelected}
               disabled={capReached}
             >
-              <span className="fm-choice-label">{opt}</span>
+              <span className="fm-choice-label">{label}</span>
               <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
             </button>
           );
@@ -712,6 +827,7 @@ function SingleStep({ step, answers, setField, onAdvance, canContinue }) {
         {step.options.map(opt => {
           const v = opt.value;
           const label = opt.label;
+          const subline = opt.subline;
           const isSelected = value === v;
           return (
             <button
@@ -721,7 +837,10 @@ function SingleStep({ step, answers, setField, onAdvance, canContinue }) {
               onClick={() => setField(step.field, v)}
               aria-pressed={isSelected}
             >
-              <span className="fm-choice-label">{label}</span>
+              <span className="fm-choice-text">
+                <span className="fm-choice-label">{label}</span>
+                {subline && <span className="fm-choice-subline">{subline}</span>}
+              </span>
               <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
             </button>
           );
