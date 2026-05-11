@@ -65,6 +65,13 @@ const UserSchema = new mongoose.Schema({
     activatedAt:    { type: Date, default: null }, // set on ANY successful onboarding activation payment ($50 OR $100)
     firstTopupAt:           { type: Date, default: null }, // set on the first successful dashboard top-up (any amount)
     firstTopupPopupShownAt: { type: Date, default: null }, // set when the post-first-topup reassurance popup is dismissed/seen
+    // Stamped when the partner clicks "Continue without activating" on the
+    // step-5 offer screen. Used by the DashboardLayout auto-mount effect to
+    // STOP re-opening the wizard on subsequent logins. The persistent
+    // ActivationBanner CTA still drives explicit re-engagement; this flag
+    // only suppresses the *automatic* remount so the experience feels
+    // guided rather than paywalled.
+    activationOfferDismissedAt: { type: Date, default: null },
     recovery: {
       // Post-skip cadence (completed setup, didn't claim bonus)
       sent12h: { type: Boolean, default: false },

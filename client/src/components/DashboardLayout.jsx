@@ -67,6 +67,12 @@ export default function DashboardLayout({ children }) {
     // must NOT auto-mount — they have to verify their email first. The
     // ActivationBanner handles the verification CTA in this state.
     if (user.isEmailVerified !== true) return;
+    // Partner finished setup and explicitly dismissed the activation offer.
+    // Don't auto-mount the wizard again — that feels paywalled. The
+    // ActivationBanner CTA still drives explicit re-engagement, and deep
+    // links (?activate=1, ?onboarding=resume) still open the wizard
+    // because they signal explicit user intent.
+    if (user.onboarding?.activationOfferDismissedAt) return;
 
     // First-time visit: no stored preference yet → start collapsed.
     if (localStorage.getItem('sidebarCollapsed') === null) {

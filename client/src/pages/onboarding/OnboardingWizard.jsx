@@ -336,11 +336,20 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
   // Mandatory-onboarding dismissal. The user has reached the offer/activate
   // step (step 5) and chosen to defer activation. We do NOT call
-  // /onboarding/skip (which would stamp `complete: true` and prevent the
-  // wizard from remounting). Instead we just close the wizard locally.
-  // Server already holds `currentStep` and `complete: false`, so the
-  // DashboardLayout auto-mount effect re-opens the wizard on next login.
+  // /onboarding/skip (which would stamp `complete: true`) — onboarding stays
+  // formally incomplete so the ActivationBanner keeps prompting.
+  //
+  // We DO stamp `activationOfferDismissedAt` so the DashboardLayout
+  // auto-mount effect stops re-opening the wizard on every login.
+  // Re-engagement happens through the banner CTA (explicit user intent),
+  // not by auto-popping the modal in their face every page load.
   async function dismissAndClose() {
+    try {
+      await fetch(`${API_URL}/onboarding/dismiss-activation-offer`, {
+        method: 'POST',
+        headers: { 'x-auth-token': localStorage.getItem('token') || '', 'Content-Type': 'application/json' },
+      });
+    } catch (_err) { /* non-blocking — banner still works either way */ }
     if (refreshUser) await refreshUser();
     onClose && onClose();
   }

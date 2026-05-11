@@ -344,6 +344,28 @@ router.post('/complete', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/onboarding/dismiss-activation-offer
+// @desc    Stamps onboarding.activationOfferDismissedAt so the wizard's
+//          auto-mount effect stops re-opening on every login. The user has
+//          completed setup (steps 1-4) and explicitly chose to defer the
+//          activation tier picker. The ActivationBanner CTA still drives
+//          explicit re-engagement, so this only suppresses the automatic
+//          remount — not the partner's ability to come back later.
+//          Idempotent: only sets the timestamp the first time.
+// @access  Private (JWT)
+router.post('/dismiss-activation-offer', auth, async (req, res) => {
+  try {
+    await User.updateOne(
+      { _id: req.user.id, 'onboarding.activationOfferDismissedAt': null },
+      { $set: { 'onboarding.activationOfferDismissedAt': new Date() } }
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[Onboarding] dismiss-activation-offer error', err);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 // @route   POST /api/onboarding/mark-first-topup-popup-seen
 // @desc    Stamps onboarding.firstTopupPopupShownAt so the reassurance popup
 //          never shows again. Idempotent — only sets the timestamp the first
