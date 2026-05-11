@@ -891,7 +891,115 @@
   display: none;
 }
 
+/* ── Slim offer bar (post-onboarding, no activation yet) ────────────────
+   Replaces the heavier ActivationBanner card. Mirrors the visual language
+   of the Partners page sticky offer bar but namespaced .ml-offer-bar so it
+   never collides with the .partners-page .offer-bar rules. The whole bar
+   is a single <button> so it's clickable and keyboard-focusable. */
+.ml-offer-bar {
+  display: block;
+  width: 100%;
+  background: #07111f;
+  border: none;
+  border-bottom: 1px solid rgba(255, 106, 20, 0.18);
+  color: #fff;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  transition: background 180ms ease, transform 120ms ease;
+}
+.ml-offer-bar:hover { background: #0b1b2d; }
+.ml-offer-bar:active { transform: scale(0.995); }
+.ml-offer-bar:focus-visible {
+  outline: 2px solid #ff6a14;
+  outline-offset: -2px;
+}
+.ml-offer-bar-inner {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 24px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.ml-offer-bar-pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #ff6a14;
+  flex-shrink: 0;
+  animation: mlOfferBarPulse 2s ease-in-out infinite;
+}
+@keyframes mlOfferBarPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(1.25); }
+}
+.ml-offer-bar-pill {
+  display: inline-flex; align-items: center;
+  background: #ff6a14;
+  color: #fff;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.ml-offer-bar-accent { color: #ff6a14; font-weight: 900; }
+.ml-offer-bar-arrow {
+  color: #ff6a14;
+  font-weight: 900;
+  display: inline-block;
+  margin-left: 4px;
+  animation: mlOfferBarArrowNudge 1.2s ease-in-out infinite;
+}
+@keyframes mlOfferBarArrowNudge {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(2px); }
+}
+.ml-offer-bar-text-full { display: inline; color: #fff; }
+.ml-offer-bar-text-mobile { display: none; }
+
+/* Mobile: flow into 2-line compact form. Still navy, still single button. */
+@media (max-width: 600px) {
+  .ml-offer-bar-inner {
+    height: auto;
+    min-height: 56px;
+    padding: 10px 14px;
+    gap: 10px;
+    justify-content: flex-start;
+  }
+  .ml-offer-bar-pill {
+    padding: 3px 8px;
+    font-size: 10.5px;
+  }
+  .ml-offer-bar-text-full { display: none; }
+  .ml-offer-bar-text-mobile {
+    display: block;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .ml-offer-bar-line-main {
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #fff;
+  }
+  .ml-offer-bar-line-sub {
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.25;
+  }
+}
+
 /* ── Activation banner — premium app-shell card ──────────────────────────
+   Used by the UNVERIFIED branch only (Resend Verification flow). The
+   activated-not-yet-paid branch now uses .ml-offer-bar above.
    Same horizontal padding as the mobile header (14px) for visual
    continuity. Compact hierarchy: small label → bold offer → CTA. */
 .activation-banner {

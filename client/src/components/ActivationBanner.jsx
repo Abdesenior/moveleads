@@ -10,10 +10,11 @@ export default function ActivationBanner({ onActivate }) {
   if (!user) return null;
   if (user.role === 'admin' || user.role === 'super_admin') return null;
 
-  // ── WP-A4 — Unverified branch ──
-  // Email verification is required before the user can claim the $50 onboarding
-  // credit. Show a different message + a Resend Verification button. Hides the
-  // existing activation copy.
+  // ── Unverified branch ──
+  // Email verification is required before the user can claim the $50
+  // onboarding credit. Keep the original (heavier) banner style here
+  // because it carries the Resend Verification button — distinct UX
+  // surface from the post-onboarding slim offer bar.
   const isUnverified = user.isEmailVerified !== true;
 
   if (isUnverified) {
@@ -59,7 +60,7 @@ export default function ActivationBanner({ onActivate }) {
     );
   }
 
-  // ── Original activation banner (verified users only) ──
+  // ── Slim offer bar (verified users, post-onboarding, no activation yet) ──
   // Hide if user has already activated through any path:
   //  - onboarding.activatedAt is stamped (new field, set on $50 OR $100)
   //  - onboarding.bonusClaimedAt is stamped (legacy, $100-only)
@@ -70,20 +71,29 @@ export default function ActivationBanner({ onActivate }) {
   if ((user.balance || 0) > 0) return null;
 
   return (
-    <div className="activation-banner">
-      <div className="activation-banner-text">
-        <span className="activation-banner-title">Your dispatch setup is ready</span>
-        <span className="activation-banner-highlight">
-          Claim your <strong>$50 onboarding credit</strong> before your market fills up
+    <button
+      type="button"
+      className="ml-offer-bar"
+      onClick={onActivate}
+      aria-label="Claim your free $50 unlock credit"
+    >
+      <div className="ml-offer-bar-inner">
+        <span className="ml-offer-bar-pulse" aria-hidden="true" />
+        <span className="ml-offer-bar-pill">LIMITED</span>
+
+        <span className="ml-offer-bar-text-full">
+          Claim your <span className="ml-offer-bar-accent">free $50 unlock credit</span> before onboarding closes in your area <span className="ml-offer-bar-arrow" aria-hidden="true">→</span>
         </span>
+
+        <div className="ml-offer-bar-text-mobile">
+          <div className="ml-offer-bar-line-main">
+            Claim your <span className="ml-offer-bar-accent">free $50 unlock credit</span>
+          </div>
+          <div className="ml-offer-bar-line-sub">
+            before onboarding closes in your area <span className="ml-offer-bar-arrow" aria-hidden="true">→</span>
+          </div>
+        </div>
       </div>
-      <button
-        type="button"
-        className="activation-banner-cta"
-        onClick={onActivate}
-      >
-        Activate my balance →
-      </button>
-    </div>
+    </button>
   );
 }
