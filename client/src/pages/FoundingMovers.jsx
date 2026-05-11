@@ -15,30 +15,20 @@ const MOVE_TYPES = [
   'Long-distance moves',
   'Office / commercial moves',
   'Same-day / urgent moves',
-  'Large house moves',
-  'Apartment / small moves',
 ];
 const JOB_SIZES = [
   'Studio / 1-bedroom',
   '2-bedroom',
   '3-bedroom',
   '4+ bedroom',
-  'Small house moves',
-  'Medium house moves',
-  'Large house moves',
   'Office / commercial',
   'Specialty-item moves',
 ];
 const VALUE_SIGNALS = [
   'Customer answers the phone',
   'Move date is close',
-  'Pickup and delivery details are clear',
   'Inventory is explained properly',
   'Customer sounds serious about moving',
-  'Long-distance route',
-  'Large move size',
-  'Commercial move',
-  'Heavy / specialty items',
   'Request reaches us quickly',
   'Exclusive access to the request',
 ];
@@ -49,55 +39,52 @@ const REQUIRED_CONFIRMATIONS = [
   'Move size',
   'Inventory / heavy items',
   'Customer availability',
-  'Budget expectations',
-  'Stairs / elevator access',
-  'Whether the customer is comparing movers',
   'Whether the customer is ready to move forward',
 ];
 const SHARED_ACCEPTABLE_CONDITIONS = [
   'If only a few movers receive the request',
   'If the request cost is lower',
-  'If the move is large enough',
   'If the customer is verified',
   'If it\'s a long-distance move',
-  'If the customer is moving soon',
 ];
 const SHARED_MAX_MOVERS = ['2 movers max', '3 movers max', '4+ movers'];
 const EXCLUSIVE_TRIGGERS = [
   'Long-distance moves',
-  '3+ bedroom moves',
   'Commercial jobs',
-  'Same-day / urgent moves',
   'High-intent customers',
-  'Any well-qualified request',
 ];
 const EXCLUSIVE_TRIGGERS_DEPENDS = [
   'Long-distance moves',
-  'Large house moves',
-  'Commercial moves',
-  'Same-day / urgent requests',
+  'Commercial jobs',
   'High-intent customers',
 ];
 const SCENARIOS = [
   {
-    id: 'verified_2br_local_shared',
-    label: 'Verified 2-bedroom local move',
-    details: ['Shared with 2 movers', 'Customer moving this week'],
-  },
-  {
     id: 'exclusive_4br_long_distance',
     label: 'Exclusive 4-bedroom long-distance move',
-    details: ['Customer ready to move within 7 days'],
+    details: [
+      'Houston → Denver, customer ready within 7 days',
+      'Yours alone — no other movers see it',
+      'Verified, high-intent',
+    ],
   },
   {
     id: 'verified_same_day_local',
     label: 'Verified same-day local move',
-    details: ['Customer ready to book quickly'],
+    details: [
+      'Customer needs trucks today',
+      'Phone-verified, ready to book',
+      'Shared with one other crew',
+    ],
   },
   {
     id: 'commercial_office_relocation',
     label: 'Commercial office relocation',
-    details: ['Flexible timeline'],
+    details: [
+      'Mid-size office, weekend timeline',
+      'Decision-maker already on the call',
+      'Exclusive request',
+    ],
   },
 ];
 const SPEED_OPTIONS = [
@@ -110,10 +97,8 @@ const OVERPRICED_SIGNALS = [
   'Customer doesn\'t answer',
   'Too many movers received it',
   'Move details are incomplete',
-  'Small move size',
   'Customer is not ready to move',
   'Wrong service area',
-  'Move date is too far away',
   'Request delivered too slowly',
 ];
 const BIDDING_TRIGGERS = [
@@ -131,10 +116,6 @@ const FRUSTRATIONS = [
   'Low-quality requests',
   'Requests delivered too slowly',
   'Paying too much for small jobs',
-  'Customers only shopping for the cheapest quote',
-  'Poor refund handling',
-  'Too much competition',
-  'Requests outside our service area',
 ];
 const RETENTION_DRIVERS = [
   'Customers answer the phone',
@@ -143,8 +124,6 @@ const RETENTION_DRIVERS = [
   'Requests are not overshared',
   'Fast delivery',
   'Better request matching',
-  'Exclusive request options',
-  'Easy refunds for bad requests',
 ];
 
 // ── Step descriptors ────────────────────────────────────────────────────
@@ -152,25 +131,29 @@ const STEPS = [
   { id: 'intro', type: 'intro', nextStep: 'moveTypes' },
 
   { id: 'moveTypes', type: 'multi', field: 'desiredMoveTypes',
-    question: 'Which move requests does your company want most?',
-    helper: 'Pick up to 3.', options: MOVE_TYPES, max: 3,
+    question: 'What jobs do your crews run most?',
+    helper: 'Pick up to 3 — the type of work you actually want more of.',
+    options: MOVE_TYPES, max: 3,
     nextStep: 'jobSizes' },
 
   { id: 'jobSizes', type: 'multi', field: 'preferredJobSizes',
-    question: 'Which jobs fit your crews best?',
+    question: 'What size jobs fit your crews?',
+    helper: 'The jobs you can handle without thinking twice.',
     options: JOB_SIZES, nextStep: 'valueSignals' },
 
   { id: 'valueSignals', type: 'multi', field: 'valueSignals',
-    question: 'What makes a request worth jumping on?',
+    question: 'What makes your dispatch team jump on a request immediately?',
+    helper: 'Pick what actually moves the needle for your crews.',
     options: VALUE_SIGNALS, nextStep: 'confirmations' },
 
   { id: 'confirmations', type: 'multi', field: 'requiredConfirmations',
-    question: 'Before a request reaches your dispatch team, what should already be confirmed?',
+    question: 'What should already be locked in before a request hits your team?',
+    helper: 'The basics that save dispatch from chasing the customer.',
     options: REQUIRED_CONFIRMATIONS, nextStep: 'sharedOrExclusive' },
 
   { id: 'sharedOrExclusive', type: 'single', field: 'sharedExclusivePreference',
-    question: 'Shared or exclusive requests?',
-    helper: 'Pick what your company usually prefers.',
+    question: 'Shared or exclusive — how does your company prefer to buy?',
+    helper: 'No wrong answer. We\'re figuring out the right balance.',
     options: [
       { value: 'shared',    label: 'Lower-cost shared requests' },
       { value: 'exclusive', label: 'Higher-cost exclusive requests' },
@@ -183,37 +166,41 @@ const STEPS = [
     } },
 
   { id: 'sharedConditions', type: 'multi', field: 'sharedAcceptableConditions',
-    question: 'When are shared requests acceptable for your company?',
+    question: 'When is sharing OK?',
+    helper: 'Pick everything that fits how your team thinks about it.',
     options: SHARED_ACCEPTABLE_CONDITIONS, nextStep: 'sharedMaxMovers' },
 
   { id: 'sharedMaxMovers', type: 'single', field: 'sharedMaxMovers',
-    question: 'How many movers should receive the same request?',
+    question: 'How many movers max should see the same request?',
     options: SHARED_MAX_MOVERS.map(v => ({ value: v, label: v })),
     nextStep: 'priorityScenario' },
 
   { id: 'exclusiveTriggers', type: 'multi', field: 'exclusiveTriggers',
-    question: 'Which requests are worth paying more for exclusively?',
+    question: 'Which requests are worth paying more to get exclusively?',
     options: EXCLUSIVE_TRIGGERS, nextStep: 'priorityScenario' },
 
   { id: 'dependsTriggers', type: 'multi', field: 'exclusiveTriggersDepends',
-    question: 'Which requests should stay exclusive?',
+    question: 'Which requests should always stay exclusive?',
     options: EXCLUSIVE_TRIGGERS_DEPENDS, nextStep: 'priorityScenario' },
 
   { id: 'priorityScenario', type: 'cards', field: 'priorityScenario',
-    question: 'Which request would your dispatch team jump on first?',
+    question: 'Which request would your dispatch grab first?',
+    helper: 'Pretend all three landed in your inbox right now.',
     options: SCENARIOS, nextStep: 'speedExpectation' },
 
   { id: 'speedExpectation', type: 'single', field: 'speedExpectation',
-    question: 'When does speed matter most?',
-    helper: 'After a customer submits a request, when does it feel critical to act?',
+    question: 'How fast does your team need to hit a fresh request?',
+    helper: 'After the customer submits — when does it matter most?',
     options: SPEED_OPTIONS, nextStep: 'overpricedSignals' },
 
   { id: 'overpricedSignals', type: 'multi', field: 'overpricedSignals',
-    question: 'What usually makes a request feel overpriced?',
+    question: 'What makes a request feel like a waste of credits?',
+    helper: 'Pick what kills the deal for your crews.',
     options: OVERPRICED_SIGNALS, nextStep: 'marketplacePref' },
 
   { id: 'marketplacePref', type: 'single', field: 'marketplacePreference',
-    question: 'How should premium requests be handled?',
+    question: 'How would you want premium requests handled?',
+    helper: 'What feels fair and profitable for your operation?',
     options: [
       { value: 'mostly_exclusive', label: 'Mostly exclusive requests' },
       { value: 'mostly_shared',    label: 'Mostly shared requests' },
@@ -223,11 +210,13 @@ const STEPS = [
     nextStep: (a) => a.marketplacePreference === 'bidding' ? 'biddingTriggers' : 'brokerExperience' },
 
   { id: 'biddingTriggers', type: 'multi', field: 'biddingTriggers',
-    question: 'Which requests would movers compete hardest for?',
+    question: 'Which requests would your team actually fight for?',
+    helper: 'Where competing makes sense.',
     options: BIDDING_TRIGGERS, nextStep: 'brokerExperience' },
 
   { id: 'brokerExperience', type: 'single', field: 'leadProviderExperience',
-    question: 'Have you worked with lead providers or moving brokers before?',
+    question: 'Have you bought leads or worked with a broker before?',
+    helper: 'Honest is best — we won\'t sell you anything based on this.',
     options: [
       { value: 'regularly',    label: 'Yes, regularly' },
       { value: 'occasionally', label: 'Yes, occasionally' },
@@ -241,23 +230,25 @@ const STEPS = [
     } },
 
   { id: 'brokerFrustrations', type: 'multi', field: 'leadProviderFrustrations',
-    question: 'What frustrations have you had with lead providers or brokers?',
+    question: 'Where do lead providers usually let movers down?',
+    helper: 'Pick everything you\'ve actually run into.',
     options: FRUSTRATIONS, nextStep: 'platformWish' },
 
   { id: 'platformWish', type: 'textarea', field: 'platformWish',
-    question: 'What do you wish moving request platforms did better?',
-    helper: 'Optional — anything that would help your dispatch team.',
+    question: 'If you could fix one thing about lead providers, what would it be?',
+    helper: 'Optional — every answer here shapes how we route requests.',
     placeholder: 'Share anything that comes to mind…',
     optional: true, nextStep: 'retentionDrivers' },
 
   { id: 'retentionDrivers', type: 'multi', field: 'retentionDrivers',
-    question: 'What would keep you buying requests from the same platform?',
-    helper: 'Pick up to 3.', options: RETENTION_DRIVERS, max: 3,
+    question: 'What would keep your company buying from us long-term?',
+    helper: 'Pick up to 3 — the things that actually keep movers loyal.',
+    options: RETENTION_DRIVERS, max: 3,
     nextStep: 'biggestProblem' },
 
   { id: 'biggestProblem', type: 'textarea', field: 'biggestProblem',
-    question: 'What\'s the biggest problem you face with move requests today?',
-    helper: 'Optional — be as candid as you\'d like.',
+    question: 'What\'s the biggest headache your crews face with move requests today?',
+    helper: 'Optional — be as honest as you\'d like.',
     placeholder: 'Share anything that comes to mind…',
     optional: true, nextStep: 'contact' },
 
@@ -609,8 +600,8 @@ function ContinueBar({ disabled, onClick, label = 'Continue', secondary }) {
 function IntroStep({ answers, setField, onAdvance, canContinue }) {
   return (
     <>
-      <h1 className="fm-question">Tell us about your crew</h1>
-      <p className="fm-helper">Founding access for the first movers in your market.</p>
+      <h1 className="fm-question">First, who are we talking to?</h1>
+      <p className="fm-helper">Three quick fields and we'll get straight to the questions.</p>
 
       <div className="fm-stack">
         <input
@@ -836,8 +827,8 @@ function DoneStep() {
     <>
       <h1 className="fm-question">You're on the founding partner list</h1>
       <p className="fm-helper">
-        Your feedback helps us improve request quality, matching, routing, and pricing
-        fairness before opening more markets.
+        Your answers help us improve request quality, matching, and pricing — before we
+        open more markets.
       </p>
 
       <ul className="fm-trust">

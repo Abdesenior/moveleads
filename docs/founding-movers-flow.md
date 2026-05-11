@@ -2,12 +2,14 @@
 
 Public funnel at `/founding-movers`. One question per step after the intro. No auto-advance — every selection requires Continue. Branching logic noted inline. Email + phone collected at the end as a reward-unlock moment, not upfront.
 
+**Tone:** dispatch-native, operational, confident. We talk to dispatchers and owners, not "users." We use *crews / requests / jobs / routes*, not *leads / users / features*.
+
 ---
 
 ## Step 1 — Intro (the only multi-field step)
 
-**Heading:** Tell us about your crew
-**Subhead:** Founding access for the first movers in your market.
+**Heading:** First, who are we talking to?
+**Subhead:** Three quick fields and we'll get straight to the questions.
 
 Three stacked text inputs (all required before Continue enables):
 
@@ -21,16 +23,14 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 2 — Move types
 
-**Heading:** Which move requests does your company want most?
-**Helper:** Pick up to 3.
+**Heading:** What jobs do your crews run most?
+**Helper:** Pick up to 3 — the type of work you actually want more of.
 **Type:** Multi-select cards (max 3)
 
 - Local residential moves
 - Long-distance moves
 - Office / commercial moves
 - Same-day / urgent moves
-- Large house moves
-- Apartment / small moves
 
 **CTA:** Continue →
 
@@ -38,16 +38,14 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 3 — Job sizes
 
-**Heading:** Which jobs fit your crews best?
-**Type:** Multi-select cards (no max)
+**Heading:** What size jobs fit your crews?
+**Helper:** The jobs you can handle without thinking twice.
+**Type:** Multi-select cards
 
 - Studio / 1-bedroom
 - 2-bedroom
 - 3-bedroom
 - 4+ bedroom
-- Small house moves
-- Medium house moves
-- Large house moves
 - Office / commercial
 - Specialty-item moves
 
@@ -57,18 +55,14 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 4 — Value signals
 
-**Heading:** What makes a request worth jumping on?
+**Heading:** What makes your dispatch team jump on a request immediately?
+**Helper:** Pick what actually moves the needle for your crews.
 **Type:** Multi-select cards
 
 - Customer answers the phone
 - Move date is close
-- Pickup and delivery details are clear
 - Inventory is explained properly
 - Customer sounds serious about moving
-- Long-distance route
-- Large move size
-- Commercial move
-- Heavy / specialty items
 - Request reaches us quickly
 - Exclusive access to the request
 
@@ -78,7 +72,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 5 — Confirmations
 
-**Heading:** Before a request reaches your dispatch team, what should already be confirmed?
+**Heading:** What should already be locked in before a request hits your team?
+**Helper:** The basics that save dispatch from chasing the customer.
 **Type:** Multi-select cards
 
 - Pickup location
@@ -87,9 +82,6 @@ Three stacked text inputs (all required before Continue enables):
 - Move size
 - Inventory / heavy items
 - Customer availability
-- Budget expectations
-- Stairs / elevator access
-- Whether the customer is comparing movers
 - Whether the customer is ready to move forward
 
 **CTA:** Continue →
@@ -98,8 +90,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 6 — Shared or exclusive?
 
-**Heading:** Shared or exclusive requests?
-**Helper:** Pick what your company usually prefers.
+**Heading:** Shared or exclusive — how does your company prefer to buy?
+**Helper:** No wrong answer. We're figuring out the right balance.
 **Type:** Single-select cards
 
 - **Lower-cost shared requests** → branches to step 7a
@@ -110,17 +102,16 @@ Three stacked text inputs (all required before Continue enables):
 
 ---
 
-### Step 7a — Shared: acceptable conditions  *(only if step 6 = shared)*
+### Step 7a — Shared: when sharing is OK  *(only if step 6 = shared)*
 
-**Heading:** When are shared requests acceptable for your company?
+**Heading:** When is sharing OK?
+**Helper:** Pick everything that fits how your team thinks about it.
 **Type:** Multi-select cards
 
 - If only a few movers receive the request
 - If the request cost is lower
-- If the move is large enough
 - If the customer is verified
 - If it's a long-distance move
-- If the customer is moving soon
 
 **CTA:** Continue →
 
@@ -128,7 +119,7 @@ Three stacked text inputs (all required before Continue enables):
 
 ### Step 7b — Shared: max movers  *(only if step 6 = shared)*
 
-**Heading:** How many movers should receive the same request?
+**Heading:** How many movers max should see the same request?
 **Type:** Single-select cards
 
 - 2 movers max
@@ -139,31 +130,26 @@ Three stacked text inputs (all required before Continue enables):
 
 ---
 
-### Step 7c — Exclusive: triggers  *(only if step 6 = exclusive)*
+### Step 7c — Exclusive triggers  *(only if step 6 = exclusive)*
 
-**Heading:** Which requests are worth paying more for exclusively?
+**Heading:** Which requests are worth paying more to get exclusively?
 **Type:** Multi-select cards
 
 - Long-distance moves
-- 3+ bedroom moves
 - Commercial jobs
-- Same-day / urgent moves
 - High-intent customers
-- Any well-qualified request
 
 **CTA:** Continue → (then to Step 8)
 
 ---
 
-### Step 7d — Depends: triggers  *(only if step 6 = depends)*
+### Step 7d — Depends triggers  *(only if step 6 = depends)*
 
-**Heading:** Which requests should stay exclusive?
+**Heading:** Which requests should always stay exclusive?
 **Type:** Multi-select cards
 
 - Long-distance moves
-- Large house moves
-- Commercial moves
-- Same-day / urgent requests
+- Commercial jobs
 - High-intent customers
 
 **CTA:** Continue → (then to Step 8)
@@ -172,18 +158,24 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 8 — Priority scenario
 
-**Heading:** Which request would your dispatch team jump on first?
-**Type:** Single-select large cards (label + bullet details)
+**Heading:** Which request would your dispatch grab first?
+**Helper:** Pretend all three landed in your inbox right now.
+**Type:** Single-select large cards (3 cards, label + detail bullets)
 
-- **Verified 2-bedroom local move**
-  - Shared with 2 movers
-  - Customer moving this week
-- **Exclusive 4-bedroom long-distance move**
-  - Customer ready to move within 7 days
-- **Verified same-day local move**
-  - Customer ready to book quickly
-- **Commercial office relocation**
-  - Flexible timeline
+**Card 1 — Exclusive 4-bedroom long-distance move**
+- Houston → Denver, customer ready within 7 days
+- Yours alone — no other movers see it
+- Verified, high-intent
+
+**Card 2 — Verified same-day local move**
+- Customer needs trucks today
+- Phone-verified, ready to book
+- Shared with one other crew
+
+**Card 3 — Commercial office relocation**
+- Mid-size office, weekend timeline
+- Decision-maker already on the call
+- Exclusive request
 
 **CTA:** Continue →
 
@@ -191,8 +183,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 9 — Speed expectation
 
-**Heading:** When does speed matter most?
-**Helper:** After a customer submits a request, when does it feel critical to act?
+**Heading:** How fast does your team need to hit a fresh request?
+**Helper:** After the customer submits — when does it matter most?
 **Type:** Single-select cards
 
 - First 5 minutes
@@ -206,16 +198,15 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 10 — Overpriced signals
 
-**Heading:** What usually makes a request feel overpriced?
+**Heading:** What makes a request feel like a waste of credits?
+**Helper:** Pick what kills the deal for your crews.
 **Type:** Multi-select cards
 
 - Customer doesn't answer
 - Too many movers received it
 - Move details are incomplete
-- Small move size
 - Customer is not ready to move
 - Wrong service area
-- Move date is too far away
 - Request delivered too slowly
 
 **CTA:** Continue →
@@ -224,13 +215,14 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 11 — Marketplace preference
 
-**Heading:** How should premium requests be handled?
+**Heading:** How would you want premium requests handled?
+**Helper:** What feels fair and profitable for your operation?
 **Type:** Single-select cards
 
-- **Mostly exclusive requests** → branches to step 13
-- **Mostly shared requests** → branches to step 13
-- **Mix of both depending on the move** → branches to step 13
-- **Bidding for premium requests** → branches to step 12
+- **Mostly exclusive requests** → step 13
+- **Mostly shared requests** → step 13
+- **Mix of both depending on the move** → step 13
+- **Bidding for premium requests** → step 12
 
 **CTA:** Continue →
 
@@ -238,7 +230,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ### Step 12 — Bidding triggers  *(only if step 11 = bidding)*
 
-**Heading:** Which requests would movers compete hardest for?
+**Heading:** Which requests would your team actually fight for?
+**Helper:** Where competing makes sense.
 **Type:** Multi-select cards
 
 - Long-distance moves
@@ -254,13 +247,14 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 13 — Broker experience
 
-**Heading:** Have you worked with lead providers or moving brokers before?
+**Heading:** Have you bought leads or worked with a broker before?
+**Helper:** Honest is best — we won't sell you anything based on this.
 **Type:** Single-select cards
 
-- **Yes, regularly** → branches to step 14a
-- **Yes, occasionally** → branches to step 14a
-- **No, but we're interested** → branches to step 15 (skips 14a + 14b)
-- **No** → branches to step 15 (skips 14a + 14b)
+- **Yes, regularly** → step 14a
+- **Yes, occasionally** → step 14a
+- **No, but we're interested** → step 15
+- **No** → step 15
 
 **CTA:** Continue →
 
@@ -268,7 +262,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ### Step 14a — Broker frustrations  *(only if step 13 = regularly or occasionally)*
 
-**Heading:** What frustrations have you had with lead providers or brokers?
+**Heading:** Where do lead providers usually let movers down?
+**Helper:** Pick everything you've actually run into.
 **Type:** Multi-select cards
 
 - Requests sent to too many movers
@@ -277,22 +272,18 @@ Three stacked text inputs (all required before Continue enables):
 - Low-quality requests
 - Requests delivered too slowly
 - Paying too much for small jobs
-- Customers only shopping for the cheapest quote
-- Poor refund handling
-- Too much competition
-- Requests outside our service area
 
 **CTA:** Continue →
 
 ---
 
-### Step 14b — Platform wish *(only if step 13 = regularly or occasionally)*
+### Step 14b — Platform wish  *(only if step 13 = regularly or occasionally)*
 
-**Heading:** What do you wish moving request platforms did better?
-**Helper:** Optional — anything that would help your dispatch team.
+**Heading:** If you could fix one thing about lead providers, what would it be?
+**Helper:** Optional — every answer here shapes how we route requests.
 **Type:** Free text (textarea, optional)
 
-**Placeholder:** Share anything that comes to mind…
+**Placeholder:** Be as direct as you'd like…
 
 **Actions:** Skip → or Continue →
 
@@ -300,8 +291,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 15 — Retention drivers
 
-**Heading:** What would keep you buying requests from the same platform?
-**Helper:** Pick up to 3.
+**Heading:** What would keep your company buying from us long-term?
+**Helper:** Pick up to 3 — the things that actually keep movers loyal.
 **Type:** Multi-select cards (max 3)
 
 - Customers answer the phone
@@ -310,8 +301,6 @@ Three stacked text inputs (all required before Continue enables):
 - Requests are not overshared
 - Fast delivery
 - Better request matching
-- Exclusive request options
-- Easy refunds for bad requests
 
 **CTA:** Continue →
 
@@ -319,8 +308,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 16 — Biggest problem (optional)
 
-**Heading:** What's the biggest problem you face with move requests today?
-**Helper:** Optional — be as candid as you'd like.
+**Heading:** What's the biggest headache your crews face with move requests today?
+**Helper:** Optional — be as honest as you'd like.
 **Type:** Free text (textarea, optional)
 
 **Actions:** Skip → or Continue →
@@ -348,7 +337,7 @@ On submit → POST `/api/founding-movers/submit` → advance to Step 18.
 ## Step 18 — Thank you (terminal)
 
 **Heading:** You're on the founding partner list
-**Subhead:** Your feedback helps us improve request quality, matching, routing, and pricing fairness before opening more markets.
+**Subhead:** Your answers help us improve request quality, matching, and pricing — before we open more markets.
 
 **Three checkmark bullets:**
 
@@ -381,6 +370,41 @@ No CTA. Soft outbound link back to `moveleads.cloud` if natural.
 | Fastest | depends + no broker history + no bidding | 14 |
 | Typical | exclusive + yes broker | 17 |
 | Maximum | shared + yes broker + bidding | 20 |
+
+---
+
+## Copy guardrails (what every step does to tone)
+
+The funnel must read like a conversation with someone who *runs* a moving company. Quick check before shipping any copy change:
+
+- ✅ "What makes your dispatch team jump on a request immediately?"
+- ❌ "What features do you value most in a lead?"
+
+- ✅ "What makes a request feel like a waste of credits?"
+- ❌ "Which negative attributes affect lead quality?"
+
+- ✅ "What size jobs fit your crews?"
+- ❌ "What are your preferred move size categories?"
+
+- ✅ "How fast does your team need to hit a fresh request?"
+- ❌ "What is your expected response-time SLA?"
+
+- ✅ "We won't sell you anything based on this."
+- ❌ "This information will not be used for sales purposes."
+
+**Vocabulary swaps applied throughout:**
+
+| Use | Avoid |
+|---|---|
+| crews | users |
+| dispatch / dispatchers | recipients |
+| requests | leads (in user copy; "leads" stays in dev/admin/internal) |
+| jobs | tickets |
+| routes | journeys |
+| customer is ready to move | customer intent score |
+| move date | service window |
+| markets | regions |
+| trucks today | service-day availability |
 
 ---
 
