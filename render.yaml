@@ -62,3 +62,32 @@ services:
       # Emails are sent from no-reply@moveleads.cloud.
       - key: RESEND_API_KEY
         sync: false
+
+      # ── Twilio signature URL ─────────────────────────────────────────────
+      # CRITICAL: the inbound voice + SMS webhooks build the URL passed to
+      # `validateRequest` from this env. If unset, the fallback resolves to
+      # https://moveleads.cloud which never matches the actual POST URL
+      # (https://api.moveleads.cloud), so EVERY Twilio signature check 403s.
+      - key: SERVER_URL
+        value: https://api.moveleads.cloud
+
+      # ── Auction settlement cron secret ───────────────────────────────────
+      # POST /api/bids/:leadId/settle is gated by `requireCronSecret`. The
+      # cron POSTs with header `x-cron-secret: <this value>`. Generate a
+      # long random string in Render dashboard.
+      - key: CRON_SECRET
+        sync: false
+
+      # ── Cloudflare image generation ──────────────────────────────────────
+      # /api/images/generate/:type returns 503 if either is missing.
+      - key: CF_API_TOKEN
+        sync: false
+      - key: CF_ACCOUNT_ID
+        sync: false
+
+      # ── Abstract API phone validation ────────────────────────────────────
+      # CRITICAL: without this, real lead phone numbers cannot be verified
+      # and the lead-ingest path will reject leads as PENDING_MANUAL_REVIEW
+      # (production guard). Set in Render dashboard.
+      - key: ABSTRACT_API_KEY
+        sync: false

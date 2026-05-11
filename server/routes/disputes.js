@@ -119,8 +119,21 @@ router.post('/admin/:id/resolve', [auth, admin], async (req, res) => {
       const session = await mongoose.startSession();
       try {
         await session.withTransaction(async () => {
-          const purchase = await PurchasedLead.findById(claimed.purchasedLead).session(session);
-          if (!purchase) throw new Error('Purchase record missing');
+          // Atomic claim on PurchasedLead.refunded — same gate the admin
+          // refund route + voice auto-refund + lead-delete cascade use.
+          // Cross-path mutual exclusion: if any other path already credited
+          // this purchase, the findOneAndUpdate returns null and we skip
+          // the balance increment + Transaction insert. Prevents the
+          // dispute-approve + admin-refund double-credit vector.
+          const purchase = await PurchasedLead.findOneAndUpdate(
+            { _id: claimed.purchasedLead, refunded: { $ne: true } },
+            { $set: { refunded: true, refundedAt: new Date(), refundedBy: req.user.id } },
+            { new: true, session }
+          );
+          if (!purchase) {
+            console.log(`[Disputes] purchase ${claimed.purchasedLead} already refunded by another path — skipping credit.`);
+            return;
+          }
 
           await User.findByIdAndUpdate(
             claimed.company,
@@ -134,6 +147,7 @@ router.post('/admin/:id/resolve', [auth, admin], async (req, res) => {
             amount: purchase.pricePaid,
             description: `Refund for disputed lead: ${claimed.lead}`,
             lead: claimed.lead,
+            purchasedLead: purchase._id,
             status: 'Completed'
           });
           await transaction.save({ session });

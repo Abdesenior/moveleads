@@ -22,6 +22,20 @@ const twilioClient = accountSid && authToken ? twilio(accountSid, authToken) : n
 // Abstract API — used for phone number validation
 const ABSTRACT_API_KEY = process.env.ABSTRACT_API_KEY;
 
+// Production-safety guard. In dev or with explicit `testMode`, leads can
+// mock-pass verification (saves cost + lets local development work). In
+// production, missing ABSTRACT_API_KEY MUST NOT silently auto-pass every
+// lead as READY_FOR_DISTRIBUTION — that would distribute unverified phone
+// numbers (potentially VOIP / fraud) to paying movers. Surface the
+// misconfiguration at boot AND fall back to PENDING_MANUAL_REVIEW at
+// verify-time below.
+if (process.env.NODE_ENV === 'production' && !ABSTRACT_API_KEY) {
+  console.error(
+    '[twilioService] CRITICAL: NODE_ENV=production but ABSTRACT_API_KEY is unset. ' +
+    'Incoming leads will be routed to PENDING_MANUAL_REVIEW until the env var is set.'
+  );
+}
+
 const LOOKUP_TIMEOUT_MS = 5000;
 
 // ── TCPA / cost-cap constants (Phase 1 / Block E.2) ────────────────────────
@@ -259,7 +273,22 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
 
     console.log(`[PhoneVerify] Starting for lead ${leadId} (${lead.customerPhone})`);
 
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev  = process.env.NODE_ENV === 'development';
+    const isProd = process.env.NODE_ENV === 'production';
+
+    // ── Production safety: refuse to mock-pass when no API key is configured.
+    //    A missing ABSTRACT_API_KEY in prod is a misconfiguration that would
+    //    otherwise auto-distribute every (potentially VOIP / fraudulent)
+    //    lead to paying movers. Route to manual-review instead so an admin
+    //    can recover them once the env is fixed.
+    if (isProd && !ABSTRACT_API_KEY) {
+      console.error(`[PhoneVerify] lead ${leadId} → PENDING_MANUAL_REVIEW (ABSTRACT_API_KEY missing in production)`);
+      lead.isVerified   = false;
+      lead.status       = 'PENDING_MANUAL_REVIEW';
+      lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
+      await lead.save();
+      return;
+    }
 
     // ── Mock mode: dev environment or explicit test flag ──────────────────────
     if (!ABSTRACT_API_KEY || isDev || testMode) {
