@@ -68,6 +68,7 @@ const MoverResearchSubmissionSchema = new mongoose.Schema({
   ipAddress:             String,
   userAgent:             String,
   completionTimeSeconds: Number,
+  screensSeen:           { type: Number, default: 0 },
   submittedAt:           { type: Date, default: Date.now, index: true },
 });
 

@@ -489,6 +489,7 @@ export default function FoundingMovers() {
 
         utm: answers.utm,
         completionTimeSeconds,
+        screensSeen: stepHistory.length + 1,
         source: 'founding-movers-v2',
       };
 
@@ -511,7 +512,7 @@ export default function FoundingMovers() {
     } finally {
       setSubmitting(false);
     }
-  }, [answers, stepId, submitting]);
+  }, [answers, stepId, stepHistory, submitting]);
 
   // ── Render ────────────────────────────────────────────────────────────
   const step = STEP_BY_ID[stepId];

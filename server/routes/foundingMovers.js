@@ -47,6 +47,7 @@ router.post('/submit', submitLimiter, async (req, res) => {
       ...body,
       email,
       autoTags,
+      screensSeen: Number(body.screensSeen) || 0,
       ipAddress: req.ip || req.headers['x-forwarded-for'] || '',
       userAgent: req.headers['user-agent'] || '',
       submittedAt: new Date(),

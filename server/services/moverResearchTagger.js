@@ -73,4 +73,33 @@ function generateTags(submission = {}) {
   return Array.from(tags);
 }
 
-module.exports = { generateTags };
+/**
+ * deriveArchetypes — on-the-fly classifier used by the intel/analytics
+ * pipeline. Unlike `generateTags` (which is persisted on each submission
+ * at intake), archetypes are recomputed from the raw fields whenever the
+ * admin dashboard fetches analytics. Adjusting the archetype rules does
+ * not require backfilling the collection.
+ *
+ * Returns a string[] of archetype keys (no duplicates).
+ */
+function deriveArchetypes(s = {}) {
+  const tags = new Set();
+  const dt = asArray(s.desiredMoveTypes);
+  const et = asArray(s.exclusiveTriggers);
+  const vs = asArray(s.valueSignals);
+  const rd = asArray(s.retentionDrivers);
+  const op = asArray(s.overpricedSignals);
+
+  if (s.sharedExclusivePreference === 'exclusive') tags.add('exclusive_first');
+  if (s.sharedExclusivePreference === 'shared' && s.sharedMaxMovers === '4+ movers') tags.add('shared_volume');
+  if (dt.includes('Long-distance moves') || et.includes('Long-distance moves')) tags.add('long_distance_focused');
+  if (dt.includes('Office / commercial moves') || et.includes('Commercial jobs')) tags.add('commercial_focused');
+  if (s.speedExpectation === '5min' || s.speedExpectation === '15min') tags.add('speed_sensitive');
+  if (vs.length >= 4) tags.add('quality_sensitive');
+  if (rd.includes('Fair pricing') || op.length >= 4) tags.add('price_sensitive');
+  if (dt.includes('Local residential moves') && !dt.includes('Long-distance moves')) tags.add('local_focus');
+
+  return Array.from(tags);
+}
+
+module.exports = { generateTags, deriveArchetypes };

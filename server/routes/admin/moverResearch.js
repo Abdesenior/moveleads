@@ -57,74 +57,21 @@ router.get('/', async (req, res) => {
 // GET /api/admin/mover-research/analytics
 // IMPORTANT: this route must be declared BEFORE the /:id route so it
 // isn't swallowed by the ObjectId-shaped param.
+//
+// Query params:
+//   ?state=XX — narrow the corpus to a single state/market before computing
+//               intelligence. Used by the dashboard's state breakdown card.
 router.get('/analytics', async (req, res) => {
   try {
-    const all = await MoverResearchSubmission.find({}).lean();
-    const totalSubmissions = all.length;
-
-    const countBy = (extractor) => {
-      const map = new Map();
-      for (const doc of all) {
-        const vals = extractor(doc);
-        for (const v of vals) {
-          if (!v) continue;
-          map.set(v, (map.get(v) || 0) + 1);
-        }
-      }
-      return Array.from(map.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(([value, count]) => ({ value, count }));
-    };
-
-    const sharedExclusiveBreakdown = countBy(d => [d.sharedExclusivePreference]);
-    const biddingInterested = all.filter(d => Array.isArray(d.autoTags) && d.autoTags.includes('bidding_interested')).length;
-    const biddingInterestedPercent = totalSubmissions ? Math.round((biddingInterested / totalSubmissions) * 100) : 0;
-
-    const topDesiredMoveTypes  = countBy(d => d.desiredMoveTypes  || []).slice(0, 10);
-    const topPreferredJobSizes = countBy(d => d.preferredJobSizes || []).slice(0, 10);
-    const topValueSignals      = countBy(d => d.valueSignals      || []).slice(0, 10);
-    const topOverpricedSignals = countBy(d => d.overpricedSignals || []).slice(0, 10);
-    const topFrustrations      = countBy(d => d.leadProviderFrustrations || []).slice(0, 10);
-    const topRetentionDrivers  = countBy(d => d.retentionDrivers  || []).slice(0, 10);
-    const speedExpectationBreakdown = countBy(d => [d.speedExpectation]);
-    const stateBreakdown = countBy(d => [d.mainStateOrMarket]).slice(0, 20);
-    const topTags = countBy(d => d.autoTags || []).slice(0, 20);
-
-    // Date histogram for the last 30 days
-    const now = new Date();
-    const histogram = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      const next = new Date(d);
-      next.setDate(next.getDate() + 1);
-      const isoDay = d.toISOString().slice(0, 10);
-      const count = all.filter(s => {
-        const t = s.submittedAt ? new Date(s.submittedAt).getTime() : 0;
-        return t >= d.getTime() && t < next.getTime();
-      }).length;
-      histogram.push({ date: isoDay, count });
-    }
-
-    res.json({
-      totalSubmissions,
-      sharedExclusiveBreakdown,
-      biddingInterestedPercent,
-      topDesiredMoveTypes,
-      topPreferredJobSizes,
-      topValueSignals,
-      topOverpricedSignals,
-      topFrustrations,
-      topRetentionDrivers,
-      speedExpectationBreakdown,
-      stateBreakdown,
-      topTags,
-      submissionsLast30Days: histogram,
-    });
+    const { state } = req.query;
+    const baseQuery = state ? { mainStateOrMarket: String(state).toUpperCase().trim() } : {};
+    const submissions = await MoverResearchSubmission.find(baseQuery).lean();
+    const { computeIntel } = require('../../services/moverResearchIntel');
+    const intel = computeIntel(submissions);
+    res.json(intel);
   } catch (err) {
     console.error('[AdminMoverResearch] analytics error', err);
-    res.status(500).json({ msg: 'Could not load analytics.' });
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
@@ -227,6 +174,39 @@ router.get('/:id', async (req, res) => {
     }
     console.error('[AdminMoverResearch] detail error', err);
     res.status(500).json({ msg: 'Could not load submission.' });
+  }
+});
+
+// ─── Delete ───────────────────────────────────────────────────────────────
+//
+// DELETE /api/admin/mover-research/:id
+// Hard-deletes the submission. These are test/research records, not money
+// records, so we don't bother with a soft-delete column. An AdminAction
+// audit row is written so the action is recoverable in an audit trail
+// (best-effort — audit failures don't block the delete).
+router.delete('/:id', async (req, res) => {
+  try {
+    const doc = await MoverResearchSubmission.findById(req.params.id).lean();
+    if (!doc) return res.status(404).json({ msg: 'Not found' });
+    await MoverResearchSubmission.deleteOne({ _id: req.params.id });
+    try {
+      const { logAdminAction } = require('../../utils/auditLog');
+      logAdminAction({
+        actor: req.user.id,
+        action: 'mover_research.delete',
+        targetType: 'mover_research',
+        targetId: doc._id,
+        before: { email: doc.email, companyName: doc.companyName, submittedAt: doc.submittedAt },
+        after: null,
+      });
+    } catch (_e) { /* audit failure shouldn't block */ }
+    res.json({ ok: true });
+  } catch (err) {
+    if (err && err.name === 'CastError') {
+      return res.status(404).json({ msg: 'Not found' });
+    }
+    console.error('[AdminMoverResearch] delete error', err);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
