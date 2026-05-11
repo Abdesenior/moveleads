@@ -2,166 +2,282 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import './FoundingMovers.css';
 
 // ── API base ─────────────────────────────────────────────────────────────
-// Mirror the AuthContext convention so we work the same in dev + prod
-// without coupling this public page to the AuthProvider.
 const RAW_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_URL = RAW_BASE.endsWith('/api') ? RAW_BASE : `${RAW_BASE}/api`;
 
 // ── Storage key / TTL ────────────────────────────────────────────────────
-const STORAGE_KEY = 'ml_founder_form_v1';
+const STORAGE_KEY = 'ml_founder_v2';
 const STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-// ── Option catalogues ────────────────────────────────────────────────────
-// Centralised so each step renders from a single source of truth.
+// ── Option catalogues ───────────────────────────────────────────────────
 const MOVE_TYPES = [
-  'Local moves (under 50 miles)',
+  'Local residential moves',
   'Long-distance moves',
+  'Office / commercial moves',
   'Same-day / urgent moves',
   'Large house moves',
   'Apartment / small moves',
-  'Office / commercial moves',
-  'Packing-only / labor-only jobs',
 ];
 const JOB_SIZES = [
-  'Studio / 1 bedroom',
-  '2 bedroom',
-  '3 bedroom',
+  'Studio / 1-bedroom',
+  '2-bedroom',
+  '3-bedroom',
   '4+ bedroom',
+  'Small house moves',
+  'Medium house moves',
   'Large house moves',
   'Office / commercial',
-  'Packing labor only',
+  'Specialty-item moves',
 ];
 const VALUE_SIGNALS = [
   'Customer answers the phone',
-  'Verified phone number',
-  'Verified email',
-  'Realistic budget range stated',
-  'Confirmed move date',
-  'Confirmed inventory / home size',
-  'Customer requested a quote in the last 48h',
-  'No history of refund disputes',
+  'Move date is close',
+  'Pickup and delivery details are clear',
+  'Inventory is explained properly',
+  'Customer sounds serious about moving',
+  'Long-distance route',
+  'Large move size',
+  'Commercial move',
+  'Heavy / specialty items',
+  'Request reaches us quickly',
+  'Exclusive access to the request',
 ];
 const REQUIRED_CONFIRMATIONS = [
+  'Pickup location',
+  'Delivery location',
   'Move date',
-  'Origin address / ZIP',
-  'Destination address / ZIP',
-  'Home / inventory size',
-  'Budget range',
-  'Best time to call',
+  'Move size',
+  'Inventory / heavy items',
+  'Customer availability',
+  'Budget expectations',
+  'Stairs / elevator access',
+  'Whether the customer is comparing movers',
+  'Whether the customer is ready to move forward',
 ];
 const SHARED_ACCEPTABLE_CONDITIONS = [
-  'Capped to 2 movers max',
-  'Lower price per request',
-  'Customer requested multiple quotes',
-  'Refund if first to call books the job',
-  'Never — I always prefer exclusive',
+  'If only a few movers receive the request',
+  'If the request cost is lower',
+  'If the move is large enough',
+  'If the customer is verified',
+  'If it\'s a long-distance move',
+  'If the customer is moving soon',
 ];
-const SHARED_MAX_MOVERS = [
-  '2 movers max',
-  '3 movers max',
-  '4+ movers',
-];
+const SHARED_MAX_MOVERS = ['2 movers max', '3 movers max', '4+ movers'];
 const EXCLUSIVE_TRIGGERS = [
   'Long-distance moves',
-  'Large house moves (3+ bedroom)',
-  'Office / commercial moves',
+  '3+ bedroom moves',
+  'Commercial jobs',
   'Same-day / urgent moves',
-  'High-value or premium jobs',
-  'Any verified phone-confirmed request',
+  'High-intent customers',
+  'Any well-qualified request',
 ];
 const EXCLUSIVE_TRIGGERS_DEPENDS = [
-  'Price difference between shared and exclusive',
-  'Time of day request comes in',
-  'Distance from my main service area',
-  'Whether customer has been called recently',
+  'Long-distance moves',
+  'Large house moves',
+  'Commercial moves',
+  'Same-day / urgent requests',
+  'High-intent customers',
 ];
 const SCENARIOS = [
   {
     id: 'verified_2br_local_shared',
-    title: 'Verified 2BR local move — shared with 2 movers',
-    desc: 'Phone-confirmed, today, 12 miles away. Sent to you and 1 other mover.',
+    label: 'Verified 2-bedroom local move',
+    details: ['Shared with 2 movers', 'Customer moving this week'],
   },
   {
     id: 'exclusive_4br_long_distance',
-    title: 'Exclusive 4BR long-distance move',
-    desc: 'Sent only to you. 850 miles, move in 3 weeks.',
+    label: 'Exclusive 4-bedroom long-distance move',
+    details: ['Customer ready to move within 7 days'],
   },
   {
     id: 'verified_same_day_local',
-    title: 'Verified same-day local urgent move',
-    desc: 'Customer needs movers in 4 hours. Phone confirmed. Small apartment.',
+    label: 'Verified same-day local move',
+    details: ['Customer ready to book quickly'],
   },
   {
     id: 'commercial_office_relocation',
-    title: 'Commercial office relocation',
-    desc: '15-person office, weekend move, $4-8k range, exclusive.',
+    label: 'Commercial office relocation',
+    details: ['Flexible timeline'],
   },
 ];
+const SPEED_OPTIONS = [
+  { value: '5min',    label: 'First 5 minutes' },
+  { value: '15min',   label: 'First 15 minutes' },
+  { value: '1hour',   label: 'First hour' },
+  { value: 'sameday', label: 'Same day is fine' },
+];
 const OVERPRICED_SIGNALS = [
-  'Customer doesn\'t answer the phone',
-  'Phone number is a landline / VOIP',
-  'Move date is more than 60 days away',
-  'Inventory is vague or missing',
-  'Same lead was offered as shared yesterday',
-  'Distance is well outside my service area',
-  'No budget range provided',
-  'Customer has requested 5+ quotes already',
+  'Customer doesn\'t answer',
+  'Too many movers received it',
+  'Move details are incomplete',
+  'Small move size',
+  'Customer is not ready to move',
+  'Wrong service area',
+  'Move date is too far away',
+  'Request delivered too slowly',
 ];
 const BIDDING_TRIGGERS = [
-  'Premium / luxury jobs',
-  'Long-distance interstate moves',
-  'Office / commercial jobs',
-  'Slow days when I have crew sitting',
-  'Only on exclusive requests',
+  'Long-distance moves',
+  'Large house moves',
+  'Commercial jobs',
+  'Same-day / urgent moves',
+  'Verified high-intent customers',
+  'Specialty-item moves',
 ];
 const FRUSTRATIONS = [
-  'Bad / fake phone numbers',
-  'Sold to too many companies',
-  'No refund policy',
-  'Old / recycled requests',
-  'Prices keep going up',
-  'Hard to reach support',
-  'Wrong service area',
-  'Customer never answers',
-  'Pricing isn\'t transparent',
+  'Requests sent to too many movers',
+  'Fake or unreachable customers',
+  'Wrong move details',
+  'Low-quality requests',
+  'Requests delivered too slowly',
+  'Paying too much for small jobs',
+  'Customers only shopping for the cheapest quote',
+  'Poor refund handling',
+  'Too much competition',
+  'Requests outside our service area',
 ];
 const RETENTION_DRIVERS = [
+  'Customers answer the phone',
+  'Accurate move details',
   'Fair pricing',
-  'High close rate',
+  'Requests are not overshared',
+  'Fast delivery',
+  'Better request matching',
+  'Exclusive request options',
   'Easy refunds for bad requests',
-  'Exclusive requests available',
-  'Verified phone numbers',
-  'Real-time delivery (under 5 min)',
-  'Good support team',
-  'Transparent rules + pricing',
 ];
 
-// ── Steps definition ─────────────────────────────────────────────────────
-// Each entry is a "key" we use to drive logic in renderStep().
-// Sub-steps (e.g. 4a, 4b) live inside the same logical step here as
-// branching is straightforward.
+// ── Step descriptors ────────────────────────────────────────────────────
 const STEPS = [
-  'contact',
-  'crews',
-  'quality',
-  'shared_vs_exclusive',
-  'scenario',
-  'speed_and_pricing',
-  'marketplace',
-  'experience',
-  'retention',
+  { id: 'intro', type: 'intro', nextStep: 'moveTypes' },
+
+  { id: 'moveTypes', type: 'multi', field: 'desiredMoveTypes',
+    question: 'Which move requests does your company want most?',
+    helper: 'Pick up to 3.', options: MOVE_TYPES, max: 3,
+    nextStep: 'jobSizes' },
+
+  { id: 'jobSizes', type: 'multi', field: 'preferredJobSizes',
+    question: 'Which jobs fit your crews best?',
+    options: JOB_SIZES, nextStep: 'valueSignals' },
+
+  { id: 'valueSignals', type: 'multi', field: 'valueSignals',
+    question: 'What makes a request worth jumping on?',
+    options: VALUE_SIGNALS, nextStep: 'confirmations' },
+
+  { id: 'confirmations', type: 'multi', field: 'requiredConfirmations',
+    question: 'Before a request reaches your dispatch team, what should already be confirmed?',
+    options: REQUIRED_CONFIRMATIONS, nextStep: 'sharedOrExclusive' },
+
+  { id: 'sharedOrExclusive', type: 'single', field: 'sharedExclusivePreference',
+    question: 'Shared or exclusive requests?',
+    helper: 'Pick what your company usually prefers.',
+    options: [
+      { value: 'shared',    label: 'Lower-cost shared requests' },
+      { value: 'exclusive', label: 'Higher-cost exclusive requests' },
+      { value: 'depends',   label: 'Depends on the move' },
+    ],
+    nextStep: (a) => {
+      if (a.sharedExclusivePreference === 'shared')    return 'sharedConditions';
+      if (a.sharedExclusivePreference === 'exclusive') return 'exclusiveTriggers';
+      return 'dependsTriggers';
+    } },
+
+  { id: 'sharedConditions', type: 'multi', field: 'sharedAcceptableConditions',
+    question: 'When are shared requests acceptable for your company?',
+    options: SHARED_ACCEPTABLE_CONDITIONS, nextStep: 'sharedMaxMovers' },
+
+  { id: 'sharedMaxMovers', type: 'single', field: 'sharedMaxMovers',
+    question: 'How many movers should receive the same request?',
+    options: SHARED_MAX_MOVERS.map(v => ({ value: v, label: v })),
+    nextStep: 'priorityScenario' },
+
+  { id: 'exclusiveTriggers', type: 'multi', field: 'exclusiveTriggers',
+    question: 'Which requests are worth paying more for exclusively?',
+    options: EXCLUSIVE_TRIGGERS, nextStep: 'priorityScenario' },
+
+  { id: 'dependsTriggers', type: 'multi', field: 'exclusiveTriggersDepends',
+    question: 'Which requests should stay exclusive?',
+    options: EXCLUSIVE_TRIGGERS_DEPENDS, nextStep: 'priorityScenario' },
+
+  { id: 'priorityScenario', type: 'cards', field: 'priorityScenario',
+    question: 'Which request would your dispatch team jump on first?',
+    options: SCENARIOS, nextStep: 'speedExpectation' },
+
+  { id: 'speedExpectation', type: 'single', field: 'speedExpectation',
+    question: 'When does speed matter most?',
+    helper: 'After a customer submits a request, when does it feel critical to act?',
+    options: SPEED_OPTIONS, nextStep: 'overpricedSignals' },
+
+  { id: 'overpricedSignals', type: 'multi', field: 'overpricedSignals',
+    question: 'What usually makes a request feel overpriced?',
+    options: OVERPRICED_SIGNALS, nextStep: 'marketplacePref' },
+
+  { id: 'marketplacePref', type: 'single', field: 'marketplacePreference',
+    question: 'How should premium requests be handled?',
+    options: [
+      { value: 'mostly_exclusive', label: 'Mostly exclusive requests' },
+      { value: 'mostly_shared',    label: 'Mostly shared requests' },
+      { value: 'mixed',            label: 'Mix of both depending on the move' },
+      { value: 'bidding',          label: 'Bidding for premium requests' },
+    ],
+    nextStep: (a) => a.marketplacePreference === 'bidding' ? 'biddingTriggers' : 'brokerExperience' },
+
+  { id: 'biddingTriggers', type: 'multi', field: 'biddingTriggers',
+    question: 'Which requests would movers compete hardest for?',
+    options: BIDDING_TRIGGERS, nextStep: 'brokerExperience' },
+
+  { id: 'brokerExperience', type: 'single', field: 'leadProviderExperience',
+    question: 'Have you worked with lead providers or moving brokers before?',
+    options: [
+      { value: 'regularly',    label: 'Yes, regularly' },
+      { value: 'occasionally', label: 'Yes, occasionally' },
+      { value: 'interested',   label: 'No, but we\'re interested' },
+      { value: 'no',           label: 'No' },
+    ],
+    nextStep: (a) => {
+      const v = a.leadProviderExperience;
+      if (v === 'regularly' || v === 'occasionally') return 'brokerFrustrations';
+      return 'retentionDrivers';
+    } },
+
+  { id: 'brokerFrustrations', type: 'multi', field: 'leadProviderFrustrations',
+    question: 'What frustrations have you had with lead providers or brokers?',
+    options: FRUSTRATIONS, nextStep: 'platformWish' },
+
+  { id: 'platformWish', type: 'textarea', field: 'platformWish',
+    question: 'What do you wish moving request platforms did better?',
+    helper: 'Optional — anything that would help your dispatch team.',
+    placeholder: 'Share anything that comes to mind…',
+    optional: true, nextStep: 'retentionDrivers' },
+
+  { id: 'retentionDrivers', type: 'multi', field: 'retentionDrivers',
+    question: 'What would keep you buying requests from the same platform?',
+    helper: 'Pick up to 3.', options: RETENTION_DRIVERS, max: 3,
+    nextStep: 'biggestProblem' },
+
+  { id: 'biggestProblem', type: 'textarea', field: 'biggestProblem',
+    question: 'What\'s the biggest problem you face with move requests today?',
+    helper: 'Optional — be as candid as you\'d like.',
+    placeholder: 'Share anything that comes to mind…',
+    optional: true, nextStep: 'contact' },
+
+  { id: 'contact', type: 'contact', nextStep: 'done' },
+
+  { id: 'done', type: 'done' },
 ];
 
-const DEFAULT_DATA = {
+const STEP_BY_ID = STEPS.reduce((acc, s) => { acc[s.id] = s; return acc; }, {});
+
+// ── Default answers (full schema-compatible shape) ──────────────────────
+const DEFAULT_ANSWERS = {
+  firstName: '',
   companyName: '',
-  contactName: '',
+  mainStateOrMarket: '',
   email: '',
   phone: '',
-  mainStateOrMarket: '',
 
   desiredMoveTypes: [],
   preferredJobSizes: [],
-
   valueSignals: [],
   requiredConfirmations: [],
 
@@ -182,56 +298,72 @@ const DEFAULT_DATA = {
   leadProviderExperience: '',
   leadProviderFrustrations: [],
   platformWish: '',
-  paidRequestReason: '',
-  trustToTry: '',
 
   retentionDrivers: [],
   biggestProblem: '',
 
-  source: 'founding-movers',
   utm: { source: '', medium: '', campaign: '', term: '', content: '' },
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 function toggleInArr(arr, value, max) {
   if (arr.includes(value)) return arr.filter(v => v !== value);
-  if (typeof max === 'number' && arr.length >= max) return arr; // ignore beyond cap
+  if (typeof max === 'number' && arr.length >= max) return arr;
   return [...arr, value];
 }
-
 function isEmail(s) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
 }
 
+// Estimate total steps based on current branch for smooth progress bar
+function estimateTotal(answers) {
+  let total = 1; // intro
+  total += 4;    // moveTypes, jobSizes, valueSignals, confirmations
+  total += 1;    // sharedOrExclusive
+  if (answers.sharedExclusivePreference === 'shared') total += 2;
+  else total += 1;
+  total += 1;    // priorityScenario
+  total += 1;    // speedExpectation
+  total += 1;    // overpricedSignals
+  total += 1;    // marketplacePref
+  if (answers.marketplacePreference === 'bidding') total += 1;
+  total += 1;    // brokerExperience
+  if (answers.leadProviderExperience === 'regularly' ||
+      answers.leadProviderExperience === 'occasionally') total += 2;
+  total += 1;    // retentionDrivers
+  total += 1;    // biggestProblem
+  total += 1;    // contact
+  return total;
+}
+
 // ── Component ───────────────────────────────────────────────────────────
 export default function FoundingMovers() {
-  const [mode, setMode] = useState('intro');   // 'intro' | 'form' | 'done' | 'already'
-  const [stepIdx, setStepIdx] = useState(0);
+  const [stepId, setStepId] = useState('intro');
+  const [stepHistory, setStepHistory] = useState([]);
+  const [answers, setAnswers] = useState(DEFAULT_ANSWERS);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const startedAtRef = useRef(null);
+  const restoredRef = useRef(false);
 
-  const [data, setData] = useState(DEFAULT_DATA);
-
-  // ── Restore from localStorage on mount ────────────────────────────────
+  // ── Restore from localStorage + UTM capture ───────────────────────────
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.savedAt && (Date.now() - parsed.savedAt) < STORAGE_TTL_MS) {
-          if (parsed.data) setData(prev => ({ ...prev, ...parsed.data }));
-          if (typeof parsed.stepIdx === 'number') setStepIdx(parsed.stepIdx);
-          if (parsed.mode === 'form') setMode('form');
+          if (parsed.answers) setAnswers(prev => ({ ...prev, ...parsed.answers }));
+          if (parsed.stepId && STEP_BY_ID[parsed.stepId]) setStepId(parsed.stepId);
+          if (Array.isArray(parsed.stepHistory)) setStepHistory(parsed.stepHistory);
+          if (parsed.startedAt) startedAtRef.current = parsed.startedAt;
+          restoredRef.current = true;
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
       }
-    } catch (e) {
-      // Corrupted storage — ignore.
-    }
+    } catch {/* corrupted — ignore */}
 
-    // UTM capture
     try {
       const qs = new URLSearchParams(window.location.search);
       const utm = {
@@ -242,96 +374,98 @@ export default function FoundingMovers() {
         content:  qs.get('utm_content')  || '',
       };
       if (Object.values(utm).some(Boolean)) {
-        setData(prev => ({ ...prev, utm: { ...prev.utm, ...utm } }));
+        setAnswers(prev => ({ ...prev, utm: { ...prev.utm, ...utm } }));
       }
     } catch {/* noop */}
   }, []);
 
-  // ── Persist on changes (form mode only) ───────────────────────────────
+  // Persist on changes (skip done state — that should clear)
   useEffect(() => {
-    if (mode !== 'form') return;
+    if (stepId === 'done') return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         savedAt: Date.now(),
-        mode,
-        stepIdx,
-        data,
+        startedAt: startedAtRef.current,
+        stepId, stepHistory, answers,
       }));
-    } catch {/* quota error — ignore */}
-  }, [data, stepIdx, mode]);
+    } catch {/* quota — ignore */}
+  }, [stepId, stepHistory, answers]);
 
-  // ── Single-value setter, returns a closure ─────────────────────────────
-  const setField = useCallback((key, value) => {
-    setData(prev => ({ ...prev, [key]: value }));
+  // Lazy-set startedAt the first time the user leaves intro
+  useEffect(() => {
+    if (!startedAtRef.current && stepId !== 'intro' && stepId !== 'done') {
+      startedAtRef.current = Date.now();
+    }
+  }, [stepId]);
+
+  // Scroll to top on step change
+  useEffect(() => { window.scrollTo(0, 0); }, [stepId]);
+
+  // ── Setters ───────────────────────────────────────────────────────────
+  const setField = useCallback((field, value) => {
+    setAnswers(prev => ({ ...prev, [field]: value }));
+  }, []);
+  const toggleField = useCallback((field, value, max) => {
+    setAnswers(prev => ({ ...prev, [field]: toggleInArr(prev[field] || [], value, max) }));
   }, []);
 
-  const toggleField = useCallback((key, value, max) => {
-    setData(prev => ({ ...prev, [key]: toggleInArr(prev[key] || [], value, max) }));
+  // ── Navigation ────────────────────────────────────────────────────────
+  const advance = useCallback(() => {
+    const step = STEP_BY_ID[stepId];
+    if (!step) return;
+    const next = typeof step.nextStep === 'function' ? step.nextStep(answers) : step.nextStep;
+    if (!next) return;
+    setStepHistory(h => [...h, stepId]);
+    setStepId(next);
+  }, [stepId, answers]);
+
+  const goBack = useCallback(() => {
+    setStepHistory(h => {
+      if (!h.length) return h;
+      const prev = h[h.length - 1];
+      setStepId(prev);
+      return h.slice(0, -1);
+    });
   }, []);
 
-  // ── Start the form ────────────────────────────────────────────────────
-  const startForm = () => {
-    startedAtRef.current = Date.now();
-    setMode('form');
-    setStepIdx(0);
-    window.scrollTo(0, 0);
-  };
-
-  // ── Progress ──────────────────────────────────────────────────────────
-  const progressPct = useMemo(() => {
-    return Math.round(((stepIdx + 1) / STEPS.length) * 100);
-  }, [stepIdx]);
-
-  // ── Step validity ─────────────────────────────────────────────────────
+  // ── Validation per step ───────────────────────────────────────────────
   const canContinue = useMemo(() => {
-    const k = STEPS[stepIdx];
-    switch (k) {
+    const step = STEP_BY_ID[stepId];
+    if (!step) return false;
+    switch (step.type) {
+      case 'intro':
+        return Boolean(
+          answers.firstName.trim() &&
+          answers.companyName.trim() &&
+          answers.mainStateOrMarket.trim()
+        );
+      case 'multi':
+        return (answers[step.field] || []).length > 0;
+      case 'single':
+        return Boolean(answers[step.field]);
+      case 'cards':
+        return Boolean(answers[step.field]);
+      case 'textarea':
+        return true; // optional — skip-or-continue
       case 'contact':
-        return Boolean(data.companyName && isEmail(data.email));
-      case 'crews':
-        return data.desiredMoveTypes.length > 0;
-      case 'quality':
-        return data.valueSignals.length > 0;
-      case 'shared_vs_exclusive':
-        return Boolean(data.sharedExclusivePreference);
-      case 'scenario':
-        return Boolean(data.priorityScenario);
-      case 'speed_and_pricing':
-        return Boolean(data.speedExpectation);
-      case 'marketplace':
-        return Boolean(data.marketplacePreference);
-      case 'experience':
-        return Boolean(data.leadProviderExperience);
-      case 'retention':
-        return data.retentionDrivers.length > 0;
+        return Boolean(isEmail(answers.email) && answers.phone.trim());
       default:
         return true;
     }
-  }, [stepIdx, data]);
+  }, [stepId, answers]);
 
-  // ── Navigation ────────────────────────────────────────────────────────
-  const goBack = () => {
-    if (stepIdx === 0) {
-      setMode('intro');
-      return;
-    }
-    setStepIdx(stepIdx - 1);
-    window.scrollTo(0, 0);
-  };
-
-  const goNext = async () => {
-    if (!canContinue || submitting) return;
-    if (stepIdx < STEPS.length - 1) {
-      setStepIdx(stepIdx + 1);
-      window.scrollTo(0, 0);
-      return;
-    }
-    // Final step — submit
-    await submit();
-  };
+  // ── Progress (smooth) ─────────────────────────────────────────────────
+  const progressPct = useMemo(() => {
+    if (stepId === 'done') return 100;
+    const total = estimateTotal(answers);
+    const idx = stepHistory.length; // current step is idx-th in path
+    const pct = Math.round(((idx + 1) / total) * 100);
+    return Math.min(Math.max(pct, 3), 100);
+  }, [stepId, stepHistory, answers]);
 
   // ── Submit ────────────────────────────────────────────────────────────
-  const submit = async () => {
+  const submit = useCallback(async () => {
+    if (submitting) return;
     setSubmitting(true);
     setErrorMsg('');
     try {
@@ -339,476 +473,384 @@ export default function FoundingMovers() {
         ? Math.round((Date.now() - startedAtRef.current) / 1000)
         : null;
 
-      const payload = { ...data, completionTimeSeconds };
+      const payload = {
+        companyName: answers.companyName,
+        contactName: answers.firstName,
+        email: answers.email,
+        phone: answers.phone,
+        mainStateOrMarket: answers.mainStateOrMarket,
+
+        desiredMoveTypes: answers.desiredMoveTypes,
+        preferredJobSizes: answers.preferredJobSizes,
+        valueSignals: answers.valueSignals,
+        requiredConfirmations: answers.requiredConfirmations,
+
+        sharedExclusivePreference: answers.sharedExclusivePreference,
+        sharedAcceptableConditions: answers.sharedAcceptableConditions,
+        sharedMaxMovers: answers.sharedMaxMovers,
+        exclusiveTriggers: answers.exclusiveTriggers,
+        exclusiveTriggersDepends: answers.exclusiveTriggersDepends,
+
+        priorityScenario: answers.priorityScenario,
+
+        speedExpectation: answers.speedExpectation,
+        overpricedSignals: answers.overpricedSignals,
+
+        marketplacePreference: answers.marketplacePreference,
+        biddingTriggers: answers.biddingTriggers,
+
+        leadProviderExperience: answers.leadProviderExperience,
+        leadProviderFrustrations: answers.leadProviderFrustrations,
+        platformWish: answers.platformWish,
+
+        retentionDrivers: answers.retentionDrivers,
+        biggestProblem: answers.biggestProblem,
+
+        utm: answers.utm,
+        completionTimeSeconds,
+        source: 'founding-movers-v2',
+      };
+
       const res = await fetch(`${API_URL}/founding-movers/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      if (!res.ok && !body.alreadySubmitted) {
         setErrorMsg(body.msg || 'Could not submit. Please try again.');
         setSubmitting(false);
         return;
       }
       try { localStorage.removeItem(STORAGE_KEY); } catch {/* noop */}
-      if (body.alreadySubmitted) setMode('already');
-      else setMode('done');
+      setStepHistory(h => [...h, stepId]);
+      setStepId('done');
     } catch (e) {
       setErrorMsg('Network error. Please try again.');
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [answers, stepId, submitting]);
 
-  // ── Render: intro mode ────────────────────────────────────────────────
-  if (mode === 'intro') {
-    return (
-      <div className="fm-root">
-        <section className="fm-hero">
-          <div className="fm-hero-inner">
-            <span className="fm-eyebrow">
-              <span className="fm-eyebrow-dot" />
-              Founding Mover Program
-            </span>
-            <h1 className="fm-headline">
-              Help us build the moving marketplace <span className="accent">you actually want.</span>
-            </h1>
-            <p className="fm-subheadline">
-              We're hand-picking a small group of moving companies to shape how
-              requests are scored, priced, and delivered. In return: early access
-              and pricing reserved for founding members only.
-            </p>
-            <ul className="fm-trust">
-              <li><span className="fm-trust-check">+</span> Direct input into how requests are matched and priced</li>
-              <li><span className="fm-trust-check">+</span> First access before public launch — locked-in founder rates</li>
-              <li><span className="fm-trust-check">+</span> 7 minutes. No sales call. We review every application personally.</li>
-            </ul>
-            <button type="button" className="fm-cta" onClick={startForm}>
-              Start founder form →
-            </button>
-            <div className="fm-cta-meta">No account required. Your responses stay private.</div>
-          </div>
-        </section>
-      </div>
-    );
-  }
+  // ── Render ────────────────────────────────────────────────────────────
+  const step = STEP_BY_ID[stepId];
+  const showBack = stepId !== 'intro' && stepId !== 'done' && stepHistory.length > 0;
 
-  // ── Render: done ──────────────────────────────────────────────────────
-  if (mode === 'done') {
-    return (
-      <div className="fm-root">
-        <div className="fm-done">
-          <div className="fm-done-icon">✓</div>
-          <h1>You're in.</h1>
-          <p>Thanks for applying to the Founding Mover Program. Here's what happens next:</p>
-          <ul>
-            <li>We review every application personally — usually within 2 business days.</li>
-            <li>If you're a fit, you'll get an email with founder rates and early access.</li>
-            <li>Your responses directly shape how we score, price, and deliver requests.</li>
-          </ul>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Render: already submitted ────────────────────────────────────────
-  if (mode === 'already') {
-    return (
-      <div className="fm-root">
-        <div className="fm-done">
-          <div className="fm-done-icon">✓</div>
-          <h1>You're already on the list.</h1>
-          <p>We've got your application on file. Here's what happens next:</p>
-          <ul>
-            <li>We review every application personally — usually within 2 business days.</li>
-            <li>If you're a fit, you'll get an email with founder rates and early access.</li>
-            <li>Your responses directly shape how we score, price, and deliver requests.</li>
-          </ul>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Render: form mode ────────────────────────────────────────────────
   return (
     <div className="fm-root">
-      <div className="fm-form-shell">
+      {stepId !== 'done' && (
         <div className="fm-progress" aria-hidden="true">
           <div className="fm-progress-bar" style={{ width: `${progressPct}%` }} />
         </div>
-        <div className="fm-form-inner">
-          {renderStep(STEPS[stepIdx], { data, setField, toggleField })}
-          {errorMsg && (
-            <div style={{
-              marginTop: 18, padding: 12, borderRadius: 10,
-              background: '#fef2f2', color: '#991b1b',
-              border: '1px solid #fecaca', fontSize: 14,
-            }}>{errorMsg}</div>
-          )}
-        </div>
-        <div className="fm-footer">
-          <div className="fm-footer-inner">
-            <button type="button" className="fm-back" onClick={goBack}>← Back</button>
-            <button
-              type="button"
-              className="fm-continue"
-              onClick={goNext}
-              disabled={!canContinue || submitting}
-            >
-              {stepIdx === STEPS.length - 1
-                ? (submitting ? 'Sending…' : 'Submit application →')
-                : 'Continue →'}
-            </button>
-          </div>
+      )}
+
+      {showBack && (
+        <button type="button" className="fm-back" onClick={goBack} aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      )}
+
+      <div className="fm-step" key={stepId}>
+        <div className="fm-step-inner">
+          <StepRenderer
+            step={step}
+            answers={answers}
+            setField={setField}
+            toggleField={toggleField}
+            onAdvance={advance}
+            onSubmit={submit}
+            submitting={submitting}
+            errorMsg={errorMsg}
+            canContinue={canContinue}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-// ── Step rendering ──────────────────────────────────────────────────────
-function renderStep(key, ctx) {
-  switch (key) {
-    case 'contact':              return <StepContact {...ctx} />;
-    case 'crews':                return <StepCrews {...ctx} />;
-    case 'quality':              return <StepQuality {...ctx} />;
-    case 'shared_vs_exclusive':  return <StepSharedExclusive {...ctx} />;
-    case 'scenario':             return <StepScenario {...ctx} />;
-    case 'speed_and_pricing':    return <StepSpeedPricing {...ctx} />;
-    case 'marketplace':          return <StepMarketplace {...ctx} />;
-    case 'experience':           return <StepExperience {...ctx} />;
-    case 'retention':            return <StepRetention {...ctx} />;
-    default: return null;
+// ── Step renderer dispatcher ────────────────────────────────────────────
+function StepRenderer(props) {
+  const { step } = props;
+  if (!step) return null;
+  switch (step.type) {
+    case 'intro':    return <IntroStep {...props} />;
+    case 'multi':    return <MultiStep {...props} />;
+    case 'single':   return <SingleStep {...props} />;
+    case 'cards':    return <CardsStep {...props} />;
+    case 'textarea': return <TextareaStep {...props} />;
+    case 'contact':  return <ContactStep {...props} />;
+    case 'done':     return <DoneStep {...props} />;
+    default:         return null;
   }
 }
 
-// ── Reusable choice tile ────────────────────────────────────────────────
-function ChoiceTile({ selected, disabled, onClick, title, desc }) {
+// ── Continue button (shared) ────────────────────────────────────────────
+function ContinueBar({ disabled, onClick, label = 'Continue', secondary }) {
   return (
-    <button
-      type="button"
-      className={`fm-choice${selected ? ' selected' : ''}${disabled ? ' disabled' : ''}`}
-      onClick={disabled ? undefined : onClick}
-      aria-pressed={selected}
-    >
-      <span className="fm-choice-check">✓</span>
-      <span className="fm-choice-body">
-        <span className="fm-choice-title">{title}</span>
-        {desc && <span className="fm-choice-desc">{desc}</span>}
-      </span>
-    </button>
-  );
-}
-
-function MultiChoiceGroup({ options, selected, onToggle, max }) {
-  return (
-    <div className="fm-choices">
-      {options.map(opt => {
-        const isSelected = selected.includes(opt);
-        const capReached = typeof max === 'number' && selected.length >= max && !isSelected;
-        return (
-          <ChoiceTile
-            key={opt}
-            title={opt}
-            selected={isSelected}
-            disabled={capReached}
-            onClick={() => onToggle(opt)}
-          />
-        );
-      })}
+    <div className="fm-actions">
+      {secondary}
+      <button
+        type="button"
+        className="fm-continue"
+        onClick={onClick}
+        disabled={disabled}
+      >
+        {label} →
+      </button>
     </div>
   );
 }
 
-function SingleChoiceGroup({ options, selected, onSelect }) {
+// ── Step: intro (3 stacked fields) ──────────────────────────────────────
+function IntroStep({ answers, setField, onAdvance, canContinue }) {
   return (
-    <div className="fm-choices">
-      {options.map(opt => (
-        <ChoiceTile
-          key={opt.value || opt}
-          title={opt.title || opt}
-          desc={opt.desc}
-          selected={selected === (opt.value || opt)}
-          onClick={() => onSelect(opt.value || opt)}
+    <>
+      <h1 className="fm-question">Tell us about your crew</h1>
+      <p className="fm-helper">Founding access for the first movers in your market.</p>
+
+      <div className="fm-stack">
+        <input
+          className="fm-input"
+          type="text"
+          value={answers.firstName}
+          onChange={e => setField('firstName', e.target.value)}
+          placeholder="First name"
+          autoComplete="given-name"
         />
-      ))}
-    </div>
-  );
-}
-
-// ── Step 1: contact ─────────────────────────────────────────────────────
-function StepContact({ data, setField }) {
-  return (
-    <div>
-      <h2 className="fm-step-title">First, a quick intro</h2>
-      <p className="fm-step-sub">Tell us about your moving company. This is how we'll reach you about founder access.</p>
-
-      <label className="fm-field-label">Company name *</label>
-      <input className="fm-input" value={data.companyName}
-             onChange={e => setField('companyName', e.target.value)}
-             placeholder="Acme Moving Co." />
-
-      <label className="fm-field-label">Your name</label>
-      <input className="fm-input" value={data.contactName}
-             onChange={e => setField('contactName', e.target.value)}
-             placeholder="Full name" />
-
-      <label className="fm-field-label">Best email *</label>
-      <input className="fm-input" type="email" value={data.email}
-             onChange={e => setField('email', e.target.value)}
-             placeholder="you@company.com" />
-
-      <label className="fm-field-label">Phone</label>
-      <input className="fm-input" type="tel" value={data.phone}
-             onChange={e => setField('phone', e.target.value)}
-             placeholder="(555) 123-4567" />
-
-      <label className="fm-field-label">Main state or market</label>
-      <input className="fm-input" value={data.mainStateOrMarket}
-             onChange={e => setField('mainStateOrMarket', e.target.value)}
-             placeholder="e.g. Florida, Dallas TX" />
-    </div>
-  );
-}
-
-// ── Step 2: crews + move types ─────────────────────────────────────────
-function StepCrews({ data, toggleField }) {
-  return (
-    <div>
-      <h2 className="fm-step-title">What kind of moves do you want?</h2>
-      <p className="fm-step-sub">Pick up to 3 move types you'd most like to receive. We'll use this to filter what reaches you.</p>
-
-      <label className="fm-field-label">Desired move types (max 3)</label>
-      <MultiChoiceGroup options={MOVE_TYPES} selected={data.desiredMoveTypes}
-                        onToggle={v => toggleField('desiredMoveTypes', v, 3)} max={3} />
-
-      <label className="fm-field-label" style={{ marginTop: 28 }}>Preferred job sizes</label>
-      <MultiChoiceGroup options={JOB_SIZES} selected={data.preferredJobSizes}
-                        onToggle={v => toggleField('preferredJobSizes', v)} />
-    </div>
-  );
-}
-
-// ── Step 3: request quality ────────────────────────────────────────────
-function StepQuality({ data, toggleField }) {
-  return (
-    <div>
-      <h2 className="fm-step-title">What makes a request worth paying for?</h2>
-      <p className="fm-step-sub">The signals that, when present, would make you confident enough to pay full price for a request.</p>
-
-      <label className="fm-field-label">Value signals</label>
-      <MultiChoiceGroup options={VALUE_SIGNALS} selected={data.valueSignals}
-                        onToggle={v => toggleField('valueSignals', v)} />
-
-      <label className="fm-field-label" style={{ marginTop: 28 }}>What MUST be confirmed before delivery?</label>
-      <MultiChoiceGroup options={REQUIRED_CONFIRMATIONS} selected={data.requiredConfirmations}
-                        onToggle={v => toggleField('requiredConfirmations', v)} />
-    </div>
-  );
-}
-
-// ── Step 4: shared vs exclusive ────────────────────────────────────────
-function StepSharedExclusive({ data, setField, toggleField }) {
-  const pref = data.sharedExclusivePreference;
-  return (
-    <div>
-      <h2 className="fm-step-title">Shared or exclusive — what do you prefer?</h2>
-      <p className="fm-step-sub">Same request sent to a few movers vs. sent only to you. Pick the model you'd buy more of.</p>
-
-      <SingleChoiceGroup
-        options={[
-          { value: 'shared',    title: 'Mostly shared',    desc: 'Lower cost. I\'m fine competing with 1-2 others.' },
-          { value: 'exclusive', title: 'Mostly exclusive', desc: 'Only sent to me. Higher cost, higher close rate.' },
-          { value: 'depends',   title: 'It depends',       desc: 'Depends on the move type, size, or price.' },
-        ]}
-        selected={pref}
-        onSelect={v => setField('sharedExclusivePreference', v)}
-      />
-
-      {pref === 'shared' && (
-        <>
-          <label className="fm-field-label" style={{ marginTop: 28 }}>What conditions make shared acceptable?</label>
-          <MultiChoiceGroup options={SHARED_ACCEPTABLE_CONDITIONS}
-                            selected={data.sharedAcceptableConditions}
-                            onToggle={v => toggleField('sharedAcceptableConditions', v)} />
-
-          <label className="fm-field-label" style={{ marginTop: 28 }}>Max movers per shared request</label>
-          <SingleChoiceGroup options={SHARED_MAX_MOVERS}
-                             selected={data.sharedMaxMovers}
-                             onSelect={v => setField('sharedMaxMovers', v)} />
-        </>
-      )}
-
-      {pref === 'exclusive' && (
-        <>
-          <label className="fm-field-label" style={{ marginTop: 28 }}>Which requests should be exclusive?</label>
-          <MultiChoiceGroup options={EXCLUSIVE_TRIGGERS}
-                            selected={data.exclusiveTriggers}
-                            onToggle={v => toggleField('exclusiveTriggers', v)} />
-        </>
-      )}
-
-      {pref === 'depends' && (
-        <>
-          <label className="fm-field-label" style={{ marginTop: 28 }}>What does it depend on?</label>
-          <MultiChoiceGroup options={EXCLUSIVE_TRIGGERS_DEPENDS}
-                            selected={data.exclusiveTriggersDepends}
-                            onToggle={v => toggleField('exclusiveTriggersDepends', v)} />
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Step 5: scenario card ──────────────────────────────────────────────
-function StepScenario({ data, setField }) {
-  return (
-    <div>
-      <h2 className="fm-step-title">Which of these would you buy first?</h2>
-      <p className="fm-step-sub">If all four landed in your inbox at the same price, which is the one you'd take?</p>
-
-      <div className="fm-scenarios">
-        {SCENARIOS.map(s => (
-          <button
-            key={s.id}
-            type="button"
-            className={`fm-scenario${data.priorityScenario === s.id ? ' selected' : ''}`}
-            onClick={() => setField('priorityScenario', s.id)}
-            aria-pressed={data.priorityScenario === s.id}
-          >
-            <span className="fm-scenario-title">{s.title}</span>
-            <span className="fm-scenario-desc">{s.desc}</span>
-          </button>
-        ))}
+        <input
+          className="fm-input"
+          type="text"
+          value={answers.companyName}
+          onChange={e => setField('companyName', e.target.value)}
+          placeholder="Company name"
+          autoComplete="organization"
+        />
+        <input
+          className="fm-input"
+          type="text"
+          value={answers.mainStateOrMarket}
+          onChange={e => setField('mainStateOrMarket', e.target.value)}
+          placeholder="Main state (e.g., Texas)"
+        />
       </div>
-    </div>
+
+      <ContinueBar disabled={!canContinue} onClick={onAdvance} />
+    </>
   );
 }
 
-// ── Step 6: speed + overpriced signals ─────────────────────────────────
-function StepSpeedPricing({ data, setField, toggleField }) {
+// ── Step: multi-select ──────────────────────────────────────────────────
+function MultiStep({ step, answers, toggleField, onAdvance, canContinue }) {
+  const selected = answers[step.field] || [];
   return (
-    <div>
-      <h2 className="fm-step-title">Speed and pricing</h2>
-      <p className="fm-step-sub">How fast you need requests, and what would make a request feel overpriced to you.</p>
+    <>
+      <h1 className="fm-question">{step.question}</h1>
+      {step.helper && <p className="fm-helper">{step.helper}</p>}
 
-      <label className="fm-field-label">How fast should a fresh request reach you?</label>
-      <SingleChoiceGroup
-        options={[
-          { value: '5min',    title: 'Under 5 minutes',  desc: 'I want it while the customer is still warm.' },
-          { value: '15min',   title: 'Within 15 minutes' },
-          { value: '1hour',   title: 'Within an hour' },
-          { value: 'sameday', title: 'Same day is fine' },
-        ]}
-        selected={data.speedExpectation}
-        onSelect={v => setField('speedExpectation', v)}
+      <div className="fm-choices">
+        {step.options.map(opt => {
+          const isSelected = selected.includes(opt);
+          const capReached = typeof step.max === 'number' && selected.length >= step.max && !isSelected;
+          return (
+            <button
+              key={opt}
+              type="button"
+              className={`fm-choice${isSelected ? ' selected' : ''}${capReached ? ' disabled' : ''}`}
+              onClick={capReached ? undefined : () => toggleField(step.field, opt, step.max)}
+              aria-pressed={isSelected}
+              disabled={capReached}
+            >
+              <span className="fm-choice-label">{opt}</span>
+              <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <ContinueBar disabled={!canContinue} onClick={onAdvance} />
+    </>
+  );
+}
+
+// ── Step: single-select ─────────────────────────────────────────────────
+function SingleStep({ step, answers, setField, onAdvance, canContinue }) {
+  const value = answers[step.field];
+  return (
+    <>
+      <h1 className="fm-question">{step.question}</h1>
+      {step.helper && <p className="fm-helper">{step.helper}</p>}
+
+      <div className="fm-choices">
+        {step.options.map(opt => {
+          const v = opt.value;
+          const label = opt.label;
+          const isSelected = value === v;
+          return (
+            <button
+              key={v}
+              type="button"
+              className={`fm-choice${isSelected ? ' selected' : ''}`}
+              onClick={() => setField(step.field, v)}
+              aria-pressed={isSelected}
+            >
+              <span className="fm-choice-label">{label}</span>
+              <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <ContinueBar disabled={!canContinue} onClick={onAdvance} />
+    </>
+  );
+}
+
+// ── Step: cards (priority scenario) ─────────────────────────────────────
+function CardsStep({ step, answers, setField, onAdvance, canContinue }) {
+  const value = answers[step.field];
+  return (
+    <>
+      <h1 className="fm-question">{step.question}</h1>
+      {step.helper && <p className="fm-helper">{step.helper}</p>}
+
+      <div className="fm-cards">
+        {step.options.map(opt => {
+          const isSelected = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              className={`fm-card${isSelected ? ' selected' : ''}`}
+              onClick={() => setField(step.field, opt.id)}
+              aria-pressed={isSelected}
+            >
+              <div className="fm-card-head">
+                <span className="fm-card-title">{opt.label}</span>
+                <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+              </div>
+              {opt.details && (
+                <ul className="fm-card-bullets">
+                  {opt.details.map((d, i) => <li key={i}>{d}</li>)}
+                </ul>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <ContinueBar disabled={!canContinue} onClick={onAdvance} />
+    </>
+  );
+}
+
+// ── Step: textarea (optional, with Skip) ────────────────────────────────
+function TextareaStep({ step, answers, setField, onAdvance }) {
+  const v = answers[step.field] || '';
+  const skip = () => {
+    setField(step.field, '');
+    onAdvance();
+  };
+  return (
+    <>
+      <h1 className="fm-question">{step.question}</h1>
+      {step.helper && <p className="fm-helper">{step.helper}</p>}
+
+      <textarea
+        className="fm-textarea"
+        value={v}
+        onChange={e => setField(step.field, e.target.value)}
+        placeholder={step.placeholder || ''}
+        rows={5}
       />
 
-      <label className="fm-field-label" style={{ marginTop: 28 }}>What would make a request feel overpriced?</label>
-      <MultiChoiceGroup options={OVERPRICED_SIGNALS} selected={data.overpricedSignals}
-                        onToggle={v => toggleField('overpricedSignals', v)} />
-    </div>
-  );
-}
-
-// ── Step 7: marketplace model ──────────────────────────────────────────
-function StepMarketplace({ data, setField, toggleField }) {
-  const pref = data.marketplacePreference;
-  return (
-    <div>
-      <h2 className="fm-step-title">Pick your marketplace model</h2>
-      <p className="fm-step-sub">How should requests be priced and matched on the marketplace?</p>
-
-      <SingleChoiceGroup
-        options={[
-          { value: 'mostly_exclusive', title: 'Mostly exclusive',       desc: 'Premium price, sent only to me.' },
-          { value: 'mostly_shared',    title: 'Mostly shared',          desc: 'Lower price, I compete with 1-2 others.' },
-          { value: 'mixed',            title: 'Mix of both',            desc: 'Depends on the move.' },
-          { value: 'bidding',          title: 'Let me bid on requests', desc: 'I want to set my own price per job.' },
-        ]}
-        selected={pref}
-        onSelect={v => setField('marketplacePreference', v)}
+      <ContinueBar
+        disabled={false}
+        onClick={onAdvance}
+        secondary={
+          <button type="button" className="fm-skip" onClick={skip}>
+            Skip →
+          </button>
+        }
       />
-
-      {pref === 'bidding' && (
-        <>
-          <label className="fm-field-label" style={{ marginTop: 28 }}>When does bidding make sense?</label>
-          <MultiChoiceGroup options={BIDDING_TRIGGERS}
-                            selected={data.biddingTriggers}
-                            onToggle={v => toggleField('biddingTriggers', v)} />
-        </>
-      )}
-    </div>
+    </>
   );
 }
 
-// ── Step 8: experience ─────────────────────────────────────────────────
-function StepExperience({ data, setField, toggleField }) {
-  const exp = data.leadProviderExperience;
+// ── Step: contact (reward unlock) ───────────────────────────────────────
+function ContactStep({ answers, setField, onSubmit, submitting, errorMsg, canContinue }) {
   return (
-    <div>
-      <h2 className="fm-step-title">Have you used a request provider before?</h2>
-      <p className="fm-step-sub">Even rough experience helps us build something better than what's out there.</p>
+    <>
+      <h1 className="fm-question">You're in 🎯</h1>
+      <p className="fm-helper">
+        Where should we send your early access and $50 onboarding credit when your market opens?
+      </p>
 
-      <SingleChoiceGroup
-        options={[
-          { value: 'regularly',    title: 'Yes — regularly' },
-          { value: 'occasionally', title: 'Yes — occasionally' },
-          { value: 'interested',   title: 'No — but interested' },
-          { value: 'no',           title: 'No — not interested in paid requests' },
-        ]}
-        selected={exp}
-        onSelect={v => setField('leadProviderExperience', v)}
-      />
+      <div className="fm-stack">
+        <input
+          className="fm-input"
+          type="email"
+          value={answers.email}
+          onChange={e => setField('email', e.target.value)}
+          placeholder="Work email"
+          autoComplete="email"
+          required
+        />
+        <input
+          className="fm-input"
+          type="tel"
+          value={answers.phone}
+          onChange={e => setField('phone', e.target.value)}
+          placeholder="Phone number"
+          autoComplete="tel"
+          required
+        />
+      </div>
 
-      {(exp === 'regularly' || exp === 'occasionally') && (
-        <>
-          <label className="fm-field-label" style={{ marginTop: 28 }}>Biggest frustrations with current providers</label>
-          <MultiChoiceGroup options={FRUSTRATIONS}
-                            selected={data.leadProviderFrustrations}
-                            onToggle={v => toggleField('leadProviderFrustrations', v)} />
+      <p className="fm-finetext">
+        We'll only use this to contact you about early access and your onboarding credit.
+      </p>
 
-          <label className="fm-field-label" style={{ marginTop: 28 }}>If you could fix one thing about every provider you've used, what would it be?</label>
-          <textarea className="fm-textarea" value={data.platformWish}
-                    onChange={e => setField('platformWish', e.target.value)}
-                    placeholder="Write your honest answer here..." />
+      {errorMsg && <div className="fm-error">{errorMsg}</div>}
 
-          <label className="fm-field-label" style={{ marginTop: 16 }}>What's the #1 thing that would make a paid request worth it to you?</label>
-          <textarea className="fm-textarea" value={data.paidRequestReason}
-                    onChange={e => setField('paidRequestReason', e.target.value)}
-                    placeholder="The signal or feature that changes everything..." />
-        </>
-      )}
-
-      {(exp === 'interested' || exp === 'no') && (
-        <>
-          <label className="fm-field-label" style={{ marginTop: 28 }}>What would it take for you to try a paid-request platform?</label>
-          <textarea className="fm-textarea" value={data.trustToTry}
-                    onChange={e => setField('trustToTry', e.target.value)}
-                    placeholder="What proof / guarantee / pricing would get you in?" />
-        </>
-      )}
-    </div>
+      <div className="fm-actions">
+        <button
+          type="button"
+          className="fm-continue"
+          onClick={onSubmit}
+          disabled={!canContinue || submitting}
+        >
+          {submitting ? 'Sending…' : 'Lock in my founder access →'}
+        </button>
+      </div>
+    </>
   );
 }
 
-// ── Step 9: retention ──────────────────────────────────────────────────
-function StepRetention({ data, setField, toggleField }) {
+// ── Step: done (thank-you) ──────────────────────────────────────────────
+function DoneStep() {
   return (
-    <div>
-      <h2 className="fm-step-title">Last question — what keeps you on a platform?</h2>
-      <p className="fm-step-sub">Pick the 3 things that matter most. And tell us the single biggest problem in your business right now.</p>
+    <>
+      <h1 className="fm-question">You're on the founding partner list</h1>
+      <p className="fm-helper">
+        Your feedback helps us improve request quality, matching, routing, and pricing
+        fairness before opening more markets.
+      </p>
 
-      <label className="fm-field-label">Top retention drivers (pick up to 3)</label>
-      <MultiChoiceGroup options={RETENTION_DRIVERS}
-                        selected={data.retentionDrivers}
-                        onToggle={v => toggleField('retentionDrivers', v, 3)} max={3} />
+      <ul className="fm-trust">
+        <li><span className="fm-trust-check">✓</span> Early marketplace access</li>
+        <li><span className="fm-trust-check">✓</span> Priority market availability</li>
+        <li><span className="fm-trust-check">✓</span> $50 onboarding credit when your market opens</li>
+      </ul>
 
-      <label className="fm-field-label" style={{ marginTop: 28 }}>What's the single biggest problem in your moving business right now?</label>
-      <textarea className="fm-textarea" value={data.biggestProblem}
-                onChange={e => setField('biggestProblem', e.target.value)}
-                placeholder="Be specific — this directly shapes what we build first." />
-    </div>
+      <div className="fm-actions">
+        <a href="https://moveleads.cloud" className="fm-soft-link">
+          Back to moveleads.cloud
+        </a>
+      </div>
+    </>
   );
 }
