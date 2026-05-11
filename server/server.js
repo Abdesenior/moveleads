@@ -96,11 +96,13 @@ app.use('/api/auth',   require('./routes/auth'));    // PUBLIC: verification mec
 app.use('/api/public', require('./routes/public'));  // PUBLIC: lead-volume / quote ingest
 app.use('/api/twilio', require('./routes/twilio'));  // PUBLIC: Twilio signature-verified webhooks
 app.use('/api/voice',  require('./routes/voice'));   // PUBLIC: Twilio voice webhooks
+app.use('/api/founding-movers', require('./routes/foundingMovers')); // PUBLIC: Founding Mover Program intake
 
 // Dashboard data routes — gated on verified email
 app.use('/api/leads',          verifiedGate, require('./routes/leads'));
 app.use('/api/users',          verifiedGate, require('./routes/users'));
 app.use('/api/admin/settings', verifiedGate, require('./routes/settings'));
+app.use('/api/admin/mover-research', verifiedGate, require('./routes/admin/moverResearch'));
 app.use('/api/admin',          verifiedGate, require('./routes/admin'));
 app.use('/api/disputes',       verifiedGate, require('./routes/disputes'));
 app.use('/api/admin/pricing',  verifiedGate, require('./routes/pricing'));
