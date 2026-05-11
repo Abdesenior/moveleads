@@ -8,8 +8,8 @@ Public funnel at `/founding-movers`. One question per step after the intro. No a
 
 ## Step 1 — Intro (the only multi-field step)
 
-**Heading:** First, who are we talking to?
-**Subhead:** Three quick fields and we'll get straight to the questions.
+**Heading:** Tell us about your operation
+**Subhead:** We're building MoveLeads around how real moving companies actually work.
 
 Three stacked text inputs (all required before Continue enables):
 
@@ -72,8 +72,8 @@ Three stacked text inputs (all required before Continue enables):
 
 ## Step 5 — Confirmations
 
-**Heading:** What should already be locked in before a request hits your team?
-**Helper:** The basics that save dispatch from chasing the customer.
+**Heading:** Before your dispatch team calls a customer, what should already be confirmed?
+**Helper:** The details that save your crews time and avoid bad requests.
 **Type:** Multi-select cards
 
 - Pickup location
@@ -196,71 +196,52 @@ Three stacked text inputs (all required before Continue enables):
 
 ---
 
-## Step 10 — Overpriced signals
+## Step 10 — Platform quality (grouped multi-select)
 
-**Heading:** What makes a request feel like a waste of credits?
-**Helper:** Pick what kills the deal for your crews.
-**Type:** Multi-select cards
+**Heading:** What separates a good request platform from a bad one?
+**Helper:** Pick the things that matter most to your dispatch team.
+**Type:** Grouped multi-select. Two labeled groups on one screen. Each option toggles selection in its group's underlying schema field.
+
+**Group A — What makes one great** (writes to `retentionDrivers`)
+
+- Accurate move details
+- Fair pricing
+- Fast delivery
+- Requests are not overshared
+- Better request matching
+- Customers answer the phone
+
+**Group B — What makes one painful** (writes to `overpricedSignals`)
 
 - Customer doesn't answer
-- Too many movers received it
 - Move details are incomplete
-- Customer is not ready to move
 - Wrong service area
+- Too many movers received it
 - Request delivered too slowly
+- Customer is not ready to move
+
+**Continue enables:** when at least one option from either group is selected.
 
 **CTA:** Continue →
 
 ---
 
-## Step 11 — Marketplace preference
-
-**Heading:** How would you want premium requests handled?
-**Helper:** What feels fair and profitable for your operation?
-**Type:** Single-select cards
-
-- **Mostly exclusive requests** → step 13
-- **Mostly shared requests** → step 13
-- **Mix of both depending on the move** → step 13
-- **Bidding for premium requests** → step 12
-
-**CTA:** Continue →
-
----
-
-### Step 12 — Bidding triggers  *(only if step 11 = bidding)*
-
-**Heading:** Which requests would your team actually fight for?
-**Helper:** Where competing makes sense.
-**Type:** Multi-select cards
-
-- Long-distance moves
-- Large house moves
-- Commercial jobs
-- Same-day / urgent moves
-- Verified high-intent customers
-- Specialty-item moves
-
-**CTA:** Continue → (then to Step 13)
-
----
-
-## Step 13 — Broker experience
+## Step 11 — Broker experience
 
 **Heading:** Have you bought leads or worked with a broker before?
 **Helper:** Honest is best — we won't sell you anything based on this.
 **Type:** Single-select cards
 
-- **Yes, regularly** → step 14a
-- **Yes, occasionally** → step 14a
-- **No, but we're interested** → step 15
-- **No** → step 15
+- **Yes, regularly** → step 12a
+- **Yes, occasionally** → step 12a
+- **No, but we're interested** → step 13
+- **No** → step 13
 
 **CTA:** Continue →
 
 ---
 
-### Step 14a — Broker frustrations  *(only if step 13 = regularly or occasionally)*
+### Step 12a — Broker frustrations  *(only if step 11 = regularly or occasionally)*
 
 **Heading:** Where do lead providers usually let movers down?
 **Helper:** Pick everything you've actually run into.
@@ -277,7 +258,7 @@ Three stacked text inputs (all required before Continue enables):
 
 ---
 
-### Step 14b — Platform wish  *(only if step 13 = regularly or occasionally)*
+### Step 12b — Platform wish  *(only if step 11 = regularly or occasionally)*
 
 **Heading:** If you could fix one thing about lead providers, what would it be?
 **Helper:** Optional — every answer here shapes how we route requests.
@@ -289,24 +270,7 @@ Three stacked text inputs (all required before Continue enables):
 
 ---
 
-## Step 15 — Retention drivers
-
-**Heading:** What would keep your company buying from us long-term?
-**Helper:** Pick up to 3 — the things that actually keep movers loyal.
-**Type:** Multi-select cards (max 3)
-
-- Customers answer the phone
-- Accurate move details
-- Fair pricing
-- Requests are not overshared
-- Fast delivery
-- Better request matching
-
-**CTA:** Continue →
-
----
-
-## Step 16 — Biggest problem (optional)
+## Step 13 — Biggest problem (optional)
 
 **Heading:** What's the biggest headache your crews face with move requests today?
 **Helper:** Optional — be as honest as you'd like.
@@ -316,25 +280,31 @@ Three stacked text inputs (all required before Continue enables):
 
 ---
 
-## Step 17 — Contact (reward-unlock moment)
+## Step 14 — Founding access (reward-unlock moment)
 
-**Heading:** You're in 🎯
-**Subhead:** Where should we send your early access and $50 onboarding credit when your market opens?
+**Heading:** You're on the list 🎯
+**Subhead:** Where should we send your founding access once we open your market?
 
 Two stacked text inputs (both required):
 
 - Work email
 - Phone number
 
-**Helper under inputs:** We'll only use this to contact you about early access and your onboarding credit.
+**Below the inputs, 3 bullets reinforcing what they're claiming:**
 
-**CTA:** Lock in my founder access →
+- Early marketplace access
+- Priority market availability
+- $50 onboarding credit
 
-On submit → POST `/api/founding-movers/submit` → advance to Step 18.
+**Helper line below the bullets:** We'll only use this to contact you about founding access and your onboarding credit.
+
+**CTA:** Lock in my founding access →
+
+On submit → POST `/api/founding-movers/submit` → advance to Step 15.
 
 ---
 
-## Step 18 — Thank you (terminal)
+## Step 15 — Thank you (terminal)
 
 **Heading:** You're on the founding partner list
 **Subhead:** Your answers help us improve request quality, matching, and pricing — before we open more markets.
@@ -356,10 +326,8 @@ No CTA. Soft outbound link back to `moveleads.cloud` if natural.
 | 6 (shared/exclusive) | shared | 7a → 7b → 8 |
 | 6 | exclusive | 7c → 8 |
 | 6 | depends | 7d → 8 |
-| 11 (marketplace) | bidding | 12 → 13 |
-| 11 | mostly_exclusive / mostly_shared / mixed | 13 |
-| 13 (broker exp) | regularly / occasionally | 14a → 14b → 15 |
-| 13 | interested / no | 15 |
+| 11 (broker exp) | regularly / occasionally | 12a → 12b → 13 |
+| 11 | interested / no | 13 |
 
 ---
 
@@ -367,9 +335,11 @@ No CTA. Soft outbound link back to `moveleads.cloud` if natural.
 
 | Path | Path key | Step count (excl. thank-you) |
 |---|---|---|
-| Fastest | depends + no broker history + no bidding | 14 |
-| Typical | exclusive + yes broker | 17 |
-| Maximum | shared + yes broker + bidding | 20 |
+| Fastest | depends + no broker history | **12** |
+| Typical | exclusive + yes broker | **14** |
+| Maximum | shared + yes broker | **16** |
+
+Compare to the v2 flow before this refinement: fastest 14, typical 17, max 20. Saved 2–4 screens across every path.
 
 ---
 
@@ -380,11 +350,11 @@ The funnel must read like a conversation with someone who *runs* a moving compan
 - ✅ "What makes your dispatch team jump on a request immediately?"
 - ❌ "What features do you value most in a lead?"
 
-- ✅ "What makes a request feel like a waste of credits?"
-- ❌ "Which negative attributes affect lead quality?"
+- ✅ "What separates a good request platform from a bad one?"
+- ❌ "Rate the importance of the following platform attributes."
 
-- ✅ "What size jobs fit your crews?"
-- ❌ "What are your preferred move size categories?"
+- ✅ "Before your dispatch team calls a customer, what should already be confirmed?"
+- ❌ "Which fields should be required at intake?"
 
 - ✅ "How fast does your team need to hit a fresh request?"
 - ❌ "What is your expected response-time SLA?"
@@ -405,6 +375,7 @@ The funnel must read like a conversation with someone who *runs* a moving compan
 | move date | service window |
 | markets | regions |
 | trucks today | service-day availability |
+| founding access | beta access |
 
 ---
 
@@ -415,7 +386,7 @@ The funnel must read like a conversation with someone who *runs* a moving compan
 - **Selected cards** = `#fff7ed` background, 2px `#ff6a14` border, filled orange check
 - **Progress** = 3px orange filling line at the top. No counter. No phase labels. No step names.
 - **Back chevron** = top-left, 44×44 hit area, hidden on intro + thank-you
-- **Skip link** = only on optional textareas (14b, 16)
+- **Skip link** = only on optional textareas (12b, 13)
 - **Transitions** = 220ms fade + 12px slide-up per step
 - **Mobile-first** padding: 32px horizontal, 64px+ card height, 56px Continue button
 - **Persistence** = localStorage key `ml_founder_v2`, 7-day TTL, restored on mount
@@ -426,6 +397,6 @@ The funnel must read like a conversation with someone who *runs* a moving compan
 
 Stored in `MoverResearchSubmission` (server) with auto-generated tags. The funnel populates:
 
-`companyName`, `contactName` (= first name), `email`, `phone`, `mainStateOrMarket`, `desiredMoveTypes`, `preferredJobSizes`, `valueSignals`, `requiredConfirmations`, `sharedExclusivePreference`, `sharedAcceptableConditions`, `sharedMaxMovers`, `exclusiveTriggers`, `exclusiveTriggersDepends`, `priorityScenario`, `speedExpectation`, `overpricedSignals`, `marketplacePreference`, `biddingTriggers`, `leadProviderExperience`, `leadProviderFrustrations`, `platformWish`, `retentionDrivers`, `biggestProblem`, `autoTags`, `utm`, `source: 'founding-movers-v2'`, `completionTimeSeconds`, `submittedAt`.
+`companyName`, `contactName` (= first name), `email`, `phone`, `mainStateOrMarket`, `desiredMoveTypes`, `preferredJobSizes`, `valueSignals`, `requiredConfirmations`, `sharedExclusivePreference`, `sharedAcceptableConditions`, `sharedMaxMovers`, `exclusiveTriggers`, `exclusiveTriggersDepends`, `priorityScenario`, `speedExpectation`, `overpricedSignals` *(from Group B of step 10)*, `retentionDrivers` *(from Group A of step 10)*, `leadProviderExperience`, `leadProviderFrustrations`, `platformWish`, `biggestProblem`, `autoTags`, `utm`, `source: 'founding-movers-v2'`, `completionTimeSeconds`, `submittedAt`.
 
-Removed from v2 (kept in schema for backward compat with v1 submissions): `paidRequestReason`, `trustToTry`.
+**Schema fields no longer populated by v2 (kept on server for backward compatibility with prior submissions):** `marketplacePreference`, `biddingTriggers`, `paidRequestReason`, `trustToTry`.

@@ -212,6 +212,35 @@
   color: #fff;
 }
 
+/* ── Grouped multi-select (two labeled groups on one screen) ────────── */
+.fm-group { }
+.fm-group-spaced { margin-top: 28px; }
+.fm-group-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0 0 12px 2px;
+}
+
+/* ── Founding access unlock bullets (under contact-step inputs) ──────── */
+.fm-unlock-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  gap: 10px;
+}
+.fm-unlock-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
 /* ── Priority scenario cards (larger) ───────────────────────────────── */
 .fm-cards {
   display: grid;

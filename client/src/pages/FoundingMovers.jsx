@@ -147,8 +147,8 @@ const STEPS = [
     options: VALUE_SIGNALS, nextStep: 'confirmations' },
 
   { id: 'confirmations', type: 'multi', field: 'requiredConfirmations',
-    question: 'What should already be locked in before a request hits your team?',
-    helper: 'The basics that save dispatch from chasing the customer.',
+    question: 'Before your dispatch team calls a customer, what should already be confirmed?',
+    helper: 'The details that save your crews time and avoid bad requests.',
     options: REQUIRED_CONFIRMATIONS, nextStep: 'sharedOrExclusive' },
 
   { id: 'sharedOrExclusive', type: 'single', field: 'sharedExclusivePreference',
@@ -191,28 +191,26 @@ const STEPS = [
   { id: 'speedExpectation', type: 'single', field: 'speedExpectation',
     question: 'How fast does your team need to hit a fresh request?',
     helper: 'After the customer submits — when does it matter most?',
-    options: SPEED_OPTIONS, nextStep: 'overpricedSignals' },
+    options: SPEED_OPTIONS, nextStep: 'platformQuality' },
 
-  { id: 'overpricedSignals', type: 'multi', field: 'overpricedSignals',
-    question: 'What makes a request feel like a waste of credits?',
-    helper: 'Pick what kills the deal for your crews.',
-    options: OVERPRICED_SIGNALS, nextStep: 'marketplacePref' },
-
-  { id: 'marketplacePref', type: 'single', field: 'marketplacePreference',
-    question: 'How would you want premium requests handled?',
-    helper: 'What feels fair and profitable for your operation?',
-    options: [
-      { value: 'mostly_exclusive', label: 'Mostly exclusive requests' },
-      { value: 'mostly_shared',    label: 'Mostly shared requests' },
-      { value: 'mixed',            label: 'Mix of both depending on the move' },
-      { value: 'bidding',          label: 'Bidding for premium requests' },
+  // Merged step: writes to retentionDrivers (Group A) AND overpricedSignals
+  // (Group B) from a single screen.
+  { id: 'platformQuality', type: 'grouped-multi',
+    question: 'What separates a good request platform from a bad one?',
+    helper: 'Pick the things that matter most to your dispatch team.',
+    groups: [
+      {
+        label: 'What makes one great',
+        field: 'retentionDrivers',
+        options: RETENTION_DRIVERS,
+      },
+      {
+        label: 'What makes one painful',
+        field: 'overpricedSignals',
+        options: OVERPRICED_SIGNALS,
+      },
     ],
-    nextStep: (a) => a.marketplacePreference === 'bidding' ? 'biddingTriggers' : 'brokerExperience' },
-
-  { id: 'biddingTriggers', type: 'multi', field: 'biddingTriggers',
-    question: 'Which requests would your team actually fight for?',
-    helper: 'Where competing makes sense.',
-    options: BIDDING_TRIGGERS, nextStep: 'brokerExperience' },
+    nextStep: 'brokerExperience' },
 
   { id: 'brokerExperience', type: 'single', field: 'leadProviderExperience',
     question: 'Have you bought leads or worked with a broker before?',
@@ -226,7 +224,7 @@ const STEPS = [
     nextStep: (a) => {
       const v = a.leadProviderExperience;
       if (v === 'regularly' || v === 'occasionally') return 'brokerFrustrations';
-      return 'retentionDrivers';
+      return 'biggestProblem';
     } },
 
   { id: 'brokerFrustrations', type: 'multi', field: 'leadProviderFrustrations',
@@ -238,13 +236,7 @@ const STEPS = [
     question: 'If you could fix one thing about lead providers, what would it be?',
     helper: 'Optional — every answer here shapes how we route requests.',
     placeholder: 'Share anything that comes to mind…',
-    optional: true, nextStep: 'retentionDrivers' },
-
-  { id: 'retentionDrivers', type: 'multi', field: 'retentionDrivers',
-    question: 'What would keep your company buying from us long-term?',
-    helper: 'Pick up to 3 — the things that actually keep movers loyal.',
-    options: RETENTION_DRIVERS, max: 3,
-    nextStep: 'biggestProblem' },
+    optional: true, nextStep: 'biggestProblem' },
 
   { id: 'biggestProblem', type: 'textarea', field: 'biggestProblem',
     question: 'What\'s the biggest headache your crews face with move requests today?',
@@ -315,13 +307,10 @@ function estimateTotal(answers) {
   else total += 1;
   total += 1;    // priorityScenario
   total += 1;    // speedExpectation
-  total += 1;    // overpricedSignals
-  total += 1;    // marketplacePref
-  if (answers.marketplacePreference === 'bidding') total += 1;
+  total += 1;    // platformQuality (merged)
   total += 1;    // brokerExperience
   if (answers.leadProviderExperience === 'regularly' ||
       answers.leadProviderExperience === 'occasionally') total += 2;
-  total += 1;    // retentionDrivers
   total += 1;    // biggestProblem
   total += 1;    // contact
   return total;
@@ -432,6 +421,11 @@ export default function FoundingMovers() {
         );
       case 'multi':
         return (answers[step.field] || []).length > 0;
+      case 'grouped-multi': {
+        // At least one option selected across any group
+        const groups = step.groups || [];
+        return groups.some(g => (answers[g.field] || []).length > 0);
+      }
       case 'single':
         return Boolean(answers[step.field]);
       case 'cards':
@@ -569,11 +563,12 @@ function StepRenderer(props) {
   if (!step) return null;
   switch (step.type) {
     case 'intro':    return <IntroStep {...props} />;
-    case 'multi':    return <MultiStep {...props} />;
-    case 'single':   return <SingleStep {...props} />;
-    case 'cards':    return <CardsStep {...props} />;
-    case 'textarea': return <TextareaStep {...props} />;
-    case 'contact':  return <ContactStep {...props} />;
+    case 'multi':          return <MultiStep {...props} />;
+    case 'grouped-multi':  return <GroupedMultiStep {...props} />;
+    case 'single':         return <SingleStep {...props} />;
+    case 'cards':          return <CardsStep {...props} />;
+    case 'textarea':       return <TextareaStep {...props} />;
+    case 'contact':        return <ContactStep {...props} />;
     case 'done':     return <DoneStep {...props} />;
     default:         return null;
   }
@@ -600,8 +595,8 @@ function ContinueBar({ disabled, onClick, label = 'Continue', secondary }) {
 function IntroStep({ answers, setField, onAdvance, canContinue }) {
   return (
     <>
-      <h1 className="fm-question">First, who are we talking to?</h1>
-      <p className="fm-helper">Three quick fields and we'll get straight to the questions.</p>
+      <h1 className="fm-question">Tell us about your operation</h1>
+      <p className="fm-helper">We're building MoveLeads around how real moving companies actually work.</p>
 
       <div className="fm-stack">
         <input
@@ -628,6 +623,44 @@ function IntroStep({ answers, setField, onAdvance, canContinue }) {
           placeholder="Main state (e.g., Texas)"
         />
       </div>
+
+      <ContinueBar disabled={!canContinue} onClick={onAdvance} />
+    </>
+  );
+}
+
+// ── Step: grouped multi-select (two labeled groups on one screen) ──────
+function GroupedMultiStep({ step, answers, toggleField, onAdvance, canContinue }) {
+  return (
+    <>
+      <h1 className="fm-question">{step.question}</h1>
+      {step.helper && <p className="fm-helper">{step.helper}</p>}
+
+      {step.groups.map((group, idx) => {
+        const selected = answers[group.field] || [];
+        return (
+          <div key={group.field} className={`fm-group${idx > 0 ? ' fm-group-spaced' : ''}`}>
+            <div className="fm-group-label">{group.label}</div>
+            <div className="fm-choices">
+              {group.options.map(opt => {
+                const isSelected = selected.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`fm-choice${isSelected ? ' selected' : ''}`}
+                    onClick={() => toggleField(group.field, opt)}
+                    aria-pressed={isSelected}
+                  >
+                    <span className="fm-choice-label">{opt}</span>
+                    <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       <ContinueBar disabled={!canContinue} onClick={onAdvance} />
     </>
@@ -775,9 +808,9 @@ function TextareaStep({ step, answers, setField, onAdvance }) {
 function ContactStep({ answers, setField, onSubmit, submitting, errorMsg, canContinue }) {
   return (
     <>
-      <h1 className="fm-question">You're in 🎯</h1>
+      <h1 className="fm-question">You're on the list 🎯</h1>
       <p className="fm-helper">
-        Where should we send your early access and $50 onboarding credit when your market opens?
+        Where should we send your founding access once we open your market?
       </p>
 
       <div className="fm-stack">
@@ -801,8 +834,14 @@ function ContactStep({ answers, setField, onSubmit, submitting, errorMsg, canCon
         />
       </div>
 
+      <ul className="fm-unlock-list">
+        <li><span className="fm-trust-check">✓</span> Early marketplace access</li>
+        <li><span className="fm-trust-check">✓</span> Priority market availability</li>
+        <li><span className="fm-trust-check">✓</span> $50 onboarding credit</li>
+      </ul>
+
       <p className="fm-finetext">
-        We'll only use this to contact you about early access and your onboarding credit.
+        We'll only use this to contact you about founding access and your onboarding credit.
       </p>
 
       {errorMsg && <div className="fm-error">{errorMsg}</div>}
@@ -814,7 +853,7 @@ function ContactStep({ answers, setField, onSubmit, submitting, errorMsg, canCon
           onClick={onSubmit}
           disabled={!canContinue || submitting}
         >
-          {submitting ? 'Sending…' : 'Lock in my founder access →'}
+          {submitting ? 'Sending…' : 'Lock in my founding access →'}
         </button>
       </div>
     </>
