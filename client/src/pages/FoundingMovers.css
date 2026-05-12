@@ -348,6 +348,11 @@
               box-shadow 0.15s ease;
   box-shadow: 0 14px 30px -16px rgba(255, 106, 20, 0.6);
 }
+/* Anchor variant of the Continue button (used on DoneStep's outbound CTA) */
+.fm-continue-link {
+  text-decoration: none;
+  text-align: center;
+}
 .fm-continue:not(:disabled):hover { background: #ff7a2c; }
 .fm-continue:not(:disabled):active { transform: translateY(1px); }
 .fm-continue:disabled {

@@ -294,6 +294,25 @@ function isEmail(s) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
 }
 
+// ── US phone helpers ───────────────────────────────────────────────────
+// Storage = digits-only string (up to 10 NANP digits, "+1" prefix stripped).
+// Display = "(XXX) XXX-XXXX" with progressive masking as the user types.
+function normalizePhoneDigits(input) {
+  let d = String(input || '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+  return d.slice(0, 10);
+}
+function formatUSPhone(digitsOrRaw) {
+  const d = normalizePhoneDigits(digitsOrRaw);
+  if (d.length === 0)  return '';
+  if (d.length <= 3)   return `(${d}`;
+  if (d.length <= 6)   return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+function isValidUSPhone(s) {
+  return normalizePhoneDigits(s).length === 10;
+}
+
 // Estimate total steps based on current branch for smooth progress bar
 function estimateTotal(answers) {
   let total = 1; // intro
@@ -429,7 +448,7 @@ export default function FoundingMovers() {
       case 'textarea':
         return true; // optional — skip-or-continue
       case 'contact':
-        return Boolean(isEmail(answers.email) && answers.phone.trim());
+        return Boolean(isEmail(answers.email) && isValidUSPhone(answers.phone));
       default:
         return true;
     }
@@ -592,16 +611,16 @@ function ContinueBar({ disabled, onClick, label = 'Continue', secondary }) {
 function IntroStep({ answers, setField, onAdvance, canContinue }) {
   return (
     <>
-      <h1 className="fm-question">Get early access to MoveLeads</h1>
+      <h1 className="fm-question">Early access for serious movers</h1>
       <p className="fm-helper">
-        Answer a few quick questions so we can match your company with the right moving
-        requests when we open your market.
+        We're building MoveLeads to match your crews with real moving jobs — not
+        overshared broker leads. Answer a few quick questions and we'll tailor your access.
       </p>
 
       <ul className="fm-intro-bullets">
-        <li><span className="fm-trust-check">✓</span> Founding mover access</li>
-        <li><span className="fm-trust-check">✓</span> Request matching tailored to your crews</li>
-        <li><span className="fm-trust-check">✓</span> $50 onboarding credit</li>
+        <li><span className="fm-trust-check">✓</span> Real moving jobs</li>
+        <li><span className="fm-trust-check">✓</span> Verified customers ready to move</li>
+        <li><span className="fm-trust-check">✓</span> $50 free credit to start</li>
       </ul>
 
       <div className="fm-stack">
@@ -930,7 +949,7 @@ function ContactStep({ answers, setField, onSubmit, submitting, errorMsg, canCon
     <>
       <h1 className="fm-question">You're on the list 🎯</h1>
       <p className="fm-helper">
-        Where should we send your founding access once we open your market?
+        Where should we send your founding access and onboarding credit?
       </p>
 
       <div className="fm-stack">
@@ -946,18 +965,20 @@ function ContactStep({ answers, setField, onSubmit, submitting, errorMsg, canCon
         <input
           className="fm-input"
           type="tel"
-          value={answers.phone}
-          onChange={e => setField('phone', e.target.value)}
-          placeholder="Phone number"
+          value={formatUSPhone(answers.phone)}
+          onChange={e => setField('phone', normalizePhoneDigits(e.target.value))}
+          placeholder="(555) 555-5555"
           autoComplete="tel"
+          inputMode="numeric"
+          maxLength={14}
           required
         />
       </div>
 
       <ul className="fm-unlock-list">
-        <li><span className="fm-trust-check">✓</span> Early marketplace access</li>
-        <li><span className="fm-trust-check">✓</span> Priority market availability</li>
-        <li><span className="fm-trust-check">✓</span> $50 onboarding credit</li>
+        <li><span className="fm-trust-check">✓</span> Real moving jobs</li>
+        <li><span className="fm-trust-check">✓</span> Verified customers ready to move</li>
+        <li><span className="fm-trust-check">✓</span> $50 free credit to start</li>
       </ul>
 
       <p className="fm-finetext">
@@ -980,25 +1001,29 @@ function ContactStep({ answers, setField, onSubmit, submitting, errorMsg, canCon
   );
 }
 
-// ── Step: done (thank-you) ──────────────────────────────────────────────
+// ── Step: done — momentum + invite to explore the platform ─────────────
 function DoneStep() {
   return (
     <>
-      <h1 className="fm-question">You're on the founding partner list</h1>
+      <h1 className="fm-question">You're early. Now see how it works.</h1>
       <p className="fm-helper">
-        Your answers help us improve request quality, matching, and pricing — before we
-        open more markets.
+        We'll tailor your marketplace access around how your crews actually operate —
+        smarter matching, fewer overshared requests, better request quality. In the
+        meantime, here's a look inside MoveLeads.
       </p>
 
       <ul className="fm-trust">
-        <li><span className="fm-trust-check">✓</span> Early marketplace access</li>
-        <li><span className="fm-trust-check">✓</span> Priority market availability</li>
-        <li><span className="fm-trust-check">✓</span> $50 onboarding credit when your market opens</li>
+        <li><span className="fm-trust-check">✓</span> Tailored matching around how your crews operate</li>
+        <li><span className="fm-trust-check">✓</span> Fewer overshared requests — quality over quantity</li>
+        <li><span className="fm-trust-check">✓</span> Verified customers ready to move</li>
       </ul>
 
       <div className="fm-actions">
-        <a href="https://moveleads.cloud" className="fm-soft-link">
-          Back to moveleads.cloud
+        <a
+          href="https://moveleads.cloud/partners?utm_source=founder_form&utm_medium=funnel"
+          className="fm-continue fm-continue-link"
+        >
+          See how MoveLeads works →
         </a>
       </div>
     </>
