@@ -181,7 +181,7 @@ const STEPS = [
     options: EXCLUSIVE_TRIGGERS_DEPENDS, nextStep: 'priorityScenario' },
 
   { id: 'priorityScenario', type: 'cards', field: 'priorityScenario',
-    question: 'Which request would your dispatch grab first?',
+    question: 'Which request would your sales rep call first?',
     helper: 'Pretend all three just landed.',
     options: SCENARIOS, nextStep: 'speedExpectation' },
 

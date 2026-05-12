@@ -175,7 +175,7 @@ Public funnel at `/founding-movers`. One question per step after the intro. No a
 
 ## Step 8 — Priority scenario
 
-**Heading:** Which request would your dispatch grab first?
+**Heading:** Which request would your sales rep call first?
 **Helper:** Pretend all three just landed.
 **Type:** Single-select large cards (label + 3 detail bullets each)
 
