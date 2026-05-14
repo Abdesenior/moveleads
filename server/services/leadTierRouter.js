@@ -198,6 +198,22 @@ function assign(scores, lead = {}) {
     if (Array.isArray(lead.validation?.route?.suspicious) && lead.validation.route.suspicious.length > 0) {
       reviewSignals.push(`route flags: ${lead.validation.route.suspicious.join('+')}`);
     }
+    // Phase 3.9 — explicit tier caps for route/distance unresolvability:
+    //   1. Mapbox couldn't resolve origin OR destination ZIP → route_unresolved
+    //   2. miles is 0 (no client/server distance, no Mapbox geocode) →
+    //      distance_unknown
+    // User spec: "If distance is unknown or either ZIP is unresolved, tier
+    // cannot be hot; should go to review or at most standard". We force-review
+    // (max=review) which is the strictest interpretation — safer.
+    const routeSuspicious = lead.validation?.route?.suspicious || [];
+    const originUnresolved = routeSuspicious.includes('origin_zip_not_found');
+    const destUnresolved = routeSuspicious.includes('destination_zip_not_found');
+    if (originUnresolved || destUnresolved) {
+      reviewSignals.push(`route unresolved (${[originUnresolved && 'origin', destUnresolved && 'destination'].filter(Boolean).join(' + ')} ZIP not found in Mapbox)`);
+    }
+    if (!Number(lead.miles) || Number(lead.miles) <= 0) {
+      reviewSignals.push('distance unknown (miles = 0)');
+    }
     if (lead.validation?.fingerprint?.vpn === true) {
       reviewSignals.push('fingerprint: vpn');
     }

@@ -137,10 +137,12 @@ function trustScore(lead) {
     // Line type — Twilio LTI returns 'mobile', 'landline', 'fixedVoip',
     // 'nonFixedVoip', 'tollFree' etc. We use isVoip boolean to catch all
     // VoIP variants. "trusted mobile line" only when mobile + low SMS
-    // pumping (the strongest combo). Plain mobile otherwise.
+    // pumping AND no local suspicionPattern — wording must align with risk
+    // (don't claim "trusted" next to a "suspicious phone pattern" reason).
     const isMobile = phoneLookup.lineType === 'mobile';
+    const hasSuspicion = !!phoneLookup.suspicionPattern;
     if (isMobile) {
-      const trustedMobile = smsPumpingLow;
+      const trustedMobile = smsPumpingLow && !hasSuspicion;
       trustGain += trustedMobile ? 8 : 5;
       positiveSignals.push(trustedMobile ? 'trusted mobile line' : 'mobile line');
     } else if (phoneLookup.isVoip === true) {
@@ -188,11 +190,12 @@ function trustScore(lead) {
   // ── Suspicion pattern (medium-strength entropy signal, not invalidating) ──
   // Set by twilioLookupService.categorizePhonePattern when the number has a
   // patterned shape (e.g. 5-7 char alternating, monotonic run, low distinct)
-  // that's suspicious but COULD still be a real allocation. Surface so admin
-  // sees it; the tier router separately force-reviews on this signal.
+  // that's suspicious but COULD still be a real allocation. The "— review
+  // required" suffix makes the wording match the actual outcome (tier
+  // router force-reviews on this signal — see leadTierRouter).
   if (phoneLookup && phoneLookup.suspicionPattern) {
     s -= 5;
-    reasons.push(`suspicious phone pattern (${phoneLookup.suspicionPattern})`);
+    reasons.push(`suspicious phone pattern (${phoneLookup.suspicionPattern}) — review required`);
   }
 
   // ── Admin override: REJECTED_FAKE is a strong negative trust signal ────
@@ -276,6 +279,12 @@ function routeValueScore(lead) {
   const miles = (geocodedMiles && geocodedMiles > 0) ? geocodedMiles : claimedMiles;
   if (geocodedMiles && geocodedMiles > 0 && geocodedMiles !== claimedMiles) {
     reasons.push(`using geocoded miles (${geocodedMiles}) over claimed (${claimedMiles})`);
+  }
+
+  // Surface route-unresolved state explicitly so the breakdown matches risk.
+  const routeSuspicious = lead.validation?.route?.suspicious || [];
+  if (routeSuspicious.includes('origin_zip_not_found') || routeSuspicious.includes('destination_zip_not_found')) {
+    reasons.push('route unresolved (Mapbox could not find ZIP)');
   }
 
   let s;
@@ -395,21 +404,43 @@ function fraudRiskScore(lead) {
 function moverMatchScore(lead) {
   const reasons = [];
   let s = 60;
+
+  const routeSuspicious = lead.validation?.route?.suspicious || [];
+  const originUnresolved = routeSuspicious.includes('origin_zip_not_found');
+  const destUnresolved = routeSuspicious.includes('destination_zip_not_found');
+  const distanceUnknown = !Number(lead.miles) || Number(lead.miles) <= 0;
+
   if (lead.originZip && /^\d{5}$/.test(lead.originZip)) {
     s += 5;
-    // If Mapbox actually resolved it, say so explicitly so admin can tell
-    // shape-only from geocoded.
-    const mapboxResolved = lead.validation?.route?.origin
-      && !lead.validation?.route?.suspicious?.includes?.('origin_zip_not_found');
-    reasons.push(mapboxResolved ? 'origin zip resolved' : 'origin zip format ok');
+    if (originUnresolved) {
+      reasons.push('origin zip format ok, Mapbox unresolved');
+    } else if (lead.validation?.route?.origin) {
+      reasons.push('origin zip resolved');
+    } else {
+      reasons.push('origin zip format ok');
+    }
   }
   if (lead.destinationZip && /^\d{5}$/.test(lead.destinationZip)) {
     s += 5;
-    const mapboxResolved = lead.validation?.route?.destination
-      && !lead.validation?.route?.suspicious?.includes?.('destination_zip_not_found');
-    reasons.push(mapboxResolved ? 'destination zip resolved' : 'destination zip format ok');
+    if (destUnresolved) {
+      reasons.push('destination zip format ok, Mapbox unresolved');
+    } else if (lead.validation?.route?.destination) {
+      reasons.push('destination zip resolved');
+    } else {
+      reasons.push('destination zip format ok');
+    }
   }
-  if (lead.distance === 'Local') { s += 5; reasons.push('local move'); }
+
+  // "local move" only when distance is genuinely known AND route is resolved.
+  // The lead.distance string is computed at ingest from possibly-incorrect
+  // miles — if miles is 0 or Mapbox couldn't resolve, we can't claim local.
+  const routeUnresolved = originUnresolved || destUnresolved;
+  if (lead.distance === 'Local' && !routeUnresolved && !distanceUnknown) {
+    s += 5; reasons.push('local move');
+  } else if (routeUnresolved || distanceUnknown) {
+    reasons.push('route unresolved');
+  }
+
   return { value: clamp(s, 0, 100), reasons };
 }
 
