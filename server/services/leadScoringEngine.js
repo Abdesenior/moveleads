@@ -71,15 +71,21 @@ function trustScore(lead) {
   if (phone.length === 10 || phone.length === 11) { s += 10; reasons.push('phone shape ok'); }
   else if (phone.length > 0) { s -= 20; reasons.push('phone shape suspicious'); }
 
+  // Email — a real, parseable email is a small positive trust signal.
+  // Placeholder emails (noemail+...@moveleads.cloud injected by V5 when the
+  // customer didn't provide one) are TREATED AS NEUTRAL: no score change,
+  // no reason logged. They must not look like a trust signal to admin.
+  // Future Phase 2.5+: real-email-intelligence (disposable detection) can add
+  // negative signals here.
   const email = String(lead.customerEmail || '');
-  if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && !email.startsWith('noemail+')) {
+  const isPlaceholderEmail = email.startsWith('noemail+');
+  const isValidEmailShape = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+  if (isValidEmailShape && !isPlaceholderEmail) {
     s += 10; reasons.push('email shape ok');
-  } else if (email.startsWith('noemail+')) {
-    // Placeholder email — neutral, neither bonus nor penalty.
-    reasons.push('placeholder email');
-  } else if (email) {
+  } else if (email && !isPlaceholderEmail) {
     s -= 10; reasons.push('email shape suspicious');
   }
+  // (placeholder email: skipped entirely — neutral)
 
   const name = String(lead.customerName || '').trim();
   if (name.split(/\s+/).length >= 2) { s += 5; reasons.push('full name'); }
@@ -210,7 +216,13 @@ function fraudRiskScore(lead) {
   if (lead.validation && lead.validation.fraud) {
     if (lead.validation.fraud.smsPumpingRisk === 'high')   { s -= 40; reasons.push('sms pumping risk (high)'); }
     if (lead.validation.fraud.smsPumpingRisk === 'medium') { s -= 15; reasons.push('sms pumping risk (medium)'); }
-    if (lead.validation.fraud.disposable === true)         { s -= 30; reasons.push('disposable phone'); }
+    // VoIP / disposable phone is a SINGLE-signal MEDIUM concern, not a
+    // high one — many legitimate users use Google Voice / Bandwidth /
+    // RingCentral etc. We lower the penalty here (-15) and let the tier
+    // router send VoIP-only leads to the `review` queue rather than
+    // auto-reject them. Compound signals (VoIP + high SMS + bot fp etc.)
+    // still rack up enough penalty to trigger the hard-reject threshold.
+    if (lead.validation.fraud.disposable === true)         { s -= 15; reasons.push('disposable / voip line'); }
   }
 
   // Mapbox-detected suspicious route signals (Phase 2).
