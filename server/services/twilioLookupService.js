@@ -54,6 +54,68 @@ function normalizeE164(phone) {
   return null;
 }
 
+/**
+ * Semantic NANP (North American Numbering Plan) validation.
+ *
+ * Catches numbers that are structurally well-formed E.164 (so Twilio's
+ * `valid: true` would pass) but cannot be a real, allocated US/Canadian
+ * phone number. Run BEFORE the paid Twilio call to:
+ *   1. Reject obvious fakes without spending money on a useless lookup
+ *   2. Produce a definitive `valid: false` that the scoring engine treats
+ *      as a hard negative trust signal
+ *
+ * Returns `{ fake: true, pattern: string }` if the number looks fake,
+ * otherwise `{ fake: false }`.
+ *
+ * Only applies to NANP (+1...) numbers; non-NANP numbers pass through.
+ *
+ * Rules enforced (any one → fake):
+ *   - NPA (area code) starts with 0 or 1 (NANP invariant — never valid)
+ *   - NXX (exchange) starts with 0 or 1 (NANP invariant — never valid)
+ *   - NPA is an N11 service code (211/311/411/511/611/711/811/911)
+ *   - 555-01XX subscriber range (5550100-5550199 reserved for fiction)
+ *   - All 10 digits the same (1111111111, 9999999999, 0000000000)
+ *
+ * Deliberately NOT enforced (would false-positive on real numbers):
+ *   - npa_all_same_digit — would block toll-free 888-XXX-XXXX (real)
+ *   - nxx_all_same_digit — would block 415-555-XXXX (real exchange)
+ *   - npa_equals_nxx     — could match real numbers like 415-415-XXXX
+ *   - subscriber_line_all_same — too aggressive (4444 might be real)
+ *
+ * Numbers that pass this local check still go to Twilio for proper carrier
+ * lookup; less-obvious fakes (e.g. 415-999-9999 with unallocated NXX) are
+ * caught downstream by Twilio's `line_type_intelligence: null` response,
+ * which surfaces as "phone unverifiable: no carrier intelligence returned"
+ * in the scoring engine.
+ */
+function isLikelyFakeNanpNumber(e164) {
+  if (!e164 || !e164.startsWith('+1') || e164.length !== 12) {
+    return { fake: false }; // non-NANP, skip semantic check
+  }
+  const digits = e164.slice(2); // 10 digits after +1
+  const npa = digits.slice(0, 3);
+  const nxx = digits.slice(3, 6);
+  const subscriberLine = digits.slice(6, 10);
+
+  // ── NANP invariants — guaranteed-invalid ────────────────────────────────
+  if (/^[01]/.test(npa)) return { fake: true, pattern: 'npa_leading_0_or_1' };
+  if (/^[01]/.test(nxx)) return { fake: true, pattern: 'nxx_leading_0_or_1' };
+
+  // N11 service codes (211, 311, 411, 511, 611, 711, 811, 911) cannot be
+  // NPAs for normal phone calls — they're emergency/service codes.
+  if (/^[2-9]11$/.test(npa)) return { fake: true, pattern: 'npa_is_n11_service_code' };
+
+  // 555-01XX is reserved for fiction (5550100 through 5550199)
+  if (nxx === '555' && /^01/.test(subscriberLine)) {
+    return { fake: true, pattern: 'reserved_fiction_555_01XX' };
+  }
+
+  // All 10 digits identical (1111111111, 9999999999, etc.)
+  if (/^(\d)\1{9}$/.test(digits)) return { fake: true, pattern: 'all_same_digit' };
+
+  return { fake: false };
+}
+
 function redactPhone(text) {
   if (!text) return text;
   // Replace any run of 7+ digits with `***NNNN` (preserve last 4)
@@ -63,12 +125,26 @@ function redactPhone(text) {
 // Normalize the raw Twilio V2 response into a stable, admin-friendly shape.
 // Twilio's response is verbose; we extract the few fields scoring/admin care
 // about and discard the rest.
+//
+// Strictness rules (tightened in Phase 3.6):
+//   - `valid` is TRUE only when Twilio explicitly returns `valid: true` AND
+//     `validation_errors` is empty or absent. We do NOT infer validity from
+//     the presence of a guessed lineType — Twilio sometimes guesses a type
+//     for structurally-formed-but-unallocated numbers.
+//   - When `valid: true` but no telecom enrichment data was returned
+//     (line_type_intelligence absent or { type: null }), we record this via
+//     `validityReason: 'twilio_no_enrichment'` so the scoring engine can
+//     treat it as suspicious rather than trusted.
 function normalizeLookup(raw, identityFirstName, identityLastName) {
   const lti = raw.line_type_intelligence || raw.lineTypeIntelligence || null;
   const spr = raw.sms_pumping_risk || raw.smsPumpingRisk || null;
   const idm = raw.identity_match || raw.identityMatch || null;
+  const validationErrors = Array.isArray(raw.validation_errors) ? raw.validation_errors
+                          : Array.isArray(raw.validationErrors) ? raw.validationErrors
+                          : [];
 
-  const lineType = lti && (lti.type || lti.lineType) ? String(lti.type || lti.lineType).toLowerCase() : null;
+  const ltiTypeRaw = lti && (lti.type || lti.lineType);
+  const lineType = ltiTypeRaw ? String(ltiTypeRaw).toLowerCase() : null;
   const isVoip = lineType ? /voip/.test(lineType) : null;
   const carrierName = lti && (lti.carrier_name || lti.carrierName) || null;
 
@@ -88,21 +164,44 @@ function normalizeLookup(raw, identityFirstName, identityLastName) {
   let identityMatch = null;
   if (idm) {
     identityMatch = {
-      // Twilio returns matches per-field. We compare result strings vs the
-      // names we sent in the request.
       firstNameMatch: idm.first_name_match === true || idm.firstNameMatch === true || idm.first_name_match === 'true',
       lastNameMatch:  idm.last_name_match  === true || idm.lastNameMatch  === true || idm.last_name_match  === 'true',
-      // Twilio may also return a confidence summary
       summaryScore:   idm.summary_score ?? idm.summaryScore ?? null,
       providedFirstName: identityFirstName || null,
       providedLastName:  identityLastName  || null,
     };
   }
 
+  // ── Strict `valid` ──────────────────────────────────────────────────────
+  // Require Twilio to explicitly say `valid: true` AND have no validation
+  // errors. No heuristic fallback from the presence of a guessed lineType —
+  // that fallback could mark unallocated NANP numbers as valid when Twilio
+  // happens to return a type guess.
+  const twilioSaysValid = raw.valid === true || raw.valid === 'true';
+  const noValidationErrors = validationErrors.length === 0;
+  let valid = twilioSaysValid && noValidationErrors;
+
+  // ── validityReason: why valid is false, OR why it's true-but-weak ─────
+  // The scoring engine reads this to produce specific tier-router reasons.
+  let validityReason = null;
+  if (!valid) {
+    if (!twilioSaysValid) {
+      validityReason = raw.valid === false ? 'twilio_says_invalid' : 'twilio_no_valid_field';
+    } else if (!noValidationErrors) {
+      validityReason = `twilio_validation_errors:${validationErrors.join(',')}`.slice(0, 120);
+    }
+  } else {
+    // valid===true but check if Twilio actually gave us anything useful.
+    const hasEnrichment = lineType !== null || smsPumpingRisk !== null
+                       || (identityMatch && (identityMatch.firstNameMatch || identityMatch.lastNameMatch));
+    if (!hasEnrichment) {
+      validityReason = 'twilio_no_enrichment';
+    }
+  }
+
   return {
-    valid: raw.valid === true || raw.valid === 'true' ||
-           // V2 doesn't always include `valid` — treat presence of LTI as valid
-           (lineType !== null && raw.valid !== false),
+    valid,
+    validityReason,
     lineType,
     isVoip,
     carrierName,
@@ -111,6 +210,7 @@ function normalizeLookup(raw, identityFirstName, identityLastName) {
     identityMatch,
     countryCode: raw.country_code || raw.countryCode || null,
     nationalFormat: raw.national_format || raw.nationalFormat || null,
+    validationErrors: validationErrors.length ? validationErrors : null,
   };
 }
 
@@ -128,8 +228,38 @@ async function lookup(phone, opts = {}) {
   if (!e164) {
     return {
       available: false, status: 'skipped', provider: PROVIDER,
-      packages: [], result: { reason: 'invalid_phone_shape' },
+      packages: [], result: { reason: 'invalid_phone_shape', valid: false, validityReason: 'invalid_shape' },
       rawRedacted: '', costUsd: 0, error: null,
+    };
+  }
+
+  // ── Local NANP semantic check (BEFORE the paid API call) ────────────────
+  // Catches fake-pattern numbers like (123) 123-1234, 1111111111, 9999999999.
+  // These are structurally valid E.164 so Twilio's `valid` would return true,
+  // but they cannot be real allocated NANP numbers. Reject locally to:
+  //   1. Save $0.005-0.04 per fake submission
+  //   2. Produce a definitive valid:false the scoring engine treats as a
+  //      hard negative trust signal (-30 trust, force-review or hard reject
+  //      depending on compounding signals)
+  // The "fake" check is non-Twilio: status='ok', available=true, valid=false,
+  // packages=['local_nanp_check'] so admin can tell apart from a real
+  // Twilio invalid response.
+  const fakeCheck = isLikelyFakeNanpNumber(e164);
+  if (fakeCheck.fake) {
+    console.log(`[twilioLookup] LOCAL FAKE-PATTERN BLOCK: ${e164} → pattern=${fakeCheck.pattern} (no API call)`);
+    return {
+      available: true, status: 'ok', provider: 'local_nanp_check',
+      packages: ['local_nanp_check'],
+      result: {
+        valid: false,
+        validityReason: `fake_pattern:${fakeCheck.pattern}`,
+        lineType: null, isVoip: null, carrierName: null,
+        smsPumpingRisk: null, smsPumpingScore: null,
+        identityMatch: null,
+        countryCode: 'US', nationalFormat: null, validationErrors: null,
+      },
+      rawRedacted: JSON.stringify({ local_check: 'failed', pattern: fakeCheck.pattern }),
+      costUsd: 0, error: null,
     };
   }
 
@@ -183,6 +313,11 @@ async function lookup(phone, opts = {}) {
     const res = await fetch(fullUrl, { headers, signal: ctrl.signal });
     const text = await res.text();
     raw = text ? JSON.parse(text) : {};
+    // Phase 3.6: log the redacted raw response so admin can inspect what
+    // Twilio actually returned for any given number. Critical for debugging
+    // false-positives on telecom trust.
+    console.log(`[twilioLookup] RAW response for ${redactPhone(e164)} (status=${res.status}):`,
+      redactPhone(JSON.stringify(raw)).slice(0, 1500));
 
     if (!res.ok) {
       // 404 = number not found, 400 = bad shape, 401 = bad creds
@@ -223,6 +358,7 @@ async function lookup(phone, opts = {}) {
 module.exports = {
   lookup,
   normalizeE164,
+  isLikelyFakeNanpNumber,
   isEnabled,
   isIdentityMatchEnabled,
   PROVIDER,

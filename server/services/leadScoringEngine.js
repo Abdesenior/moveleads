@@ -99,11 +99,25 @@ function trustScore(lead) {
     // No telecom validation data — phone trust is UNKNOWN, not verified.
     reasons.push('phone unverified (no telecom data)');
   } else if (phoneLookup.valid === false) {
-    s -= 30; reasons.push('phone invalid per Twilio');
+    // Definitive invalid signal. Could be from Twilio OR from our local
+    // NANP semantic check (fake-pattern numbers blocked before the API call).
+    // Heaviest single negative trust signal we apply.
+    s -= 30;
+    const reason = phoneLookup.validityReason || 'phone marked invalid';
+    if (reason.startsWith('fake_pattern:')) {
+      reasons.push(`phone invalid: fake pattern (${reason.slice('fake_pattern:'.length)})`);
+    } else if (reason === 'twilio_says_invalid') {
+      reasons.push('phone invalid: Twilio rejected');
+    } else if (reason.startsWith('twilio_validation_errors:')) {
+      reasons.push(`phone invalid: ${reason.slice('twilio_validation_errors:'.length)}`);
+    } else {
+      reasons.push(`phone invalid: ${reason}`);
+    }
   } else {
-    // Twilio Lookup ran. Grade trust ONLY from authoritative enrichment.
-    // "valid === true" alone is NOT a trust boost — Twilio reports valid for
-    // any recognized phone-number FORMAT, including unallocated numbers.
+    // Twilio Lookup ran with valid=true. Grade trust ONLY from authoritative
+    // enrichment. valid===true ALONE is NOT a trust boost — Twilio reports
+    // valid for any recognized phone-number FORMAT regardless of whether the
+    // number is allocated/reachable.
     let trustGain = 0;
     const positiveSignals = [];
 
@@ -123,8 +137,6 @@ function trustScore(lead) {
 
     // Twilio Identity Match (opt-in, gated by ENABLE_TWILIO_IDENTITY_MATCH).
     // Carrier confirms name on file matches what the customer provided.
-    // Strongest positive trust signal we have. No penalty for mismatch —
-    // many legitimate users use nicknames / married names / spouses.
     if (phoneLookup.identityMatch) {
       const im = phoneLookup.identityMatch;
       if (im.firstNameMatch === true && im.lastNameMatch === true) {
@@ -138,15 +150,15 @@ function trustScore(lead) {
       reasons.push('phone validated by Twilio');
       for (const sig of positiveSignals) reasons.push(sig);
       s += trustGain;
-    } else if (phoneLookup.valid === true) {
-      // Twilio recognized the number format but offered no positive
-      // enrichment (no SMS pumping intelligence, unknown line type, no
-      // identity match). Number exists in carrier registry but no trust
-      // value — treat as neutral and surface explicitly.
-      reasons.push('phone recognized but no trust enrichment');
+    } else if (phoneLookup.validityReason === 'twilio_no_enrichment') {
+      // Twilio confirmed format-valid but returned NO usable telecom
+      // intelligence (line_type_intelligence absent or empty). For a real
+      // allocated number we would expect at least a line type. This is
+      // suspicious. Surface explicitly as non-positive language.
+      reasons.push('phone unverifiable: no carrier intelligence returned');
     } else {
-      // Twilio ran but returned ambiguous/null data — surface so admin
-      // can investigate. Never silently boost trust on this path.
+      // Edge case: valid=true but no positive signal and no enrichment-missing
+      // marker. Defensive — surface as neutral, never trusted.
       reasons.push('phone trust data incomplete');
     }
   }
@@ -290,6 +302,15 @@ function fraudRiskScore(lead) {
     // auto-reject them. Compound signals (VoIP + high SMS + bot fp etc.)
     // still rack up enough penalty to trigger the hard-reject threshold.
     if (lead.validation.fraud.disposable === true)         { s -= 15; reasons.push('disposable / voip line'); }
+  }
+
+  // Phone-invalid is a STRONG fraud signal — local NANP check or Twilio
+  // explicitly rejected the number. Contributes -25 here so the tier router
+  // can compound it with other signals into a hard-reject, and the force-
+  // review pass below also triggers on it (catches solo fake-phone leads).
+  if (lead.validation && lead.validation.phone && lead.validation.phone.valid === false) {
+    s -= 25;
+    reasons.push('phone invalid (fraud impact)');
   }
 
   // Mapbox-detected suspicious route signals (Phase 2).

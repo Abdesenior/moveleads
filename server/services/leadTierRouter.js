@@ -115,6 +115,15 @@ function assign(scores, lead = {}) {
     if (scores.fraudRiskScore <= THRESHOLDS.fraudForceReview) {
       reviewSignals.push(`fraudRiskScore ${scores.fraudRiskScore} <= ${THRESHOLDS.fraudForceReview}`);
     }
+    if (lead.validation?.phone?.valid === false) {
+      // Local NANP check or Twilio explicitly rejected the number. Even
+      // without other signals, a fake/unallocated phone must not stay at
+      // premium/hot tier. Force review so admin can decide.
+      const rsn = lead.validation.phone.validityReason
+        ? `phone invalid: ${lead.validation.phone.validityReason}`
+        : 'phone invalid';
+      reviewSignals.push(rsn);
+    }
     if (lead.validation?.fraud?.smsPumpingRisk === 'medium') {
       reviewSignals.push('medium SMS pumping risk');
     }

@@ -88,17 +88,14 @@ async function anyValidationEnabled() {
  * @returns {Promise<Object|null>} summary of what ran, or null if skipped/failed
  */
 async function runShadow(leadId) {
-  // Gate 1 (sync, cheap): env flags. With every env at default false, this
-  // returns immediately with no DB I/O and the rest of the function is dead.
-  if (!anyEnvFlagEnabled()) return null;
-
-  // Gate 2 (async, DB): admin toggles ANDed with env flags. Toggle-read
-  // failure returns ALL_OFF (fail-safe).
-  const effective = await resolveEffective();
-  if (!effective.mapbox && !effective.twilioLookup && !effective.fingerprint) {
-    return null;
-  }
-
+  // ── Step 1: ALWAYS-ON local checks (free, no env gate needed) ─────────
+  // Local NANP fake-pattern detection runs regardless of env flags or admin
+  // toggles. Catches obviously-fake phones even when Twilio is disabled for
+  // cost reasons. This is the structural defense layer.
+  //
+  // We read the lead unconditionally because the local check needs the
+  // phone number. One Mongo read per ingest is cheap; the alternative
+  // (passing phone via callsite) would couple the pipeline to its callers.
   let lead;
   try {
     lead = await Lead.findById(leadId).lean();
@@ -111,10 +108,59 @@ async function runShadow(leadId) {
     return null;
   }
 
+  // ── Step 2: Resolve env+toggle effective flags for paid validations ────
+  // resolveEffective handles fail-safe ALL-OFF on toggle-read failure.
+  const envOn = anyEnvFlagEnabled();
+  const effective = envOn
+    ? await resolveEffective()
+    : { mapbox: false, twilioLookup: false, twilioIdentityMatch: false, fingerprint: false };
+
   const summary = { leadId: String(lead._id), effective, phone: null, route: null, fingerprint: null };
+
+  // ── Local NANP fake-pattern check (ALWAYS ON, free, no API) ────────────
+  // Runs regardless of any flag/toggle state. Catches structurally-valid
+  // E.164 numbers that cannot be real allocated NANP numbers (NPA starting
+  // with 0/1, all-same-digit, N11 service codes, 555-01XX fiction range).
+  // Writes valid:false to lead.validation.phone so the scoring engine can
+  // surface "phone invalid: fake pattern (...)" even when Twilio is disabled
+  // for cost reasons.
+  const fakeCheck = twilioLookupService.isLikelyFakeNanpNumber(
+    twilioLookupService.normalizeE164(lead.customerPhone)
+  );
+  if (fakeCheck.fake) {
+    const localFakeResult = {
+      available: true, status: 'ok', provider: 'local_nanp_check',
+      packages: ['local_nanp_check'],
+      result: {
+        valid: false,
+        validityReason: `fake_pattern:${fakeCheck.pattern}`,
+        lineType: null, isVoip: null, carrierName: null,
+        smsPumpingRisk: null, smsPumpingScore: null, identityMatch: null,
+        fromCache: false,
+      },
+      rawRedacted: JSON.stringify({ local_check: 'failed', pattern: fakeCheck.pattern }),
+      costUsd: 0, error: null,
+    };
+    await persistLog(lead._id, 'phone', localFakeResult);
+    await safeUpdateLead(lead._id, {
+      'validation.phone': {
+        valid: false,
+        validityReason: `fake_pattern:${fakeCheck.pattern}`,
+        lineType: null, isVoip: null, carrierName: null,
+        smsPumpingRisk: null, smsPumpingScore: null, identityMatch: null,
+        fromCache: false, provider: 'local_nanp_check',
+        checkedAt: new Date(),
+      },
+      'validation.fraud': {},
+    });
+    summary.phone = { status: 'ok', provider: 'local_nanp_check', valid: false, pattern: fakeCheck.pattern };
+    // Skip the paid Twilio call — we already know it's fake.
+    effective.twilioLookup = false;
+  }
 
   // ── Phone validation (Twilio Lookup, cached) ─────────────────────────────
   // AND-gated: env ENABLE_TWILIO_LOOKUP AND admin toggle twilioLookupEnabled.
+  // Skipped when local fake-pattern check already marked the number invalid.
   if (effective.twilioLookup) {
     const [firstName, ...rest] = String(lead.customerName || '').trim().split(/\s+/);
     const lastName = rest.join(' ');
@@ -139,6 +185,11 @@ async function runShadow(leadId) {
     if (phoneResult.available || phoneResult.status === 'cached') {
       const update = {
         valid: phoneResult.result?.valid ?? null,
+        // validityReason — set by twilioLookupService when valid is false OR
+        // when valid is true but no enrichment data came back. Lets the scoring
+        // engine emit specific human-readable reasons (e.g. "fake_pattern:..."
+        // vs "twilio_says_invalid" vs "twilio_no_enrichment").
+        validityReason: phoneResult.result?.validityReason ?? null,
         lineType: phoneResult.result?.lineType ?? null,
         isVoip: phoneResult.result?.isVoip ?? null,
         carrierName: phoneResult.result?.carrierName ?? null,
@@ -146,6 +197,9 @@ async function runShadow(leadId) {
         smsPumpingScore: phoneResult.result?.smsPumpingScore ?? null,
         identityMatch: phoneResult.result?.identityMatch ?? null,
         fromCache: phoneResult.result?.fromCache ?? false,
+        // provider — 'twilio_lookup_v2' for paid lookups,
+        // 'local_nanp_check' for fake-pattern-blocked submissions.
+        provider: phoneResult.provider ?? null,
         checkedAt: new Date(),
       };
       await safeUpdateLead(lead._id, { 'validation.phone': update, 'validation.fraud': deriveFraudFromPhone(update) });
@@ -183,11 +237,17 @@ async function runShadow(leadId) {
     summary.fingerprint = { status: fpResult.status };
   }
 
-  // ── Trigger enriched re-score ───────────────────────────────────────────
-  // Fire-and-forget — scoringPipeline.runShadow already swallows its own errors.
-  scoringPipeline.runShadow(lead._id).catch(err => {
-    console.error(`[validationPipeline] re-score failed for ${leadId}:`, err.message);
-  });
+  // ── Trigger enriched re-score (only if validation data changed) ────────
+  // Fire-and-forget — scoringPipeline.runShadow swallows its own errors.
+  // Skip the re-score when no validation actually ran (e.g. real phone,
+  // all env flags off) — the baseline snapshot from the ingest call is
+  // already correct and a duplicate would just clutter snapshot history.
+  const anyWritten = summary.phone !== null || summary.route !== null || summary.fingerprint !== null;
+  if (anyWritten) {
+    scoringPipeline.runShadow(lead._id).catch(err => {
+      console.error(`[validationPipeline] re-score failed for ${leadId}:`, err.message);
+    });
+  }
 
   return summary;
 }
