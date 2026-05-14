@@ -69,25 +69,68 @@ function normalizeE164(phone) {
  *
  * Only applies to NANP (+1...) numbers; non-NANP numbers pass through.
  *
- * Rules enforced (any one → fake):
- *   - NPA (area code) starts with 0 or 1 (NANP invariant — never valid)
- *   - NXX (exchange) starts with 0 or 1 (NANP invariant — never valid)
- *   - NPA is an N11 service code (211/311/411/511/611/711/811/911)
- *   - 555-01XX subscriber range (5550100-5550199 reserved for fiction)
- *   - All 10 digits the same (1111111111, 9999999999, 0000000000)
+ * Two layers of checks:
  *
- * Deliberately NOT enforced (would false-positive on real numbers):
- *   - npa_all_same_digit — would block toll-free 888-XXX-XXXX (real)
- *   - nxx_all_same_digit — would block 415-555-XXXX (real exchange)
- *   - npa_equals_nxx     — could match real numbers like 415-415-XXXX
- *   - subscriber_line_all_same — too aggressive (4444 might be real)
+ *   A. NANP semantic invariants — patterns that cannot be real allocated
+ *      US/Canadian phone numbers:
+ *      - NPA (area code) starts with 0 or 1
+ *      - NXX (exchange) starts with 0 or 1
+ *      - NPA is an N11 service code (211/311/411/511/611/711/811/911)
+ *      - 555-01XX subscriber range (5550100-5550199 reserved for fiction)
+ *      - All 10 digits identical (1111111111, etc.)
  *
- * Numbers that pass this local check still go to Twilio for proper carrier
- * lookup; less-obvious fakes (e.g. 415-999-9999 with unallocated NXX) are
- * caught downstream by Twilio's `line_type_intelligence: null` response,
- * which surfaces as "phone unverifiable: no carrier intelligence returned"
- * in the scoring engine.
+ *   B. Entropy / pattern heuristics — patterns that pass NANP structurally
+ *      but are clearly garbage user input. Calibrated to avoid false-
+ *      positives on real numbers (no NXX-all-same-digit, no NPA-all-same-
+ *      digit since toll-free 888- exists):
+ *      - alternating 2-digit pattern ≥ 4 chars (e.g. 3434 in 2343435456)
+ *      - monotonic ascending/descending run ≥ 5 chars (12345, 98765)
+ *      - low distinct digit count (≤ 3 unique in 10 digits)
+ *
+ * Patterns deliberately NOT enforced (false-positives on real numbers):
+ *   - npa_all_same_digit — blocks toll-free 888-XXX-XXXX
+ *   - nxx_all_same_digit — blocks real 415-555-XXXX
+ *   - npa_equals_nxx     — could be real 415-415-XXXX
+ *
+ * Numbers passing both layers go to Twilio. Less-obvious fakes (e.g.
+ * 415-999-9999 with unallocated NXX) are caught downstream by Twilio's
+ * `line_type_intelligence: null` response → "phone unverifiable: no
+ * carrier intelligence returned" in the scoring engine.
  */
+
+// Detect alternating 2-digit pattern (ABAB) of length ≥ 4
+// (catches 3434, 5656, 1212 — but NOT 5555 or 4321)
+function hasAlternatingPattern(digits) {
+  for (let i = 0; i <= digits.length - 4; i++) {
+    const a = digits[i], b = digits[i + 1];
+    if (a === b) continue; // need A ≠ B
+    if (digits[i + 2] === a && digits[i + 3] === b) return true;
+  }
+  return false;
+}
+
+// Detect monotonic ascending OR descending run of length ≥ 5
+// (catches 12345, 23456, ..., 56789, 98765, 87654, ...)
+function hasMonotonicRun(digits) {
+  for (let i = 0; i <= digits.length - 5; i++) {
+    let asc = true, desc = true;
+    for (let j = 1; j < 5; j++) {
+      const prev = digits.charCodeAt(i + j - 1);
+      const curr = digits.charCodeAt(i + j);
+      if (curr !== prev + 1) asc = false;
+      if (curr !== prev - 1) desc = false;
+    }
+    if (asc || desc) return true;
+  }
+  return false;
+}
+
+// Detect ≤ 3 distinct digits in the 10-digit national number
+// (catches numbers like 1212121212, 1111122222, but not 1234567890)
+function hasLowDistinct(digits) {
+  return new Set(digits.split('')).size <= 3;
+}
+
 function isLikelyFakeNanpNumber(e164) {
   if (!e164 || !e164.startsWith('+1') || e164.length !== 12) {
     return { fake: false }; // non-NANP, skip semantic check
@@ -97,21 +140,31 @@ function isLikelyFakeNanpNumber(e164) {
   const nxx = digits.slice(3, 6);
   const subscriberLine = digits.slice(6, 10);
 
-  // ── NANP invariants — guaranteed-invalid ────────────────────────────────
+  // ── Layer A: NANP semantic invariants ──────────────────────────────────
   if (/^[01]/.test(npa)) return { fake: true, pattern: 'npa_leading_0_or_1' };
   if (/^[01]/.test(nxx)) return { fake: true, pattern: 'nxx_leading_0_or_1' };
 
-  // N11 service codes (211, 311, 411, 511, 611, 711, 811, 911) cannot be
-  // NPAs for normal phone calls — they're emergency/service codes.
   if (/^[2-9]11$/.test(npa)) return { fake: true, pattern: 'npa_is_n11_service_code' };
 
-  // 555-01XX is reserved for fiction (5550100 through 5550199)
   if (nxx === '555' && /^01/.test(subscriberLine)) {
     return { fake: true, pattern: 'reserved_fiction_555_01XX' };
   }
 
-  // All 10 digits identical (1111111111, 9999999999, etc.)
   if (/^(\d)\1{9}$/.test(digits)) return { fake: true, pattern: 'all_same_digit' };
+
+  // ── Layer B: entropy / pattern heuristics ──────────────────────────────
+  // These catch raw garbage input that happens to satisfy NANP structure.
+  // Example: 12343435456 → +12343435456 → national 2343435456 has 3434
+  // alternating pattern — clearly not a real number a customer dialed.
+  if (hasAlternatingPattern(digits)) {
+    return { fake: true, pattern: 'alternating_2digit_pattern' };
+  }
+  if (hasMonotonicRun(digits)) {
+    return { fake: true, pattern: 'monotonic_sequence_5plus' };
+  }
+  if (hasLowDistinct(digits)) {
+    return { fake: true, pattern: 'low_distinct_digit_count' };
+  }
 
   return { fake: false };
 }

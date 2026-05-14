@@ -121,7 +121,8 @@ function trustScore(lead) {
     let trustGain = 0;
     const positiveSignals = [];
 
-    if (phoneLookup.smsPumpingRisk === 'low') {
+    const smsPumpingLow = phoneLookup.smsPumpingRisk === 'low';
+    if (smsPumpingLow) {
       trustGain += 10; positiveSignals.push('low SMS pumping risk');
     }
     // medium/high SMS pumping risk are penalized separately in fraudRiskScore
@@ -132,8 +133,13 @@ function trustScore(lead) {
     // to lowercase. Use the `isVoip` boolean (computed via /voip/.test) so
     // both 'fixedvoip' and 'nonfixedvoip' are caught — earlier strict
     // equality against 'voip' would silently miss every real VoIP variant.
-    if (phoneLookup.lineType === 'mobile') {
-      trustGain += 5; positiveSignals.push('mobile line');
+    const isMobile = phoneLookup.lineType === 'mobile';
+    if (isMobile) {
+      // "trusted mobile line" only when mobile AND low SMS pumping (the
+      // strongest combo). Plain "mobile line" otherwise.
+      const trustedMobile = smsPumpingLow;
+      trustGain += trustedMobile ? 8 : 5;
+      positiveSignals.push(trustedMobile ? 'trusted mobile line' : 'mobile line');
     } else if (phoneLookup.isVoip === true) {
       s -= 10; reasons.push(`voip line (${phoneLookup.lineType || 'voip'})`);
     } else if (phoneLookup.lineType === 'landline') {
@@ -154,7 +160,13 @@ function trustScore(lead) {
     }
 
     if (trustGain > 0) {
-      reasons.push('phone validated by Twilio');
+      // Header reason renamed (per user request): "phone validated by Twilio"
+      // was misleading — Twilio Lookup recognizes a number's existence in
+      // carrier data, it does not "validate" the user's claim. Replaced with
+      // "phone recognized by telecom lookup". The detailed signal reasons
+      // (trusted mobile line, low SMS pumping risk, identity match) are
+      // what actually drive trust gain.
+      reasons.push('phone recognized by telecom lookup');
       for (const sig of positiveSignals) reasons.push(sig);
       s += trustGain;
     } else if (phoneLookup.validityReason === 'twilio_no_enrichment') {
