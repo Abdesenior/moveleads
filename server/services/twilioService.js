@@ -1,5 +1,4 @@
 const twilio = require('twilio');
-const https  = require('https');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
 const CoverageArea = require('../models/CoverageArea');
@@ -13,30 +12,17 @@ const { calculateAuctionPrice } = require('../utils/pricingEngine');
 const { sendAdminLeadNotification, broadcastLeadEmail } = require('./emailService');
 const { sendMoverLeadSMS } = require('./smsService');
 
-// Twilio — used for SMS and warm-transfer calls only (not phone lookup)
+// Twilio — used for SMS and warm-transfer calls. Telecom trust (line type,
+// SMS pumping risk, identity match) is handled by services/twilioLookupService
+// via the validation pipeline, NOT here. This file no longer assesses telecom
+// trust at all — it just progresses Lead lifecycle status.
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken  = process.env.TWILIO_AUTH_TOKEN;
 const fromPhone  = process.env.TWILIO_PHONE_NUMBER || '+15005550006';
 const twilioClient = accountSid && authToken ? twilio(accountSid, authToken) : null;
-
-// Abstract API — used for phone number validation
-const ABSTRACT_API_KEY = process.env.ABSTRACT_API_KEY;
-
-// Production-safety guard. In dev or with explicit `testMode`, leads can
-// mock-pass verification (saves cost + lets local development work). In
-// production, missing ABSTRACT_API_KEY MUST NOT silently auto-pass every
-// lead as READY_FOR_DISTRIBUTION — that would distribute unverified phone
-// numbers (potentially VOIP / fraud) to paying movers. Surface the
-// misconfiguration at boot AND fall back to PENDING_MANUAL_REVIEW at
-// verify-time below.
-if (process.env.NODE_ENV === 'production' && !ABSTRACT_API_KEY) {
-  console.error(
-    '[twilioService] CRITICAL: NODE_ENV=production but ABSTRACT_API_KEY is unset. ' +
-    'Incoming leads will be routed to PENDING_MANUAL_REVIEW until the env var is set.'
-  );
-}
-
-const LOOKUP_TIMEOUT_MS = 5000;
+// `twilioClient` is retained for SMS / voice flows elsewhere in this file.
+// Keep the unused-var lint suppressed by reading it once for clarity.
+void twilioClient;
 
 // ── TCPA / cost-cap constants (Phase 1 / Block E.2) ────────────────────────
 // Per-mover daily Twilio SMS cap. PlatformSettings has no SMS-cap knob yet,
@@ -213,58 +199,46 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
   }
 }
 
-/**
- * Look up a phone number via Abstract Phone Validation API.
- * Returns { valid, lineType, isVoip, riskLevel } or throws on network error.
- */
-async function abstractLookup(phone) {
-  // Abstract expects E.164 without the leading +
-  const digits = phone.replace(/\D/g, '');
-  const url = `https://phoneintelligence.abstractapi.com/v1/?api_key=${ABSTRACT_API_KEY}&phone=${digits}`;
-
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, (res) => {
-      let body = '';
-      res.on('data', chunk => (body += chunk));
-      res.on('end', () => {
-        try {
-          const data = JSON.parse(body);
-          console.log(`[Abstract] Raw response for ${phone}:`, JSON.stringify(data));
-
-          // Phone Intelligence response structure:
-          //   data.phone_validation.is_valid  → boolean
-          //   data.phone_carrier.line_type    → 'mobile', 'landline', 'voip', etc.
-          //   data.phone_risk.risk_level      → 'low', 'medium', 'high'
-          const lineType  = data.phone_carrier?.line_type || 'unknown';
-          const riskLevel = data.phone_risk?.risk_level   || 'low';
-          resolve({
-            valid:     data.phone_validation?.is_valid === true,
-            lineType,
-            isVoip:    lineType.toLowerCase() === 'voip',
-            riskLevel,
-          });
-        } catch (e) {
-          reject(new Error(`Abstract API parse error: ${e.message}`));
-        }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(LOOKUP_TIMEOUT_MS, () => {
-      req.destroy();
-      reject(new Error('LOOKUP_TIMEOUT'));
-    });
-  });
-}
+// NOTE: Abstract API phone-validation integration was removed in Phase 3.5
+// when telecom trust assessment moved to services/twilioLookupService.js (called
+// via the validation pipeline). Having two telecom-trust providers writing to
+// the same lead caused REJECTED_FAKE to be set by Abstract before the new
+// qualification engine got a vote. The single source of truth for line type /
+// SMS pumping risk / identity match is now Twilio Lookup V2 (gated by env flag
+// + admin toggle). See server/services/validationPipeline.js.
 
 /**
- * Verify a lead's phone number.
- * Priority: Abstract API (primary) → mock (dev/test fallback).
- * Twilio is kept only for SMS and warm-transfer calls.
+ * Progress a lead's lifecycle status after ingest.
  *
- * Pass/fail rules:
- *   PASS: phone_validation.is_valid === true AND line_type !== 'voip' AND risk_level !== 'high'
- *   FAIL: is_valid === false OR isVoip === true OR risk_level === 'high'
+ * Phase 3.5 — the Abstract API integration was removed. This function NO
+ * LONGER assesses telecom trust. Its job now is:
+ *   1. Defensive phone-shape sanity (Zod already enforces shape at ingest;
+ *      this is belt-and-suspenders for admin-imported / legacy paths).
+ *   2. Compute legacy score/grade + auction pricing.
+ *   3. Set lead.status to READY_FOR_DISTRIBUTION (or 'Purchased' for
+ *      widget-sourced leads).
+ *   4. Fire broadcast SMS / email / socket event.
+ *
+ * What this function will NEVER do anymore:
+ *   - Set lead.status = 'REJECTED_FAKE' (only admin actions can now)
+ *   - Call an external telecom API
+ *   - Pass a non-null lineType into the legacy scorer (telecom trust is
+ *     entirely Twilio Lookup's job now, via the validation pipeline)
+ *
+ * Telecom trust signals (line type, SMS pumping risk, identity match) are
+ * read from `lead.validation.phone.*` by the new qualification engine.
+ * That data is populated by services/twilioLookupService.js inside the
+ * validation pipeline, gated by env flag AND admin toggle.
+ *
+ * Failure modes:
+ *   - Lead not found              → return silently
+ *   - Phone shape malformed       → PENDING_MANUAL_REVIEW (admin reviews)
+ *   - Unexpected internal error   → PENDING_MANUAL_REVIEW
+ *
+ * `testMode` is preserved in the signature for back-compat with V4/V5
+ * ingest callers but is now a no-op (there's no live API to mock).
  */
+// eslint-disable-next-line no-unused-vars
 async function verifyLeadPhone(leadId, { testMode = false } = {}) {
   let lead;
   try {
@@ -273,144 +247,86 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
 
     console.log(`[PhoneVerify] Starting for lead ${leadId} (${lead.customerPhone})`);
 
-    const isDev  = process.env.NODE_ENV === 'development';
-    const isProd = process.env.NODE_ENV === 'production';
-
-    // ── Production safety: refuse to mock-pass when no API key is configured.
-    //    A missing ABSTRACT_API_KEY in prod is a misconfiguration that would
-    //    otherwise auto-distribute every (potentially VOIP / fraudulent)
-    //    lead to paying movers. Route to manual-review instead so an admin
-    //    can recover them once the env is fixed.
-    if (isProd && !ABSTRACT_API_KEY) {
-      console.error(`[PhoneVerify] lead ${leadId} → PENDING_MANUAL_REVIEW (ABSTRACT_API_KEY missing in production)`);
-      lead.isVerified   = false;
-      lead.status       = 'PENDING_MANUAL_REVIEW';
+    // ── Defensive phone-shape check ─────────────────────────────────────────
+    // Zod blocks bad shapes at ingest, but admin-imported leads or future
+    // backfill scripts can bypass that. If the shape is clearly malformed,
+    // route to PENDING_MANUAL_REVIEW so admin can decide. Do not auto-reject.
+    const digits = String(lead.customerPhone || '').replace(/\D/g, '');
+    const shapeOk = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+    if (!shapeOk) {
+      console.warn(`[PhoneVerify] lead ${leadId} phone shape malformed → PENDING_MANUAL_REVIEW`);
+      lead.isVerified = false;
+      lead.status = 'PENDING_MANUAL_REVIEW';
       lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
       await lead.save();
       return;
     }
 
-    // ── Mock mode: dev environment or explicit test flag ──────────────────────
-    if (!ABSTRACT_API_KEY || isDev || testMode) {
-      console.log(`[PhoneVerify] MOCK mode (apiKey=${!!ABSTRACT_API_KEY} isDev=${isDev} testMode=${testMode})`);
-      await new Promise(resolve => setTimeout(resolve, 500));
+    // ── Legacy scoring (drives auction pricing tier & V4 grade column) ─────
+    // lineType is intentionally null — the legacy scorer's +10 "mobile" bonus
+    // is no longer applied here. Telecom-trust scoring lives entirely in the
+    // new qualification engine, which reads lead.validation.phone.lineType
+    // populated by Twilio Lookup. The legacy grade is now phone-agnostic.
+    const scoring = calculateLeadScore(lead, lead.miles, null, lead.moveDate);
+    lead.score        = scoring.score;
+    lead.grade        = scoring.grade;
+    lead.scoreFactors = scoring.scoreFactors;
 
-      const mockScoring = calculateLeadScore(lead, lead.miles, 'Mobile', lead.moveDate);
-      lead.score        = mockScoring.score;
-      lead.grade        = mockScoring.grade;
-      lead.scoreFactors = mockScoring.scoreFactors;
+    const finalPricing = await calculateAuctionPrice({
+      homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade,
+    });
+    lead.buyNowPrice      = finalPricing.buyNowPrice;
+    lead.price            = finalPricing.buyNowPrice;
+    lead.startingBidPrice = finalPricing.startingBidPrice;
+    lead.currentBidPrice  = finalPricing.startingBidPrice;
 
-      const mockPricing = await calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: mockScoring.grade });
-      lead.buyNowPrice      = mockPricing.buyNowPrice;
-      lead.price            = mockPricing.buyNowPrice;
-      lead.startingBidPrice = mockPricing.startingBidPrice;
-      lead.currentBidPrice  = mockPricing.startingBidPrice;
+    // ── Lifecycle: lead is ready for the marketplace ───────────────────────
+    // No telecom-trust rejection here. The new qualification engine will
+    // surface fraud / suspicious leads via tier='rejected' or tier='review'
+    // in the ScoringSnapshot. Mover visibility doesn't filter on tier until
+    // ENABLE_TIERED_ROUTING is flipped on.
+    lead.isVerified = true;
+    lead.status = 'READY_FOR_DISTRIBUTION';
 
-      lead.isVerified = true;
-      lead.status     = 'READY_FOR_DISTRIBUTION';
-      lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
-      await lead.save();
-      console.log(`[PhoneVerify] Mock PASS — Grade: ${mockScoring.grade}`);
-      sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] mock path error:', err.message));
-      broadcastLeadSMS(lead);
-      broadcastLeadEmail(lead).catch(() => {});
-      socketService.emitNewLead(lead);
-      return;
-    }
-
-    // ── Abstract API verification ─────────────────────────────────────────────
-    let result;
-    try {
-      result = await abstractLookup(lead.customerPhone);
-    } catch (lookupErr) {
-      if (lookupErr.message === 'LOOKUP_TIMEOUT') {
-        console.warn(`[PhoneVerify] Abstract API timed out for lead ${leadId} — marking PENDING_MANUAL_REVIEW`);
-      } else {
-        console.error(`[PhoneVerify] Abstract API error for lead ${leadId}:`, lookupErr.message);
-      }
-      lead.status       = 'PENDING_MANUAL_REVIEW';
-      lead.price        = 0;
-      lead.buyNowPrice  = 0;
-      lead.startingBidPrice = 0;
-      lead.currentBidPrice  = 0;
-      lead.auctionStatus    = 'expired';
-      lead.statusHistory.push({ status: 'PENDING_MANUAL_REVIEW', timestamp: new Date() });
-      await lead.save();
-      return;
-    }
-
-    const { valid, lineType, isVoip, riskLevel } = result;
-    console.log(`[PhoneVerify] Abstract result: valid=${valid} type=${lineType} isVoip=${isVoip} risk=${riskLevel}`);
-
-    const passed = valid === true && !isVoip && riskLevel !== 'high';
-
-    if (passed) {
-      lead.isVerified = true;
-      lead.status     = 'READY_FOR_DISTRIBUTION';
-
-      // Map Abstract type to scoring-compatible string
-      const normalizedType = lineType?.toLowerCase().includes('mobile') ? 'mobile'
-                           : lineType?.toLowerCase().includes('land')   ? 'landline'
-                           : 'mobile'; // default to mobile scoring if ambiguous
-
-      const scoring     = calculateLeadScore(lead, lead.miles, normalizedType, lead.moveDate);
-      lead.score        = scoring.score;
-      lead.grade        = scoring.grade;
-      lead.scoreFactors = scoring.scoreFactors;
-
-      const finalPricing = await calculateAuctionPrice({ homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade });
-      lead.buyNowPrice      = finalPricing.buyNowPrice;
-      lead.price            = finalPricing.buyNowPrice;
-      lead.startingBidPrice = finalPricing.startingBidPrice;
-      lead.currentBidPrice  = finalPricing.startingBidPrice;
-
-      // Exclusive routing: widget-sourced lead goes straight to that company
-      if (lead.sourceCompany) {
-        lead.status = 'Purchased';
-        await new PurchasedLead({
-          company:   lead.sourceCompany,
-          lead:      lead._id,
-          pricePaid: 0
-        }).save().catch(err => { if (err.code !== 11000) throw err; });
-        console.log(`[PhoneVerify] Exclusive assignment to ${lead.sourceCompany}`);
-      }
-
-      console.log(`[PhoneVerify] PASS — Type: ${lineType} Grade: ${scoring.grade} Price: $${finalPricing.buyNowPrice}`);
-
-      // Warm transfer for Grade A mobile leads only (landlines can't receive transfers)
-      if (scoring.grade === 'A' && twilioClient && lineType !== 'landline') {
-        console.log(`[WarmTransfer] Initiating call for lead ${lead._id} → ${lead.customerPhone}`);
-        twilioClient.calls.create({
-          to:                  lead.customerPhone,
-          from:                fromPhone,
-          url:                 `https://api.moveleads.cloud/api/voice/customer-answered?leadId=${lead._id}`,
-          statusCallback:      'https://api.moveleads.cloud/api/twilio/voice/status',
-          statusCallbackMethod: 'POST',
-          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-        })
-        .then(call => console.log(`[WarmTransfer] Call initiated: ${call.sid}`))
-        .catch(err => console.error('[WarmTransfer] Call failed:', err.message));
-      }
-
-      sendAdminLeadNotification({ leadId: lead._id, customerName: lead.customerName, customerPhone: lead.customerPhone, customerEmail: lead.customerEmail, originCity: lead.originCity, destinationCity: lead.destinationCity, originZip: lead.originZip, destinationZip: lead.destinationZip, homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance, miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice, createdAt: lead.createdAt }).catch(err => console.error('[AdminNotify] real path error:', err.message));
-      broadcastLeadSMS(lead);
-      broadcastLeadEmail(lead).catch(() => {});
-
-      socketService.emitNewLead(lead);
-    } else {
-      // VOIP or invalid number — reject
-      lead.isVerified       = false;
-      lead.status           = 'REJECTED_FAKE';
-      lead.price            = 0;
-      lead.buyNowPrice      = 0;
-      lead.startingBidPrice = 0;
-      lead.currentBidPrice  = 0;
-      lead.auctionStatus    = 'expired';
-      console.log(`[PhoneVerify] FAIL — valid=${valid} type=${lineType} isVoip=${isVoip} risk=${riskLevel}`);
+    // Exclusive routing: widget-sourced lead goes straight to that company
+    if (lead.sourceCompany) {
+      lead.status = 'Purchased';
+      await new PurchasedLead({
+        company:   lead.sourceCompany,
+        lead:      lead._id,
+        pricePaid: 0,
+      }).save().catch(err => { if (err.code !== 11000) throw err; });
+      console.log(`[PhoneVerify] Exclusive assignment to ${lead.sourceCompany}`);
     }
 
     lead.statusHistory.push({ status: lead.status, timestamp: new Date() });
     await lead.save();
+    console.log(`[PhoneVerify] READY_FOR_DISTRIBUTION — Grade: ${scoring.grade} Price: $${finalPricing.buyNowPrice}`);
+
+    // ── Warm transfer (auto-call Grade A mobile leads) ─────────────────────
+    // PREVIOUSLY fired here using Abstract's lineType. Now requires Twilio
+    // Lookup's authoritative lineType (lead.validation.phone.lineType), which
+    // isn't necessarily populated at this moment because the validation
+    // pipeline runs in parallel. Warm transfer should be re-introduced from
+    // validationPipeline.js after lead.validation.phone.lineType is written.
+    // Skipping here keeps the legacy warm-transfer behaviour from firing
+    // against leads whose line type is unknown. The unused `fromPhone` var
+    // is kept exported so future re-introduction is a one-line edit.
+    void fromPhone;
+
+    // ── Side effects: admin notify + mover broadcast ──────────────────────
+    sendAdminLeadNotification({
+      leadId: lead._id, customerName: lead.customerName,
+      customerPhone: lead.customerPhone, customerEmail: lead.customerEmail,
+      originCity: lead.originCity, destinationCity: lead.destinationCity,
+      originZip: lead.originZip, destinationZip: lead.destinationZip,
+      homeSize: lead.homeSize, moveDate: lead.moveDate, distance: lead.distance,
+      miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice,
+      createdAt: lead.createdAt,
+    }).catch(err => console.error('[AdminNotify] error:', err.message));
+    broadcastLeadSMS(lead);
+    broadcastLeadEmail(lead).catch(() => {});
+    socketService.emitNewLead(lead);
 
   } catch (err) {
     console.error(`[PhoneVerify] Unexpected error for lead ${leadId}:`, err.message);
