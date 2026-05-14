@@ -97,6 +97,7 @@ app.use('/api/public', require('./routes/public'));  // PUBLIC: lead-volume / qu
 app.use('/api/twilio', require('./routes/twilio'));  // PUBLIC: Twilio signature-verified webhooks
 app.use('/api/voice',  require('./routes/voice'));   // PUBLIC: Twilio voice webhooks
 app.use('/api/founding-movers', require('./routes/foundingMovers')); // PUBLIC: Founding Mover Program intake
+app.use('/api/partner-research', require('./routes/partnerResearch')); // PUBLIC: Partner validation funnels (realtors + FB groups)
 
 // PUBLIC: Quote-form ingest. MUST be mounted BEFORE the gated /api/leads
 // router below — Express dispatches by registration order, so this more
@@ -111,6 +112,7 @@ app.use('/api/leads',          verifiedGate, require('./routes/leads'));
 app.use('/api/users',          verifiedGate, require('./routes/users'));
 app.use('/api/admin/settings', verifiedGate, require('./routes/settings'));
 app.use('/api/admin/mover-research', verifiedGate, require('./routes/admin/moverResearch'));
+app.use('/api/admin/partner-research', verifiedGate, require('./routes/admin/partnerResearch'));
 app.use('/api/admin',          verifiedGate, require('./routes/admin'));
 app.use('/api/disputes',       verifiedGate, require('./routes/disputes'));
 app.use('/api/admin/pricing',  verifiedGate, require('./routes/pricing'));

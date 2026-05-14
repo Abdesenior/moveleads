@@ -139,6 +139,9 @@ export default function AdminLayout({ children }) {
           <NavLink to="/admin/mover-research" title={collapsed ? 'Mover Research' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <ClipboardList size={18} /> <span className="nav-label">Mover Research</span>
           </NavLink>
+          <NavLink to="/admin/partner-research" title={collapsed ? 'Partner Research' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <ClipboardList size={18} /> <span className="nav-label">Partner Research</span>
+          </NavLink>
           <NavLink to="/admin/settings" title={collapsed ? 'Settings' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <Settings size={18} /> <span className="nav-label">Settings</span>
           </NavLink>

@@ -49,7 +49,10 @@ const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminDisputes = lazy(() => import('./pages/admin/AdminDisputes'));
 const AdminPricing = lazy(() => import('./pages/admin/AdminPricing'));
 const AdminMoverResearch = lazy(() => import('./pages/admin/AdminMoverResearch'));
+const AdminPartnerResearch = lazy(() => import('./pages/admin/AdminPartnerResearch'));
 const FoundingMovers = lazy(() => import('./pages/FoundingMovers'));
+const FoundingRealtors = lazy(() => import('./pages/FoundingRealtors'));
+const FoundingGroups = lazy(() => import('./pages/FoundingGroups'));
 
 const MoveRoute = lazy(() => import('./pages/GetQuote').then(m => ({ default: m.MoveRoute })));
 
@@ -96,6 +99,8 @@ function App() {
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/founding-movers" element={<FoundingMovers />} />
+              <Route path="/founding-realtors" element={<FoundingRealtors />} />
+              <Route path="/founding-groups" element={<FoundingGroups />} />
 
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/dashboard/leads" element={<ProtectedRoute><LeadFeed /></ProtectedRoute>} />
@@ -115,6 +120,7 @@ function App() {
               <Route path="/admin/pricing" element={<ProtectedRoute requireAdmin><AdminPricing /></ProtectedRoute>} />
               <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
               <Route path="/admin/mover-research" element={<ProtectedRoute requireAdmin><AdminMoverResearch /></ProtectedRoute>} />
+              <Route path="/admin/partner-research" element={<ProtectedRoute requireAdmin><AdminPartnerResearch /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
