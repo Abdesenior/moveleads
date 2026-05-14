@@ -378,7 +378,7 @@ export default function AdminLeads() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortKey, setSortKey] = useState('moveDate');
+  const [sortKey, setSortKey] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
   
   const emptyForm = {
@@ -640,6 +640,7 @@ export default function AdminLeads() {
         case 'contact': return (lead.customerName || '').toLowerCase();
         case 'homeSize': return (lead.homeSize || '').toLowerCase();
         case 'moveDate': { const t = new Date(lead.moveDate).getTime(); return Number.isFinite(t) ? t : 0; }
+        case 'createdAt': { const t = new Date(lead.createdAt).getTime(); return Number.isFinite(t) ? t : 0; }
         case 'price': return Number(lead.price || 0);
         case 'status': return (lead.status || '').toLowerCase();
         default: return '';
