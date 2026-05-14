@@ -6,9 +6,9 @@ import './FoundingMovers.css';
 const STORAGE_KEY = 'ml_founding_realtor_v1';
 
 const VOLUME_OPTIONS = [
-  { value: '1-4',   label: '1–4 clients / month',   subline: 'Light volume' },
-  { value: '5-14',  label: '5–14 clients / month',  subline: 'Steady pipeline' },
-  { value: '15-29', label: '15–29 clients / month', subline: 'High volume' },
+  { value: '1-4',   label: '1–4 clients / month',   subline: 'Selective practice' },
+  { value: '5-14',  label: '5–14 clients / month',  subline: 'Active practice' },
+  { value: '15-29', label: '15–29 clients / month', subline: 'High-volume practice' },
   { value: '30+',   label: '30+ clients / month',   subline: 'Top producer' },
 ];
 
@@ -32,7 +32,7 @@ export default function FoundingRealtors() {
     initialAnswers: INITIAL_ANSWERS,
   });
 
-  const [stepId, setStepId] = useState('identity'); // 'identity' | 'business'
+  const [stepId, setStepId] = useState('identity');
 
   const step1Valid = answers.fullName.trim() && isEmail(answers.email);
   const step2Valid =
@@ -45,27 +45,22 @@ export default function FoundingRealtors() {
       <div className="fm-root">
         <div className="fm-step" key="done">
           <div className="fm-step-inner">
-            <h1 className="fm-question">You're on the list 🎯</h1>
+            <h1 className="fm-question">Application received</h1>
             <p className="fm-helper">
-              Thanks for applying to the MoveLeads Realtor Partner Network. We're hand-reviewing
-              early partners in your market and will reach out to selected applicants with
-              next steps and onboarding details.
+              Thank you for applying to the MoveLeads Realtor Partner Network. Our partnerships
+              team will review your application and contact selected partners directly with
+              next steps.
             </p>
 
             <ul className="fm-trust">
               <li><span className="fm-trust-check">✓</span> Application received</li>
-              <li><span className="fm-trust-check">✓</span> Reviewed by our partnerships team</li>
-              <li><span className="fm-trust-check">✓</span> Selected partners contacted directly</li>
+              <li><span className="fm-trust-check">✓</span> Under review by our partnerships team</li>
+              <li><span className="fm-trust-check">✓</span> Selected partners contacted personally</li>
             </ul>
 
-            <div className="fm-actions">
-              <a
-                href="https://moveleads.cloud/?utm_source=founding_realtors&utm_medium=funnel"
-                className="fm-continue fm-continue-link"
-              >
-                See how MoveLeads works →
-              </a>
-            </div>
+            <p className="fm-finetext" style={{ marginTop: 24 }}>
+              You can now close this page.
+            </p>
           </div>
         </div>
       </div>
@@ -101,14 +96,14 @@ export default function FoundingRealtors() {
             <>
               <h1 className="fm-question">Join the MoveLeads Realtor Partner Network</h1>
               <p className="fm-helper">
-                Help your clients move easier while unlocking referral revenue opportunities.
-                Tell us a bit about you to get started.
+                A trusted relocation network for the realtors your clients rely on.
+                Early-access applications open to a select group of partners.
               </p>
 
               <ul className="fm-intro-bullets">
-                <li><span className="fm-trust-check">✓</span> Verified moving partners for your clients</li>
-                <li><span className="fm-trust-check">✓</span> Referral revenue on every closed move</li>
-                <li><span className="fm-trust-check">✓</span> Early-access pricing for founding realtors</li>
+                <li><span className="fm-trust-check">✓</span> Vetted moving partners for your clients</li>
+                <li><span className="fm-trust-check">✓</span> Smooth, transparent relocations from listing to delivery</li>
+                <li><span className="fm-trust-check">✓</span> Founding access to the partner program</li>
               </ul>
 
               <div className="fm-stack">
@@ -125,7 +120,7 @@ export default function FoundingRealtors() {
                   type="email"
                   value={answers.email}
                   onChange={e => setField('email', e.target.value)}
-                  placeholder="Work email"
+                  placeholder="Email address"
                   autoComplete="email"
                 />
               </div>
@@ -157,9 +152,9 @@ export default function FoundingRealtors() {
 
           {stepId === 'business' && (
             <>
-              <h1 className="fm-question">A few details about your business</h1>
+              <h1 className="fm-question">Tell us about your practice</h1>
               <p className="fm-helper">
-                This helps us match founding partners with the right markets.
+                A few details help us match founding partners to the right markets.
               </p>
 
               <div className="fm-stack">
@@ -171,15 +166,22 @@ export default function FoundingRealtors() {
                   placeholder="Brokerage name"
                   autoComplete="organization"
                 />
+              </div>
+
+              <div className="fm-group fm-group-spaced">
+                <div className="fm-group-label">Your primary market</div>
+                <p className="fm-helper" style={{ marginTop: 0, marginBottom: 12 }}>
+                  Start typing a city or state — we'll match standardized markets.
+                </p>
                 <MarketAutocomplete
                   value={answers.mainMarket}
-                  onChange={(code) => setField('mainMarket', code)}
-                  placeholder="Main market"
+                  onChange={(v) => setField('mainMarket', v)}
+                  placeholder="City or state…"
                 />
               </div>
 
               <div className="fm-group fm-group-spaced">
-                <div className="fm-group-label">Approx. clients who move or relocate monthly</div>
+                <div className="fm-group-label">Roughly how many clients relocate or move with you each month?</div>
                 <div className="fm-choices">
                   {VOLUME_OPTIONS.map(opt => {
                     const isSelected = answers.monthlyMovingClients === opt.value;
@@ -215,7 +217,7 @@ export default function FoundingRealtors() {
                   onClick={() => submit()}
                   disabled={!step2Valid || submitting}
                 >
-                  {submitting ? 'Sending…' : 'Apply for Early Partner Access →'}
+                  {submitting ? 'Sending…' : 'Submit application →'}
                 </button>
               </div>
             </>

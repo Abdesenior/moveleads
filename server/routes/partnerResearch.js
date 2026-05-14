@@ -49,7 +49,7 @@ router.post('/submit', async (req, res) => {
     const doc = { partnerType, fullName, email };
     if (partnerType === 'realtor') {
       const brokerageName        = String(body.brokerageName || '').trim();
-      const mainMarket           = String(body.mainMarket || '').trim().toUpperCase();
+      const mainMarket           = String(body.mainMarket || '').trim().slice(0, 64);
       const monthlyMovingClients = String(body.monthlyMovingClients || '').trim();
       if (!brokerageName || !mainMarket || !REALTOR_VOLUMES.has(monthlyMovingClients)) {
         return res.status(400).json({ msg: 'Brokerage, market, and client volume are required.' });
@@ -59,10 +59,15 @@ router.post('/submit', async (req, res) => {
       const facebookGroupUrl    = String(body.facebookGroupUrl || '').trim();
       const groupSize           = String(body.groupSize || '').trim();
       const movingHelpFrequency = String(body.movingHelpFrequency || '').trim().toLowerCase();
+      const originMarket        = String(body.originMarket || '').trim().slice(0, 64);
+      const destinationMarket   = String(body.destinationMarket || '').trim().slice(0, 64);
       if (!facebookGroupUrl || !GROUP_SIZES.has(groupSize) || !GROUP_FREQS.has(movingHelpFrequency)) {
         return res.status(400).json({ msg: 'Group URL, size, and frequency are required.' });
       }
-      Object.assign(doc, { facebookGroupUrl, groupSize, movingHelpFrequency });
+      if (!originMarket || !destinationMarket) {
+        return res.status(400).json({ msg: 'Origin and destination markets are required.' });
+      }
+      Object.assign(doc, { facebookGroupUrl, groupSize, movingHelpFrequency, originMarket, destinationMarket });
     }
 
     // Dedup — friendly success, no enumeration leak.

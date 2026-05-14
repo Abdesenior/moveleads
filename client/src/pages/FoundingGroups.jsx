@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import MarketAutocomplete from '../components/MarketAutocomplete';
 import { usePartnerForm } from '../hooks/usePartnerForm';
 import './FoundingMovers.css';
 
@@ -24,6 +25,8 @@ const INITIAL_ANSWERS = {
   facebookGroupUrl: '',
   groupSize: '',
   movingHelpFrequency: '',
+  originMarket: '',
+  destinationMarket: '',
   website: '',
   utm: { source: '', medium: '', campaign: '', term: '', content: '' },
 };
@@ -39,47 +42,49 @@ export default function FoundingGroups() {
     initialAnswers: INITIAL_ANSWERS,
   });
 
-  const [stepId, setStepId] = useState('identity'); // 'identity' | 'group'
+  const [stepId, setStepId] = useState('identity'); // 'identity' | 'group' | 'markets'
 
   const step1Valid = answers.fullName.trim() && isEmail(answers.email);
   const step2Valid =
     isUrl(answers.facebookGroupUrl) &&
     answers.groupSize &&
     answers.movingHelpFrequency;
+  const step3Valid = answers.originMarket && answers.destinationMarket;
 
   if (submitted) {
     return (
       <div className="fm-root">
         <div className="fm-step" key="done">
           <div className="fm-step-inner">
-            <h1 className="fm-question">You're on the list 🎯</h1>
+            <h1 className="fm-question">Application received</h1>
             <p className="fm-helper">
-              Thanks for applying to become a MoveLeads Community Partner. We're reviewing
-              selected groups and will contact approved partners with early-access details.
+              Thank you for applying to become a MoveLeads Community Partner. Our partnerships
+              team will review your application and contact selected community partners
+              directly with next steps.
             </p>
 
             <ul className="fm-trust">
               <li><span className="fm-trust-check">✓</span> Application received</li>
-              <li><span className="fm-trust-check">✓</span> Reviewed by our partnerships team</li>
-              <li><span className="fm-trust-check">✓</span> Approved community partners contacted directly</li>
+              <li><span className="fm-trust-check">✓</span> Under review by our partnerships team</li>
+              <li><span className="fm-trust-check">✓</span> Approved partners contacted personally</li>
             </ul>
 
-            <div className="fm-actions">
-              <a
-                href="https://moveleads.cloud/?utm_source=founding_groups&utm_medium=funnel"
-                className="fm-continue fm-continue-link"
-              >
-                See how MoveLeads works →
-              </a>
-            </div>
+            <p className="fm-finetext" style={{ marginTop: 24 }}>
+              You can now close this page.
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  const progressPct = stepId === 'identity' ? 50 : 100;
-  const showBack = stepId === 'group';
+  const progressPct = stepId === 'identity' ? 33 : stepId === 'group' ? 66 : 100;
+  const showBack = stepId !== 'identity';
+
+  function goBack() {
+    if (stepId === 'group') setStepId('identity');
+    else if (stepId === 'markets') setStepId('group');
+  }
 
   return (
     <div className="fm-root">
@@ -91,7 +96,7 @@ export default function FoundingGroups() {
         <button
           type="button"
           className="fm-back"
-          onClick={() => setStepId('identity')}
+          onClick={goBack}
           aria-label="Back"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -107,14 +112,14 @@ export default function FoundingGroups() {
             <>
               <h1 className="fm-question">Become an Early MoveLeads Community Partner</h1>
               <p className="fm-helper">
-                Help your members find verified movers while earning referral revenue from
-                moving requests. Tell us a bit about you to get started.
+                Help your members find verified movers while earning early-access perks as a
+                founding community partner.
               </p>
 
               <ul className="fm-intro-bullets">
                 <li><span className="fm-trust-check">✓</span> Verified movers for your members</li>
-                <li><span className="fm-trust-check">✓</span> Referral revenue per closed move</li>
-                <li><span className="fm-trust-check">✓</span> Early-access perks for founding community partners</li>
+                <li><span className="fm-trust-check">✓</span> Trusted partner for moving asks in your group</li>
+                <li><span className="fm-trust-check">✓</span> Founding access to the community partner program</li>
               </ul>
 
               <div className="fm-stack">
@@ -131,7 +136,7 @@ export default function FoundingGroups() {
                   type="email"
                   value={answers.email}
                   onChange={e => setField('email', e.target.value)}
-                  placeholder="Work email"
+                  placeholder="Email address"
                   autoComplete="email"
                 />
               </div>
@@ -165,7 +170,7 @@ export default function FoundingGroups() {
             <>
               <h1 className="fm-question">Tell us about your community</h1>
               <p className="fm-helper">
-                This helps us prioritize groups where members ask about moving most often.
+                This helps us prioritize groups where members actively ask about moving.
               </p>
 
               <div className="fm-stack">
@@ -227,6 +232,50 @@ export default function FoundingGroups() {
                 </div>
               </div>
 
+              <div className="fm-actions">
+                <button
+                  type="button"
+                  className="fm-continue"
+                  onClick={() => setStepId('markets')}
+                  disabled={!step2Valid}
+                >
+                  Continue →
+                </button>
+              </div>
+            </>
+          )}
+
+          {stepId === 'markets' && (
+            <>
+              <h1 className="fm-question">Where are your members moving?</h1>
+              <p className="fm-helper">
+                Routes help us match the right movers and surface high-demand markets.
+              </p>
+
+              <div className="fm-group fm-group-spaced">
+                <div className="fm-group-label">Where do members most commonly move from?</div>
+                <p className="fm-helper" style={{ marginTop: 0, marginBottom: 12 }}>
+                  Start typing a city or state — we'll match standardized markets.
+                </p>
+                <MarketAutocomplete
+                  value={answers.originMarket}
+                  onChange={(v) => setField('originMarket', v)}
+                  placeholder="Origin city or state…"
+                />
+              </div>
+
+              <div className="fm-group fm-group-spaced">
+                <div className="fm-group-label">Where do members most commonly move to?</div>
+                <p className="fm-helper" style={{ marginTop: 0, marginBottom: 12 }}>
+                  Same dropdown — pick the most common destination.
+                </p>
+                <MarketAutocomplete
+                  value={answers.destinationMarket}
+                  onChange={(v) => setField('destinationMarket', v)}
+                  placeholder="Destination city or state…"
+                />
+              </div>
+
               <p className="fm-finetext">
                 We'll only use these details to evaluate founding community partner applications.
               </p>
@@ -238,9 +287,9 @@ export default function FoundingGroups() {
                   type="button"
                   className="fm-continue"
                   onClick={() => submit()}
-                  disabled={!step2Valid || submitting}
+                  disabled={!step3Valid || submitting}
                 >
-                  {submitting ? 'Sending…' : 'Apply as a Community Partner →'}
+                  {submitting ? 'Sending…' : 'Submit application →'}
                 </button>
               </div>
             </>

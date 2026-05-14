@@ -22,13 +22,15 @@ const PartnerResearchSubmissionSchema = new mongoose.Schema({
 
   // Realtor-specific (sparse: only set when partnerType = 'realtor')
   brokerageName:        { type: String, trim: true },
-  mainMarket:           { type: String, trim: true, uppercase: true }, // 2-letter state code
+  mainMarket:           { type: String, trim: true }, // "City, ST" — picked from autocomplete
   monthlyMovingClients: { type: String, enum: ['1-4', '5-14', '15-29', '30+', ''], default: '' },
 
   // Facebook-group-specific (sparse: only set when partnerType = 'facebook_group_admin')
   facebookGroupUrl:     { type: String, trim: true },
   groupSize:            { type: String, enum: ['1k-5k', '5k-20k', '20k-50k', '50k+', ''], default: '' },
   movingHelpFrequency:  { type: String, enum: ['daily', 'weekly', 'occasionally', 'rarely', ''], default: '' },
+  originMarket:         { type: String, trim: true }, // "City, ST" — where members move from
+  destinationMarket:    { type: String, trim: true }, // "City, ST" — where members move to
 
   // Metadata
   source:    String,

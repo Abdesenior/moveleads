@@ -1,35 +1,46 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { US_STATES } from '../data/usStates';
+import { US_CITIES } from '../data/usCities';
 
 /**
- * MarketAutocomplete — state-level market picker matching the UX of the
- * founding-movers state autocomplete. Stores the 2-letter state code.
- *
- * Uses the .fm-state-* classnames so FoundingMovers.css styles apply when
- * imported on a page that also imports FoundingMovers.css.
+ * MarketAutocomplete — city-level US market picker matching the UX of the
+ * founding-movers state autocomplete (same .fm-state-* classes, same
+ * keyboard behavior, same chip on select). Stores `${city}, ${state}` —
+ * a normalized, standardized value, never free text.
  */
+
+// Pre-derive each city's display name + searchable strings ONCE.
+const ENTRIES = US_CITIES.map(c => ({
+  city:  c.city,
+  state: c.state,
+  name:  `${c.city}, ${c.state}`,            // stored value + label
+  needle: `${c.city} ${c.state}`.toLowerCase(),
+}));
+
 export default function MarketAutocomplete({ value, onChange, placeholder = 'Main market' }) {
   const [query, setQuery]         = useState('');
   const [open, setOpen]           = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const wrapRef = useRef(null);
 
+  // Resolve the current value back to a chip. If the stored value doesn't
+  // match a known entry (e.g. legacy "FL"), still render it as a chip so
+  // we don't drop the data on the floor.
   const selected = useMemo(() => {
     if (!value) return null;
-    return US_STATES.find(s => s.code === value || s.name === value) || null;
+    return ENTRIES.find(e => e.name === value) || { name: value, state: '' };
   }, [value]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return US_STATES.slice(0, 6);
-    const matches = US_STATES.filter(s =>
-      s.name.toLowerCase().includes(q) || s.code.toLowerCase().startsWith(q)
+    if (!q) return ENTRIES.slice(0, 6);
+    const matches = ENTRIES.filter(e =>
+      e.needle.includes(q) || e.state.toLowerCase().startsWith(q)
     );
     return matches.sort((a, b) => {
-      const aPref = a.name.toLowerCase().startsWith(q) || a.code.toLowerCase().startsWith(q) ? 0 : 1;
-      const bPref = b.name.toLowerCase().startsWith(q) || b.code.toLowerCase().startsWith(q) ? 0 : 1;
+      const aPref = a.city.toLowerCase().startsWith(q) ? 0 : (a.state.toLowerCase().startsWith(q) ? 1 : 2);
+      const bPref = b.city.toLowerCase().startsWith(q) ? 0 : (b.state.toLowerCase().startsWith(q) ? 1 : 2);
       if (aPref !== bPref) return aPref - bPref;
-      return a.name.localeCompare(b.name);
+      return a.city.localeCompare(b.city);
     }).slice(0, 6);
   }, [query]);
 
@@ -42,8 +53,8 @@ export default function MarketAutocomplete({ value, onChange, placeholder = 'Mai
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [open]);
 
-  function commit(state) {
-    onChange(state.code);
+  function commit(entry) {
+    onChange(entry.name);
     setQuery('');
     setOpen(false);
     setActiveIdx(0);
@@ -65,7 +76,8 @@ export default function MarketAutocomplete({ value, onChange, placeholder = 'Mai
     return (
       <div className="fm-state-chip-row">
         <span className="fm-state-chip">
-          {selected.name} <span className="fm-state-chip-code">({selected.code})</span>
+          {selected.city || selected.name}
+          {selected.state ? <span className="fm-state-chip-code">({selected.state})</span> : null}
           <button
             type="button"
             className="fm-state-chip-x"
@@ -93,18 +105,18 @@ export default function MarketAutocomplete({ value, onChange, placeholder = 'Mai
       />
       {open && filtered.length > 0 && (
         <div className="fm-state-dropdown" role="listbox">
-          {filtered.map((s, i) => (
+          {filtered.map((e, i) => (
             <button
-              key={s.code}
+              key={`${e.city}-${e.state}`}
               type="button"
               role="option"
               aria-selected={i === activeIdx}
               className={`fm-state-option${i === activeIdx ? ' active' : ''}`}
               onMouseEnter={() => setActiveIdx(i)}
-              onClick={() => commit(s)}
+              onClick={() => commit(e)}
             >
-              <span className="fm-state-name">{s.name}</span>
-              <span className="fm-state-code">({s.code})</span>
+              <span className="fm-state-name">{e.city}</span>
+              <span className="fm-state-code">({e.state})</span>
             </button>
           ))}
         </div>

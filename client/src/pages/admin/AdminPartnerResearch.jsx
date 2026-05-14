@@ -218,6 +218,8 @@ function Drawer({ onClose, doc }) {
                 } />
                 <Row label="Group size" value={doc.groupSize} />
                 <Row label="Help frequency" value={FREQ_LABELS[doc.movingHelpFrequency || ''] || '—'} />
+                <Row label="Members move from" value={doc.originMarket} />
+                <Row label="Members move to" value={doc.destinationMarket} />
               </>
             )}
 
