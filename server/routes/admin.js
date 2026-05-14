@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const { auth, admin, superAdmin } = require('../middleware/auth');
 const PurchasedLead = require('../models/PurchasedLead');
 const User = require('../models/User');
@@ -15,6 +16,8 @@ const { sendAdminLeadNotification, sendDisputeApprovedEmail } = require('../serv
 const { sendMoverLeadSMS } = require('../services/smsService');
 const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
+const ScoringSnapshot = require('../models/ScoringSnapshot');
+const scoringPipeline = require('../services/scoringPipeline');
 
 // ── Helpers for bulk import ───────────────────────────────────────────────────
 function milesFromZips(originZip, destinationZip) {
@@ -446,6 +449,51 @@ router.post('/refund/:purchasedLeadId', [auth, admin], async (req, res) => {
     });
   } catch (err) {
     console.error('[Admin Refund] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ── V5 Lead Quality (Phase 1) — read-only scoring snapshot endpoint ───────
+// Returns the latest shadow-mode ScoringSnapshot for a Lead alongside the
+// legacy score/grade so admin can compare side-by-side. No-op if scoring has
+// not yet run for this lead (returns snapshot: null).
+router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ msg: 'Invalid lead id' });
+    }
+
+    const lead = await Lead.findById(req.params.id)
+      .select('score grade scoreFactors customerName customerPhone route homeSize moveDate miles status')
+      .lean();
+    if (!lead) return res.status(404).json({ msg: 'Lead not found' });
+
+    const snapshot = await ScoringSnapshot.findOne({ leadId: lead._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      ok: true,
+      mode: scoringPipeline.currentMode(),
+      lead: {
+        _id: lead._id,
+        route: lead.route,
+        homeSize: lead.homeSize,
+        moveDate: lead.moveDate,
+        miles: lead.miles,
+        status: lead.status,
+        customerName: lead.customerName,
+        customerPhone: lead.customerPhone,
+        legacy: {
+          score: lead.score,
+          grade: lead.grade,
+          scoreFactors: lead.scoreFactors,
+        },
+      },
+      snapshot, // null if scoring hasn't run yet
+    });
+  } catch (err) {
+    console.error('[Admin ScoringSnapshot] error:', err.message);
     res.status(500).json({ msg: 'Server error' });
   }
 });

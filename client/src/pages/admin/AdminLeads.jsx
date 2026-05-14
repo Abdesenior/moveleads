@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
-import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search, Upload, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search, Upload, Download, CheckCircle, AlertCircle, BarChart2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -218,6 +218,151 @@ function FallbackCityAutocomplete({ label, value, onChange, onZipFound, placehol
   );
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+ * V5 Phase 1 — Scoring Snapshot Modal
+ *
+ * Read-only diagnostic view. Compares the legacy production score/grade
+ * (still authoritative for pricing/dispatch) with the V5 shadow scoring
+ * output. NO ACTIONS — Phase 1 is observation only.
+ * ───────────────────────────────────────────────────────────────────────── */
+function ScoringSnapshotModal({ lead, data, loading, error, onClose }) {
+  const tierColors = {
+    hot:      { bg: '#fef2f2', fg: '#dc2626' },
+    premium:  { bg: '#f5f3ff', fg: '#7c3aed' },
+    standard: { bg: '#eff6ff', fg: '#2563eb' },
+    review:   { bg: '#fef3c7', fg: '#d97706' },
+    rejected: { bg: '#f1f5f9', fg: '#64748b' },
+  };
+  const snap = data?.snapshot;
+  const tier = snap?.tier;
+  const tc = (tier && tierColors[tier]) || { bg: '#f1f5f9', fg: '#64748b' };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(10,20,40,0.65)', backdropFilter: 'blur(14px)',
+      zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#fff', width: '100%', maxWidth: 720, maxHeight: '88vh', overflow: 'auto',
+        borderRadius: 24, boxShadow: '0 40px 100px rgba(0,0,0,0.3)',
+      }}>
+        <div style={{
+          padding: '18px 24px', borderBottom: '1px solid #e2e8f0',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fff 100%)',
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#d97706', textTransform: 'uppercase' }}>
+              Scoring Snapshot · {data?.mode || 'shadow'} mode
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+              {lead.originCity} → {lead.destinationCity}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              {lead.customerName} · {lead.homeSize} · {lead.miles || 0} mi
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'rgba(15,23,42,0.05)', border: 'none', borderRadius: 10,
+            width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+          }} title="Close"><X size={16} /></button>
+        </div>
+
+        <div style={{ padding: 24 }}>
+          {loading && <div style={{ color: '#64748b', fontSize: 14 }}>Loading…</div>}
+          {error && <div style={{ color: '#dc2626', fontSize: 14 }}>Error: {error}</div>}
+          {!loading && !error && data && (
+            <>
+              {/* Legacy vs shadow comparison */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div style={{ padding: 16, background: '#f8fafc', borderRadius: 14, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Legacy (production)</div>
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{data.lead.legacy?.score ?? '—'}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#475569' }}>Grade {data.lead.legacy?.grade ?? '—'}</div>
+                  </div>
+                  {Array.isArray(data.lead.legacy?.scoreFactors) && data.lead.legacy.scoreFactors.length > 0 && (
+                    <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 11, color: '#64748b' }}>
+                      {data.lead.legacy.scoreFactors.map((f, i) => <li key={i}>{f}</li>)}
+                    </ul>
+                  )}
+                </div>
+                <div style={{ padding: 16, background: '#fffbeb', borderRadius: 14, border: '1px solid #fde68a' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#d97706', textTransform: 'uppercase' }}>Shadow (V5 engine)</div>
+                  {snap ? (
+                    <>
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{snap.scores?.compositeScore ?? '—'}</div>
+                        <span style={{ padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', background: tc.bg, color: tc.fg }}>{tier || '—'}</span>
+                      </div>
+                      <div style={{ marginTop: 4, fontSize: 11, color: '#92400e' }}>engine {snap.engineVersion}</div>
+                    </>
+                  ) : (
+                    <div style={{ marginTop: 8, fontSize: 13, color: '#92400e' }}>No snapshot yet. Shadow scoring may still be running.</div>
+                  )}
+                </div>
+              </div>
+
+              {snap && (
+                <>
+                  {/* Sub-scores */}
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>Sub-scores</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                      {[
+                        ['trustScore', 'Trust'],
+                        ['urgencyScore', 'Urgency'],
+                        ['leadValueScore', 'Lead Value'],
+                        ['routeValueScore', 'Route Value'],
+                        ['intentScore', 'Intent'],
+                        ['fraudRiskScore', 'Fraud Risk (inv)'],
+                        ['moverMatchScore', 'Mover Match'],
+                      ].map(([key, label]) => {
+                        const v = snap.scores?.[key] ?? 0;
+                        return (
+                          <div key={key} style={{ padding: '10px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, color: '#475569' }}>{label}</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{v}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tier reasons */}
+                  {Array.isArray(snap.tierReason) && snap.tierReason.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>Tier rationale</div>
+                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#334155', lineHeight: 1.7 }}>
+                        {snap.tierReason.map((r, i) => <li key={i}>{r}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Breakdown */}
+                  {snap.breakdown && (
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Raw breakdown</summary>
+                      <pre style={{ marginTop: 10, padding: 12, background: '#0f172a', color: '#e2e8f0', borderRadius: 10, fontSize: 11, overflow: 'auto', maxHeight: 240 }}>
+                        {JSON.stringify(snap.breakdown, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </>
+              )}
+
+              <div style={{ marginTop: 18, padding: 12, background: '#eff6ff', borderRadius: 10, fontSize: 11, color: '#1e40af' }}>
+                Shadow mode: this scoring does not affect lead price, status, broadcast, or dispatch. The legacy score/grade on the left remain authoritative.
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 export default function AdminLeads() {
   const { API_URL, token } = useContext(AuthContext);
@@ -244,6 +389,39 @@ export default function AdminLeads() {
   };
 
   const [formData, setFormData] = useState(emptyForm);
+
+  // V5 Phase 1: read-only scoring snapshot modal state.
+  // Side panel comparing legacy Lead.score/grade with shadow scoring output.
+  // No actions yet — admin-only diagnostic view.
+  const [scoringModalLead, setScoringModalLead] = useState(null);
+  const [scoringData, setScoringData] = useState(null);
+  const [scoringLoading, setScoringLoading] = useState(false);
+  const [scoringError, setScoringError] = useState(null);
+
+  const openScoringModal = useCallback(async (lead) => {
+    setScoringModalLead(lead);
+    setScoringData(null);
+    setScoringError(null);
+    setScoringLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/admin/leads/${lead._id}/scoring-snapshot`, {
+        headers: { 'x-auth-token': token },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setScoringData(json);
+    } catch (err) {
+      setScoringError(err.message || 'Failed to load scoring snapshot');
+    } finally {
+      setScoringLoading(false);
+    }
+  }, [API_URL, token]);
+
+  const closeScoringModal = () => {
+    setScoringModalLead(null);
+    setScoringData(null);
+    setScoringError(null);
+  };
 
   // Import state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -639,7 +817,10 @@ export default function AdminLeads() {
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: 24 }}>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                    <button onClick={() => handleEditClick(lead)} 
+                    <button onClick={() => openScoringModal(lead)}
+                      style={{ width: 34, height: 34, borderRadius: 10, background: '#fef3c7', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', transition: 'all 0.2s' }}
+                      title="View scoring snapshot (shadow mode)"><BarChart2 size={14} /></button>
+                    <button onClick={() => handleEditClick(lead)}
                       style={{ width: 34, height: 34, borderRadius: 10, background: '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', transition: 'all 0.2s' }}
                       title="Edit"><Edit2 size={14} /></button>
                     <button onClick={() => { setSelectedLead(lead); setShowConfirm(true); }}
@@ -659,8 +840,8 @@ export default function AdminLeads() {
           onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }} />
       )}
 
-      <ConfirmModal 
-        isOpen={showConfirm} 
+      <ConfirmModal
+        isOpen={showConfirm}
         onClose={() => { setShowConfirm(false); setSelectedLead(null); }}
         onConfirm={() => handleDelete(selectedLead?._id)}
         title="Delete Record"
@@ -668,6 +849,17 @@ export default function AdminLeads() {
         confirmText="Delete Lead"
         type="danger"
       />
+
+      {/* V5 Phase 1: Scoring Snapshot (read-only, shadow mode) */}
+      {scoringModalLead && (
+        <ScoringSnapshotModal
+          lead={scoringModalLead}
+          data={scoringData}
+          loading={scoringLoading}
+          error={scoringError}
+          onClose={closeScoringModal}
+        />
+      )}
 
       {/* PREMIUM ADD/EDIT LEAD MODAL */}
       {showModal && (

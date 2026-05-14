@@ -98,6 +98,11 @@ app.use('/api/twilio', require('./routes/twilio'));  // PUBLIC: Twilio signature
 app.use('/api/voice',  require('./routes/voice'));   // PUBLIC: Twilio voice webhooks
 app.use('/api/founding-movers', require('./routes/foundingMovers')); // PUBLIC: Founding Mover Program intake
 
+// PUBLIC: Quote-form ingest. MUST be mounted BEFORE the gated /api/leads
+// router below — Express dispatches by registration order, so this more
+// specific path wins and the visitor never hits the auth middleware.
+app.use('/api/leads/ingest', require('./routes/leadIngest'));
+
 // Dashboard data routes — gated on verified email
 app.use('/api/leads',          verifiedGate, require('./routes/leads'));
 app.use('/api/users',          verifiedGate, require('./routes/users'));

@@ -75,6 +75,49 @@ const LeadSchema = new mongoose.Schema({
   // Updated atomically via `updateOne({_id, notifiedAt: null}, ...)` so two
   // parallel broadcast paths (SMS+email) only flip it once.
   notifiedAt: { type: Date, default: null },
+
+  // ── V5 Lead Quality (Phase 1 — shadow mode) ────────────────────────────
+  // All fields below are OPTIONAL and ADDITIVE. Legacy V4 leads will not
+  // have them populated; nothing in production reads from them yet. The
+  // authoritative score/grade/price/status remain the legacy fields above.
+  // See docs/superpowers/specs/2026-05-14-moveleads-v5-lead-quality-design.md
+  scores: {
+    trustScore:      { type: Number },
+    urgencyScore:    { type: Number },
+    leadValueScore:  { type: Number },
+    routeValueScore: { type: Number },
+    intentScore:     { type: Number },
+    fraudRiskScore:  { type: Number },
+    moverMatchScore: { type: Number },
+    compositeScore:  { type: Number },
+  },
+  tier:       { type: String, enum: ['hot', 'premium', 'standard', 'review', 'rejected'] },
+  tierReason: [{ type: String }],
+  validation: {
+    phone:       { type: mongoose.Schema.Types.Mixed },
+    route:       { type: mongoose.Schema.Types.Mixed },
+    fingerprint: { type: mongoose.Schema.Types.Mixed },
+    fraud:       { type: mongoose.Schema.Types.Mixed },
+  },
+  claimWindow: {
+    status:    { type: String, enum: ['open', 'claimed', 'expired'] },
+    expiresAt: { type: Date },
+    offeredTo: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    claimedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    claimedAt: { type: Date },
+  },
+  heavyItems:         [{ type: String }],
+  intentConfirmed:    { type: Boolean },
+  urgencyBucket:      { type: String, enum: ['asap', 'this_week', 'this_month', 'flexible'] },
+  moveType:           { type: String, enum: ['residential', 'commercial', 'office', 'storage', 'other'] },
+  funnelVersion:      { type: String },
+  clientSubmissionId: { type: String },
+  adminTierOverride: {
+    tier:   { type: String, enum: ['hot', 'premium', 'standard', 'review', 'rejected'] },
+    reason: { type: String },
+    by:     { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    at:     { type: Date },
+  },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.
