@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
-import { Search, X, Trash2 } from 'lucide-react';
+import { Search, X, Trash2, Briefcase, Users } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
@@ -7,6 +7,24 @@ import { useToast } from '../../components/ui/Toast';
 const TYPE_LABELS = {
   realtor: 'Realtor',
   facebook_group_admin: 'FB Group',
+};
+
+// Subtle type-coding palette. Soft tints, premium feel — no neon, no full rows.
+const TYPE_STYLES = {
+  realtor: {
+    label: 'Realtor',
+    Icon: Briefcase,
+    bg:     '#eef2ff', // indigo-50
+    text:   '#4338ca', // indigo-700
+    accent: '#6366f1', // indigo-500 — small icon stroke
+  },
+  facebook_group_admin: {
+    label: 'FB Group',
+    Icon: Users,
+    bg:     '#eff6ff', // blue-50
+    text:   '#1d4ed8', // blue-700
+    accent: '#3b82f6', // blue-500
+  },
 };
 
 const FREQ_LABELS = {
@@ -205,8 +223,8 @@ export default function AdminPartnerResearch() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           <StatCard label="Total submissions" value={stats.total} />
-          <StatCard label="Realtors" value={stats.realtor} />
-          <StatCard label="Facebook groups" value={stats.facebook_group_admin} />
+          <StatCard label="Realtors" value={stats.realtor} accent="realtor" />
+          <StatCard label="Facebook groups" value={stats.facebook_group_admin} accent="facebook_group_admin" />
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -321,7 +339,7 @@ export default function AdminPartnerResearch() {
                       />
                     </td>
                     <td style={td}>{new Date(row.submittedAt).toLocaleDateString()}</td>
-                    <td style={td}>{TYPE_LABELS[row.partnerType] || row.partnerType}</td>
+                    <td style={td}><TypeBadge type={row.partnerType} /></td>
                     <td style={td}>{row.fullName}</td>
                     <td style={td}>{row.email}</td>
                     <td style={{ ...td, color: '#0f172a', maxWidth: 240, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={marketFor(row)}>
@@ -375,12 +393,58 @@ export default function AdminPartnerResearch() {
 const th = { padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#52525b', textTransform: 'uppercase', letterSpacing: 0.4 };
 const td = { padding: '12px 14px', verticalAlign: 'middle' };
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, accent }) {
+  const style = accent ? TYPE_STYLES[accent] : null;
+  const Icon = style?.Icon;
   return (
-    <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 12, padding: 16 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
+    <div style={{
+      background: '#fff', border: '1px solid #e4e4e7', borderRadius: 12, padding: 16,
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {style && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
+            background: style.accent,
+          }}
+        />
+      )}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        fontSize: 12, fontWeight: 600, color: '#71717a',
+        textTransform: 'uppercase', letterSpacing: 0.4,
+      }}>
+        {Icon && <Icon size={12} color={style.accent} strokeWidth={2.2} />}
+        <span>{label}</span>
+      </div>
       <div style={{ fontSize: 28, fontWeight: 700, marginTop: 4 }}>{value}</div>
     </div>
+  );
+}
+
+function TypeBadge({ type, size = 'sm' }) {
+  const style = TYPE_STYLES[type];
+  if (!style) {
+    return <span style={{ fontSize: 12, color: '#52525b' }}>{type}</span>;
+  }
+  const Icon = style.Icon;
+  const isLg = size === 'lg';
+  return (
+    <span
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        padding: isLg ? '4px 10px' : '3px 8px',
+        borderRadius: 999,
+        background: style.bg, color: style.text,
+        fontSize: isLg ? 12.5 : 11.5, fontWeight: 600,
+        lineHeight: 1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {Icon && <Icon size={isLg ? 13 : 12} strokeWidth={2.2} />}
+      {style.label}
+    </span>
   );
 }
 
@@ -408,10 +472,13 @@ function Drawer({ onClose, doc, onDelete, deleting }) {
         </button>
         {!doc ? <p>Loading…</p> : (
           <>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{doc.fullName}</h2>
-            <p style={{ color: '#52525b', fontSize: 13, marginBottom: 16 }}>
-              {TYPE_LABELS[doc.partnerType]} · {new Date(doc.submittedAt).toLocaleString()}
-            </p>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{doc.fullName}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+              <TypeBadge type={doc.partnerType} size="lg" />
+              <span style={{ color: '#71717a', fontSize: 13 }}>
+                {new Date(doc.submittedAt).toLocaleString()}
+              </span>
+            </div>
 
             <Row label="Email" value={doc.email} />
             {doc.partnerType === 'realtor' && (
