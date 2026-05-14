@@ -125,4 +125,14 @@ LeadSchema.index({ originZip: 1, destinationZip: 1 });
 // Status index for the dashboard GET /api/leads query (filter by status + sort by createdAt).
 LeadSchema.index({ status: 1, createdAt: -1 });
 
+// V5 idempotency — partial unique index on clientSubmissionId. Two parallel
+// POSTs from a flaky mobile network with the same UUID can't both create a
+// lead; the second insert hits a duplicate-key error and the route handler
+// returns the existing lead instead. Partial filter so legacy V4 leads
+// (which never set this field) are not affected.
+LeadSchema.index(
+  { clientSubmissionId: 1 },
+  { unique: true, partialFilterExpression: { clientSubmissionId: { $exists: true, $type: 'string' } }, name: 'clientSubmissionId_partial_unique' }
+);
+
 module.exports = mongoose.model('lead', LeadSchema);

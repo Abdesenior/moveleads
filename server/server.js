@@ -102,6 +102,9 @@ app.use('/api/founding-movers', require('./routes/foundingMovers')); // PUBLIC: 
 // router below — Express dispatches by registration order, so this more
 // specific path wins and the visitor never hits the auth middleware.
 app.use('/api/leads/ingest', require('./routes/leadIngest'));
+// PUBLIC: V5 quote-form ingest (Phase 3). Strict Zod schema, idempotent
+// by clientSubmissionId, populates V5-only fields on Lead.
+app.use('/api/leads/ingest-v2', require('./routes/leadIngestV2'));
 
 // Dashboard data routes — gated on verified email
 app.use('/api/leads',          verifiedGate, require('./routes/leads'));
