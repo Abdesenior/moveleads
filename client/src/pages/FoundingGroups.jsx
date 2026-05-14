@@ -7,15 +7,15 @@ const STORAGE_KEY = 'ml_founding_group_v1';
 
 const SIZE_OPTIONS = [
   { value: '1k-5k',    label: '1k–5k members',    subline: 'Niche community' },
-  { value: '5k-20k',   label: '5k–20k members',   subline: 'Mid-size group' },
+  { value: '5k-20k',   label: '5k–20k members',   subline: 'Growing group' },
   { value: '20k-50k',  label: '20k–50k members',  subline: 'Large community' },
-  { value: '50k+',     label: '50k+ members',     subline: 'Major hub' },
+  { value: '50k+',     label: '50k+ members',     subline: 'Major audience' },
 ];
 
 const FREQ_OPTIONS = [
-  { value: 'daily',        label: 'Daily',        subline: 'Multiple asks per day' },
-  { value: 'weekly',       label: 'Weekly',       subline: 'A few asks per week' },
-  { value: 'occasionally', label: 'Occasionally', subline: 'A few per month' },
+  { value: 'daily',        label: 'Daily',        subline: 'Very active demand' },
+  { value: 'weekly',       label: 'Weekly',       subline: 'Frequent requests' },
+  { value: 'occasionally', label: 'Occasionally', subline: 'Steady activity' },
   { value: 'rarely',       label: 'Rarely',       subline: 'Comes up sometimes' },
 ];
 
@@ -32,8 +32,10 @@ const INITIAL_ANSWERS = {
   utm: { source: '', medium: '', campaign: '', term: '', content: '' },
 };
 
-const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
-const isUrl   = (s) => /^https?:\/\/.+/i.test(String(s || '').trim());
+const isEmail   = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
+// Lenient: accept anything that looks domain-like. We'll silently prepend
+// https:// on advance if missing, so the admin gets a clickable link.
+const isUrlish  = (s) => /[a-z0-9-]+\.[a-z]{2,}/i.test(String(s || '').trim());
 
 const TRUST_LINE = 'No setup costs. No commitment required.';
 
@@ -57,7 +59,7 @@ export default function FoundingGroups() {
       case 'community':
         return answers.fullName.trim().length > 0 &&
                isEmail(answers.email) &&
-               isUrl(answers.facebookGroupUrl);
+               isUrlish(answers.facebookGroupUrl);
       case 'activity':
         return Boolean(answers.groupSize) && Boolean(answers.movingHelpFrequency);
       case 'relocation':
@@ -67,7 +69,15 @@ export default function FoundingGroups() {
     }
   }
 
+  function normalizeGroupUrl() {
+    const raw = String(answers.facebookGroupUrl || '').trim();
+    if (raw && !/^https?:\/\//i.test(raw) && /\./.test(raw)) {
+      setField('facebookGroupUrl', 'https://' + raw);
+    }
+  }
+
   function advance() {
+    if (stepId === 'community') normalizeGroupUrl();
     if (stepIdx === STEPS.length - 1) submit();
     else setStepIdx(i => i + 1);
   }
@@ -87,16 +97,28 @@ export default function FoundingGroups() {
     return (
       <div className="fm-root">
         <div className="fm-step" key="done">
-          <div className="fm-step-inner">
-            <h1 className="fm-question">Application received</h1>
-            <p className="fm-helper">
-              We're reviewing early community partners in your market and will contact selected
-              groups with next steps.
+          <div className="fm-step-inner" style={{ textAlign: 'center' }}>
+            <SuccessCheck />
+
+            <h1 className="fm-question" style={{ textAlign: 'center' }}>
+              Application received
+            </h1>
+            <p className="fm-helper" style={{ textAlign: 'center' }}>
+              We're reviewing selected communities and onboarding early partners market by market.
             </p>
-            <p className="fm-helper" style={{ marginTop: 24 }}>
+
+            <div style={{ height: 1, background: 'rgba(15,23,42,0.08)', margin: '28px auto 24px', maxWidth: 280 }} />
+
+            <p className="fm-helper" style={{ marginTop: 0, textAlign: 'center' }}>
+              Approved groups will receive early access details and partnership information soon.
+            </p>
+
+            <p className="fm-finetext" style={{ marginTop: 32, textAlign: 'center' }}>
               You can now close this page.
             </p>
-            <p className="fm-finetext" style={{ marginTop: 28 }}>{TRUST_LINE}</p>
+            <p className="fm-finetext" style={{ marginTop: 12, textAlign: 'center' }}>
+              {TRUST_LINE}
+            </p>
           </div>
         </div>
       </div>
@@ -138,24 +160,21 @@ export default function FoundingGroups() {
           {stepId === 'community' && (
             <>
               <h1 className="fm-question">
-                Help Your Members Find Trusted Movers — And Earn From Real Moving Demand
+                Help Members Find Movers — And Earn From Every Referral
               </h1>
               <p className="fm-helper">
-                MoveLeads helps Facebook community owners connect members with verified moving
-                companies while creating a new revenue opportunity from moving referrals.
+                Turn moving conversations in your community into a new revenue stream.
               </p>
 
               <ul className="fm-intro-bullets">
-                <li><span className="fm-trust-check">✓</span> Help members find reliable movers faster</li>
-                <li><span className="fm-trust-check">✓</span> Earn from real moving requests in your community</li>
-                <li><span className="fm-trust-check">✓</span> No setup costs or contracts</li>
-                <li><span className="fm-trust-check">✓</span> Early partners get priority access in their market</li>
+                <li><span className="fm-trust-check">✓</span> Earn from real moving requests</li>
+                <li><span className="fm-trust-check">✓</span> Help members find trusted movers</li>
+                <li><span className="fm-trust-check">✓</span> Priority access in your market</li>
               </ul>
 
               <h2 style={sectionTitleStyle}>Tell us about your community</h2>
               <p className="fm-helper" style={{ marginTop: 0 }}>
-                We're currently onboarding selected Facebook communities into the MoveLeads
-                partner network.
+                We're onboarding selected communities into the MoveLeads network.
               </p>
 
               <div className="fm-stack">
@@ -184,7 +203,7 @@ export default function FoundingGroups() {
                   value={answers.facebookGroupUrl}
                   onChange={e => setField('facebookGroupUrl', e.target.value)}
                   onKeyDown={onInputKeyDown}
-                  placeholder="Facebook group link (https://…)"
+                  placeholder="Facebook group link"
                   autoComplete="off"
                 />
               </div>
@@ -195,7 +214,7 @@ export default function FoundingGroups() {
             <>
               <h1 className="fm-question">Tell us about your group activity</h1>
               <p className="fm-helper">
-                This helps us understand moving demand and partnership opportunities in your market.
+                We want to understand how active your community is.
               </p>
 
               <div className="fm-group fm-group-spaced">
@@ -250,10 +269,9 @@ export default function FoundingGroups() {
 
           {stepId === 'relocation' && (
             <>
-              <h1 className="fm-question">Where do members most commonly relocate?</h1>
+              <h1 className="fm-question">Which areas do members move between most often?</h1>
               <p className="fm-helper">
-                We use this to better understand relocation demand and connect members with
-                the right movers.
+                Add the cities or states most commonly mentioned in your community.
               </p>
 
               <MarketMultiSelect
@@ -263,7 +281,7 @@ export default function FoundingGroups() {
                 max={8}
               />
               <p className="fm-finetext" style={{ marginTop: 12 }}>
-                Tip — press Enter to add, Backspace to remove the last one.
+                Press Enter to add another market.
               </p>
             </>
           )}
@@ -284,6 +302,25 @@ export default function FoundingGroups() {
           <p className="fm-finetext" style={{ marginTop: 18, textAlign: 'center' }}>{TRUST_LINE}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SuccessCheck() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: 64, height: 64, borderRadius: '50%',
+        background: 'rgba(34,197,94,0.12)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 24px',
+      }}
+    >
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a"
+           strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
     </div>
   );
 }

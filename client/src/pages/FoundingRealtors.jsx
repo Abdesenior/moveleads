@@ -72,16 +72,28 @@ export default function FoundingRealtors() {
     return (
       <div className="fm-root">
         <div className="fm-step" key="done">
-          <div className="fm-step-inner">
-            <h1 className="fm-question">Thanks for applying</h1>
-            <p className="fm-helper">
-              We're currently reviewing early realtor partnerships in your market and will
-              contact selected applicants with next steps.
+          <div className="fm-step-inner" style={{ textAlign: 'center' }}>
+            <SuccessCheck />
+
+            <h1 className="fm-question" style={{ textAlign: 'center' }}>
+              Thanks — your application has been received
+            </h1>
+            <p className="fm-helper" style={{ textAlign: 'center' }}>
+              We're currently onboarding selected real estate partners market by market.
             </p>
-            <p className="fm-helper" style={{ marginTop: 24 }}>
+
+            <div style={{ height: 1, background: 'rgba(15,23,42,0.08)', margin: '28px auto 24px', maxWidth: 280 }} />
+
+            <p className="fm-helper" style={{ marginTop: 0, textAlign: 'center' }}>
+              Approved partners will receive early access details as MoveLeads expands into new markets.
+            </p>
+
+            <p className="fm-finetext" style={{ marginTop: 32, textAlign: 'center' }}>
               You can now close this page.
             </p>
-            <p className="fm-finetext" style={{ marginTop: 28 }}>{TRUST_LINE}</p>
+            <p className="fm-finetext" style={{ marginTop: 12, textAlign: 'center' }}>
+              {TRUST_LINE}
+            </p>
           </div>
         </div>
       </div>
@@ -123,25 +135,21 @@ export default function FoundingRealtors() {
           {stepId === 'identity' && (
             <>
               <h1 className="fm-question">
-                Help Your Clients Move With Confidence — While Unlocking a New Revenue Opportunity
+                Help Clients Move Smarter — And Earn From Every Referral
               </h1>
               <p className="fm-helper">
-                MoveLeads helps real estate professionals connect clients with verified moving
-                companies while creating additional income opportunities through trusted moving
-                referrals.
+                Connect clients with trusted movers while unlocking a new referral revenue stream.
               </p>
 
               <ul className="fm-intro-bullets">
-                <li><span className="fm-trust-check">✓</span> Help clients find trusted movers faster</li>
-                <li><span className="fm-trust-check">✓</span> Improve the relocation experience after closing</li>
-                <li><span className="fm-trust-check">✓</span> Unlock additional referral income opportunities</li>
-                <li><span className="fm-trust-check">✓</span> Early access for selected real estate partners</li>
+                <li><span className="fm-trust-check">✓</span> Trusted movers for your clients</li>
+                <li><span className="fm-trust-check">✓</span> Additional revenue from referrals</li>
+                <li><span className="fm-trust-check">✓</span> Priority partner access in your market</li>
               </ul>
 
               <h2 style={sectionTitleStyle}>Tell us about yourself</h2>
               <p className="fm-helper" style={{ marginTop: 0 }}>
-                We're currently onboarding a limited number of real estate partners in selected
-                markets.
+                Tell us a bit about your business.
               </p>
 
               <div className="fm-stack">
@@ -172,7 +180,7 @@ export default function FoundingRealtors() {
             <>
               <h1 className="fm-question">Tell us about your market</h1>
               <p className="fm-helper">
-                This helps us understand relocation activity and moving demand in your area.
+                We're expanding market by market.
               </p>
 
               <div className="fm-stack">
@@ -191,7 +199,7 @@ export default function FoundingRealtors() {
               <div className="fm-group fm-group-spaced">
                 <div className="fm-group-label">Your primary market</div>
                 <p className="fm-helper" style={{ marginTop: 0, marginBottom: 10 }}>
-                  Start typing a city or a state — we'll match standardized markets.
+                  Search by city or state
                 </p>
                 <MarketAutocomplete
                   value={answers.mainMarket}
@@ -204,9 +212,9 @@ export default function FoundingRealtors() {
 
           {stepId === 'volume' && (
             <>
-              <h1 className="fm-question">How often do your clients relocate?</h1>
+              <h1 className="fm-question">How many clients move each month?</h1>
               <p className="fm-helper">
-                We're prioritizing markets with active moving demand and strong relocation activity.
+                We're prioritizing active markets with strong relocation demand.
               </p>
 
               <div className="fm-choices">
@@ -248,6 +256,25 @@ export default function FoundingRealtors() {
           <p className="fm-finetext" style={{ marginTop: 18, textAlign: 'center' }}>{TRUST_LINE}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SuccessCheck() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: 64, height: 64, borderRadius: '50%',
+        background: 'rgba(34,197,94,0.12)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 24px',
+      }}
+    >
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a"
+           strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
     </div>
   );
 }
