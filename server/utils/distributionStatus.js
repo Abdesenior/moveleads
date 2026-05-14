@@ -36,8 +36,6 @@
  * AdminQuality client to compute review-queue filters.
  */
 
-const TELECOM_UNVERIFIED_THRESHOLD_REASON = 'twilio_no_enrichment';
-
 function computeCapReasons(lead, snapshot) {
   const reasons = [];
   const phone = lead.validation && lead.validation.phone;
@@ -70,22 +68,46 @@ function computeCapReasons(lead, snapshot) {
     });
   }
 
-  // ── Telecom-unverified — caps at premium, not review ────────────────────
-  // The actual check mirrors leadTierRouter exactly.
-  const telecomUnverified =
-    !phone ||
-    phone.validityReason === TELECOM_UNVERIFIED_THRESHOLD_REASON ||
-    (
-      phone.valid !== false &&
-      phone.lineType == null &&
-      phone.smsPumpingRisk == null &&
-      !phone.identityMatch
-    );
-  if (telecomUnverified && (!phone || phone.valid !== false)) {
+  // ── Telecom confidence — three distinct states ─────────────────────────
+  // Phase 4.1: split "telecom unverified" into two cap reasons.
+  //
+  //   telecom_low_confidence (severity: medium → Review Required)
+  //     Twilio ACTIVELY looked up the number and returned no useful
+  //     enrichment (validityReason === 'twilio_no_enrichment'). A real
+  //     allocated number usually has at least a line type; active emptiness
+  //     is a stronger negative signal than not asking at all.
+  //
+  //   telecom_unverified (severity: low → Blocked, premium soft-cap)
+  //     Twilio never ran (toggle off, env off, timeout, or no checkedAt).
+  //     We genuinely don't know — neutral, can still be premium.
+  //
+  // The cases are mutually exclusive: low_confidence requires Twilio to have
+  // actually run (checkedAt + validityReason marker), and unverified covers
+  // the truly-no-data case.
+  if (phone && phone.valid !== false) {
+    if (phone.validityReason === 'twilio_no_enrichment') {
+      reasons.push({
+        code: 'telecom_low_confidence',
+        message: 'telecom low confidence — Twilio returned no enrichment',
+        severity: 'medium', // forces Review Required
+      });
+    } else {
+      const phoneRan = phone.checkedAt != null;
+      const noEnrichment = phone.lineType == null && phone.smsPumpingRisk == null && !phone.identityMatch;
+      if (!phoneRan || noEnrichment) {
+        reasons.push({
+          code: 'telecom_unverified',
+          message: 'telecom unverified — no Twilio lookup performed',
+          severity: 'low', // soft cap (premium), not force-review
+        });
+      }
+    }
+  } else if (!phone) {
+    // Truly no telecom validation at all (Twilio toggle off, no record on lead)
     reasons.push({
       code: 'telecom_unverified',
-      message: 'telecom unverified — no Twilio enrichment available',
-      severity: 'low', // soft cap (premium), not force-review
+      message: 'telecom unverified — no Twilio lookup performed',
+      severity: 'low',
     });
   }
 

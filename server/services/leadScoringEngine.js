@@ -176,11 +176,14 @@ function trustScore(lead) {
       for (const sig of positiveSignals) reasons.push(sig);
       s += trustGain;
     } else if (phoneLookup.validityReason === 'twilio_no_enrichment') {
-      // Twilio confirmed format-valid but returned NO usable telecom
-      // intelligence. Surface as "telecom unverified" — same wording as
-      // when Twilio never ran, since the trust value is identical: we
-      // genuinely don't know.
-      reasons.push('telecom unverified');
+      // Twilio confirmed format-valid but returned NO useful telecom
+      // intelligence. Distinct from "telecom unverified" (no Twilio at
+      // all) — Twilio actively looked at this number and couldn't find
+      // anything, which is a stronger negative signal than not asking.
+      // Real allocated numbers usually have at least a line type. Treat
+      // as low-confidence (force-review in tier router).
+      s -= 5;
+      reasons.push('telecom low confidence — review required');
     } else {
       // Defensive — surface as neutral, never trusted.
       reasons.push('telecom unverified');
@@ -357,6 +360,17 @@ function fraudRiskScore(lead) {
   if (lead.validation && lead.validation.phone && lead.validation.phone.valid === false) {
     s -= 40;
     reasons.push('phone invalid (fraud impact)');
+  }
+
+  // Low telecom confidence — Twilio ran but returned NO useful enrichment.
+  // Distinct from "no Twilio at all". A real allocated number usually has
+  // at least a line type; an empty enrichment response is mildly suspicious.
+  // -10 here keeps a lead with only this signal in 'review' (not rejected)
+  // unless other fraud signals compound.
+  if (lead.validation && lead.validation.phone
+      && lead.validation.phone.validityReason === 'twilio_no_enrichment') {
+    s -= 10;
+    reasons.push('low telecom confidence');
   }
 
   // Mapbox-detected suspicious route signals (Phase 2).

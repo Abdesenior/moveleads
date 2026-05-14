@@ -117,25 +117,25 @@ function assign(scores, lead = {}) {
     reasons.push(`soft downgrade: urgencyScore ${scores.urgencyScore} < 40 (→ standard)`);
   }
 
-  // ── Telecom-unverified soft cap ─────────────────────────────────────────
-  // Phase 3.8: if we have NO usable telecom intelligence (Twilio didn't run
-  // OR Twilio returned no enrichment data), the phone trust is unknown and
-  // the lead cannot reach 'hot' tier. Caps at 'premium' — doesn't force
-  // review, just prevents hot. User spec: "telecom_unverified → never hot,
-  // can be premium/standard".
+  // ── Telecom-unverified soft cap (premium max — no Twilio data at all) ──
+  // Phase 3.8 + Phase 4.1: distinguished from "telecom_low_confidence".
+  // Telecom-unverified means Twilio truly didn't run (toggle off, env off,
+  // skipped, or no checkedAt timestamp). The lead has NO telecom signal —
+  // we genuinely don't know. Cap at premium (HOT not possible), don't
+  // force review.
   //
-  // What counts as telecom-unverified:
-  //   - no validation.phone object at all (Twilio toggle was off)
-  //   - validation.phone exists but lookup recognized format only
-  //     (validityReason === 'twilio_no_enrichment')
-  //   - validation.phone exists but every enrichment field is null (lineType,
-  //     smsPumpingRisk, identityMatch all absent) AND not explicitly invalid
+  // The DIFFERENT case (Twilio ran but returned no enrichment) used to be
+  // collapsed into this same soft-cap. It's now split out as
+  // 'twilio_no_enrichment' → force-review (handled in the next pass), since
+  // active emptiness is a stronger negative signal than absence.
   const phoneV = lead.validation?.phone;
+  const phoneRan = phoneV && phoneV.checkedAt;
   const telecomUnverified =
     !phoneV ||
-    phoneV.validityReason === 'twilio_no_enrichment' ||
+    !phoneRan ||
     (
       phoneV.valid !== false &&
+      phoneV.validityReason !== 'twilio_no_enrichment' &&
       phoneV.lineType == null &&
       phoneV.smsPumpingRisk == null &&
       !phoneV.identityMatch
@@ -181,6 +181,14 @@ function assign(scores, lead = {}) {
     // own — that requires phone.valid===false or other compound fraud.
     if (lead.validation?.phone?.suspicionPattern) {
       reviewSignals.push(`suspicious phone pattern (${lead.validation.phone.suspicionPattern})`);
+    }
+    // Phase 4.1: telecom_low_confidence — Twilio ran but returned no
+    // enrichment. A real number usually has at least a line type; empty
+    // enrichment is mildly suspicious. Forces review even if everything
+    // else looks fine. Distinct from telecom_unverified (no Twilio at all
+    // → soft cap at premium above), which is just "we didn't look".
+    if (lead.validation?.phone?.validityReason === 'twilio_no_enrichment') {
+      reviewSignals.push('low telecom confidence (Twilio returned no enrichment)');
     }
     if (lead.validation?.fraud?.smsPumpingRisk === 'medium') {
       reviewSignals.push('medium SMS pumping risk');
