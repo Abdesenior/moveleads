@@ -63,6 +63,19 @@ services:
       - key: RESEND_API_KEY
         sync: false
 
+      # ── Founder outreach (isolated subdomain) ──────────────────────────────
+      # Uses the same Resend API key (Resend supports multiple verified
+      # domains per key) but sends from the separate `hello.moveleads.cloud`
+      # subdomain so cold-outreach spam complaints can't damage transactional
+      # reputation on the root domain. DNS verification in Resend must turn
+      # green for ALL four records before sending will succeed.
+      - key: OUTREACH_FROM_EMAIL
+        value: amin@hello.moveleads.cloud
+      - key: OUTREACH_FROM_NAME
+        value: Amin from MoveLeads
+      - key: OUTREACH_REPLY_TO
+        value: amin@hello.moveleads.cloud
+
       # ── Twilio signature URL ─────────────────────────────────────────────
       # CRITICAL: the inbound voice + SMS webhooks build the URL passed to
       # `validateRequest` from this env. If unset, the fallback resolves to
