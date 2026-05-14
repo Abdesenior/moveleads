@@ -65,6 +65,28 @@ function assign(scores, lead = {}) {
     return { tier: 'review', tierReason: reasons };
   }
 
+  // ── PHASE 3.7 EXPLICIT GUARANTEE ─────────────────────────────────────────
+  // An invalid phone CANNOT reach hot/premium/standard. Promoted to an
+  // explicit early hard rule (was only enforced via the force-review pass
+  // below). This rule fires AFTER hard rejects (1-4) so compound fraud
+  // (invalid phone + high SMS / bot / REJECTED_FAKE / fraudRiskScore<=10)
+  // still produces 'rejected' rather than being demoted to 'review'.
+  //
+  // Combined with the -40 fraud penalty in leadScoringEngine.fraudRiskScore,
+  // this guarantees:
+  //   - phone invalid alone                       → tier='review'
+  //   - phone invalid + 1 medium fraud signal     → tier='review' (close to reject)
+  //   - phone invalid + 2 medium fraud signals    → tier='rejected' (fraudRiskScore<=10)
+  //   - phone invalid + any high fraud signal     → tier='rejected'
+  //   - phone invalid + admin REJECTED_FAKE       → tier='rejected'
+  if (lead.validation?.phone?.valid === false) {
+    const rsn = lead.validation.phone.validityReason
+      ? `phone invalid: ${lead.validation.phone.validityReason}`
+      : 'phone invalid';
+    reasons.push(`hard rule: ${rsn} → review (no hot path)`);
+    return { tier: 'review', tierReason: reasons };
+  }
+
   // ── Composite-based tier ──────────────────────────────────────────────────
   const c = scores.compositeScore || 0;
   let tier;
@@ -127,8 +149,12 @@ function assign(scores, lead = {}) {
     if (lead.validation?.fraud?.smsPumpingRisk === 'medium') {
       reviewSignals.push('medium SMS pumping risk');
     }
-    if (lead.validation?.phone?.lineType === 'voip') {
-      reviewSignals.push('voip line type');
+    // VoIP catch — use the isVoip boolean rather than exact-match against
+    // 'voip', because Twilio LTI returns subtypes like 'fixedvoip' and
+    // 'nonfixedvoip'. The normalizer's regex-based isVoip flag catches all.
+    if (lead.validation?.phone?.isVoip === true) {
+      const lt = lead.validation.phone.lineType || 'voip';
+      reviewSignals.push(`voip line type (${lt})`);
     }
     if (lead.validation?.fraud?.disposable === true) {
       reviewSignals.push('phone flagged disposable');

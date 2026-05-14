@@ -127,12 +127,19 @@ function trustScore(lead) {
     // medium/high SMS pumping risk are penalized separately in fraudRiskScore
     // to avoid double-counting.
 
+    // Line type — Twilio LTI returns variants like 'mobile', 'landline',
+    // 'fixedVoip', 'nonFixedVoip', 'tollFree', 'premium' etc. We normalize
+    // to lowercase. Use the `isVoip` boolean (computed via /voip/.test) so
+    // both 'fixedvoip' and 'nonfixedvoip' are caught — earlier strict
+    // equality against 'voip' would silently miss every real VoIP variant.
     if (phoneLookup.lineType === 'mobile') {
       trustGain += 5; positiveSignals.push('mobile line');
-    } else if (phoneLookup.lineType === 'voip') {
-      s -= 10; reasons.push('voip line');
+    } else if (phoneLookup.isVoip === true) {
+      s -= 10; reasons.push(`voip line (${phoneLookup.lineType || 'voip'})`);
     } else if (phoneLookup.lineType === 'landline') {
       reasons.push('landline');
+    } else if (phoneLookup.lineType === 'tollfree') {
+      reasons.push('toll-free line');
     }
 
     // Twilio Identity Match (opt-in, gated by ENABLE_TWILIO_IDENTITY_MATCH).
@@ -305,11 +312,16 @@ function fraudRiskScore(lead) {
   }
 
   // Phone-invalid is a STRONG fraud signal — local NANP check or Twilio
-  // explicitly rejected the number. Contributes -25 here so the tier router
-  // can compound it with other signals into a hard-reject, and the force-
-  // review pass below also triggers on it (catches solo fake-phone leads).
+  // explicitly rejected the number. Penalty calibrated at -40 so the tier
+  // router can compound with other mediums into a hard-reject:
+  //   - invalid alone:                fraud = 35 → force-review (review)
+  //   - invalid + 1 medium signal:    fraud ≈ 20 → review
+  //   - invalid + 2 medium signals:   fraud ≈  5 → hard reject (rejected)
+  // The tier router also has an explicit early-rule that caps phone-invalid
+  // leads at 'review' regardless of composite, so even pristine V5 signals
+  // can't promote an invalid phone to hot/premium.
   if (lead.validation && lead.validation.phone && lead.validation.phone.valid === false) {
-    s -= 25;
+    s -= 40;
     reasons.push('phone invalid (fraud impact)');
   }
 
