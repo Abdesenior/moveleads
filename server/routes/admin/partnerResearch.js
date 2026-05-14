@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const { admin } = require('../../middleware/auth');
 const PartnerResearchSubmission = require('../../models/PartnerResearchSubmission');
@@ -67,6 +68,28 @@ router.get('/stats', async (_req, res) => {
   }
 });
 
+// POST /api/admin/partner-research/bulk-delete
+// Body: { ids: ["…", "…"] }
+// MUST be declared BEFORE /:id so the static path resolves first within
+// its method — and so an invalid id never reaches deleteOne by accident.
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const raw = Array.isArray(req.body && req.body.ids) ? req.body.ids : [];
+    const ids = raw
+      .map(id => String(id || '').trim())
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .slice(0, 200);
+    if (ids.length === 0) {
+      return res.json({ ok: true, deleted: 0 });
+    }
+    const result = await PartnerResearchSubmission.deleteMany({ _id: { $in: ids } });
+    res.json({ ok: true, deleted: result.deletedCount || 0 });
+  } catch (err) {
+    console.error('[AdminPartnerResearch] bulk-delete error', err);
+    res.status(500).json({ msg: 'Could not delete submissions.' });
+  }
+});
+
 // GET /api/admin/partner-research/:id
 router.get('/:id', async (req, res) => {
   try {
@@ -79,6 +102,23 @@ router.get('/:id', async (req, res) => {
     }
     console.error('[AdminPartnerResearch] detail error', err);
     res.status(500).json({ msg: 'Could not load submission.' });
+  }
+});
+
+// DELETE /api/admin/partner-research/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ msg: 'Submission not found.' });
+    }
+    const result = await PartnerResearchSubmission.deleteOne({ _id: req.params.id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ msg: 'Submission not found.' });
+    }
+    res.json({ ok: true, deleted: 1 });
+  } catch (err) {
+    console.error('[AdminPartnerResearch] delete error', err);
+    res.status(500).json({ msg: 'Could not delete submission.' });
   }
 });
 

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { Search, X } from 'lucide-react';
+import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import { Search, X, Trash2 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
+import { useToast } from '../../components/ui/Toast';
 
 const TYPE_LABELS = {
   realtor: 'Realtor',
@@ -18,6 +19,7 @@ const FREQ_LABELS = {
 
 export default function AdminPartnerResearch() {
   const { API_URL, token } = useContext(AuthContext);
+  const toast = useToast();
 
   const [stats, setStats]             = useState({ total: 0, realtor: 0, facebook_group_admin: 0 });
   const [submissions, setSubmissions] = useState([]);
@@ -31,6 +33,9 @@ export default function AdminPartnerResearch() {
 
   const [drawerId, setDrawerId]   = useState(null);
   const [drawerDoc, setDrawerDoc] = useState(null);
+
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -64,6 +69,17 @@ export default function AdminPartnerResearch() {
   useEffect(() => { fetchList(); }, [fetchList]);
   useEffect(() => { setPage(1); }, [search, typeFilter]);
 
+  // Clear stale selections when the list changes (page nav, filter change, refresh).
+  useEffect(() => {
+    setSelectedIds(prev => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(submissions.map(s => s._id));
+      const next = new Set();
+      prev.forEach(id => { if (visible.has(id)) next.add(id); });
+      return next.size === prev.size ? prev : next;
+    });
+  }, [submissions]);
+
   useEffect(() => {
     if (!drawerId) { setDrawerDoc(null); return; }
     (async () => {
@@ -77,17 +93,113 @@ export default function AdminPartnerResearch() {
     })();
   }, [drawerId, API_URL, token]);
 
+  function marketFor(row) {
+    if (row.partnerType === 'realtor') return row.mainMarket || '';
+    if (Array.isArray(row.popularMarkets) && row.popularMarkets.length) {
+      return row.popularMarkets.join(' · ');
+    }
+    return '';
+  }
+
   function signalFor(row) {
     if (row.partnerType === 'realtor') {
-      return [row.mainMarket || '—', row.monthlyMovingClients ? `${row.monthlyMovingClients} clients/mo` : ''].filter(Boolean).join(' • ');
+      return row.monthlyMovingClients ? `${row.monthlyMovingClients} clients/mo` : '';
     }
-    return [row.groupSize || '—', FREQ_LABELS[row.movingHelpFrequency || ''] || '—'].filter(Boolean).join(' • ');
+    return [row.groupSize || '', FREQ_LABELS[row.movingHelpFrequency || ''] || ''].filter(Boolean).join(' • ');
+  }
+
+  // ───── Selection helpers ──────────────────────────────────────────────
+  function toggleRow(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function clearSelection() { setSelectedIds(new Set()); }
+  const allVisibleSelected = submissions.length > 0 && submissions.every(s => selectedIds.has(s._id));
+  const someVisibleSelected = submissions.some(s => selectedIds.has(s._id)) && !allVisibleSelected;
+  function toggleSelectAll() {
+    if (allVisibleSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        submissions.forEach(s => next.delete(s._id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        submissions.forEach(s => next.add(s._id));
+        return next;
+      });
+    }
+  }
+
+  // ───── Delete handlers ────────────────────────────────────────────────
+  async function deleteSingle(id) {
+    if (!window.confirm('Delete this submission?')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_URL}/admin/partner-research/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-auth-token': token },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.msg || 'Delete failed');
+      toast.success('Submission deleted');
+      if (drawerId === id) setDrawerId(null);
+      setSelectedIds(prev => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev); next.delete(id); return next;
+      });
+      fetchList();
+      fetchStats();
+    } catch (e) {
+      toast.error(e.message || 'Could not delete');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function deleteBulk() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} selected submission${ids.length === 1 ? '' : 's'}?`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_URL}/admin/partner-research/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ ids }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.msg || 'Delete failed');
+      const removed = Number(json.deleted) || 0;
+      toast.success(`Deleted ${removed} submission${removed === 1 ? '' : 's'}`);
+      if (drawerId && selectedIds.has(drawerId)) setDrawerId(null);
+      clearSelection();
+      fetchList();
+      fetchStats();
+    } catch (e) {
+      toast.error(e.message || 'Could not delete');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const selectedCount = selectedIds.size;
 
   return (
     <AdminLayout>
+      {/* Hover affordance for the per-row trash icon — subtle until hovered. */}
+      <style>{`
+        .apr-row-delete { opacity: 0.35; transition: opacity 0.12s ease, color 0.12s ease; }
+        .apr-row:hover .apr-row-delete { opacity: 1; }
+        .apr-row-delete:hover { color: #dc2626; }
+        .apr-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: #ef4444; }
+      `}</style>
+
       <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>Partner Research</h1>
 
@@ -119,31 +231,122 @@ export default function AdminPartnerResearch() {
           </div>
         </div>
 
+        {selectedCount > 0 && (
+          <div
+            style={{
+              position: 'sticky', top: 8, zIndex: 5,
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px', marginBottom: 10,
+              background: '#0f172a', color: '#fff', borderRadius: 10,
+              boxShadow: '0 8px 24px -10px rgba(15,23,42,0.45)',
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{selectedCount} selected</span>
+            <div style={{ flex: 1 }} />
+            <button
+              type="button"
+              onClick={clearSelection}
+              style={{
+                background: 'transparent', color: '#cbd5e1', border: '1px solid #334155',
+                padding: '6px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+              }}
+            >
+              Clear selection
+            </button>
+            <button
+              type="button"
+              onClick={deleteBulk}
+              disabled={deleting}
+              style={{
+                background: '#ef4444', color: '#fff', border: 0,
+                padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.7 : 1,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <Trash2 size={14} /> Delete selected
+            </button>
+          </div>
+        )}
+
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e4e4e7', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead style={{ background: '#fafafa', textAlign: 'left' }}>
               <tr>
+                <th style={{ ...th, width: 40 }}>
+                  <input
+                    type="checkbox"
+                    className="apr-checkbox"
+                    aria-label="Select all on this page"
+                    checked={allVisibleSelected}
+                    ref={el => { if (el) el.indeterminate = someVisibleSelected; }}
+                    onChange={toggleSelectAll}
+                    disabled={submissions.length === 0}
+                  />
+                </th>
                 <th style={th}>Date</th>
                 <th style={th}>Type</th>
                 <th style={th}>Name</th>
                 <th style={th}>Email</th>
+                <th style={th}>Market</th>
                 <th style={th}>Signal</th>
+                <th style={{ ...th, width: 40 }} aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#71717a' }}>Loading…</td></tr>
+                <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#71717a' }}>Loading…</td></tr>
               ) : submissions.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#71717a' }}>No submissions yet.</td></tr>
-              ) : submissions.map(row => (
-                <tr key={row._id} onClick={() => setDrawerId(row._id)} style={{ cursor: 'pointer', borderTop: '1px solid #f4f4f5' }}>
-                  <td style={td}>{new Date(row.submittedAt).toLocaleDateString()}</td>
-                  <td style={td}>{TYPE_LABELS[row.partnerType] || row.partnerType}</td>
-                  <td style={td}>{row.fullName}</td>
-                  <td style={td}>{row.email}</td>
-                  <td style={{ ...td, color: '#52525b' }}>{signalFor(row)}</td>
-                </tr>
-              ))}
+                <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#71717a' }}>No submissions yet.</td></tr>
+              ) : submissions.map(row => {
+                const isSelected = selectedIds.has(row._id);
+                return (
+                  <tr
+                    key={row._id}
+                    className="apr-row"
+                    onClick={() => setDrawerId(row._id)}
+                    style={{
+                      cursor: 'pointer',
+                      borderTop: '1px solid #f4f4f5',
+                      background: isSelected ? 'rgba(239, 68, 68, 0.04)' : undefined,
+                    }}
+                  >
+                    <td style={td} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="apr-checkbox"
+                        aria-label={`Select ${row.fullName}`}
+                        checked={isSelected}
+                        onChange={() => toggleRow(row._id)}
+                      />
+                    </td>
+                    <td style={td}>{new Date(row.submittedAt).toLocaleDateString()}</td>
+                    <td style={td}>{TYPE_LABELS[row.partnerType] || row.partnerType}</td>
+                    <td style={td}>{row.fullName}</td>
+                    <td style={td}>{row.email}</td>
+                    <td style={{ ...td, color: '#0f172a', maxWidth: 240, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={marketFor(row)}>
+                      {marketFor(row) || <span style={{ color: '#a1a1aa' }}>—</span>}
+                    </td>
+                    <td style={{ ...td, color: '#52525b' }}>{signalFor(row) || <span style={{ color: '#a1a1aa' }}>—</span>}</td>
+                    <td style={td} onClick={e => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="apr-row-delete"
+                        aria-label={`Delete ${row.fullName}`}
+                        onClick={() => deleteSingle(row._id)}
+                        disabled={deleting}
+                        style={{
+                          background: 'transparent', border: 0, padding: 4,
+                          cursor: deleting ? 'not-allowed' : 'pointer', color: '#71717a',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -156,7 +359,14 @@ export default function AdminPartnerResearch() {
           </div>
         )}
 
-        {drawerId && <Drawer onClose={() => setDrawerId(null)} doc={drawerDoc} />}
+        {drawerId && (
+          <Drawer
+            onClose={() => setDrawerId(null)}
+            doc={drawerDoc}
+            onDelete={() => deleteSingle(drawerId)}
+            deleting={deleting}
+          />
+        )}
       </div>
     </AdminLayout>
   );
@@ -174,7 +384,7 @@ function StatCard({ label, value }) {
   );
 }
 
-function Drawer({ onClose, doc }) {
+function Drawer({ onClose, doc, onDelete, deleting }) {
   return (
     <div
       onClick={onClose}
@@ -234,6 +444,24 @@ function Drawer({ onClose, doc }) {
             <Row label="Completion (s)" value={doc.completionTimeSeconds} />
             <Row label="IP" value={doc.ipAddress} />
             <Row label="User agent" value={doc.userAgent} />
+
+            <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px solid #e4e4e7' }}>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+                style={{
+                  background: 'transparent', color: '#dc2626',
+                  border: '1px solid #fecaca', padding: '8px 14px',
+                  borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  opacity: deleting ? 0.6 : 1,
+                }}
+              >
+                <Trash2 size={14} /> Delete submission
+              </button>
+            </div>
           </>
         )}
       </div>
