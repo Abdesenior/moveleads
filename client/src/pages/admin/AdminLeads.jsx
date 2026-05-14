@@ -219,6 +219,42 @@ function FallbackCityAutocomplete({ label, value, onChange, onZipFound, placehol
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
+ * V5 Phase 1 — Tier badge for the admin leads table
+ *
+ * Renders the latest shadow-mode tier from ScoringSnapshot. The data is
+ * annotated server-side on every Lead the admin endpoint returns
+ * (lead._shadowTier / lead._shadowComposite). Leads predating the V5 deploy
+ * have no snapshot and render a muted placeholder.
+ *
+ * Cosmetic only — tier does NOT affect routing, pricing, or visibility yet.
+ * ───────────────────────────────────────────────────────────────────────── */
+function TierBadge({ tier, composite }) {
+  const styles = {
+    hot:      { bg: '#fef2f2', fg: '#dc2626', border: '#fecaca' },
+    premium:  { bg: '#f5f3ff', fg: '#7c3aed', border: '#ddd6fe' },
+    standard: { bg: '#eff6ff', fg: '#2563eb', border: '#bfdbfe' },
+    review:   { bg: '#fef3c7', fg: '#d97706', border: '#fde68a' },
+    rejected: { bg: '#f1f5f9', fg: '#64748b', border: '#e2e8f0' },
+  };
+  if (!tier) {
+    return <span style={{ fontSize: 11, color: '#cbd5e1', fontStyle: 'italic' }}>—</span>;
+  }
+  const s = styles[tier] || styles.standard;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{
+        padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
+        letterSpacing: 0.5, textTransform: 'uppercase',
+        background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
+      }}>{tier}</span>
+      {typeof composite === 'number' && (
+        <span style={{ fontSize: 11, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{composite}</span>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
  * V5 Phase 1 — Scoring Snapshot Modal
  *
  * Read-only diagnostic view. Compares the legacy production score/grade
@@ -643,6 +679,7 @@ export default function AdminLeads() {
         case 'createdAt': { const t = new Date(lead.createdAt).getTime(); return Number.isFinite(t) ? t : 0; }
         case 'price': return Number(lead.price || 0);
         case 'status': return (lead.status || '').toLowerCase();
+        case 'tier': return Number(lead._shadowComposite ?? -1);
         default: return '';
       }
     };
@@ -779,14 +816,19 @@ export default function AdminLeads() {
                   Status {sortKey === 'status' && <span style={{ color: 'var(--accent-orange)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
                 </button>
               </th>
+              <th>
+                <button type="button" onClick={() => toggleSort('tier')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 900, color: sortKey === 'tier' ? 'var(--bg-navy)' : 'var(--text-muted)' }} title="V5 shadow scoring tier — observational only, does not affect routing">
+                  Tier {sortKey === 'tier' && <span style={{ color: 'var(--accent-orange)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                </button>
+              </th>
               <th style={{ textAlign: 'right', paddingRight: 24 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableSkeleton rowCount={pageSize} colCount={7} />
+              <TableSkeleton rowCount={pageSize} colCount={8} />
             ) : sortedLeads.length === 0 ? (
-              <tr><td colSpan="7" className="table-empty">No leads match your search and filters.</td></tr>
+              <tr><td colSpan="8" className="table-empty">No leads match your search and filters.</td></tr>
             ) : (
               pagedLeads.map((lead, i) => (
               <tr key={lead._id} style={{ background: i % 2 === 0 ? '#fff' : '#fcfdfe' }}>
@@ -815,6 +857,9 @@ export default function AdminLeads() {
                     background: lead.status === 'Available' ? '#eff6ff' : lead.status === 'Purchased' ? '#f0fdf4' : lead.status === 'READY_FOR_DISTRIBUTION' ? '#f0fdf4' : lead.status === 'REJECTED_FAKE' || lead.status === 'PENDING_MANUAL_REVIEW' ? '#fef2f2' : '#f1f5f9',
                     color: lead.status === 'Available' ? '#2563eb' : lead.status === 'Purchased' ? '#16a34a' : lead.status === 'READY_FOR_DISTRIBUTION' ? '#15803d' : lead.status === 'REJECTED_FAKE' || lead.status === 'PENDING_MANUAL_REVIEW' ? '#dc2626' : '#64748b'
                   }}>{lead.status}</span>
+                </td>
+                <td>
+                  <TierBadge tier={lead._shadowTier} composite={lead._shadowComposite} />
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: 24 }}>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>

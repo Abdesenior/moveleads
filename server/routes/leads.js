@@ -132,6 +132,34 @@ router.get('/', auth, async (req, res) => {
 
     const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
 
+    // V5 Phase 1 — annotate leads with their most-recent shadow scoring tier
+    // for admin viewers only. Single aggregation lookup (one DB roundtrip) to
+    // avoid N+1 queries. Mover-facing requests don't get this annotation —
+    // the tier is shadow-mode and must not influence mover behavior yet.
+    if (isAdmin && leads.length > 0) {
+      const ScoringSnapshot = require('../models/ScoringSnapshot');
+      const leadIds = leads.map(l => l._id);
+      const latestPerLead = await ScoringSnapshot.aggregate([
+        { $match: { leadId: { $in: leadIds } } },
+        { $sort: { createdAt: -1 } },
+        { $group: {
+            _id: '$leadId',
+            tier: { $first: '$tier' },
+            composite: { $first: '$scores.compositeScore' },
+            engineVersion: { $first: '$engineVersion' },
+        }},
+      ]);
+      const tierByLeadId = new Map(latestPerLead.map(s => [String(s._id), s]));
+      for (const l of leads) {
+        const s = tierByLeadId.get(String(l._id));
+        if (s) {
+          l._shadowTier = s.tier;
+          l._shadowComposite = s.composite;
+          l._shadowEngineVersion = s.engineVersion;
+        }
+      }
+    }
+
     // For non-admin users, annotate each lead with _matchesPreferences and
     // sort matched-first. The client uses this to drive the "Matched for
     // you" tab + a "Matches your setup" badge.
