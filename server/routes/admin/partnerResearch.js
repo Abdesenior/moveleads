@@ -29,14 +29,14 @@ router.get('/', async (req, res) => {
         { fullName: rx }, { email: rx },
         { brokerageName: rx }, { mainMarket: rx },
         { facebookGroupUrl: rx },
-        { originMarket: rx }, { destinationMarket: rx },
+        { popularMarkets: rx },
       ];
     }
 
     const [submissions, total] = await Promise.all([
       PartnerResearchSubmission
         .find(filter)
-        .select('partnerType fullName email brokerageName mainMarket monthlyMovingClients facebookGroupUrl groupSize movingHelpFrequency originMarket destinationMarket submittedAt')
+        .select('partnerType fullName email brokerageName mainMarket monthlyMovingClients facebookGroupUrl groupSize movingHelpFrequency popularMarkets submittedAt')
         .sort({ submittedAt: -1 })
         .skip((page - 1) * pageSize)
         .limit(pageSize)

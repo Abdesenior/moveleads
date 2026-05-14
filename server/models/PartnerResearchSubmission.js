@@ -29,8 +29,7 @@ const PartnerResearchSubmissionSchema = new mongoose.Schema({
   facebookGroupUrl:     { type: String, trim: true },
   groupSize:            { type: String, enum: ['1k-5k', '5k-20k', '20k-50k', '50k+', ''], default: '' },
   movingHelpFrequency:  { type: String, enum: ['daily', 'weekly', 'occasionally', 'rarely', ''], default: '' },
-  originMarket:         { type: String, trim: true }, // "City, ST" — where members move from
-  destinationMarket:    { type: String, trim: true }, // "City, ST" — where members move to
+  popularMarkets:       { type: [String], default: undefined }, // ["City, ST", "State"] — multi-select chips
 
   // Metadata
   source:    String,

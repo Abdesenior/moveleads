@@ -59,15 +59,19 @@ router.post('/submit', async (req, res) => {
       const facebookGroupUrl    = String(body.facebookGroupUrl || '').trim();
       const groupSize           = String(body.groupSize || '').trim();
       const movingHelpFrequency = String(body.movingHelpFrequency || '').trim().toLowerCase();
-      const originMarket        = String(body.originMarket || '').trim().slice(0, 64);
-      const destinationMarket   = String(body.destinationMarket || '').trim().slice(0, 64);
+      const popularMarkets = Array.isArray(body.popularMarkets)
+        ? body.popularMarkets
+            .map(s => String(s || '').trim().slice(0, 64))
+            .filter(Boolean)
+            .slice(0, 8)
+        : [];
       if (!facebookGroupUrl || !GROUP_SIZES.has(groupSize) || !GROUP_FREQS.has(movingHelpFrequency)) {
         return res.status(400).json({ msg: 'Group URL, size, and frequency are required.' });
       }
-      if (!originMarket || !destinationMarket) {
-        return res.status(400).json({ msg: 'Origin and destination markets are required.' });
+      if (popularMarkets.length === 0) {
+        return res.status(400).json({ msg: 'Select at least one popular market.' });
       }
-      Object.assign(doc, { facebookGroupUrl, groupSize, movingHelpFrequency, originMarket, destinationMarket });
+      Object.assign(doc, { facebookGroupUrl, groupSize, movingHelpFrequency, popularMarkets });
     }
 
     // Dedup — friendly success, no enumeration leak.

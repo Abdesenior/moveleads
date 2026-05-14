@@ -12,6 +12,8 @@ const VOLUME_OPTIONS = [
   { value: '30+',   label: '30+ clients / month',   subline: 'Top producer' },
 ];
 
+const STEPS = ['name', 'email', 'brokerage', 'market', 'volume'];
+
 const INITIAL_ANSWERS = {
   fullName: '',
   email: '',
@@ -32,13 +34,35 @@ export default function FoundingRealtors() {
     initialAnswers: INITIAL_ANSWERS,
   });
 
-  const [stepId, setStepId] = useState('identity');
+  const [stepIdx, setStepIdx] = useState(0);
+  const stepId = STEPS[stepIdx];
 
-  const step1Valid = answers.fullName.trim() && isEmail(answers.email);
-  const step2Valid =
-    answers.brokerageName.trim() &&
-    answers.mainMarket &&
-    answers.monthlyMovingClients;
+  function canContinue() {
+    switch (stepId) {
+      case 'name':       return answers.fullName.trim().length > 0;
+      case 'email':      return isEmail(answers.email);
+      case 'brokerage':  return answers.brokerageName.trim().length > 0;
+      case 'market':     return Boolean(answers.mainMarket);
+      case 'volume':     return Boolean(answers.monthlyMovingClients);
+      default:           return false;
+    }
+  }
+
+  function advance() {
+    if (stepIdx === STEPS.length - 1) submit();
+    else setStepIdx(i => i + 1);
+  }
+
+  function goBack() {
+    if (stepIdx > 0) setStepIdx(i => i - 1);
+  }
+
+  function onInputKeyDown(e) {
+    if (e.key === 'Enter' && canContinue()) {
+      e.preventDefault();
+      advance();
+    }
+  }
 
   if (submitted) {
     return (
@@ -67,8 +91,8 @@ export default function FoundingRealtors() {
     );
   }
 
-  const progressPct = stepId === 'identity' ? 50 : 100;
-  const showBack = stepId === 'business';
+  const progressPct = Math.round(((stepIdx + 1) / STEPS.length) * 100);
+  const isLast = stepIdx === STEPS.length - 1;
 
   return (
     <div className="fm-root">
@@ -76,13 +100,8 @@ export default function FoundingRealtors() {
         <div className="fm-progress-bar" style={{ width: `${progressPct}%` }} />
       </div>
 
-      {showBack && (
-        <button
-          type="button"
-          className="fm-back"
-          onClick={() => setStepId('identity')}
-          aria-label="Back"
-        >
+      {stepIdx > 0 && (
+        <button type="button" className="fm-back" onClick={goBack} aria-label="Back">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -92,136 +111,138 @@ export default function FoundingRealtors() {
 
       <div className="fm-step" key={stepId}>
         <div className="fm-step-inner">
-          {stepId === 'identity' && (
+          {/* Honeypot — always rendered, off-screen */}
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            value={answers.website}
+            onChange={e => setField('website', e.target.value)}
+            style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
+          />
+
+          {stepId === 'name' && (
             <>
-              <h1 className="fm-question">Join the MoveLeads Realtor Partner Network</h1>
+              <h1 className="fm-question">Let's start with your name</h1>
               <p className="fm-helper">
                 A trusted relocation network for the realtors your clients rely on.
                 Early-access applications open to a select group of partners.
               </p>
-
-              <ul className="fm-intro-bullets">
-                <li><span className="fm-trust-check">✓</span> Vetted moving partners for your clients</li>
-                <li><span className="fm-trust-check">✓</span> Smooth, transparent relocations from listing to delivery</li>
-                <li><span className="fm-trust-check">✓</span> Founding access to the partner program</li>
-              </ul>
-
               <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="text"
                   value={answers.fullName}
                   onChange={e => setField('fullName', e.target.value)}
+                  onKeyDown={onInputKeyDown}
                   placeholder="Full name"
                   autoComplete="name"
+                  autoFocus
                 />
+              </div>
+            </>
+          )}
+
+          {stepId === 'email' && (
+            <>
+              <h1 className="fm-question">What's your email address?</h1>
+              <p className="fm-helper">
+                We'll use this only to reach out about your founding partner application.
+              </p>
+              <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="email"
                   value={answers.email}
                   onChange={e => setField('email', e.target.value)}
+                  onKeyDown={onInputKeyDown}
                   placeholder="Email address"
                   autoComplete="email"
+                  autoFocus
                 />
-              </div>
-
-              {/* Honeypot */}
-              <input
-                type="text"
-                name="website"
-                tabIndex={-1}
-                autoComplete="off"
-                aria-hidden="true"
-                value={answers.website}
-                onChange={e => setField('website', e.target.value)}
-                style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
-              />
-
-              <div className="fm-actions">
-                <button
-                  type="button"
-                  className="fm-continue"
-                  onClick={() => setStepId('business')}
-                  disabled={!step1Valid}
-                >
-                  Continue →
-                </button>
               </div>
             </>
           )}
 
-          {stepId === 'business' && (
+          {stepId === 'brokerage' && (
             <>
-              <h1 className="fm-question">Tell us about your practice</h1>
+              <h1 className="fm-question">Which brokerage are you with?</h1>
               <p className="fm-helper">
-                A few details help us match founding partners to the right markets.
+                Helps us match founding partners to the right networks.
               </p>
-
               <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="text"
                   value={answers.brokerageName}
                   onChange={e => setField('brokerageName', e.target.value)}
+                  onKeyDown={onInputKeyDown}
                   placeholder="Brokerage name"
                   autoComplete="organization"
+                  autoFocus
                 />
-              </div>
-
-              <div className="fm-group fm-group-spaced">
-                <div className="fm-group-label">Your primary market</div>
-                <p className="fm-helper" style={{ marginTop: 0, marginBottom: 12 }}>
-                  Start typing a city or state — we'll match standardized markets.
-                </p>
-                <MarketAutocomplete
-                  value={answers.mainMarket}
-                  onChange={(v) => setField('mainMarket', v)}
-                  placeholder="City or state…"
-                />
-              </div>
-
-              <div className="fm-group fm-group-spaced">
-                <div className="fm-group-label">Roughly how many clients relocate or move with you each month?</div>
-                <div className="fm-choices">
-                  {VOLUME_OPTIONS.map(opt => {
-                    const isSelected = answers.monthlyMovingClients === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        className={`fm-choice${isSelected ? ' selected' : ''}`}
-                        onClick={() => setField('monthlyMovingClients', opt.value)}
-                        aria-pressed={isSelected}
-                      >
-                        <span className="fm-choice-text">
-                          <span className="fm-choice-label">{opt.label}</span>
-                          <span className="fm-choice-subline">{opt.subline}</span>
-                        </span>
-                        <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <p className="fm-finetext">
-                We'll only use these details to evaluate founding partner applications.
-              </p>
-
-              {errorMsg && <div className="fm-error">{errorMsg}</div>}
-
-              <div className="fm-actions">
-                <button
-                  type="button"
-                  className="fm-continue"
-                  onClick={() => submit()}
-                  disabled={!step2Valid || submitting}
-                >
-                  {submitting ? 'Sending…' : 'Submit application →'}
-                </button>
               </div>
             </>
           )}
+
+          {stepId === 'market' && (
+            <>
+              <h1 className="fm-question">Where do you primarily operate?</h1>
+              <p className="fm-helper">
+                Start typing a city or a state — we'll match standardized markets.
+              </p>
+              <MarketAutocomplete
+                value={answers.mainMarket}
+                onChange={(v) => setField('mainMarket', v)}
+                placeholder="City or state…"
+                autoFocus
+              />
+            </>
+          )}
+
+          {stepId === 'volume' && (
+            <>
+              <h1 className="fm-question">Roughly how many clients relocate or move with you each month?</h1>
+              <p className="fm-helper">
+                A quick gauge — pick the range that's closest.
+              </p>
+              <div className="fm-choices">
+                {VOLUME_OPTIONS.map(opt => {
+                  const isSelected = answers.monthlyMovingClients === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`fm-choice${isSelected ? ' selected' : ''}`}
+                      onClick={() => setField('monthlyMovingClients', opt.value)}
+                      aria-pressed={isSelected}
+                    >
+                      <span className="fm-choice-text">
+                        <span className="fm-choice-label">{opt.label}</span>
+                        <span className="fm-choice-subline">{opt.subline}</span>
+                      </span>
+                      <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {errorMsg && <div className="fm-error">{errorMsg}</div>}
+
+          <div className="fm-actions">
+            <button
+              type="button"
+              className="fm-continue"
+              onClick={advance}
+              disabled={!canContinue() || submitting}
+            >
+              {isLast ? (submitting ? 'Sending…' : 'Submit application →') : 'Continue →'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

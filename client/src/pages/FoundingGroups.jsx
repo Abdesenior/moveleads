@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import MarketAutocomplete from '../components/MarketAutocomplete';
+import MarketMultiSelect from '../components/MarketMultiSelect';
 import { usePartnerForm } from '../hooks/usePartnerForm';
 import './FoundingMovers.css';
 
@@ -19,14 +19,15 @@ const FREQ_OPTIONS = [
   { value: 'rarely',       label: 'Rarely',       subline: 'Comes up sometimes' },
 ];
 
+const STEPS = ['name', 'email', 'groupUrl', 'size', 'frequency', 'markets'];
+
 const INITIAL_ANSWERS = {
   fullName: '',
   email: '',
   facebookGroupUrl: '',
   groupSize: '',
   movingHelpFrequency: '',
-  originMarket: '',
-  destinationMarket: '',
+  popularMarkets: [],
   website: '',
   utm: { source: '', medium: '', campaign: '', term: '', content: '' },
 };
@@ -42,14 +43,36 @@ export default function FoundingGroups() {
     initialAnswers: INITIAL_ANSWERS,
   });
 
-  const [stepId, setStepId] = useState('identity'); // 'identity' | 'group' | 'markets'
+  const [stepIdx, setStepIdx] = useState(0);
+  const stepId = STEPS[stepIdx];
 
-  const step1Valid = answers.fullName.trim() && isEmail(answers.email);
-  const step2Valid =
-    isUrl(answers.facebookGroupUrl) &&
-    answers.groupSize &&
-    answers.movingHelpFrequency;
-  const step3Valid = answers.originMarket && answers.destinationMarket;
+  function canContinue() {
+    switch (stepId) {
+      case 'name':       return answers.fullName.trim().length > 0;
+      case 'email':      return isEmail(answers.email);
+      case 'groupUrl':   return isUrl(answers.facebookGroupUrl);
+      case 'size':       return Boolean(answers.groupSize);
+      case 'frequency':  return Boolean(answers.movingHelpFrequency);
+      case 'markets':    return Array.isArray(answers.popularMarkets) && answers.popularMarkets.length > 0;
+      default:           return false;
+    }
+  }
+
+  function advance() {
+    if (stepIdx === STEPS.length - 1) submit();
+    else setStepIdx(i => i + 1);
+  }
+
+  function goBack() {
+    if (stepIdx > 0) setStepIdx(i => i - 1);
+  }
+
+  function onInputKeyDown(e) {
+    if (e.key === 'Enter' && canContinue()) {
+      e.preventDefault();
+      advance();
+    }
+  }
 
   if (submitted) {
     return (
@@ -78,13 +101,8 @@ export default function FoundingGroups() {
     );
   }
 
-  const progressPct = stepId === 'identity' ? 33 : stepId === 'group' ? 66 : 100;
-  const showBack = stepId !== 'identity';
-
-  function goBack() {
-    if (stepId === 'group') setStepId('identity');
-    else if (stepId === 'markets') setStepId('group');
-  }
+  const progressPct = Math.round(((stepIdx + 1) / STEPS.length) * 100);
+  const isLast = stepIdx === STEPS.length - 1;
 
   return (
     <div className="fm-root">
@@ -92,13 +110,8 @@ export default function FoundingGroups() {
         <div className="fm-progress-bar" style={{ width: `${progressPct}%` }} />
       </div>
 
-      {showBack && (
-        <button
-          type="button"
-          className="fm-back"
-          onClick={goBack}
-          aria-label="Back"
-        >
+      {stepIdx > 0 && (
+        <button type="button" className="fm-back" onClick={goBack} aria-label="Back">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -108,192 +121,171 @@ export default function FoundingGroups() {
 
       <div className="fm-step" key={stepId}>
         <div className="fm-step-inner">
-          {stepId === 'identity' && (
+          {/* Honeypot */}
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            value={answers.website}
+            onChange={e => setField('website', e.target.value)}
+            style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
+          />
+
+          {stepId === 'name' && (
             <>
-              <h1 className="fm-question">Become an Early MoveLeads Community Partner</h1>
+              <h1 className="fm-question">Let's start with your name</h1>
               <p className="fm-helper">
-                Help your members find verified movers while earning early-access perks as a
-                founding community partner.
+                Apply to become an early MoveLeads Community Partner. Help your members find
+                verified movers — and unlock founding access perks.
               </p>
-
-              <ul className="fm-intro-bullets">
-                <li><span className="fm-trust-check">✓</span> Verified movers for your members</li>
-                <li><span className="fm-trust-check">✓</span> Trusted partner for moving asks in your group</li>
-                <li><span className="fm-trust-check">✓</span> Founding access to the community partner program</li>
-              </ul>
-
               <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="text"
                   value={answers.fullName}
                   onChange={e => setField('fullName', e.target.value)}
+                  onKeyDown={onInputKeyDown}
                   placeholder="Full name"
                   autoComplete="name"
+                  autoFocus
                 />
+              </div>
+            </>
+          )}
+
+          {stepId === 'email' && (
+            <>
+              <h1 className="fm-question">What's your email address?</h1>
+              <p className="fm-helper">
+                We'll only use this to reach out about your community partner application.
+              </p>
+              <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="email"
                   value={answers.email}
                   onChange={e => setField('email', e.target.value)}
+                  onKeyDown={onInputKeyDown}
                   placeholder="Email address"
                   autoComplete="email"
+                  autoFocus
                 />
-              </div>
-
-              {/* Honeypot */}
-              <input
-                type="text"
-                name="website"
-                tabIndex={-1}
-                autoComplete="off"
-                aria-hidden="true"
-                value={answers.website}
-                onChange={e => setField('website', e.target.value)}
-                style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
-              />
-
-              <div className="fm-actions">
-                <button
-                  type="button"
-                  className="fm-continue"
-                  onClick={() => setStepId('group')}
-                  disabled={!step1Valid}
-                >
-                  Continue →
-                </button>
               </div>
             </>
           )}
 
-          {stepId === 'group' && (
+          {stepId === 'groupUrl' && (
             <>
-              <h1 className="fm-question">Tell us about your community</h1>
+              <h1 className="fm-question">What's your Facebook group link?</h1>
               <p className="fm-helper">
-                This helps us prioritize groups where members actively ask about moving.
+                Paste the public URL of the group you admin.
               </p>
-
               <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="url"
                   value={answers.facebookGroupUrl}
                   onChange={e => setField('facebookGroupUrl', e.target.value)}
-                  placeholder="Facebook group link (https://…)"
+                  onKeyDown={onInputKeyDown}
+                  placeholder="https://facebook.com/groups/…"
                   autoComplete="off"
+                  autoFocus
                 />
               </div>
+            </>
+          )}
 
-              <div className="fm-group fm-group-spaced">
-                <div className="fm-group-label">Approx. group size</div>
-                <div className="fm-choices">
-                  {SIZE_OPTIONS.map(opt => {
-                    const isSelected = answers.groupSize === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        className={`fm-choice${isSelected ? ' selected' : ''}`}
-                        onClick={() => setField('groupSize', opt.value)}
-                        aria-pressed={isSelected}
-                      >
-                        <span className="fm-choice-text">
-                          <span className="fm-choice-label">{opt.label}</span>
-                          <span className="fm-choice-subline">{opt.subline}</span>
-                        </span>
-                        <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+          {stepId === 'size' && (
+            <>
+              <h1 className="fm-question">Roughly how big is the group?</h1>
+              <p className="fm-helper">
+                A quick gauge — pick the range that's closest.
+              </p>
+              <div className="fm-choices">
+                {SIZE_OPTIONS.map(opt => {
+                  const isSelected = answers.groupSize === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`fm-choice${isSelected ? ' selected' : ''}`}
+                      onClick={() => setField('groupSize', opt.value)}
+                      aria-pressed={isSelected}
+                    >
+                      <span className="fm-choice-text">
+                        <span className="fm-choice-label">{opt.label}</span>
+                        <span className="fm-choice-subline">{opt.subline}</span>
+                      </span>
+                      <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+                    </button>
+                  );
+                })}
               </div>
+            </>
+          )}
 
-              <div className="fm-group fm-group-spaced">
-                <div className="fm-group-label">How often do members ask for moving help?</div>
-                <div className="fm-choices">
-                  {FREQ_OPTIONS.map(opt => {
-                    const isSelected = answers.movingHelpFrequency === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        className={`fm-choice${isSelected ? ' selected' : ''}`}
-                        onClick={() => setField('movingHelpFrequency', opt.value)}
-                        aria-pressed={isSelected}
-                      >
-                        <span className="fm-choice-text">
-                          <span className="fm-choice-label">{opt.label}</span>
-                          <span className="fm-choice-subline">{opt.subline}</span>
-                        </span>
-                        <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="fm-actions">
-                <button
-                  type="button"
-                  className="fm-continue"
-                  onClick={() => setStepId('markets')}
-                  disabled={!step2Valid}
-                >
-                  Continue →
-                </button>
+          {stepId === 'frequency' && (
+            <>
+              <h1 className="fm-question">How often do members ask for moving help?</h1>
+              <p className="fm-helper">
+                Helps us understand demand inside your community.
+              </p>
+              <div className="fm-choices">
+                {FREQ_OPTIONS.map(opt => {
+                  const isSelected = answers.movingHelpFrequency === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`fm-choice${isSelected ? ' selected' : ''}`}
+                      onClick={() => setField('movingHelpFrequency', opt.value)}
+                      aria-pressed={isSelected}
+                    >
+                      <span className="fm-choice-text">
+                        <span className="fm-choice-label">{opt.label}</span>
+                        <span className="fm-choice-subline">{opt.subline}</span>
+                      </span>
+                      <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}
 
           {stepId === 'markets' && (
             <>
-              <h1 className="fm-question">Where are your members moving?</h1>
+              <h1 className="fm-question">Which markets do members most commonly move between?</h1>
               <p className="fm-helper">
-                Routes help us match the right movers and surface high-demand markets.
+                Add any cities or states — Miami, Texas, Orlando, New York, etc.
+                Helps us match the right movers to demand in your community.
               </p>
-
-              <div className="fm-group fm-group-spaced">
-                <div className="fm-group-label">Where do members most commonly move from?</div>
-                <p className="fm-helper" style={{ marginTop: 0, marginBottom: 12 }}>
-                  Start typing a city or state — we'll match standardized markets.
-                </p>
-                <MarketAutocomplete
-                  value={answers.originMarket}
-                  onChange={(v) => setField('originMarket', v)}
-                  placeholder="Origin city or state…"
-                />
-              </div>
-
-              <div className="fm-group fm-group-spaced">
-                <div className="fm-group-label">Where do members most commonly move to?</div>
-                <p className="fm-helper" style={{ marginTop: 0, marginBottom: 12 }}>
-                  Same dropdown — pick the most common destination.
-                </p>
-                <MarketAutocomplete
-                  value={answers.destinationMarket}
-                  onChange={(v) => setField('destinationMarket', v)}
-                  placeholder="Destination city or state…"
-                />
-              </div>
-
-              <p className="fm-finetext">
-                We'll only use these details to evaluate founding community partner applications.
+              <MarketMultiSelect
+                values={answers.popularMarkets}
+                onChange={(arr) => setField('popularMarkets', arr)}
+                placeholder="Add a city or state…"
+                max={8}
+              />
+              <p className="fm-finetext" style={{ marginTop: 16 }}>
+                Tip — press Enter to add, Backspace to remove the last one.
               </p>
-
-              {errorMsg && <div className="fm-error">{errorMsg}</div>}
-
-              <div className="fm-actions">
-                <button
-                  type="button"
-                  className="fm-continue"
-                  onClick={() => submit()}
-                  disabled={!step3Valid || submitting}
-                >
-                  {submitting ? 'Sending…' : 'Submit application →'}
-                </button>
-              </div>
             </>
           )}
+
+          {errorMsg && <div className="fm-error">{errorMsg}</div>}
+
+          <div className="fm-actions">
+            <button
+              type="button"
+              className="fm-continue"
+              onClick={advance}
+              disabled={!canContinue() || submitting}
+            >
+              {isLast ? (submitting ? 'Sending…' : 'Submit application →') : 'Continue →'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
