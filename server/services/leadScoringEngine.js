@@ -61,22 +61,105 @@ function daysUntil(date) {
 // Phase 1 has no Twilio Lookup yet, so we lean on the legacy `isVerified` flag
 // and basic shape checks. Default to 50 (neutral) when nothing is known.
 function trustScore(lead) {
-  let s = 50;
+  let s = 50; // neutral baseline
   const reasons = [];
 
-  if (lead.isVerified === true) { s += 20; reasons.push('phone verified (legacy)'); }
-  if (lead.isVerified === false && lead.status === 'REJECTED_FAKE') { s -= 40; reasons.push('rejected as fake'); }
-
+  // ── Phone SHAPE (neutral — does NOT contribute to trust) ────────────────
+  // A correctly E.164-formatted number isn't "verified" — anyone can type 10
+  // random digits in a valid shape. We only PENALIZE clearly malformed
+  // shapes (defense-in-depth; Zod blocks these at ingest). Well-shaped
+  // numbers contribute nothing to trust on their own.
   const phone = String(lead.customerPhone || '').replace(/\D/g, '');
-  if (phone.length === 10 || phone.length === 11) { s += 10; reasons.push('phone shape ok'); }
-  else if (phone.length > 0) { s -= 20; reasons.push('phone shape suspicious'); }
+  const shapeOk = phone.length === 10 || phone.length === 11;
+  if (!shapeOk && phone.length > 0) {
+    s -= 20; reasons.push('phone shape malformed');
+  }
+  // (well-shaped phone: silent — neutral. No "phone shape ok" reason logged
+  // because that would falsely look like a trust signal.)
 
-  // Email — a real, parseable email is a small positive trust signal.
-  // Placeholder emails (noemail+...@moveleads.cloud injected by V5 when the
-  // customer didn't provide one) are TREATED AS NEUTRAL: no score change,
-  // no reason logged. They must not look like a trust signal to admin.
-  // Future Phase 2.5+: real-email-intelligence (disposable detection) can add
-  // negative signals here.
+  // ── Phone TRUST (Twilio Lookup is the sole authority) ──────────────────
+  // The legacy `lead.isVerified` flag is intentionally IGNORED here. After
+  // Phase 3.5 removed Abstract API, that flag is auto-set to true on every
+  // happy-path ingest and no longer reflects any external validation.
+  // Phone trust comes ONLY from lead.validation.phone.* populated by
+  // services/twilioLookupService.js, gated by env flag + admin toggle.
+  // If Twilio Lookup hasn't run (flags off, admin toggled off, timeout),
+  // we surface that explicitly as "phone unverified" — no trust boost.
+  const phoneLookup = lead.validation && lead.validation.phone;
+  const phoneLookupRan = phoneLookup && (
+    phoneLookup.checkedAt != null ||
+    phoneLookup.lineType != null ||
+    phoneLookup.smsPumpingRisk != null ||
+    phoneLookup.smsPumpingScore != null ||
+    phoneLookup.valid === true ||
+    phoneLookup.valid === false
+  );
+
+  if (!phoneLookupRan) {
+    // No telecom validation data — phone trust is UNKNOWN, not verified.
+    reasons.push('phone unverified (no telecom data)');
+  } else if (phoneLookup.valid === false) {
+    s -= 30; reasons.push('phone invalid per Twilio');
+  } else {
+    // Twilio Lookup ran. Grade trust ONLY from authoritative enrichment.
+    // "valid === true" alone is NOT a trust boost — Twilio reports valid for
+    // any recognized phone-number FORMAT, including unallocated numbers.
+    let trustGain = 0;
+    const positiveSignals = [];
+
+    if (phoneLookup.smsPumpingRisk === 'low') {
+      trustGain += 10; positiveSignals.push('low SMS pumping risk');
+    }
+    // medium/high SMS pumping risk are penalized separately in fraudRiskScore
+    // to avoid double-counting.
+
+    if (phoneLookup.lineType === 'mobile') {
+      trustGain += 5; positiveSignals.push('mobile line');
+    } else if (phoneLookup.lineType === 'voip') {
+      s -= 10; reasons.push('voip line');
+    } else if (phoneLookup.lineType === 'landline') {
+      reasons.push('landline');
+    }
+
+    // Twilio Identity Match (opt-in, gated by ENABLE_TWILIO_IDENTITY_MATCH).
+    // Carrier confirms name on file matches what the customer provided.
+    // Strongest positive trust signal we have. No penalty for mismatch —
+    // many legitimate users use nicknames / married names / spouses.
+    if (phoneLookup.identityMatch) {
+      const im = phoneLookup.identityMatch;
+      if (im.firstNameMatch === true && im.lastNameMatch === true) {
+        trustGain += 15; positiveSignals.push('identity match (first + last)');
+      } else if (im.firstNameMatch === true || im.lastNameMatch === true) {
+        trustGain += 8; positiveSignals.push('identity match (partial)');
+      }
+    }
+
+    if (trustGain > 0) {
+      reasons.push('phone validated by Twilio');
+      for (const sig of positiveSignals) reasons.push(sig);
+      s += trustGain;
+    } else if (phoneLookup.valid === true) {
+      // Twilio recognized the number format but offered no positive
+      // enrichment (no SMS pumping intelligence, unknown line type, no
+      // identity match). Number exists in carrier registry but no trust
+      // value — treat as neutral and surface explicitly.
+      reasons.push('phone recognized but no trust enrichment');
+    } else {
+      // Twilio ran but returned ambiguous/null data — surface so admin
+      // can investigate. Never silently boost trust on this path.
+      reasons.push('phone trust data incomplete');
+    }
+  }
+
+  // ── Admin override: REJECTED_FAKE is a strong negative trust signal ────
+  // Only fires now when an ADMIN manually flagged the lead (Phase 3.5
+  // removed the automatic Abstract path). When it fires, it's a deliberate
+  // human decision.
+  if (lead.status === 'REJECTED_FAKE') {
+    s -= 40; reasons.push('admin marked rejected fake');
+  }
+
+  // ── Email — small positive only if real, never for placeholders ────────
   const email = String(lead.customerEmail || '');
   const isPlaceholderEmail = email.startsWith('noemail+');
   const isValidEmailShape = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -85,30 +168,14 @@ function trustScore(lead) {
   } else if (email && !isPlaceholderEmail) {
     s -= 10; reasons.push('email shape suspicious');
   }
-  // (placeholder email: skipped entirely — neutral)
+  // (placeholder email: silent — neutral)
 
+  // ── Name ──────────────────────────────────────────────────────────────
   const name = String(lead.customerName || '').trim();
-  if (name.split(/\s+/).length >= 2) { s += 5; reasons.push('full name'); }
-  else if (name.length < 2) { s -= 10; reasons.push('name too short'); }
-
-  // V5-only fields (will be empty for V4 leads — that's ok)
-  if (lead.validation && lead.validation.phone) {
-    if (lead.validation.phone.valid === true) { s += 10; reasons.push('phone validated'); }
-    if (lead.validation.phone.valid === false) { s -= 30; reasons.push('phone invalid'); }
-    if (lead.validation.phone.lineType === 'mobile') { s += 5; reasons.push('mobile line'); }
-    if (lead.validation.phone.lineType === 'voip') { s -= 10; reasons.push('voip line'); }
-    // Twilio Identity Match (opt-in, gated by ENABLE_TWILIO_IDENTITY_MATCH).
-    // Strong positive signal for trust — the carrier confirms the names match
-    // their records. Missing data = neutral, never a penalty.
-    if (lead.validation.phone.identityMatch) {
-      const im = lead.validation.phone.identityMatch;
-      if (im.firstNameMatch === true && im.lastNameMatch === true) {
-        s += 15; reasons.push('identity match (first + last)');
-      } else if (im.firstNameMatch === true || im.lastNameMatch === true) {
-        s += 8; reasons.push('identity match (partial)');
-      }
-      // No penalty for mismatch — many legitimate users use nicknames / married names.
-    }
+  if (name.split(/\s+/).length >= 2) {
+    s += 5; reasons.push('full name');
+  } else if (name.length < 2) {
+    s -= 10; reasons.push('name too short');
   }
 
   return { value: clamp(s, 0, 100), reasons };
