@@ -6,7 +6,7 @@ import { searchMarkets, findMarket } from '../data/usMarkets';
  * shell as the founding-movers state autocomplete: input, dropdown, chip
  * after selection, keyboard nav. Stores either "City, ST" or "State Name".
  */
-export default function MarketAutocomplete({ value, onChange, placeholder = 'City or state…', autoFocus = false }) {
+export default function MarketAutocomplete({ value, onChange, placeholder = 'City or state…', autoFocus = false, onBlur }) {
   const [query, setQuery]         = useState('');
   const [open, setOpen]           = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -48,6 +48,20 @@ export default function MarketAutocomplete({ value, onChange, placeholder = 'Cit
     else if (e.key === 'Escape') { setOpen(false); }
   }
 
+  // Auto-commit on blur if the user typed a query but didn't pick — removes
+  // the "I typed Miami but the button is stuck" trap. Skips if focus is
+  // moving to a dropdown row (let its onClick handle the commit).
+  function handleBlur(e) {
+    const next = e.relatedTarget;
+    if (next && wrapRef.current && wrapRef.current.contains(next)) return;
+    if (query.trim() && filtered.length > 0) {
+      commit(filtered[activeIdx] || filtered[0]);
+    } else {
+      setOpen(false);
+    }
+    if (onBlur) onBlur(e);
+  }
+
   if (selected) {
     return (
       <div className="fm-state-chip-row">
@@ -74,6 +88,7 @@ export default function MarketAutocomplete({ value, onChange, placeholder = 'Cit
         value={query}
         onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIdx(0); }}
         onFocus={() => setOpen(true)}
+        onBlur={handleBlur}
         onKeyDown={handleKey}
         placeholder={placeholder}
         aria-autocomplete="list"

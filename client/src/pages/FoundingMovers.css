@@ -388,6 +388,48 @@
   line-height: 1.45;
 }
 
+/* Inline field-level validation message — shown under an input after blur
+   or once Continue has been pressed on an invalid step. */
+.fm-field-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #dc2626;
+  line-height: 1.4;
+  margin: 6px 2px 0;
+}
+.fm-field-error::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Small step-level hint shown above the CTA when the step is incomplete. */
+.fm-step-hint {
+  margin: 12px 2px 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* Spinner used inside the submit CTA. Animation lives here so both
+   partner funnels and any future caller share one source of truth. */
+@keyframes fmSpin { to { transform: rotate(360deg); } }
+.fm-spinner {
+  display: inline-block;
+  animation: fmSpin 0.7s linear infinite;
+}
+
 /* ── Done page accents ──────────────────────────────────────────────── */
 .fm-trust {
   list-style: none;

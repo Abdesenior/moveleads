@@ -58,6 +58,18 @@ export default function MarketMultiSelect({ values = [], onChange, placeholder =
     else if (e.key === 'Escape') { setOpen(false); }
   }
 
+  // Auto-add a chip on blur when the user typed something but never pressed
+  // Enter. Skips if focus moved to a dropdown row so its onClick wins.
+  function handleBlur(e) {
+    const next = e.relatedTarget;
+    if (next && wrapRef.current && wrapRef.current.contains(next)) return;
+    if (query.trim() && filtered.length > 0) {
+      commit(filtered[activeIdx] || filtered[0]);
+    } else {
+      setOpen(false);
+    }
+  }
+
   return (
     <div className="fm-state-wrap" ref={wrapRef}>
       {values.length > 0 && (
@@ -87,6 +99,7 @@ export default function MarketMultiSelect({ values = [], onChange, placeholder =
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIdx(0); }}
           onFocus={() => setOpen(true)}
+          onBlur={handleBlur}
           onKeyDown={handleKey}
           placeholder={values.length === 0 ? placeholder : 'Add another market…'}
           aria-autocomplete="list"
