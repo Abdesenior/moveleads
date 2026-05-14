@@ -117,35 +117,39 @@ async function runShadow(leadId) {
 
   const summary = { leadId: String(lead._id), effective, phone: null, route: null, fingerprint: null };
 
-  // ── Local NANP fake-pattern check (ALWAYS ON, free, no API) ────────────
-  // Runs regardless of any flag/toggle state. Catches structurally-valid
-  // E.164 numbers that cannot be real allocated NANP numbers (NPA starting
-  // with 0/1, all-same-digit, N11 service codes, 555-01XX fiction range).
-  // Writes valid:false to lead.validation.phone so the scoring engine can
-  // surface "phone invalid: fake pattern (...)" even when Twilio is disabled
-  // for cost reasons.
-  const fakeCheck = twilioLookupService.isLikelyFakeNanpNumber(
-    twilioLookupService.normalizeE164(lead.customerPhone)
-  );
+  // ── Local NANP categorization (ALWAYS ON, free, no API) ───────────────
+  // Two tiers (see twilioLookupService.categorizePhonePattern):
+  //   hard_invalid → write valid:false, skip Twilio
+  //   suspicious   → DON'T set valid:false; mark suspicionPattern and
+  //                  let Twilio still run; tier router force-reviews
+  // Runs regardless of any flag/toggle state.
+  const e164 = twilioLookupService.normalizeE164(lead.customerPhone);
+  const fakeCheck = twilioLookupService.isLikelyFakeNanpNumber(e164);
+  const localSuspicionPattern = fakeCheck.suspicionPattern || null;
   if (fakeCheck.fake) {
+    // pattern label e.g. 'local_nanp_rule' / 'impossible_pattern' for the
+    // validityReason string the scoring engine maps to user-facing text.
+    const validityReason = `${fakeCheck.label || 'fake_pattern'}:${fakeCheck.pattern}`;
     const localFakeResult = {
       available: true, status: 'ok', provider: 'local_nanp_check',
       packages: ['local_nanp_check'],
       result: {
         valid: false,
-        validityReason: `fake_pattern:${fakeCheck.pattern}`,
+        validityReason,
+        suspicionPattern: null,
         lineType: null, isVoip: null, carrierName: null,
         smsPumpingRisk: null, smsPumpingScore: null, identityMatch: null,
         fromCache: false,
       },
-      rawRedacted: JSON.stringify({ local_check: 'failed', pattern: fakeCheck.pattern }),
+      rawRedacted: JSON.stringify({ local_check: 'hard_invalid', label: fakeCheck.label, pattern: fakeCheck.pattern }),
       costUsd: 0, error: null,
     };
     await persistLog(lead._id, 'phone', localFakeResult);
     await safeUpdateLead(lead._id, {
       'validation.phone': {
         valid: false,
-        validityReason: `fake_pattern:${fakeCheck.pattern}`,
+        validityReason,
+        suspicionPattern: null,
         lineType: null, isVoip: null, carrierName: null,
         smsPumpingRisk: null, smsPumpingScore: null, identityMatch: null,
         fromCache: false, provider: 'local_nanp_check',
@@ -154,8 +158,22 @@ async function runShadow(leadId) {
       'validation.fraud': {},
     });
     summary.phone = { status: 'ok', provider: 'local_nanp_check', valid: false, pattern: fakeCheck.pattern };
-    // Skip the paid Twilio call — we already know it's fake.
+    // Skip the paid Twilio call — we already know it's hard-invalid.
     effective.twilioLookup = false;
+  } else if (localSuspicionPattern && !effective.twilioLookup) {
+    // Suspicious BUT Twilio is off — still write the suspicion marker so
+    // the scoring engine / tier router can act on it.
+    await safeUpdateLead(lead._id, {
+      'validation.phone': {
+        valid: null,
+        validityReason: null,
+        suspicionPattern: localSuspicionPattern,
+        lineType: null, isVoip: null,
+        provider: 'local_nanp_check',
+        checkedAt: new Date(),
+      },
+    });
+    summary.phone = { status: 'ok', provider: 'local_nanp_check', valid: null, suspicionPattern: localSuspicionPattern };
   }
 
   // ── Phone validation (Twilio Lookup, cached) ─────────────────────────────
@@ -190,6 +208,11 @@ async function runShadow(leadId) {
         // engine emit specific human-readable reasons (e.g. "fake_pattern:..."
         // vs "twilio_says_invalid" vs "twilio_no_enrichment").
         validityReason: phoneResult.result?.validityReason ?? null,
+        // suspicionPattern — preferred from the lookup result (which carries
+        // the local suspicion forward through the Twilio call), with the
+        // pre-computed local marker as a fallback if the result didn't
+        // include it (e.g. Twilio errored before normalization).
+        suspicionPattern: phoneResult.result?.suspicionPattern ?? localSuspicionPattern ?? null,
         lineType: phoneResult.result?.lineType ?? null,
         isVoip: phoneResult.result?.isVoip ?? null,
         carrierName: phoneResult.result?.carrierName ?? null,
@@ -203,6 +226,20 @@ async function runShadow(leadId) {
         checkedAt: new Date(),
       };
       await safeUpdateLead(lead._id, { 'validation.phone': update, 'validation.fraud': deriveFraudFromPhone(update) });
+    } else if (localSuspicionPattern) {
+      // Twilio path errored/skipped before we got a normalized result.
+      // Persist the local suspicion marker on its own so tier router still
+      // sees it and force-reviews.
+      await safeUpdateLead(lead._id, {
+        'validation.phone': {
+          valid: null,
+          validityReason: null,
+          suspicionPattern: localSuspicionPattern,
+          lineType: null, isVoip: null,
+          provider: 'local_nanp_check',
+          checkedAt: new Date(),
+        },
+      });
     }
     summary.phone = { status: phoneResult.status, fromCache: phoneResult.result?.fromCache ?? false, costUsd: phoneResult.costUsd };
   }

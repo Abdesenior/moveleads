@@ -96,22 +96,28 @@ function trustScore(lead) {
   );
 
   if (!phoneLookupRan) {
-    // No telecom validation data — phone trust is UNKNOWN, not verified.
-    reasons.push('phone unverified (no telecom data)');
+    // No telecom validation data — phone trust is UNKNOWN.
+    reasons.push('telecom unverified');
   } else if (phoneLookup.valid === false) {
-    // Definitive invalid signal. Could be from Twilio OR from our local
-    // NANP semantic check (fake-pattern numbers blocked before the API call).
+    // Definitive invalid signal. Could be from local NANP rule or from
+    // local impossible-pattern detection or from Twilio.
     // Heaviest single negative trust signal we apply.
     s -= 30;
-    const reason = phoneLookup.validityReason || 'phone marked invalid';
-    if (reason.startsWith('fake_pattern:')) {
-      reasons.push(`phone invalid: fake pattern (${reason.slice('fake_pattern:'.length)})`);
+    const reason = phoneLookup.validityReason || '';
+    // Map validityReason → user-facing trust reason (vocabulary per spec)
+    if (reason.startsWith('local_nanp_rule:')) {
+      reasons.push(`phone invalid: local NANP rule (${reason.slice('local_nanp_rule:'.length)})`);
+    } else if (reason.startsWith('impossible_pattern:')) {
+      reasons.push(`phone invalid: impossible pattern (${reason.slice('impossible_pattern:'.length)})`);
+    } else if (reason.startsWith('fake_pattern:')) {
+      // Back-compat for snapshots written before the label split
+      reasons.push(`phone invalid: ${reason.slice('fake_pattern:'.length)}`);
     } else if (reason === 'twilio_says_invalid') {
-      reasons.push('phone invalid: Twilio rejected');
+      reasons.push('phone invalid: telecom rejected');
     } else if (reason.startsWith('twilio_validation_errors:')) {
       reasons.push(`phone invalid: ${reason.slice('twilio_validation_errors:'.length)}`);
     } else {
-      reasons.push(`phone invalid: ${reason}`);
+      reasons.push(reason ? `phone invalid: ${reason}` : 'phone invalid');
     }
   } else {
     // Twilio Lookup ran with valid=true. Grade trust ONLY from authoritative
@@ -128,58 +134,65 @@ function trustScore(lead) {
     // medium/high SMS pumping risk are penalized separately in fraudRiskScore
     // to avoid double-counting.
 
-    // Line type — Twilio LTI returns variants like 'mobile', 'landline',
-    // 'fixedVoip', 'nonFixedVoip', 'tollFree', 'premium' etc. We normalize
-    // to lowercase. Use the `isVoip` boolean (computed via /voip/.test) so
-    // both 'fixedvoip' and 'nonfixedvoip' are caught — earlier strict
-    // equality against 'voip' would silently miss every real VoIP variant.
+    // Line type — Twilio LTI returns 'mobile', 'landline', 'fixedVoip',
+    // 'nonFixedVoip', 'tollFree' etc. We use isVoip boolean to catch all
+    // VoIP variants. "trusted mobile line" only when mobile + low SMS
+    // pumping (the strongest combo). Plain mobile otherwise.
     const isMobile = phoneLookup.lineType === 'mobile';
     if (isMobile) {
-      // "trusted mobile line" only when mobile AND low SMS pumping (the
-      // strongest combo). Plain "mobile line" otherwise.
       const trustedMobile = smsPumpingLow;
       trustGain += trustedMobile ? 8 : 5;
       positiveSignals.push(trustedMobile ? 'trusted mobile line' : 'mobile line');
     } else if (phoneLookup.isVoip === true) {
-      s -= 10; reasons.push(`voip line (${phoneLookup.lineType || 'voip'})`);
+      // User vocabulary: "voip line detected" (was "voip line (xxx)").
+      s -= 10; reasons.push('voip line detected');
     } else if (phoneLookup.lineType === 'landline') {
       reasons.push('landline');
     } else if (phoneLookup.lineType === 'tollfree') {
       reasons.push('toll-free line');
     }
 
-    // Twilio Identity Match (opt-in, gated by ENABLE_TWILIO_IDENTITY_MATCH).
-    // Carrier confirms name on file matches what the customer provided.
+    // Twilio Identity Match (opt-in). User vocabulary:
+    //   - positive match → "owner verified" (carrier confirms name on file)
+    //   - no positive match → "identity not confirmed" (neutral, no penalty)
     if (phoneLookup.identityMatch) {
       const im = phoneLookup.identityMatch;
       if (im.firstNameMatch === true && im.lastNameMatch === true) {
-        trustGain += 15; positiveSignals.push('identity match (first + last)');
+        trustGain += 15; positiveSignals.push('owner verified (first + last match)');
       } else if (im.firstNameMatch === true || im.lastNameMatch === true) {
-        trustGain += 8; positiveSignals.push('identity match (partial)');
+        trustGain += 8; positiveSignals.push('owner verified (partial name match)');
+      } else {
+        reasons.push('identity not confirmed');
       }
     }
 
     if (trustGain > 0) {
-      // Header reason renamed (per user request): "phone validated by Twilio"
-      // was misleading — Twilio Lookup recognizes a number's existence in
-      // carrier data, it does not "validate" the user's claim. Replaced with
-      // "phone recognized by telecom lookup". The detailed signal reasons
-      // (trusted mobile line, low SMS pumping risk, identity match) are
-      // what actually drive trust gain.
+      // Header reason: "phone recognized by telecom lookup" (per spec).
+      // Telecom recognition ≠ ownership confirmation — only "owner verified"
+      // (via Identity Match) implies ownership.
       reasons.push('phone recognized by telecom lookup');
       for (const sig of positiveSignals) reasons.push(sig);
       s += trustGain;
     } else if (phoneLookup.validityReason === 'twilio_no_enrichment') {
       // Twilio confirmed format-valid but returned NO usable telecom
-      // intelligence (line_type_intelligence absent or empty). For a real
-      // allocated number we would expect at least a line type. This is
-      // suspicious. Surface explicitly as non-positive language.
-      reasons.push('phone unverifiable: no carrier intelligence returned');
+      // intelligence. Surface as "telecom unverified" — same wording as
+      // when Twilio never ran, since the trust value is identical: we
+      // genuinely don't know.
+      reasons.push('telecom unverified');
     } else {
-      // Edge case: valid=true but no positive signal and no enrichment-missing
-      // marker. Defensive — surface as neutral, never trusted.
-      reasons.push('phone trust data incomplete');
+      // Defensive — surface as neutral, never trusted.
+      reasons.push('telecom unverified');
     }
+  }
+
+  // ── Suspicion pattern (medium-strength entropy signal, not invalidating) ──
+  // Set by twilioLookupService.categorizePhonePattern when the number has a
+  // patterned shape (e.g. 5-7 char alternating, monotonic run, low distinct)
+  // that's suspicious but COULD still be a real allocation. Surface so admin
+  // sees it; the tier router separately force-reviews on this signal.
+  if (phoneLookup && phoneLookup.suspicionPattern) {
+    s -= 5;
+    reasons.push(`suspicious phone pattern (${phoneLookup.suspicionPattern})`);
   }
 
   // ── Admin override: REJECTED_FAKE is a strong negative trust signal ────
@@ -371,14 +384,32 @@ function fraudRiskScore(lead) {
 }
 
 // Mover match: how many movers in the system can plausibly take this lead?
-// Phase 1 has no coverage lookup — return a neutral 60 plus small bonuses for
-// well-defined origin/destination zips. Phase 6 will plug in real coverage.
+// Phase 1 has no coverage lookup — return a neutral 60 plus small bonuses
+// based on ZIP-format sanity. Phase 6 will plug in real coverage.
+//
+// Wording note: "valid origin zip" used to sound like Mapbox verification.
+// Renamed to "origin zip format ok" so it's clear this is just regex on the
+// 5-digit shape — independent of Mapbox geocoding success (which lives in
+// validation.route.suspicious). Prevents the contradictory "valid origin
+// zip" + "origin_zip_not_found" pairing the user reported.
 function moverMatchScore(lead) {
   const reasons = [];
   let s = 60;
-  if (lead.originZip && /^\d{5}$/.test(lead.originZip)) { s += 5; reasons.push('valid origin zip'); }
-  if (lead.destinationZip && /^\d{5}$/.test(lead.destinationZip)) { s += 5; reasons.push('valid dest zip'); }
-  if (lead.distance === 'Local') { s += 5; reasons.push('local market'); }
+  if (lead.originZip && /^\d{5}$/.test(lead.originZip)) {
+    s += 5;
+    // If Mapbox actually resolved it, say so explicitly so admin can tell
+    // shape-only from geocoded.
+    const mapboxResolved = lead.validation?.route?.origin
+      && !lead.validation?.route?.suspicious?.includes?.('origin_zip_not_found');
+    reasons.push(mapboxResolved ? 'origin zip resolved' : 'origin zip format ok');
+  }
+  if (lead.destinationZip && /^\d{5}$/.test(lead.destinationZip)) {
+    s += 5;
+    const mapboxResolved = lead.validation?.route?.destination
+      && !lead.validation?.route?.suspicious?.includes?.('destination_zip_not_found');
+    reasons.push(mapboxResolved ? 'destination zip resolved' : 'destination zip format ok');
+  }
+  if (lead.distance === 'Local') { s += 5; reasons.push('local move'); }
   return { value: clamp(s, 0, 100), reasons };
 }
 

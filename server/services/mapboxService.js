@@ -135,7 +135,17 @@ async function validateRoute(originZip, destinationZip, opts = {}) {
     const claimed = Number(opts.claimedMiles || 0);
     if (claimed > 0 && geocodedMiles > 0) {
       milesDivergencePct = Math.abs(claimed - geocodedMiles) / geocodedMiles;
-      if (milesDivergencePct > 0.25) suspicious.push('miles_divergence_high');
+      // Phase 3.8 calibration: short trips have huge percentage swings for
+      // tiny absolute differences (claimed 1 vs geocoded 3 = 200% pct but
+      // 2 miles abs — not fraud). Only flag when BOTH:
+      //   - the trip is long enough that divergence is meaningful (geocoded
+      //     ≥ 50 miles)
+      //   - absolute difference is non-trivial (>= 25 miles)
+      //   - percentage difference is large (> 50%)
+      const absMiles = Math.abs(claimed - geocodedMiles);
+      if (geocodedMiles >= 50 && absMiles >= 25 && milesDivergencePct > 0.5) {
+        suspicious.push('miles_divergence_high');
+      }
     }
   }
 

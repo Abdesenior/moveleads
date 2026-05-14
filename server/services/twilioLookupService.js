@@ -98,13 +98,20 @@ function normalizeE164(phone) {
  * carrier intelligence returned" in the scoring engine.
  */
 
-// Detect alternating 2-digit pattern (ABAB) of length ≥ 4
+// Detect alternating 2-digit pattern (ABAB) of length ≥ `minLength`
 // (catches 3434, 5656, 1212 — but NOT 5555 or 4321)
-function hasAlternatingPattern(digits) {
-  for (let i = 0; i <= digits.length - 4; i++) {
+function hasAlternatingPattern(digits, minLength) {
+  // minLength must be even for the simple ABAB scan to align
+  const span = minLength;
+  for (let i = 0; i <= digits.length - span; i++) {
     const a = digits[i], b = digits[i + 1];
     if (a === b) continue; // need A ≠ B
-    if (digits[i + 2] === a && digits[i + 3] === b) return true;
+    let allMatch = true;
+    for (let k = 2; k < span; k++) {
+      const expected = (k % 2 === 0) ? a : b;
+      if (digits[i + k] !== expected) { allMatch = false; break; }
+    }
+    if (allMatch) return true;
   }
   return false;
 }
@@ -125,48 +132,102 @@ function hasMonotonicRun(digits) {
   return false;
 }
 
-// Detect ≤ 3 distinct digits in the 10-digit national number
-// (catches numbers like 1212121212, 1111122222, but not 1234567890)
-function hasLowDistinct(digits) {
-  return new Set(digits.split('')).size <= 3;
+function distinctCount(digits) {
+  return new Set(digits.split('')).size;
 }
 
-function isLikelyFakeNanpNumber(e164) {
+/**
+ * Categorize a phone number into one of three buckets:
+ *
+ *   1. 'hard_invalid'  — impossible to be a real allocated NANP number,
+ *                        OR has overwhelming low-entropy that no real
+ *                        number could exhibit. Sets valid=false, blocks
+ *                        Twilio API call, contributes -30 trust + -40 fraud,
+ *                        forces tier=review (hard rule), can compound to
+ *                        rejected.
+ *
+ *   2. 'suspicious'    — pattern looks suspicious but the number could
+ *                        still be a real allocation. Does NOT set valid=
+ *                        false. Still goes to Twilio. Carries a
+ *                        `suspicionPattern` marker that the tier router
+ *                        treats as a force-review trigger (so even if
+ *                        Twilio says mobile + low risk, tier stays
+ *                        ≤ review).
+ *
+ *   3. 'ok' / 'non_nanp' — passes all local checks, goes to Twilio
+ *                        normally.
+ *
+ * Calibration goals (after live testing):
+ *   - +17867659090 (real Miami 786- with 9090 suffix) → 'ok' (NOT flagged)
+ *   - 12343435456 (alternating 34343) → 'suspicious' (NOT hard-invalid)
+ *   - 15656565656 (5656 repeated 10 chars) → 'hard_invalid' (only 2 distinct)
+ *   - 1111111111, 9999999999 → 'hard_invalid' (all_same_digit)
+ *   - (123) 123-1234 → 'hard_invalid' (npa_leading_0_or_1)
+ *
+ * Patterns deliberately NOT enforced (would false-positive on real numbers):
+ *   - npa_all_same_digit — blocks toll-free 888-XXX-XXXX
+ *   - nxx_all_same_digit — blocks real 415-555-XXXX
+ *   - short alternating ≤ 7 chars — would block 7867659090 (9090)
+ */
+function categorizePhonePattern(e164) {
   if (!e164 || !e164.startsWith('+1') || e164.length !== 12) {
-    return { fake: false }; // non-NANP, skip semantic check
+    return { category: 'non_nanp' };
   }
-  const digits = e164.slice(2); // 10 digits after +1
+  const digits = e164.slice(2);
   const npa = digits.slice(0, 3);
   const nxx = digits.slice(3, 6);
   const subscriberLine = digits.slice(6, 10);
 
-  // ── Layer A: NANP semantic invariants ──────────────────────────────────
-  if (/^[01]/.test(npa)) return { fake: true, pattern: 'npa_leading_0_or_1' };
-  if (/^[01]/.test(nxx)) return { fake: true, pattern: 'nxx_leading_0_or_1' };
-
-  if (/^[2-9]11$/.test(npa)) return { fake: true, pattern: 'npa_is_n11_service_code' };
-
+  // ── Tier 1: HARD INVALID — NANP semantic invariants ─────────────────────
+  if (/^[01]/.test(npa)) {
+    return { category: 'hard_invalid', label: 'local_nanp_rule', pattern: 'npa_leading_0_or_1' };
+  }
+  if (/^[01]/.test(nxx)) {
+    return { category: 'hard_invalid', label: 'local_nanp_rule', pattern: 'nxx_leading_0_or_1' };
+  }
+  if (/^[2-9]11$/.test(npa)) {
+    return { category: 'hard_invalid', label: 'local_nanp_rule', pattern: 'npa_is_n11_service_code' };
+  }
   if (nxx === '555' && /^01/.test(subscriberLine)) {
-    return { fake: true, pattern: 'reserved_fiction_555_01XX' };
+    return { category: 'hard_invalid', label: 'local_nanp_rule', pattern: 'reserved_fiction_555_01XX' };
   }
 
-  if (/^(\d)\1{9}$/.test(digits)) return { fake: true, pattern: 'all_same_digit' };
+  // ── Tier 1: HARD INVALID — impossible entropy ──────────────────────────
+  if (/^(\d)\1{9}$/.test(digits)) {
+    return { category: 'hard_invalid', label: 'impossible_pattern', pattern: 'all_same_digit' };
+  }
+  if (distinctCount(digits) <= 2) {
+    // Catches 1212121212, 5656565656 (only {1,2} or {5,6} digits)
+    return { category: 'hard_invalid', label: 'impossible_pattern', pattern: 'only_2_or_fewer_distinct_digits' };
+  }
+  if (hasAlternatingPattern(digits, 8)) {
+    // 8+ alternating chars is dominant — almost certainly garbage
+    return { category: 'hard_invalid', label: 'impossible_pattern', pattern: 'alternating_pattern_8plus' };
+  }
 
-  // ── Layer B: entropy / pattern heuristics ──────────────────────────────
-  // These catch raw garbage input that happens to satisfy NANP structure.
-  // Example: 12343435456 → +12343435456 → national 2343435456 has 3434
-  // alternating pattern — clearly not a real number a customer dialed.
-  if (hasAlternatingPattern(digits)) {
-    return { fake: true, pattern: 'alternating_2digit_pattern' };
+  // ── Tier 2: SUSPICIOUS — patterned but could still be real ─────────────
+  // Triggers force-review in the tier router. Does NOT set valid=false.
+  if (hasAlternatingPattern(digits, 5)) {
+    // 5-7 alternating chars (e.g. 34343 in 2343435456) — looks fake,
+    // but a real number COULD coincidentally have this. Send to Twilio,
+    // tier router downgrades to review.
+    return { category: 'suspicious', pattern: 'alternating_pattern_5plus' };
   }
   if (hasMonotonicRun(digits)) {
-    return { fake: true, pattern: 'monotonic_sequence_5plus' };
+    return { category: 'suspicious', pattern: 'monotonic_sequence_5plus' };
   }
-  if (hasLowDistinct(digits)) {
-    return { fake: true, pattern: 'low_distinct_digit_count' };
+  if (distinctCount(digits) === 3) {
+    return { category: 'suspicious', pattern: 'low_distinct_3' };
   }
 
-  return { fake: false };
+  return { category: 'ok' };
+}
+
+// Back-compat alias for callers that still use the old name
+function isLikelyFakeNanpNumber(e164) {
+  const cat = categorizePhonePattern(e164);
+  if (cat.category === 'hard_invalid') return { fake: true, pattern: cat.pattern, label: cat.label };
+  return { fake: false, suspicionPattern: cat.category === 'suspicious' ? cat.pattern : null };
 }
 
 function redactPhone(text) {
@@ -286,34 +347,39 @@ async function lookup(phone, opts = {}) {
     };
   }
 
-  // ── Local NANP semantic check (BEFORE the paid API call) ────────────────
-  // Catches fake-pattern numbers like (123) 123-1234, 1111111111, 9999999999.
-  // These are structurally valid E.164 so Twilio's `valid` would return true,
-  // but they cannot be real allocated NANP numbers. Reject locally to:
-  //   1. Save $0.005-0.04 per fake submission
-  //   2. Produce a definitive valid:false the scoring engine treats as a
-  //      hard negative trust signal (-30 trust, force-review or hard reject
-  //      depending on compounding signals)
-  // The "fake" check is non-Twilio: status='ok', available=true, valid=false,
-  // packages=['local_nanp_check'] so admin can tell apart from a real
-  // Twilio invalid response.
-  const fakeCheck = isLikelyFakeNanpNumber(e164);
-  if (fakeCheck.fake) {
-    console.log(`[twilioLookup] LOCAL FAKE-PATTERN BLOCK: ${e164} → pattern=${fakeCheck.pattern} (no API call)`);
+  // ── Local categorization (BEFORE the paid API call) ────────────────────
+  // Two tiers:
+  //   HARD INVALID: NANP-impossible OR dominant low-entropy pattern.
+  //     Block the Twilio call, return valid=false with structured label.
+  //   SUSPICIOUS: medium pattern strength — could still be a real number.
+  //     Still call Twilio, but mark `suspicionPattern` so the tier router
+  //     downgrades to review even if Twilio says mobile + low risk.
+  const cat = categorizePhonePattern(e164);
+  if (cat.category === 'hard_invalid') {
+    console.log(`[twilioLookup] LOCAL HARD-INVALID: ${e164} → ${cat.label}:${cat.pattern} (no API call)`);
     return {
       available: true, status: 'ok', provider: 'local_nanp_check',
       packages: ['local_nanp_check'],
       result: {
         valid: false,
-        validityReason: `fake_pattern:${fakeCheck.pattern}`,
+        // validityReason format: `<label>:<pattern>` — scoring engine maps
+        // 'local_nanp_rule:*' → "phone invalid: local NANP rule"
+        // 'impossible_pattern:*' → "phone invalid: impossible pattern"
+        validityReason: `${cat.label}:${cat.pattern}`,
+        suspicionPattern: null,
         lineType: null, isVoip: null, carrierName: null,
         smsPumpingRisk: null, smsPumpingScore: null,
         identityMatch: null,
         countryCode: 'US', nationalFormat: null, validationErrors: null,
       },
-      rawRedacted: JSON.stringify({ local_check: 'failed', pattern: fakeCheck.pattern }),
+      rawRedacted: JSON.stringify({ local_check: 'hard_invalid', label: cat.label, pattern: cat.pattern }),
       costUsd: 0, error: null,
     };
+  }
+  // Capture suspicion marker for later (continues to Twilio call below).
+  const suspicionPattern = cat.category === 'suspicious' ? cat.pattern : null;
+  if (suspicionPattern) {
+    console.log(`[twilioLookup] LOCAL SUSPICIOUS pattern: ${e164} → ${suspicionPattern} (still calling Twilio)`);
   }
 
   if (!isEnabled()) {
@@ -394,6 +460,9 @@ async function lookup(phone, opts = {}) {
   }
 
   const normalized = normalizeLookup(raw, opts.firstName, opts.lastName);
+  // Carry the local suspicion marker into the normalized result so the
+  // tier router can force-review even if Twilio reports mobile + low risk.
+  normalized.suspicionPattern = suspicionPattern;
   // Cost estimate — line_type + sms_pumping ≈ $0.01; identity adds ~$0.04
   const baseCost = packages.filter(p => p !== 'identity_match').length * 0.005;
   const identityCost = packages.includes('identity_match') ? 0.04 : 0;
@@ -412,6 +481,7 @@ module.exports = {
   lookup,
   normalizeE164,
   isLikelyFakeNanpNumber,
+  categorizePhonePattern,
   isEnabled,
   isIdentityMatchEnabled,
   PROVIDER,

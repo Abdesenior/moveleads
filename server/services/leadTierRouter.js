@@ -117,6 +117,34 @@ function assign(scores, lead = {}) {
     reasons.push(`soft downgrade: urgencyScore ${scores.urgencyScore} < 40 (→ standard)`);
   }
 
+  // ── Telecom-unverified soft cap ─────────────────────────────────────────
+  // Phase 3.8: if we have NO usable telecom intelligence (Twilio didn't run
+  // OR Twilio returned no enrichment data), the phone trust is unknown and
+  // the lead cannot reach 'hot' tier. Caps at 'premium' — doesn't force
+  // review, just prevents hot. User spec: "telecom_unverified → never hot,
+  // can be premium/standard".
+  //
+  // What counts as telecom-unverified:
+  //   - no validation.phone object at all (Twilio toggle was off)
+  //   - validation.phone exists but lookup recognized format only
+  //     (validityReason === 'twilio_no_enrichment')
+  //   - validation.phone exists but every enrichment field is null (lineType,
+  //     smsPumpingRisk, identityMatch all absent) AND not explicitly invalid
+  const phoneV = lead.validation?.phone;
+  const telecomUnverified =
+    !phoneV ||
+    phoneV.validityReason === 'twilio_no_enrichment' ||
+    (
+      phoneV.valid !== false &&
+      phoneV.lineType == null &&
+      phoneV.smsPumpingRisk == null &&
+      !phoneV.identityMatch
+    );
+  if (telecomUnverified && tier === 'hot') {
+    tier = 'premium';
+    reasons.push('soft cap: telecom unverified → max premium (no hot without lookup)');
+  }
+
   // ── Force-review pass ────────────────────────────────────────────────────
   // Single MEDIUM fraud signals must not auto-reject — they should land in
   // the review queue so admin can decide. Compound signals already dropped
@@ -145,6 +173,14 @@ function assign(scores, lead = {}) {
         ? `phone invalid: ${lead.validation.phone.validityReason}`
         : 'phone invalid';
       reviewSignals.push(rsn);
+    }
+    // Phase 3.8: suspicionPattern is a SOFT signal — number could be real
+    // but pattern shape (e.g. alternating 5-7 chars, monotonic, low-distinct)
+    // suggests garbage input. Even if Twilio recognized + low SMS risk,
+    // force review so admin sees it. Does NOT compound to rejected on its
+    // own — that requires phone.valid===false or other compound fraud.
+    if (lead.validation?.phone?.suspicionPattern) {
+      reviewSignals.push(`suspicious phone pattern (${lead.validation.phone.suspicionPattern})`);
     }
     if (lead.validation?.fraud?.smsPumpingRisk === 'medium') {
       reviewSignals.push('medium SMS pumping risk');
