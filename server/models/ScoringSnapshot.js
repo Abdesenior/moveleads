@@ -26,6 +26,12 @@ const ScoringSnapshotSchema = new mongoose.Schema({
   tier:       { type: String, enum: ['hot', 'premium', 'standard', 'review', 'rejected'], default: 'standard' },
   tierReason: [{ type: String }],
 
+  // Lead.status at the moment this snapshot was taken. Phase 2 introduces
+  // async validation that can fire AFTER Twilio's verifyLeadPhone flips the
+  // status. Recording status-at-scoring lets us reason about which snapshot
+  // reflects which state of the lead (e.g. baseline vs post-validation).
+  leadStatusAtScoring: { type: String },
+
   // Snapshot of the legacy values at the moment the new engine ran — lets the
   // admin UI render a comparison without a second DB lookup.
   legacy: {

@@ -25,6 +25,7 @@ const { verifyLeadPhone } = require('../services/twilioService');
 const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingEngine');
 const { calculateLeadScore } = require('../services/scoringService');
 const scoringPipeline = require('../services/scoringPipeline');
+const validationPipeline = require('../services/validationPipeline');
 
 /* ── Haversine distance (miles) between two lat/lon pairs ─────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -181,11 +182,21 @@ router.post('/', ingestLimiter, async (req, res) => {
       console.error('[Twilio Background Trace] Verification failed:', err.message);
     });
 
-    // V5 Lead Quality (Phase 1) — shadow-mode scoring, fire-and-forget.
+    // V5 Lead Quality (Phase 1) — shadow-mode baseline scoring, fire-and-forget.
     // Writes a ScoringSnapshot for admin comparison. NEVER mutates this Lead,
     // never affects pricing/dispatch/broadcast. Disable with SCORING_MODE=off.
     scoringPipeline.runShadow(lead._id).catch(err => {
       console.error('[scoringPipeline] shadow run errored:', err.message);
+    });
+
+    // V5 Lead Quality (Phase 2) — shadow validation pipeline, fire-and-forget.
+    // Runs Twilio Lookup + Mapbox + Fingerprint stub (each independently flag-
+    // gated, all default OFF), persists results to validation_logs + Lead.
+    // validation.*, then triggers an *enriched* re-score so admin gets a
+    // baseline-vs-enriched pair of snapshots. Self-skips when every flag is
+    // false, so this is a no-op until explicitly turned on.
+    validationPipeline.runShadow(lead._id).catch(err => {
+      console.error('[validationPipeline] shadow run errored:', err.message);
     });
 
     res.status(201).json({

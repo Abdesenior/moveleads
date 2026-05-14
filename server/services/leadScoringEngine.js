@@ -91,6 +91,18 @@ function trustScore(lead) {
     if (lead.validation.phone.valid === false) { s -= 30; reasons.push('phone invalid'); }
     if (lead.validation.phone.lineType === 'mobile') { s += 5; reasons.push('mobile line'); }
     if (lead.validation.phone.lineType === 'voip') { s -= 10; reasons.push('voip line'); }
+    // Twilio Identity Match (opt-in, gated by ENABLE_TWILIO_IDENTITY_MATCH).
+    // Strong positive signal for trust — the carrier confirms the names match
+    // their records. Missing data = neutral, never a penalty.
+    if (lead.validation.phone.identityMatch) {
+      const im = lead.validation.phone.identityMatch;
+      if (im.firstNameMatch === true && im.lastNameMatch === true) {
+        s += 15; reasons.push('identity match (first + last)');
+      } else if (im.firstNameMatch === true || im.lastNameMatch === true) {
+        s += 8; reasons.push('identity match (partial)');
+      }
+      // No penalty for mismatch — many legitimate users use nicknames / married names.
+    }
   }
 
   return { value: clamp(s, 0, 100), reasons };
@@ -138,9 +150,17 @@ function leadValueScore(lead) {
 }
 
 // Route value: long-distance generally pays more; very short hops penalized.
+// Prefers Mapbox-geocoded distance when validation.route is populated —
+// otherwise falls back to the client-submitted `miles` (V4 behaviour).
 function routeValueScore(lead) {
   const reasons = [];
-  const miles = Number(lead.miles) || 0;
+  const claimedMiles = Number(lead.miles) || 0;
+  const geocodedMiles = lead.validation?.route?.geocodedMiles;
+  const miles = (geocodedMiles && geocodedMiles > 0) ? geocodedMiles : claimedMiles;
+  if (geocodedMiles && geocodedMiles > 0 && geocodedMiles !== claimedMiles) {
+    reasons.push(`using geocoded miles (${geocodedMiles}) over claimed (${claimedMiles})`);
+  }
+
   let s;
   if (miles <= 0)       { s = 30; reasons.push('unknown distance'); }
   else if (miles < 10)  { s = 35; reasons.push('< 10 miles'); }
@@ -188,8 +208,39 @@ function fraudRiskScore(lead) {
   }
 
   if (lead.validation && lead.validation.fraud) {
-    if (lead.validation.fraud.smsPumpingRisk === 'high') { s -= 40; reasons.push('sms pumping risk'); }
-    if (lead.validation.fraud.disposable === true)      { s -= 30; reasons.push('disposable phone'); }
+    if (lead.validation.fraud.smsPumpingRisk === 'high')   { s -= 40; reasons.push('sms pumping risk (high)'); }
+    if (lead.validation.fraud.smsPumpingRisk === 'medium') { s -= 15; reasons.push('sms pumping risk (medium)'); }
+    if (lead.validation.fraud.disposable === true)         { s -= 30; reasons.push('disposable phone'); }
+  }
+
+  // Mapbox-detected suspicious route signals (Phase 2).
+  // Missing route validation is neutral (no penalty). Each suspicious tag
+  // adds a small deduction so multiple flags compound.
+  if (lead.validation && lead.validation.route && Array.isArray(lead.validation.route.suspicious)) {
+    const tagPenalty = {
+      origin_zip_not_found:      20,
+      destination_zip_not_found: 20,
+      same_origin_destination:   25,
+      origin_not_us:             30,
+      destination_not_us:        30,
+      miles_divergence_high:     10,
+    };
+    for (const tag of lead.validation.route.suspicious) {
+      const p = tagPenalty[tag];
+      if (p) { s -= p; reasons.push(`route flag: ${tag} (-${p})`); }
+    }
+  }
+
+  // Fingerprint signals (Phase 2 stub — neutral when missing, only acts on
+  // explicit positive signals like bot=true / vpn=true / very low confidence).
+  if (lead.validation && lead.validation.fingerprint) {
+    const fp = lead.validation.fingerprint;
+    if (fp.bot === true) { s -= 50; reasons.push('fingerprint flagged bot'); }
+    if (fp.vpn === true) { s -= 10; reasons.push('fingerprint: vpn'); }
+    if (typeof fp.confidence === 'number' && fp.confidence < 0.3) {
+      s -= 15; reasons.push(`fingerprint low confidence (${fp.confidence})`);
+    }
+    // No penalty for missing fingerprint — ad-blockers strip ~30% of users.
   }
 
   return { value: clamp(s, 0, 100), reasons };

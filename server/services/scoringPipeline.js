@@ -53,6 +53,10 @@ async function runShadow(leadId) {
       scores,
       tier,
       tierReason,
+      // Phase 2: capture the lead status at the moment of scoring so that when
+      // a baseline + enriched snapshot pair coexist, admin can tell which one
+      // ran pre-Twilio-verifyLeadPhone vs post.
+      leadStatusAtScoring: lead.status,
       legacy: {
         score: lead.score,
         grade: lead.grade,
