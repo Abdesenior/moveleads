@@ -3,6 +3,9 @@ const router = express.Router();
 const { auth, admin } = require('../middleware/auth');
 const PlatformSettings = require('../models/PlatformSettings');
 const { logAdminAction } = require('../utils/auditLog');
+const validationToggles = require('../services/validationToggles');
+const twilioLookupService = require('../services/twilioLookupService');
+const mapboxService = require('../services/mapboxService');
 
 // Admin: get global platform configuration
 router.get('/', [auth, admin], async (req, res) => {
@@ -67,6 +70,59 @@ router.put('/', [auth, admin], async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// ── V5 Validation Toggles (Phase 2.5) ──────────────────────────────────────
+// Admin-controlled kill switches layered ON TOP of env flags. Effective state
+// = ENV && TOGGLE. Defaults to ALL OFF. See server/services/validationToggles.js.
+//
+// The endpoint also reports each env flag's state so admins can see why a
+// toggle being on still has no effect (env-side gate is off).
+
+router.get('/validation-toggles', [auth, admin], async (req, res) => {
+  try {
+    const toggles = await validationToggles.get();
+    res.json({
+      toggles,
+      env: {
+        mapboxEnabled: mapboxService.isEnabled(),
+        twilioLookupEnabled: twilioLookupService.isEnabled(),
+        twilioIdentityMatchEnabled: twilioLookupService.isIdentityMatchEnabled(),
+      },
+      effective: {
+        mapbox: mapboxService.isEnabled() && toggles.mapboxEnabled,
+        twilioLookup: twilioLookupService.isEnabled() && toggles.twilioLookupEnabled,
+        twilioIdentityMatch: twilioLookupService.isEnabled()
+                          && twilioLookupService.isIdentityMatchEnabled()
+                          && toggles.twilioLookupEnabled
+                          && toggles.twilioIdentityMatchEnabled,
+      },
+    });
+  } catch (err) {
+    console.error('[validation-toggles GET] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+router.patch('/validation-toggles', [auth, admin], async (req, res) => {
+  try {
+    const { mapboxEnabled, twilioLookupEnabled, twilioIdentityMatchEnabled } = req.body || {};
+    const before = await validationToggles.get();
+    const next = await validationToggles.set({
+      mapboxEnabled, twilioLookupEnabled, twilioIdentityMatchEnabled,
+    });
+    logAdminAction({
+      actor: req.user.id,
+      action: 'validation.toggles.update',
+      targetType: 'platformSettings',
+      before,
+      after: next,
+    });
+    res.json({ ok: true, toggles: next });
+  } catch (err) {
+    console.error('[validation-toggles PATCH] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 

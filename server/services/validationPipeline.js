@@ -29,15 +29,56 @@ const mapboxService = require('./mapboxService');
 const fingerprintService = require('./fingerprintService');
 const scoringPipeline = require('./scoringPipeline');
 const twilioLookupService = require('./twilioLookupService');
+const validationToggles = require('./validationToggles');
 
 /**
- * Should the pipeline even run? Cheap pre-check before reading the lead.
- * Returns true if ANY validation surface is flag-enabled.
+ * Cheap synchronous pre-check — returns true if ANY validation surface is
+ * env-flag-enabled. Used as the first gate before we incur a Mongo read for
+ * the admin toggles. With every env flag at its default (false), the entire
+ * pipeline early-returns without DB I/O.
  */
-function anyValidationEnabled() {
+function anyEnvFlagEnabled() {
   return twilioLookupService.isEnabled()
     || mapboxService.isEnabled()
     || fingerprintService.isEnabled();
+}
+
+/**
+ * Resolve the EFFECTIVE per-service state by AND-ing env flag with admin
+ * toggle. Identity Match is a sub-toggle of Twilio Lookup — both must be
+ * effective for it to run, and if Twilio Lookup is off, Identity Match is
+ * forced off (also enforced at write-time in validationToggles.set).
+ *
+ * Returns { mapbox, twilioLookup, twilioIdentityMatch, fingerprint } booleans.
+ * On toggle-read failure, validationToggles.get returns ALL_OFF, so this
+ * returns env-flag-off-equivalent behaviour.
+ */
+async function resolveEffective() {
+  const toggles = await validationToggles.get();
+  const env = {
+    twilio:   twilioLookupService.isEnabled(),
+    identity: twilioLookupService.isIdentityMatchEnabled(),
+    mapbox:   mapboxService.isEnabled(),
+    fp:       fingerprintService.isEnabled(),
+  };
+  const mapbox       = env.mapbox && toggles.mapboxEnabled;
+  const twilioLookup = env.twilio && toggles.twilioLookupEnabled;
+  // Identity match: env + admin toggle + Twilio Lookup also effective
+  const twilioIdentityMatch =
+    env.identity && toggles.twilioIdentityMatchEnabled && twilioLookup;
+  // Fingerprint has no admin toggle yet (stub still). Env-only.
+  const fingerprint  = env.fp;
+  return { mapbox, twilioLookup, twilioIdentityMatch, fingerprint };
+}
+
+/**
+ * Back-compat shim: anyValidationEnabled is the original Phase 2 API. Now
+ * returns the resolved EFFECTIVE-any-enabled (env AND toggle). Async.
+ */
+async function anyValidationEnabled() {
+  if (!anyEnvFlagEnabled()) return false;
+  const eff = await resolveEffective();
+  return eff.mapbox || eff.twilioLookup || eff.fingerprint;
 }
 
 /**
@@ -47,8 +88,16 @@ function anyValidationEnabled() {
  * @returns {Promise<Object|null>} summary of what ran, or null if skipped/failed
  */
 async function runShadow(leadId) {
-  // Pre-check: if all flags off, skip the whole pipeline (no DB read needed).
-  if (!anyValidationEnabled()) return null;
+  // Gate 1 (sync, cheap): env flags. With every env at default false, this
+  // returns immediately with no DB I/O and the rest of the function is dead.
+  if (!anyEnvFlagEnabled()) return null;
+
+  // Gate 2 (async, DB): admin toggles ANDed with env flags. Toggle-read
+  // failure returns ALL_OFF (fail-safe).
+  const effective = await resolveEffective();
+  if (!effective.mapbox && !effective.twilioLookup && !effective.fingerprint) {
+    return null;
+  }
 
   let lead;
   try {
@@ -62,15 +111,21 @@ async function runShadow(leadId) {
     return null;
   }
 
-  const summary = { leadId: String(lead._id), phone: null, route: null, fingerprint: null };
+  const summary = { leadId: String(lead._id), effective, phone: null, route: null, fingerprint: null };
 
   // ── Phone validation (Twilio Lookup, cached) ─────────────────────────────
-  if (twilioLookupService.isEnabled()) {
+  // AND-gated: env ENABLE_TWILIO_LOOKUP AND admin toggle twilioLookupEnabled.
+  if (effective.twilioLookup) {
     const [firstName, ...rest] = String(lead.customerName || '').trim().split(/\s+/);
     const lastName = rest.join(' ');
     let phoneResult;
     try {
-      phoneResult = await phoneLookupCache.lookup(lead.customerPhone, { firstName, lastName });
+      // skipIdentityMatch is the FINAL gate for the sub-feature — passed even
+      // if env-level identity match is enabled, the admin toggle can suppress it.
+      phoneResult = await phoneLookupCache.lookup(lead.customerPhone, {
+        firstName, lastName,
+        skipIdentityMatch: !effective.twilioIdentityMatch,
+      });
     } catch (err) {
       phoneResult = { available: false, status: 'error', provider: 'twilio_lookup_v2',
         packages: [], result: { reason: 'unhandled_error' }, rawRedacted: '', costUsd: 0,
@@ -99,7 +154,8 @@ async function runShadow(leadId) {
   }
 
   // ── Route validation (Mapbox) ───────────────────────────────────────────
-  if (mapboxService.isEnabled()) {
+  // AND-gated: env ENABLE_MAPBOX_VALIDATION AND admin toggle mapboxEnabled.
+  if (effective.mapbox) {
     let routeResult;
     try {
       routeResult = await mapboxService.validateRoute(lead.originZip, lead.destinationZip, { claimedMiles: lead.miles });
@@ -117,8 +173,8 @@ async function runShadow(leadId) {
     summary.route = { status: routeResult.status, suspicious: routeResult.result?.suspicious };
   }
 
-  // ── Fingerprint (stub) ──────────────────────────────────────────────────
-  if (fingerprintService.isEnabled()) {
+  // ── Fingerprint (stub, no admin toggle yet) ─────────────────────────────
+  if (effective.fingerprint) {
     const fpResult = await fingerprintService.verify(lead.fingerprintVisitorId, lead.fingerprintRequestId);
     await persistLog(lead._id, 'fingerprint', fpResult);
     if (fpResult.available) {
@@ -177,4 +233,6 @@ function deriveFraudFromPhone(phoneNormalized) {
 module.exports = {
   runShadow,
   anyValidationEnabled,
+  anyEnvFlagEnabled,
+  resolveEffective,
 };

@@ -30,12 +30,14 @@ function isIdentityMatchEnabled() {
   return String(process.env.ENABLE_TWILIO_IDENTITY_MATCH).toLowerCase() === 'true';
 }
 
-function getPackagesToFetch() {
+function getPackagesToFetch({ skipIdentityMatch = false } = {}) {
   const base = (process.env.TWILIO_LOOKUP_PACKAGES || DEFAULT_PACKAGES.join(','))
     .split(',').map(s => s.trim()).filter(Boolean);
-  // Identity match is opt-in via its own flag, regardless of the package list
-  // (so admins can leave it in the env list and gate purely on the flag).
-  if (!isIdentityMatchEnabled()) {
+  // Identity match must satisfy BOTH the env flag AND the caller's "allowed"
+  // signal. The validation pipeline passes `skipIdentityMatch: true` when the
+  // admin toggle is off — that suppresses it even if env says otherwise.
+  const identityAllowed = isIdentityMatchEnabled() && !skipIdentityMatch;
+  if (!identityAllowed) {
     return base.filter(p => p !== 'identity_match');
   }
   if (!base.includes('identity_match')) base.push('identity_match');
@@ -147,7 +149,7 @@ async function lookup(phone, opts = {}) {
     };
   }
 
-  const packages = getPackagesToFetch();
+  const packages = getPackagesToFetch({ skipIdentityMatch: opts.skipIdentityMatch });
   if (packages.length === 0) {
     return {
       available: false, status: 'skipped', provider: PROVIDER,

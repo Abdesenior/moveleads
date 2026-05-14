@@ -50,10 +50,21 @@ async function lookup(phone, opts = {}) {
   }
 
   if (cached && cached.result) {
-    // Cache hit — return with fromCache marker
+    // Cache hit — return with fromCache marker.
+    let innerResult = { ...(cached.result.result || {}), fromCache: true };
+
+    // Honor admin intent: if caller passes skipIdentityMatch=true, strip any
+    // identity-match data from the cached result even if it was paid for in
+    // a previous lookup. Prevents stale toggle behavior — admin flipping the
+    // toggle off must immediately stop downstream code from seeing
+    // identity_match signals.
+    if (opts.skipIdentityMatch && innerResult.identityMatch) {
+      innerResult = { ...innerResult, identityMatch: null };
+    }
+
     return {
       ...cached.result,
-      result: { ...(cached.result.result || {}), fromCache: true },
+      result: innerResult,
       packages: cached.packages || [],
       costUsd: 0, // no new charge on cache hit
       // Keep status from the cached result but flag the cache layer
