@@ -19,7 +19,7 @@ const FREQ_OPTIONS = [
   { value: 'rarely',       label: 'Rarely',       subline: 'Comes up sometimes' },
 ];
 
-const STEPS = ['name', 'email', 'groupUrl', 'size', 'frequency', 'markets'];
+const STEPS = ['community', 'activity', 'relocation'];
 
 const INITIAL_ANSWERS = {
   fullName: '',
@@ -35,6 +35,12 @@ const INITIAL_ANSWERS = {
 const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
 const isUrl   = (s) => /^https?:\/\/.+/i.test(String(s || '').trim());
 
+const TRUST_LINE = 'No setup costs. No commitment required.';
+
+const sectionTitleStyle = {
+  fontSize: 20, fontWeight: 700, margin: '32px 0 6px 0', color: '#0f172a',
+};
+
 export default function FoundingGroups() {
   const { answers, setField, submit, submitting, submitted, errorMsg } = usePartnerForm({
     storageKey: STORAGE_KEY,
@@ -48,13 +54,16 @@ export default function FoundingGroups() {
 
   function canContinue() {
     switch (stepId) {
-      case 'name':       return answers.fullName.trim().length > 0;
-      case 'email':      return isEmail(answers.email);
-      case 'groupUrl':   return isUrl(answers.facebookGroupUrl);
-      case 'size':       return Boolean(answers.groupSize);
-      case 'frequency':  return Boolean(answers.movingHelpFrequency);
-      case 'markets':    return Array.isArray(answers.popularMarkets) && answers.popularMarkets.length > 0;
-      default:           return false;
+      case 'community':
+        return answers.fullName.trim().length > 0 &&
+               isEmail(answers.email) &&
+               isUrl(answers.facebookGroupUrl);
+      case 'activity':
+        return Boolean(answers.groupSize) && Boolean(answers.movingHelpFrequency);
+      case 'relocation':
+        return Array.isArray(answers.popularMarkets) && answers.popularMarkets.length > 0;
+      default:
+        return false;
     }
   }
 
@@ -81,20 +90,13 @@ export default function FoundingGroups() {
           <div className="fm-step-inner">
             <h1 className="fm-question">Application received</h1>
             <p className="fm-helper">
-              Thank you for applying to become a MoveLeads Community Partner. Our partnerships
-              team will review your application and contact selected community partners
-              directly with next steps.
+              We're reviewing early community partners in your market and will contact selected
+              groups with next steps.
             </p>
-
-            <ul className="fm-trust">
-              <li><span className="fm-trust-check">✓</span> Application received</li>
-              <li><span className="fm-trust-check">✓</span> Under review by our partnerships team</li>
-              <li><span className="fm-trust-check">✓</span> Approved partners contacted personally</li>
-            </ul>
-
-            <p className="fm-finetext" style={{ marginTop: 24 }}>
+            <p className="fm-helper" style={{ marginTop: 24 }}>
               You can now close this page.
             </p>
+            <p className="fm-finetext" style={{ marginTop: 28 }}>{TRUST_LINE}</p>
           </div>
         </div>
       </div>
@@ -133,13 +135,29 @@ export default function FoundingGroups() {
             style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
           />
 
-          {stepId === 'name' && (
+          {stepId === 'community' && (
             <>
-              <h1 className="fm-question">Let's start with your name</h1>
+              <h1 className="fm-question">
+                Help Your Members Find Trusted Movers — And Earn From Real Moving Demand
+              </h1>
               <p className="fm-helper">
-                Apply to become an early MoveLeads Community Partner. Help your members find
-                verified movers — and unlock founding access perks.
+                MoveLeads helps Facebook community owners connect members with verified moving
+                companies while creating a new revenue opportunity from moving referrals.
               </p>
+
+              <ul className="fm-intro-bullets">
+                <li><span className="fm-trust-check">✓</span> Help members find reliable movers faster</li>
+                <li><span className="fm-trust-check">✓</span> Earn from real moving requests in your community</li>
+                <li><span className="fm-trust-check">✓</span> No setup costs or contracts</li>
+                <li><span className="fm-trust-check">✓</span> Early partners get priority access in their market</li>
+              </ul>
+
+              <h2 style={sectionTitleStyle}>Tell us about your community</h2>
+              <p className="fm-helper" style={{ marginTop: 0 }}>
+                We're currently onboarding selected Facebook communities into the MoveLeads
+                partner network.
+              </p>
+
               <div className="fm-stack">
                 <input
                   className="fm-input"
@@ -151,17 +169,6 @@ export default function FoundingGroups() {
                   autoComplete="name"
                   autoFocus
                 />
-              </div>
-            </>
-          )}
-
-          {stepId === 'email' && (
-            <>
-              <h1 className="fm-question">What's your email address?</h1>
-              <p className="fm-helper">
-                We'll only use this to reach out about your community partner application.
-              </p>
-              <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="email"
@@ -170,105 +177,92 @@ export default function FoundingGroups() {
                   onKeyDown={onInputKeyDown}
                   placeholder="Email address"
                   autoComplete="email"
-                  autoFocus
                 />
-              </div>
-            </>
-          )}
-
-          {stepId === 'groupUrl' && (
-            <>
-              <h1 className="fm-question">What's your Facebook group link?</h1>
-              <p className="fm-helper">
-                Paste the public URL of the group you admin.
-              </p>
-              <div className="fm-stack">
                 <input
                   className="fm-input"
                   type="url"
                   value={answers.facebookGroupUrl}
                   onChange={e => setField('facebookGroupUrl', e.target.value)}
                   onKeyDown={onInputKeyDown}
-                  placeholder="https://facebook.com/groups/…"
+                  placeholder="Facebook group link (https://…)"
                   autoComplete="off"
-                  autoFocus
                 />
               </div>
             </>
           )}
 
-          {stepId === 'size' && (
+          {stepId === 'activity' && (
             <>
-              <h1 className="fm-question">Roughly how big is the group?</h1>
+              <h1 className="fm-question">Tell us about your group activity</h1>
               <p className="fm-helper">
-                A quick gauge — pick the range that's closest.
+                This helps us understand moving demand and partnership opportunities in your market.
               </p>
-              <div className="fm-choices">
-                {SIZE_OPTIONS.map(opt => {
-                  const isSelected = answers.groupSize === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={`fm-choice${isSelected ? ' selected' : ''}`}
-                      onClick={() => setField('groupSize', opt.value)}
-                      aria-pressed={isSelected}
-                    >
-                      <span className="fm-choice-text">
-                        <span className="fm-choice-label">{opt.label}</span>
-                        <span className="fm-choice-subline">{opt.subline}</span>
-                      </span>
-                      <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
-                    </button>
-                  );
-                })}
+
+              <div className="fm-group fm-group-spaced">
+                <div className="fm-group-label">Approx. group size</div>
+                <div className="fm-choices">
+                  {SIZE_OPTIONS.map(opt => {
+                    const isSelected = answers.groupSize === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`fm-choice${isSelected ? ' selected' : ''}`}
+                        onClick={() => setField('groupSize', opt.value)}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="fm-choice-text">
+                          <span className="fm-choice-label">{opt.label}</span>
+                          <span className="fm-choice-subline">{opt.subline}</span>
+                        </span>
+                        <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="fm-group fm-group-spaced">
+                <div className="fm-group-label">How often do members ask for moving help?</div>
+                <div className="fm-choices">
+                  {FREQ_OPTIONS.map(opt => {
+                    const isSelected = answers.movingHelpFrequency === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`fm-choice${isSelected ? ' selected' : ''}`}
+                        onClick={() => setField('movingHelpFrequency', opt.value)}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="fm-choice-text">
+                          <span className="fm-choice-label">{opt.label}</span>
+                          <span className="fm-choice-subline">{opt.subline}</span>
+                        </span>
+                        <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}
 
-          {stepId === 'frequency' && (
+          {stepId === 'relocation' && (
             <>
-              <h1 className="fm-question">How often do members ask for moving help?</h1>
+              <h1 className="fm-question">Where do members most commonly relocate?</h1>
               <p className="fm-helper">
-                Helps us understand demand inside your community.
+                We use this to better understand relocation demand and connect members with
+                the right movers.
               </p>
-              <div className="fm-choices">
-                {FREQ_OPTIONS.map(opt => {
-                  const isSelected = answers.movingHelpFrequency === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={`fm-choice${isSelected ? ' selected' : ''}`}
-                      onClick={() => setField('movingHelpFrequency', opt.value)}
-                      aria-pressed={isSelected}
-                    >
-                      <span className="fm-choice-text">
-                        <span className="fm-choice-label">{opt.label}</span>
-                        <span className="fm-choice-subline">{opt.subline}</span>
-                      </span>
-                      <span className="fm-choice-check">{isSelected ? '✓' : ''}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
 
-          {stepId === 'markets' && (
-            <>
-              <h1 className="fm-question">Which markets do members most commonly move between?</h1>
-              <p className="fm-helper">
-                Add any cities or states — Miami, Texas, Orlando, New York, etc.
-                Helps us match the right movers to demand in your community.
-              </p>
               <MarketMultiSelect
                 values={answers.popularMarkets}
                 onChange={(arr) => setField('popularMarkets', arr)}
                 placeholder="Add a city or state…"
                 max={8}
               />
-              <p className="fm-finetext" style={{ marginTop: 16 }}>
+              <p className="fm-finetext" style={{ marginTop: 12 }}>
                 Tip — press Enter to add, Backspace to remove the last one.
               </p>
             </>
@@ -286,6 +280,8 @@ export default function FoundingGroups() {
               {isLast ? (submitting ? 'Sending…' : 'Submit application →') : 'Continue →'}
             </button>
           </div>
+
+          <p className="fm-finetext" style={{ marginTop: 18, textAlign: 'center' }}>{TRUST_LINE}</p>
         </div>
       </div>
     </div>
