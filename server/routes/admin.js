@@ -17,7 +17,9 @@ const { sendMoverLeadSMS } = require('../services/smsService');
 const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
 const ScoringSnapshot = require('../models/ScoringSnapshot');
+const ValidationLog = require('../models/ValidationLog');
 const scoringPipeline = require('../services/scoringPipeline');
+const { computeDistributionStatus } = require('../utils/distributionStatus');
 
 // ── Helpers for bulk import ───────────────────────────────────────────────────
 function milesFromZips(originZip, destinationZip) {
@@ -463,14 +465,25 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
       return res.status(400).json({ msg: 'Invalid lead id' });
     }
 
+    // Phase 4 — include full validation context so the admin modal can
+    // surface distribution-readiness, cap reasons, and recent validation
+    // logs without separate round-trips.
     const lead = await Lead.findById(req.params.id)
-      .select('score grade scoreFactors customerName customerPhone route homeSize moveDate miles status')
+      .select('score grade scoreFactors customerName customerPhone customerEmail route homeSize moveDate miles status validation intentConfirmed urgencyBucket heavyItems funnelVersion adminTierOverride reviewedAt reviewedBy reviewNotes')
       .lean();
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
     const snapshot = await ScoringSnapshot.findOne({ leadId: lead._id })
       .sort({ createdAt: -1 })
       .lean();
+
+    // Pull last 25 validation logs across all types (phone / route / fingerprint)
+    const validationLogs = await ValidationLog.find({ leadId: lead._id })
+      .sort({ checkedAt: -1 })
+      .limit(25)
+      .lean();
+
+    const distribution = computeDistributionStatus(lead, snapshot);
 
     return res.json({
       ok: true,
@@ -484,16 +497,254 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
         status: lead.status,
         customerName: lead.customerName,
         customerPhone: lead.customerPhone,
+        customerEmail: lead.customerEmail,
+        intentConfirmed: lead.intentConfirmed,
+        urgencyBucket: lead.urgencyBucket,
+        heavyItems: lead.heavyItems,
+        funnelVersion: lead.funnelVersion,
+        adminTierOverride: lead.adminTierOverride || null,
+        reviewedAt: lead.reviewedAt || null,
+        reviewedBy: lead.reviewedBy || null,
+        reviewNotes: lead.reviewNotes || null,
         legacy: {
           score: lead.score,
           grade: lead.grade,
           scoreFactors: lead.scoreFactors,
         },
+        validation: lead.validation || null,
       },
-      snapshot, // null if scoring hasn't run yet
+      snapshot,
+      distribution,
+      validationLogs,
     });
   } catch (err) {
     console.error('[Admin ScoringSnapshot] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ── Phase 4 — admin quality review actions ──────────────────────────────
+// All actions: admin-only, audit-logged via logAdminAction, return the
+// updated lead + fresh distribution status. Each action takes an optional
+// { reason: string, note: string } body for the audit trail.
+//
+// PRODUCTION SAFETY: none of these change mover-facing behavior unless
+// ENABLE_TIERED_ROUTING is flipped on. The actions write to:
+//   - lead.adminTierOverride.* (additive, scoring engine consumes safely)
+//   - lead.status (only for reject → REJECTED_FAKE)
+//   - lead.reviewedAt / reviewedBy / reviewNotes (additive)
+// Movers still see what they saw before until tier filtering is enabled.
+
+const TIER_VALUES = ['hot', 'premium', 'standard', 'review', 'rejected'];
+
+async function loadLeadOr404(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    res.status(400).json({ msg: 'Invalid lead id' });
+    return null;
+  }
+  const lead = await Lead.findById(req.params.id);
+  if (!lead) {
+    res.status(404).json({ msg: 'Lead not found' });
+    return null;
+  }
+  return lead;
+}
+
+// Returns the full snapshot payload (same shape as GET scoring-snapshot)
+// so the client can replace its local state in one round-trip after an action.
+async function buildSnapshotPayload(leadId) {
+  const lead = await Lead.findById(leadId).lean();
+  if (!lead) return null;
+  const snapshot = await ScoringSnapshot.findOne({ leadId: lead._id })
+    .sort({ createdAt: -1 }).lean();
+  const validationLogs = await ValidationLog.find({ leadId: lead._id })
+    .sort({ checkedAt: -1 }).limit(25).lean();
+  const distribution = computeDistributionStatus(lead, snapshot);
+  return { lead, snapshot, distribution, validationLogs };
+}
+
+// GET /api/admin/leads/:id/validation-logs — paginated validation logs
+router.get('/leads/:id/validation-logs', [auth, admin], async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({ msg: 'Invalid lead id' });
+  }
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const logs = await ValidationLog.find({ leadId: req.params.id })
+    .sort({ checkedAt: -1 }).limit(limit).lean();
+  res.json({ ok: true, logs });
+});
+
+// POST /api/admin/leads/:id/approve
+// Approves a lead for the marketplace — sets adminTierOverride to 'standard'
+// (or the requested tier if explicitly provided AND within ['standard',
+// 'premium','hot']). Cannot approve-to-rejected/review through this endpoint.
+router.post('/leads/:id/approve', [auth, admin], async (req, res) => {
+  try {
+    const lead = await loadLeadOr404(req, res);
+    if (!lead) return;
+    const requestedTier = req.body?.tier && ['standard','premium','hot'].includes(req.body.tier)
+      ? req.body.tier : 'standard';
+    const before = { adminTierOverride: lead.adminTierOverride || null };
+    lead.adminTierOverride = {
+      tier: requestedTier,
+      reason: req.body?.reason || 'admin approved for distribution',
+      by: req.user.id,
+      at: new Date(),
+    };
+    await lead.save();
+    logAdminAction({
+      actor: req.user.id, action: 'lead.approve',
+      targetType: 'lead', targetId: lead._id,
+      before, after: { adminTierOverride: lead.adminTierOverride },
+      metadata: { reason: req.body?.reason, note: req.body?.note, requestedTier },
+    });
+    const payload = await buildSnapshotPayload(lead._id);
+    res.json({ ok: true, action: 'approve', ...payload });
+  } catch (err) {
+    console.error('[Admin lead.approve] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// POST /api/admin/leads/:id/reject
+// Marks the lead as REJECTED_FAKE. Sets adminTierOverride.tier='rejected'
+// so the scoring engine consumers see the admin intent immediately.
+router.post('/leads/:id/reject', [auth, admin], async (req, res) => {
+  try {
+    const lead = await loadLeadOr404(req, res);
+    if (!lead) return;
+    const before = { status: lead.status, adminTierOverride: lead.adminTierOverride || null };
+    lead.status = 'REJECTED_FAKE';
+    lead.statusHistory = lead.statusHistory || [];
+    lead.statusHistory.push({ status: 'REJECTED_FAKE', timestamp: new Date() });
+    lead.adminTierOverride = {
+      tier: 'rejected',
+      reason: req.body?.reason || 'admin rejected (fake)',
+      by: req.user.id,
+      at: new Date(),
+    };
+    await lead.save();
+    logAdminAction({
+      actor: req.user.id, action: 'lead.reject',
+      targetType: 'lead', targetId: lead._id,
+      before, after: { status: lead.status, adminTierOverride: lead.adminTierOverride },
+      metadata: { reason: req.body?.reason, note: req.body?.note },
+    });
+    const payload = await buildSnapshotPayload(lead._id);
+    res.json({ ok: true, action: 'reject', ...payload });
+  } catch (err) {
+    console.error('[Admin lead.reject] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// POST /api/admin/leads/:id/rescore
+// Triggers scoringPipeline.runShadow synchronously and returns the new payload.
+// Useful after admin manually tweaks adminTierOverride or after fixing data.
+router.post('/leads/:id/rescore', [auth, admin], async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ msg: 'Invalid lead id' });
+    }
+    const result = await scoringPipeline.runShadow(req.params.id);
+    logAdminAction({
+      actor: req.user.id, action: 'lead.rescore',
+      targetType: 'lead', targetId: req.params.id,
+      before: null, after: { snapshotId: result && result._id ? String(result._id) : null },
+      metadata: { reason: req.body?.reason || 'admin manual rescore' },
+    });
+    const payload = await buildSnapshotPayload(req.params.id);
+    res.json({ ok: true, action: 'rescore', ...payload });
+  } catch (err) {
+    console.error('[Admin lead.rescore] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// POST /api/admin/leads/:id/tier-override
+// Body: { tier: 'hot'|'premium'|'standard'|'review'|'rejected', reason: string }
+router.post('/leads/:id/tier-override', [auth, admin], async (req, res) => {
+  try {
+    const lead = await loadLeadOr404(req, res);
+    if (!lead) return;
+    const requestedTier = req.body?.tier;
+    if (!TIER_VALUES.includes(requestedTier)) {
+      return res.status(400).json({ msg: `tier must be one of: ${TIER_VALUES.join(', ')}` });
+    }
+    if (!req.body?.reason || String(req.body.reason).trim().length < 3) {
+      return res.status(400).json({ msg: 'reason is required (min 3 chars)' });
+    }
+    const before = { adminTierOverride: lead.adminTierOverride || null };
+    lead.adminTierOverride = {
+      tier: requestedTier,
+      reason: String(req.body.reason).slice(0, 500),
+      by: req.user.id,
+      at: new Date(),
+    };
+    await lead.save();
+    logAdminAction({
+      actor: req.user.id, action: 'lead.tier_override.set',
+      targetType: 'lead', targetId: lead._id,
+      before, after: { adminTierOverride: lead.adminTierOverride },
+      metadata: { tier: requestedTier, reason: req.body.reason, note: req.body?.note },
+    });
+    const payload = await buildSnapshotPayload(lead._id);
+    res.json({ ok: true, action: 'tier-override', ...payload });
+  } catch (err) {
+    console.error('[Admin lead.tier-override.set] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// DELETE /api/admin/leads/:id/tier-override — clears the override
+router.delete('/leads/:id/tier-override', [auth, admin], async (req, res) => {
+  try {
+    const lead = await loadLeadOr404(req, res);
+    if (!lead) return;
+    const before = { adminTierOverride: lead.adminTierOverride || null };
+    lead.adminTierOverride = undefined;
+    lead.markModified('adminTierOverride');
+    await lead.save();
+    logAdminAction({
+      actor: req.user.id, action: 'lead.tier_override.clear',
+      targetType: 'lead', targetId: lead._id,
+      before, after: { adminTierOverride: null },
+      metadata: { reason: req.body?.reason || 'admin cleared override' },
+    });
+    const payload = await buildSnapshotPayload(lead._id);
+    res.json({ ok: true, action: 'tier-override-clear', ...payload });
+  } catch (err) {
+    console.error('[Admin lead.tier-override.clear] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// POST /api/admin/leads/:id/mark-reviewed
+// Acknowledges admin has reviewed the lead. Does NOT change tier or status —
+// just stamps reviewedAt/By/Notes. The modal shows a "Reviewed by X" badge.
+router.post('/leads/:id/mark-reviewed', [auth, admin], async (req, res) => {
+  try {
+    const lead = await loadLeadOr404(req, res);
+    if (!lead) return;
+    const before = {
+      reviewedAt: lead.reviewedAt || null,
+      reviewedBy: lead.reviewedBy || null,
+      reviewNotes: lead.reviewNotes || null,
+    };
+    lead.reviewedAt = new Date();
+    lead.reviewedBy = req.user.id;
+    lead.reviewNotes = req.body?.note ? String(req.body.note).slice(0, 1000) : null;
+    await lead.save();
+    logAdminAction({
+      actor: req.user.id, action: 'lead.mark_reviewed',
+      targetType: 'lead', targetId: lead._id,
+      before, after: { reviewedAt: lead.reviewedAt, reviewedBy: lead.reviewedBy, reviewNotes: lead.reviewNotes },
+      metadata: { note: req.body?.note },
+    });
+    const payload = await buildSnapshotPayload(lead._id);
+    res.json({ ok: true, action: 'mark-reviewed', ...payload });
+  } catch (err) {
+    console.error('[Admin lead.mark-reviewed] error:', err.message);
     res.status(500).json({ msg: 'Server error' });
   }
 });

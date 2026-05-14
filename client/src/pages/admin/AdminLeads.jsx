@@ -6,6 +6,7 @@ import { AuthContext } from '../../context/AuthContext';
 import ConfirmModal from '../../components/ConfirmModal';
 import TablePagination from '../../components/ui/TablePagination';
 import TableSkeleton from '../../components/ui/TableSkeleton';
+import ScoringSnapshotModal from '../../components/admin/ScoringSnapshotModal';
 
 const CITIES = [
   "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Jacksonville", "Fort Worth", "Columbus", "Charlotte", "Indianapolis", "San Francisco", "Seattle", "Denver", "Nashville", "Oklahoma City", "El Paso", "Washington DC", "Las Vegas", "Louisville", "Memphis", "Portland", "Baltimore", "Milwaukee", "Albuquerque", "Tucson", "Fresno", "Sacramento", "Mesa", "Kansas City", "Atlanta", "Omaha", "Colorado Springs", "Raleigh", "Miami", "Long Beach", "Virginia Beach", "Minneapolis", "Tampa", "New Orleans", "Arlington", "Bakersfield", "Honolulu", "Anaheim", "Aurora", "Santa Ana", "Corpus Christi", "Riverside", "Lexington", "St. Louis", "Pittsburgh", "Stockton", "Anchorage", "Cincinnati", "St. Paul", "Greensboro", "Toledo", "Newark", "Plano", "Henderson", "Orlando", "Lincoln", "Jersey City", "Chandler", "St. Petersburg", "Laredo", "Norfolk", "Madison", "Durham", "Lubbock", "Winston-Salem", "Garland", "Glendale", "Hialeah", "Reno", "Baton Rouge", "Irvine", "Chesapeake", "Irving", "Scottsdale", "North Las Vegas", "Fremont", "Gilbert", "San Bernardino", "Birmingham", "Rochester", "Richmond", "Spokane", "Des Moines", "Montgomery", "Modesto", "Fayetteville", "Tacoma", "Shreveport", "Fontana", "Moreno Valley", "Akron", "Yonkers", "Augusta", "Little Rock", "Amarillo", "Grand Rapids", "Oxnard", "Salt Lake City", "Tallahassee", "Huntsville", "Worcester", "Knoxville", "Providence", "Brownsville", "Santa Clarita", "Garden Grove", "Oceanside", "Fort Lauderdale", "Chattanooga", "Tempe", "Cape Coral", "Eugene", "Peoria", "Cary", "Springfield", "Fort Wayne", "Elk Grove", "Rockford", "Corona", "Hayward", "Clarksville", "Paterson", "Lancaster", "Salinas", "Palmdale", "Sunnyvale", "Pomona", "Escondido", "Surprise", "Pasadena", "Torrance", "Orange", "Fullerton", "Killeen", "McAllen", "Dayton", "Cedar Rapids", "Macon", "Hampton", "Hartford", "Savannah", "Syracuse", "Bridgeport", "Warren", "Sterling Heights", "Roseville", "New Haven", "Olathe", "Mesquite", "Sioux Falls", "Lakewood", "Thornton", "Frisco", "Waco", "Jackson", "Bellevue", "Alexandria", "Gainesville", "Concord", "Elizabeth", "Topeka", "Simi Valley", "Columbia", "Stamford", "Victorville", "Carrollton", "Thousand Oaks", "Abilene", "Vallejo", "Beaumont", "Round Rock", "West Valley City", "Costa Mesa", "Norman", "Wichita", "Midland", "Provo", "Clearwater", "Murfreesboro", "Arvada", "Independence", "Ann Arbor", "Lansing", "El Monte", "Inglewood", "Downey", "Fairfield", "Manchester", "Wilmington", "Clovis", "Lowell", "West Jordan", "Elgin", "Joliet"
@@ -254,152 +255,6 @@ function TierBadge({ tier, composite }) {
   );
 }
 
-/* ───────────────────────────────────────────────────────────────────────────
- * V5 Phase 1 — Scoring Snapshot Modal
- *
- * Read-only diagnostic view. Compares the legacy production score/grade
- * (still authoritative for pricing/dispatch) with the V5 shadow scoring
- * output. NO ACTIONS — Phase 1 is observation only.
- * ───────────────────────────────────────────────────────────────────────── */
-function ScoringSnapshotModal({ lead, data, loading, error, onClose }) {
-  const tierColors = {
-    hot:      { bg: '#fef2f2', fg: '#dc2626' },
-    premium:  { bg: '#f5f3ff', fg: '#7c3aed' },
-    standard: { bg: '#eff6ff', fg: '#2563eb' },
-    review:   { bg: '#fef3c7', fg: '#d97706' },
-    rejected: { bg: '#f1f5f9', fg: '#64748b' },
-  };
-  const snap = data?.snapshot;
-  const tier = snap?.tier;
-  const tc = (tier && tierColors[tier]) || { bg: '#f1f5f9', fg: '#64748b' };
-
-  return (
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0,
-      background: 'rgba(10,20,40,0.65)', backdropFilter: 'blur(14px)',
-      zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', width: '100%', maxWidth: 720, maxHeight: '88vh', overflow: 'auto',
-        borderRadius: 24, boxShadow: '0 40px 100px rgba(0,0,0,0.3)',
-      }}>
-        <div style={{
-          padding: '18px 24px', borderBottom: '1px solid #e2e8f0',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, #fef3c7 0%, #fff 100%)',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#d97706', textTransform: 'uppercase' }}>
-              Scoring Snapshot · {data?.mode || 'shadow'} mode
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
-              {lead.originCity} → {lead.destinationCity}
-            </div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
-              {lead.customerName} · {lead.homeSize} · {lead.miles || 0} mi
-            </div>
-          </div>
-          <button onClick={onClose} style={{
-            background: 'rgba(15,23,42,0.05)', border: 'none', borderRadius: 10,
-            width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-          }} title="Close"><X size={16} /></button>
-        </div>
-
-        <div style={{ padding: 24 }}>
-          {loading && <div style={{ color: '#64748b', fontSize: 14 }}>Loading…</div>}
-          {error && <div style={{ color: '#dc2626', fontSize: 14 }}>Error: {error}</div>}
-          {!loading && !error && data && (
-            <>
-              {/* Legacy vs shadow comparison */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                <div style={{ padding: 16, background: '#f8fafc', borderRadius: 14, border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Legacy (production)</div>
-                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{data.lead.legacy?.score ?? '—'}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#475569' }}>Grade {data.lead.legacy?.grade ?? '—'}</div>
-                  </div>
-                  {Array.isArray(data.lead.legacy?.scoreFactors) && data.lead.legacy.scoreFactors.length > 0 && (
-                    <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 11, color: '#64748b' }}>
-                      {data.lead.legacy.scoreFactors.map((f, i) => <li key={i}>{f}</li>)}
-                    </ul>
-                  )}
-                </div>
-                <div style={{ padding: 16, background: '#fffbeb', borderRadius: 14, border: '1px solid #fde68a' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#d97706', textTransform: 'uppercase' }}>Shadow (V5 engine)</div>
-                  {snap ? (
-                    <>
-                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{snap.scores?.compositeScore ?? '—'}</div>
-                        <span style={{ padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', background: tc.bg, color: tc.fg }}>{tier || '—'}</span>
-                      </div>
-                      <div style={{ marginTop: 4, fontSize: 11, color: '#92400e' }}>engine {snap.engineVersion}</div>
-                    </>
-                  ) : (
-                    <div style={{ marginTop: 8, fontSize: 13, color: '#92400e' }}>No snapshot yet. Shadow scoring may still be running.</div>
-                  )}
-                </div>
-              </div>
-
-              {snap && (
-                <>
-                  {/* Sub-scores */}
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>Sub-scores</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                      {[
-                        ['trustScore', 'Trust'],
-                        ['urgencyScore', 'Urgency'],
-                        ['leadValueScore', 'Lead Value'],
-                        ['routeValueScore', 'Route Value'],
-                        ['intentScore', 'Intent'],
-                        ['fraudRiskScore', 'Fraud Risk (inv)'],
-                        ['moverMatchScore', 'Mover Match'],
-                      ].map(([key, label]) => {
-                        const v = snap.scores?.[key] ?? 0;
-                        return (
-                          <div key={key} style={{ padding: '10px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 12, color: '#475569' }}>{label}</span>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{v}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Tier reasons */}
-                  {Array.isArray(snap.tierReason) && snap.tierReason.length > 0 && (
-                    <div style={{ marginBottom: 24 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>Tier rationale</div>
-                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#334155', lineHeight: 1.7 }}>
-                        {snap.tierReason.map((r, i) => <li key={i}>{r}</li>)}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Breakdown */}
-                  {snap.breakdown && (
-                    <details style={{ marginTop: 8 }}>
-                      <summary style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Raw breakdown</summary>
-                      <pre style={{ marginTop: 10, padding: 12, background: '#0f172a', color: '#e2e8f0', borderRadius: 10, fontSize: 11, overflow: 'auto', maxHeight: 240 }}>
-                        {JSON.stringify(snap.breakdown, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </>
-              )}
-
-              <div style={{ marginTop: 18, padding: 12, background: '#eff6ff', borderRadius: 10, fontSize: 11, color: '#1e40af' }}>
-                Shadow mode: this scoring does not affect lead price, status, broadcast, or dispatch. The legacy score/grade on the left remain authoritative.
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
 export default function AdminLeads() {
   const { API_URL, token } = useContext(AuthContext);
   const [leads, setLeads] = useState([]);
@@ -411,6 +266,8 @@ export default function AdminLeads() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  // Phase 4 — tier filter on the shadow-mode V5 tier column
+  const [tierFilter, setTierFilter] = useState('');
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -652,12 +509,13 @@ export default function AdminLeads() {
   };
 
   const filtered = leads.filter(l => {
-    const matchSearch = !searchTerm || 
+    const matchSearch = !searchTerm ||
       l.originCity?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.destinationCity?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = !statusFilter || l.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchTier = !tierFilter || l._shadowTier === tierFilter;
+    return matchSearch && matchStatus && matchTier;
   });
 
   const toggleSort = (key) => {
@@ -666,7 +524,7 @@ export default function AdminLeads() {
     setPage(1);
   };
 
-  useEffect(() => { setPage(1); }, [searchTerm, statusFilter, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [searchTerm, statusFilter, tierFilter, sortKey, sortDir]);
 
   const sortedLeads = [...filtered].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -778,6 +636,18 @@ export default function AdminLeads() {
           <option value="Purchased">Purchased</option>
           <option value="Sold">Sold</option>
           <option value="Expired">Expired</option>
+        </select>
+        {/* Phase 4 — Shadow-tier filter (V5). Lets admin slice to all
+            review-tier or rejected-tier leads in one click. */}
+        <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)}
+          style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, minWidth: 150 }}
+          title="V5 shadow tier (not affecting routing)">
+          <option value="">All Tiers</option>
+          <option value="hot">🔥 Hot</option>
+          <option value="premium">⭐ Premium</option>
+          <option value="standard">▫️ Standard</option>
+          <option value="review">⚠️ Review</option>
+          <option value="rejected">⛔ Rejected</option>
         </select>
       </div>
 
@@ -904,6 +774,14 @@ export default function AdminLeads() {
           loading={scoringLoading}
           error={scoringError}
           onClose={closeScoringModal}
+          onActionComplete={(fresh) => {
+            // Phase 4 — replace local state with the server's fresh
+            // snapshot+distribution payload so the UI reflects the
+            // action immediately, then re-fetch the lead list so
+            // the row's tier badge updates.
+            setScoringData(fresh);
+            fetchLeads();
+          }}
         />
       )}
 

@@ -118,6 +118,13 @@ const LeadSchema = new mongoose.Schema({
     by:     { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
     at:     { type: Date },
   },
+
+  // Phase 4 — admin quality review workflow. Optional fields the admin sets
+  // via the "Mark Reviewed" action in the scoring snapshot modal. Does NOT
+  // change tier on its own; surfaces as a "Reviewed by X at T" badge.
+  reviewedAt:    { type: Date },
+  reviewedBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+  reviewNotes:   { type: String },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.
