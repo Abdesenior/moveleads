@@ -14,9 +14,9 @@ const TYPE_STYLES = {
   realtor: {
     label: 'Realtor',
     Icon: Briefcase,
-    bg:     '#eef2ff', // indigo-50
-    text:   '#4338ca', // indigo-700
-    accent: '#6366f1', // indigo-500 — small icon stroke
+    bg:     '#ecfdf5', // emerald-50
+    text:   '#047857', // emerald-700
+    accent: '#10b981', // emerald-500 — small icon stroke
   },
   facebook_group_admin: {
     label: 'FB Group',
