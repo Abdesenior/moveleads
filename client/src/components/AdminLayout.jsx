@@ -142,9 +142,11 @@ export default function AdminLayout({ children }) {
           <NavLink to="/admin/pricing" title={collapsed ? 'Pricing Rules' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <DollarSign size={18} /> <span className="nav-label">Pricing Rules</span>
           </NavLink>
-          <NavLink to="/admin/pricing-addons" title={collapsed ? 'Pricing Add-Ons' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-            <DollarSign size={18} /> <span className="nav-label">Pricing Add-Ons</span>
-          </NavLink>
+          {/* Pricing Add-Ons hidden from the sidebar — superseded by the
+              unified PricingRule editor at /admin/pricing. Route still
+              mounted at /admin/pricing-addons for any deep links and
+              the data/engine remain untouched in shadow. Will be
+              deleted in Phase 4 along with PricingAddOn / pricingEngineV2. */}
           <NavLink to="/admin/mover-research" title={collapsed ? 'Mover Research' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <ClipboardList size={18} /> <span className="nav-label">Mover Research</span>
           </NavLink>

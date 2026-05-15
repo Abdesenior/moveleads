@@ -3,6 +3,7 @@ const router = express.Router();
 const { auth, admin } = require('../middleware/auth');
 const PricingRule = require('../models/PricingRule');
 const Lead = require('../models/Lead');
+const pricingEngineSimple = require('../services/pricingEngineSimple');
 const { logAdminAction } = require('../utils/auditLog');
 
 /*
@@ -70,6 +71,153 @@ router.get('/', [auth, admin], async (req, res) => {
     res.json(rules);
   } catch (err) {
     console.error('[AdminPricing] list error', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ── Audit / cleanup helpers ──────────────────────────────────────────────
+// Canonical match-value sets per category. Anything else in an HOME_SIZE /
+// DISTANCE / URGENCY / VERIFICATION row is flagged as "suspicious" — most
+// commonly a legacy mis-categorized row (e.g. category=HOME_SIZE,
+// matchValue='Urgent' from years ago when the admin form had fewer guards).
+const CANONICAL_MATCH = {
+  HOME_SIZE:    new Set(['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom', '5+ Bedroom', '4+ Bedroom']),
+  DISTANCE:     new Set(['Local', 'Long Distance', 'Cross Country']),
+  URGENCY:      new Set(['Standard', 'Soon', 'Urgent']),
+  VERIFICATION: new Set(['phone_verified', 'mobile_line', 'identity_match']),
+  // HEAVY_ITEM is intentionally open — operators define their own items.
+};
+
+// Patterns that indicate a description was written for the legacy
+// multiplier engine ("1.5x", "costs 50% more", "stacking", etc.). Used by
+// the normalize-descriptions endpoint to decide which rows to rewrite.
+const LEGACY_DESCRIPTION_REGEX = /(\b\d+(?:\.\d+)?\s*x\b)|(%)|(\bstack(?:ing|ed|s)?\b)|(\bmultipli(?:er|cative|catively)\b)|(\b(?:costs?|adds?|charges?)\s+\d+%)/i;
+
+function describeAddOrSubtract(category, matchValue, amountUsd) {
+  const n = Number(amountUsd);
+  const human = ({
+    HOME_SIZE:    `${matchValue}`,
+    DISTANCE:     `${String(matchValue).toLowerCase()} moves`,
+    URGENCY:      `${String(matchValue).toLowerCase()} moves`,
+    VERIFICATION: `verified ${String(matchValue).replace(/_/g, ' ')}`,
+    HEAVY_ITEM:   `the ${String(matchValue).replace(/_/g, ' ')}`,
+    BASE:         '',
+  })[category] || matchValue;
+  if (category === 'BASE') return 'Universal base price';
+  if (n > 0)  return `Adds $${n} for ${human}`;
+  if (n < 0)  return `Subtracts $${Math.abs(n)} for ${human}`;
+  return `${human} — no surcharge`;
+}
+
+// ── GET /api/admin/pricing/audit ────────────────────────────────────────
+// Read-only audit of the rule set. Surfaces:
+//   - rules with no amountUsd set (still need calibration)
+//   - rules whose description still uses legacy multiplier language
+//   - rules whose matchValue isn't in the canonical set for its category
+//     (e.g. an HOME_SIZE row whose matchValue is 'Urgent' from a legacy
+//     mis-categorization)
+router.get('/audit', [auth, admin], async (req, res) => {
+  try {
+    const rules = await PricingRule.find().lean();
+    const missingAmountUsd = [];
+    const legacyDescriptions = [];
+    const suspiciousMatch = [];
+
+    for (const r of rules) {
+      if (!r.isActive) continue;
+      if (!Number.isFinite(r.amountUsd)) missingAmountUsd.push(r);
+      if (r.description && LEGACY_DESCRIPTION_REGEX.test(r.description)) {
+        legacyDescriptions.push(r);
+      }
+      const canonical = CANONICAL_MATCH[r.category];
+      if (canonical && !canonical.has(String(r.matchValue || '').trim())) {
+        suspiciousMatch.push(r);
+      }
+    }
+
+    res.json({
+      missingAmountUsd,
+      legacyDescriptions,
+      suspiciousMatch,
+      totalActive: rules.filter(r => r.isActive).length,
+    });
+  } catch (err) {
+    console.error('[AdminPricing] audit error', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ── POST /api/admin/pricing/normalize-descriptions ──────────────────────
+// Idempotent rewrite of legacy-language descriptions. Only rewrites rows
+// whose description matches LEGACY_DESCRIPTION_REGEX AND whose amountUsd
+// is set (otherwise we don't know what value to substitute). Returns the
+// list of { id, before, after } so the operator can spot-check.
+router.post('/normalize-descriptions', [auth, admin], async (req, res) => {
+  try {
+    const rules = await PricingRule.find().lean();
+    const rewritten = [];
+
+    for (const r of rules) {
+      if (!Number.isFinite(r.amountUsd)) continue;
+      if (!r.description || !LEGACY_DESCRIPTION_REGEX.test(r.description)) continue;
+      const next = describeAddOrSubtract(r.category, r.matchValue || '', r.amountUsd);
+      if (next === r.description) continue;
+      await PricingRule.updateOne({ _id: r._id }, { $set: { description: next } });
+      rewritten.push({ id: String(r._id), before: r.description, after: next });
+    }
+
+    if (rewritten.length > 0) {
+      logAdminAction({
+        actor: req.user.id,
+        action: 'pricing.normalizeDescriptions',
+        targetType: 'pricingRule',
+        targetId: null,
+        before: null,
+        after: { rewrittenCount: rewritten.length },
+      });
+    }
+
+    res.json({ rewritten });
+  } catch (err) {
+    console.error('[AdminPricing] normalize error', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// ── POST /api/admin/pricing/simulate ────────────────────────────────────
+// Live price simulator — synthesizes a Lead-shaped object from operator
+// inputs and runs it through the REAL pricingEngineSimple.compute() so
+// the simulator always reflects production behaviour.
+//
+// Body (all optional):
+//   { miles, daysToMove, homeSize, verifications: [...flags], heavyItems: [...] }
+//
+// Returns the full engine output { total, base, breakdown, skipped }.
+router.post('/simulate', [auth, admin], async (req, res) => {
+  try {
+    const body = req.body || {};
+    const miles      = Number.isFinite(Number(body.miles))      ? Number(body.miles)      : 0;
+    const daysToMove = Number.isFinite(Number(body.daysToMove)) ? Number(body.daysToMove) : 30;
+    const homeSize   = String(body.homeSize || '');
+    const flags      = Array.isArray(body.verifications) ? body.verifications : [];
+    const heavyItems = Array.isArray(body.heavyItems) ? body.heavyItems.map(String) : [];
+
+    // Build a synthetic lead that exercises the same classifier
+    // (server/services/pricingEngineSimple.classifyLead) production uses.
+    const phone = {};
+    if (flags.includes('phone_verified')) phone.valid = true;
+    if (flags.includes('mobile_line'))    { phone.valid = true; phone.lineType = 'mobile'; phone.providerSuspicion = 'low'; }
+    if (flags.includes('identity_match')) { phone.valid = true; phone.identityMatch = { firstNameMatch: true }; }
+
+    const moveDate = new Date(Date.now() + daysToMove * 86400000);
+    const syntheticLead = { miles, moveDate, homeSize, heavyItems, validation: { phone } };
+
+    const result   = await pricingEngineSimple.compute(syntheticLead);
+    const buckets  = pricingEngineSimple.classifyLead(syntheticLead);
+
+    res.json({ ...result, buckets });
+  } catch (err) {
+    console.error('[AdminPricing] simulate error', err.message);
     res.status(500).send('Server Error');
   }
 });

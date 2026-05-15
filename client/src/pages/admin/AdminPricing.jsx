@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
-import { Plus, Sparkles, Trash2, Power, Check, X, Info, RefreshCcw } from 'lucide-react';
+import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
+import { Plus, Sparkles, Trash2, Power, Check, X, Info, RefreshCcw, AlertTriangle, Wand2, Calculator, ChevronDown, ChevronRight } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
@@ -56,6 +56,8 @@ export default function AdminPricing() {
   const [compareRows, setCompareRows] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [audit, setAudit] = useState(null);
+  const [normalizing, setNormalizing] = useState(false);
 
   const fetchRules = useCallback(async () => {
     setLoading(true);
@@ -76,7 +78,30 @@ export default function AdminPricing() {
     } catch (e) { console.error('shadow-compare failed', e); }
   }, [API_URL, token]);
 
-  useEffect(() => { fetchRules(); fetchCompare(); }, [fetchRules, fetchCompare]);
+  const fetchAudit = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/admin/pricing/audit`, { headers: { 'x-auth-token': token } });
+      const json = await res.json();
+      if (res.ok) setAudit(json);
+    } catch (e) { console.error('audit failed', e); }
+  }, [API_URL, token]);
+
+  async function normalizeDescriptions() {
+    if (!window.confirm('Rewrite legacy multiplier-style descriptions into USD language? Only rows with an USD amount set are touched.')) return;
+    setNormalizing(true);
+    try {
+      const res = await fetch(`${API_URL}/admin/pricing/normalize-descriptions`, {
+        method: 'POST', headers: { 'x-auth-token': token },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Normalize failed');
+      toast.success(`Rewrote ${json.rewritten.length} description${json.rewritten.length === 1 ? '' : 's'}`);
+      fetchRules(); fetchAudit();
+    } catch (e) { toast.error(e.message); }
+    finally { setNormalizing(false); }
+  }
+
+  useEffect(() => { fetchRules(); fetchCompare(); fetchAudit(); }, [fetchRules, fetchCompare, fetchAudit]);
 
   async function saveAmount(rule, nextAmountUsd) {
     const n = Number(nextAmountUsd);
@@ -91,7 +116,7 @@ export default function AdminPricing() {
       if (!res.ok) throw new Error(json.msg || 'Save failed');
       toast.success(`${rule.category} · ${rule.matchValue || '—'} → $${n}`);
       setEditingId(null);
-      fetchRules();
+      fetchRules(); fetchAudit();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -105,7 +130,7 @@ export default function AdminPricing() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.msg || 'Toggle failed');
       toast.success(`${json.category} · ${json.matchValue || '—'} ${json.isActive ? 'enabled' : 'disabled'}`);
-      fetchRules();
+      fetchRules(); fetchAudit();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -118,7 +143,7 @@ export default function AdminPricing() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.msg || 'Delete failed');
       toast.success('Rule deleted');
-      fetchRules();
+      fetchRules(); fetchAudit();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -133,7 +158,7 @@ export default function AdminPricing() {
       if (!res.ok) throw new Error(json.msg || 'Create failed');
       toast.success('Rule created');
       setCreating(null);
-      fetchRules();
+      fetchRules(); fetchAudit();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -147,7 +172,7 @@ export default function AdminPricing() {
       if (!res.ok) throw new Error(json.msg || 'Seed failed');
       toast.success(`Seeded ${json.created.length} rule${json.created.length === 1 ? '' : 's'}`,
                     `${json.skipped.length} already existed`);
-      fetchRules();
+      fetchRules(); fetchAudit();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -190,6 +215,17 @@ export default function AdminPricing() {
             <RefreshCcw size={14} /> {comparing ? 'Hide' : 'Show'} shadow comparison
           </button>
         </div>
+
+        {audit && (audit.missingAmountUsd.length > 0 || audit.legacyDescriptions.length > 0 || audit.suspiciousMatch.length > 0) && (
+          <AuditPanel
+            audit={audit}
+            onNormalize={normalizeDescriptions}
+            normalizing={normalizing}
+            onDelete={remove}
+          />
+        )}
+
+        <SimulatorPanel API_URL={API_URL} token={token} />
 
         {comparing && <ComparePanel rows={compareRows} onRefresh={fetchCompare} />}
 
@@ -307,6 +343,14 @@ function CategorySection({ category, rules, editingId, editValue, onStartEdit, o
 }
 
 function ComparePanel({ rows, onRefresh }) {
+  const [expanded, setExpanded] = useState(new Set());
+  function toggle(id) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
   if (!rows.length) {
     return (
       <section style={section}>
@@ -327,12 +371,13 @@ function ComparePanel({ rows, onRefresh }) {
         <button onClick={onRefresh} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 12 }}><RefreshCcw size={11} /> Refresh</button>
       </div>
       <p style={{ fontSize: 12, color: '#71717a', margin: '0 0 10px' }}>
-        Side-by-side legacy vs USD shadow on the latest leads. Use this to validate alignment before any cutover.
+        Side-by-side legacy vs USD shadow on the latest leads. Click a row to expand the breakdown. Calibrate rule amounts until Δ trends toward zero.
       </p>
       <div style={tableWrap}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead style={{ background: '#fafafa', textAlign: 'left' }}>
             <tr>
+              <th style={{ ...th, width: 28 }} aria-label="Expand" />
               <th style={th}>Route</th>
               <th style={th}>Miles</th>
               <th style={th}>Home</th>
@@ -347,23 +392,279 @@ function ComparePanel({ rows, onRefresh }) {
               const shadow = Number(r.priceShadowSimple) || 0;
               const delta  = shadow - legacy;
               const deltaColor = delta > 0 ? '#dc2626' : delta < 0 ? '#16a34a' : '#71717a';
+              const isOpen = expanded.has(r._id);
+              const lines  = Array.isArray(r.pricingBreakdownSimple) ? r.pricingBreakdownSimple : [];
               return (
-                <tr key={r._id} style={{ borderTop: '1px solid #f4f4f5' }}>
-                  <td style={td}>{r.originCity} → {r.destinationCity}</td>
-                  <td style={td}>{r.miles}</td>
-                  <td style={td}>{r.homeSize}</td>
-                  <td style={td}>${legacy}</td>
-                  <td style={{ ...td, fontWeight: 700 }}>${shadow}</td>
-                  <td style={{ ...td, fontWeight: 700, color: deltaColor }}>
-                    {delta === 0 ? '—' : `${delta > 0 ? '+' : ''}$${delta}`}
-                  </td>
-                </tr>
+                <React.Fragment key={r._id}>
+                  <tr onClick={() => toggle(r._id)} style={{ borderTop: '1px solid #f4f4f5', cursor: 'pointer' }}>
+                    <td style={td}>{isOpen ? <ChevronDown size={14} color="#71717a" /> : <ChevronRight size={14} color="#71717a" />}</td>
+                    <td style={td}>{r.originCity} → {r.destinationCity}</td>
+                    <td style={td}>{r.miles}</td>
+                    <td style={td}>{r.homeSize}</td>
+                    <td style={td}>${legacy}</td>
+                    <td style={{ ...td, fontWeight: 700 }}>${shadow}</td>
+                    <td style={{ ...td, fontWeight: 700, color: deltaColor }}>
+                      {delta === 0 ? '—' : `${delta > 0 ? '+' : ''}$${delta}`}
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr style={{ background: '#f8fafc' }}>
+                      <td />
+                      <td colSpan={6} style={{ padding: '10px 14px' }}>
+                        {lines.length === 0 ? (
+                          <span style={{ fontSize: 12, color: '#71717a' }}>No breakdown captured — lead may pre-date the simple engine.</span>
+                        ) : (
+                          <BreakdownTable lines={lines} total={shadow} />
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
     </section>
+  );
+}
+
+// Shared breakdown render — used by both ComparePanel (per-row) and
+// SimulatorPanel. Keeps the visual model identical.
+function BreakdownTable({ lines, total }) {
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+      <tbody>
+        {lines.map((l, i) => (
+          <tr key={i}>
+            <td style={{ padding: '4px 0', color: '#52525b', width: '40%' }}>{labelForCategory(l.category)}</td>
+            <td style={{ padding: '4px 0', color: '#52525b', width: '40%' }}>{l.matchValue || '(singleton)'}</td>
+            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 700, color: (Number(l.amountUsd) || 0) < 0 ? '#16a34a' : '#0f172a' }}>
+              {(Number(l.amountUsd) || 0) >= 0 ? `+$${l.amountUsd}` : `-$${Math.abs(l.amountUsd)}`}
+            </td>
+          </tr>
+        ))}
+        {total != null && (
+          <tr style={{ borderTop: '1px solid #e4e4e7' }}>
+            <td style={{ padding: '6px 0 0', fontWeight: 700, color: '#0f172a' }}>Final shadow price</td>
+            <td />
+            <td style={{ padding: '6px 0 0', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontSize: 14 }}>${total}</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
+
+function labelForCategory(c) {
+  switch (c) {
+    case 'BASE':         return 'Base';
+    case 'DISTANCE':     return 'Distance';
+    case 'HOME_SIZE':    return 'Home size';
+    case 'URGENCY':      return 'Urgency';
+    case 'VERIFICATION': return 'Verification';
+    case 'HEAVY_ITEM':   return 'Heavy item';
+    default:             return c || '';
+  }
+}
+
+// ── Audit panel ──────────────────────────────────────────────────────────
+// Surfaces rows that need operator attention: missing USD amount, legacy
+// multiplier-style descriptions, and matchValues that look mis-categorized.
+function AuditPanel({ audit, onNormalize, normalizing, onDelete }) {
+  return (
+    <section style={{ ...section, background: '#fff7ed', borderColor: '#fdba74' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <AlertTriangle size={16} color="#c2410c" />
+        <h2 style={{ ...sectionH, color: '#9a3412', margin: 0 }}>Rules needing attention</h2>
+      </div>
+      <p style={{ fontSize: 12.5, color: '#9a3412', margin: '0 0 12px', lineHeight: 1.5 }}>
+        These flags exist because the rule set was migrated from the legacy multiplier engine. Resolve them before cutover to keep the breakdown clean.
+      </p>
+
+      {audit.legacyDescriptions.length > 0 && (
+        <div style={{ marginBottom: 14, padding: 12, background: '#fff', border: '1px solid #fed7aa', borderRadius: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
+              {audit.legacyDescriptions.length} description{audit.legacyDescriptions.length === 1 ? '' : 's'} use legacy multiplier language
+            </div>
+            <button onClick={onNormalize} disabled={normalizing}
+                    style={{ ...secondaryBtn, background: '#0f172a', color: '#fff', border: 0, opacity: normalizing ? 0.6 : 1 }}>
+              <Wand2 size={13} /> {normalizing ? 'Rewriting…' : 'Rewrite to USD language'}
+            </button>
+          </div>
+          <p style={{ fontSize: 11.5, color: '#71717a', margin: '0 0 8px' }}>
+            Examples below. Click <em>Rewrite to USD language</em> to convert all of them based on the current amount.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#52525b', lineHeight: 1.6 }}>
+            {audit.legacyDescriptions.slice(0, 5).map(r => (
+              <li key={r._id}>
+                <code style={inlineCode}>{r.category} · {r.matchValue || '—'}</code>{' '}
+                <span style={{ color: '#a1a1aa' }}>{r.description}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {audit.missingAmountUsd.length > 0 && (
+        <div style={{ marginBottom: 14, padding: 12, background: '#fff', border: '1px solid #fed7aa', borderRadius: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', marginBottom: 6 }}>
+            {audit.missingAmountUsd.length} active rule{audit.missingAmountUsd.length === 1 ? '' : 's'} without a USD amount
+          </div>
+          <p style={{ fontSize: 11.5, color: '#71717a', margin: '0 0 8px' }}>
+            The simple engine ignores rules without an amount. Click the red "— set USD —" button in the category table below to assign a value.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#52525b', lineHeight: 1.6 }}>
+            {audit.missingAmountUsd.slice(0, 8).map(r => (
+              <li key={r._id}>
+                <code style={inlineCode}>{r.category} · {r.matchValue || '—'}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {audit.suspiciousMatch.length > 0 && (
+        <div style={{ padding: 12, background: '#fff', border: '1px solid #fed7aa', borderRadius: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', marginBottom: 6 }}>
+            {audit.suspiciousMatch.length} rule{audit.suspiciousMatch.length === 1 ? '' : 's'} look mis-categorized
+          </div>
+          <p style={{ fontSize: 11.5, color: '#71717a', margin: '0 0 8px' }}>
+            These match values aren't in the canonical set for their category — most commonly a legacy mistake (e.g. an <code style={inlineCode}>HOME_SIZE</code> row with <code style={inlineCode}>Urgent</code>). Review and delete or recreate under the correct category.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+            {audit.suspiciousMatch.map(r => (
+              <li key={r._id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '4px 0' }}>
+                <code style={{ ...inlineCode, background: '#fee2e2', color: '#991b1b' }}>{r.category} · {r.matchValue}</code>
+                <span style={{ color: '#71717a' }}>${Number.isFinite(r.amountUsd) ? r.amountUsd : '—'}</span>
+                <span style={{ flex: 1 }} />
+                <button onClick={() => onDelete(r)} style={{ ...trashBtn, color: '#dc2626' }} aria-label="Delete suspect rule">
+                  <Trash2 size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ── Simulator panel ──────────────────────────────────────────────────────
+// Operator picks lead attributes; the server runs the REAL
+// pricingEngineSimple.compute() on a synthetic lead and returns the
+// breakdown. Frontend duplicates no pricing logic.
+function SimulatorPanel({ API_URL, token }) {
+  const [distance, setDistance] = useState('Long Distance');
+  const [homeSize, setHomeSize] = useState('2 Bedroom');
+  const [urgency, setUrgency]   = useState('Urgent');
+  const [flags, setFlags]       = useState(['phone_verified']);
+  const [heavyItems, setHeavyItems] = useState(['piano']);
+  const [result, setResult]     = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const debRef = useRef(null);
+
+  // Distance + urgency presets map to miles + daysToMove that exercise the
+  // classifier. classifyLead lives server-side; we just pick values that
+  // land in the right bucket.
+  const milesFor = { 'Local': 50, 'Long Distance': 500, 'Cross Country': 2000 }[distance] || 0;
+  const daysFor  = { 'Urgent': 3, 'Soon': 10, 'Standard': 30 }[urgency] || 30;
+
+  useEffect(() => {
+    if (debRef.current) clearTimeout(debRef.current);
+    debRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/admin/pricing/simulate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+          body: JSON.stringify({ miles: milesFor, daysToMove: daysFor, homeSize, verifications: flags, heavyItems }),
+        });
+        const json = await res.json();
+        if (res.ok) setResult(json);
+      } catch (_e) { /* */ }
+      finally { setLoading(false); }
+    }, 250);
+    return () => debRef.current && clearTimeout(debRef.current);
+  }, [API_URL, token, milesFor, daysFor, homeSize, flags, heavyItems]);
+
+  function toggleFlag(f) {
+    setFlags(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
+  }
+  function toggleItem(i) {
+    setHeavyItems(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
+  }
+
+  return (
+    <section style={section}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <Calculator size={15} />
+        <h2 style={sectionH}>Live price simulator</h2>
+      </div>
+      <p style={{ fontSize: 12, color: '#71717a', margin: '0 0 14px' }}>
+        Pick lead attributes — the server runs the real shadow engine and shows the breakdown. Use this to calibrate rule amounts.
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Controls */}
+        <div>
+          <PickerRow label="Distance" options={['Local', 'Long Distance', 'Cross Country']} value={distance} onChange={setDistance} />
+          <PickerRow label="Home size" options={['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom', '5+ Bedroom']} value={homeSize} onChange={setHomeSize} />
+          <PickerRow label="Urgency" options={['Standard', 'Soon', 'Urgent']} value={urgency} onChange={setUrgency} />
+          <div style={{ marginTop: 12 }}>
+            <div style={pickerLabel}>Verification flags</div>
+            <div style={chipRow}>
+              {['phone_verified', 'mobile_line', 'identity_match'].map(f => (
+                <button key={f} type="button" onClick={() => toggleFlag(f)} style={chipStyle(flags.includes(f))}>{f}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={pickerLabel}>Heavy items</div>
+            <div style={chipRow}>
+              {['piano', 'safe', 'pool_table', 'hot_tub'].map(i => (
+                <button key={i} type="button" onClick={() => toggleItem(i)} style={chipStyle(heavyItems.includes(i))}>{i}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Result */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
+            Shadow engine result {loading ? '· computing…' : ''}
+          </div>
+          {!result ? (
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Pick attributes to see the breakdown.</p>
+          ) : result.skipped ? (
+            <p style={{ fontSize: 12, color: '#dc2626', margin: 0 }}>
+              Engine reported <code style={inlineCode}>skipped: {result.reason}</code>. Check ENABLE_PRICING_SIMPLE_SHADOW.
+            </p>
+          ) : (
+            <BreakdownTable lines={result.breakdown} total={result.total} />
+          )}
+          {result?.buckets && (
+            <p style={{ marginTop: 10, fontSize: 11, color: '#94a3b8' }}>
+              Engine classified: distance=<strong>{result.buckets.distance}</strong>, urgency=<strong>{result.buckets.urgency}</strong>, verifications=<strong>{result.buckets.verifications.join(', ') || 'none'}</strong>
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PickerRow({ label, options, value, onChange }) {
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={pickerLabel}>{label}</div>
+      <div style={chipRow}>
+        {options.map(o => (
+          <button key={o} type="button" onClick={() => onChange(o)} style={chipStyle(value === o)}>{o}</button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -447,6 +748,18 @@ const amountInput = { width: 80, padding: '4px 8px', borderRadius: 6, border: '1
 const secondaryBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, background: '#fff', color: '#0f172a', border: '1px solid #d4d4d8', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
 const shadowBanner = { display: 'flex', alignItems: 'flex-start', gap: 10, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a', borderRadius: 10, padding: 14, marginBottom: 16 };
 const addRowBtn  = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, background: '#fff', color: '#0f172a', border: '1px solid #d4d4d8', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
+const pickerLabel = { fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 };
+const chipRow     = { display: 'flex', flexWrap: 'wrap', gap: 5 };
+
+function chipStyle(active) {
+  return {
+    padding: '4px 10px', borderRadius: 999,
+    background: active ? '#0f172a' : '#fff',
+    color:      active ? '#fff'    : '#52525b',
+    border:     '1px solid ' + (active ? '#0f172a' : '#d4d4d8'),
+    fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+  };
+}
 
 function amountButton(has) {
   return {
