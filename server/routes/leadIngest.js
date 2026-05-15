@@ -26,6 +26,7 @@ const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingE
 const { calculateLeadScore } = require('../services/scoringService');
 const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
+const pricingEngineV2 = require('../services/pricingEngineV2');
 
 /* ── Haversine distance (miles) between two lat/lon pairs ─────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -197,6 +198,20 @@ router.post('/', ingestLimiter, async (req, res) => {
     // false, so this is a no-op until explicitly turned on.
     validationPipeline.runShadow(lead._id).catch(err => {
       console.error('[validationPipeline] shadow run errored:', err.message);
+    });
+
+    // V5 marketplace Phase 3 — pricing V2 shadow. Computes additive USD price
+    // + breakdown using PricingAddOn collection. Writes Lead.priceShadowV2 +
+    // pricingBreakdownShadowV2. NEVER touches buyNowPrice; legacy engine is
+    // still authoritative for charging/refunds. Self-skips if shadow flag off.
+    pricingEngineV2.compute(lead).then(result => {
+      if (result.skipped) return;
+      return Lead.updateOne(
+        { _id: lead._id },
+        { $set: { priceShadowV2: result.total, pricingBreakdownShadowV2: result.breakdown } }
+      );
+    }).catch(err => {
+      console.error('[pricingEngineV2] shadow run errored:', err.message);
     });
 
     res.status(201).json({

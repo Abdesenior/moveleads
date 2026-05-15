@@ -16,6 +16,7 @@ const Transaction   = require('../models/Transaction');
 const { auth } = require('../middleware/auth');
 const { getIo } = require('../services/socketService');
 const { settleOneLead } = require('../jobs/settleAuctions');
+const { isHiddenFromMovers, hiddenReason, routingMode, moverVisibilityFilter, recordClaimBlocked } = require('../utils/leadVisibility');
 
 // Cron-secret guard for endpoints triggered out-of-band by schedulers.
 // Returns 401 instead of 403 so curious authenticated callers can't tell
@@ -56,6 +57,12 @@ router.post('/:leadId', auth, async (req, res) => {
 
     const lead = await Lead.findById(req.params.leadId);
     if (!lead)                            return res.status(404).json({ error: 'Lead not found' });
+    // Phase 6 — block bidding on rejected leads in rejected_only/full mode.
+    if (isHiddenFromMovers(lead)) {
+      console.log(`[leadVisibility] blocked bid on ${lead._id} by ${req.user.id}: ${hiddenReason(lead)} (mode=${routingMode()})`);
+      recordClaimBlocked();
+      return res.status(404).json({ error: 'Lead not available' });
+    }
     if (lead.auctionStatus !== 'active')  return res.status(400).json({ error: 'Auction is not active' });
     if (new Date() > lead.auctionEndsAt)  return res.status(400).json({ error: 'Auction has ended' });
     if (amount <= lead.currentBidPrice)   return res.status(400).json({ error: `Bid must be higher than current bid of $${lead.currentBidPrice}` });
@@ -83,9 +90,13 @@ router.post('/:leadId', auth, async (req, res) => {
 // ── POST /api/bids/:leadId/buy-now — Instant claim ───────────────────────────
 router.post('/:leadId/buy-now', auth, async (req, res) => {
   try {
-    // Atomic: only one mover can flip status to 'buy_now'
+    // Atomic: only one mover can flip status to 'buy_now'.
+    // Phase 6 — the moverVisibilityFilter is part of the atomic match so a
+    // rejected lead (REJECTED_FAKE / admin-rejected / shadowTier=rejected) is
+    // not winnable by a buy-now. moverVisibilityFilter() is `{}` in mode=off
+    // so back-compat is preserved.
     const lead = await Lead.findOneAndUpdate(
-      { _id: req.params.leadId, auctionStatus: 'active' },
+      { _id: req.params.leadId, auctionStatus: 'active', ...moverVisibilityFilter() },
       { $set: { auctionStatus: 'buy_now' } },
       { returnDocument: 'after' }
     );

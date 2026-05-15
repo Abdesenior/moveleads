@@ -53,6 +53,17 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     return;
   }
 
+  // Phase 6 — block broadcasts of rejected leads when routing mode hides
+  // them. Required since SMS reaches movers directly; "movers can't see it
+  // in the feed but can still get pinged" would be incoherent. Force flag
+  // does NOT bypass — admin re-broadcast still respects visibility.
+  const { isHiddenFromMovers, hiddenReason, routingMode, recordBroadcastSuppressed } = require('../utils/leadVisibility');
+  if (isHiddenFromMovers(lead)) {
+    console.log(`[leadVisibility] suppressed SMS broadcast for ${lead._id}: ${hiddenReason(lead)} (mode=${routingMode()})`);
+    recordBroadcastSuppressed();
+    return;
+  }
+
   try {
     // 1. Find companies whose CoverageArea covers either the origin or the
     //    destination ZIP. Plus: include companies with deliversNationwide=true
@@ -280,16 +291,55 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
     lead.startingBidPrice = finalPricing.startingBidPrice;
     lead.currentBidPrice  = finalPricing.startingBidPrice;
 
-    // ── Lifecycle: lead is ready for the marketplace ───────────────────────
-    // No telecom-trust rejection here. The new qualification engine will
-    // surface fraud / suspicious leads via tier='rejected' or tier='review'
-    // in the ScoringSnapshot. Mover visibility doesn't filter on tier until
-    // ENABLE_TIERED_ROUTING is flipped on.
+    // ── Lifecycle: status reflects the FINAL qualification verdict ─────────
+    // Phase 6.8 — STRAIGHT FIX: status itself gates distribution, independent
+    // of the routing-mode env flag. Even if ENABLE_TIERED_ROUTING is
+    // misconfigured, the existing mover-facing status filter
+    // `status IN ['Available', 'READY_FOR_DISTRIBUTION']` will exclude any
+    // lead whose status we hold at PENDING_MANUAL_REVIEW here. No reliance
+    // on the env flag, no reliance on the visibility filter being applied,
+    // no reliance on any downstream guard.
+    //
+    // In the V5 sequential chain (Phase 6.7), validation+scoring have already
+    // run and written shadowTier / qualityGateCleared / adminTierOverride.
+    // We re-fetch (the in-memory `lead` is stale on those fields) and decide
+    // status from that final state. For V4 leads (still parallel), this
+    // check is best-effort — if scoring hasn't finished yet, the post-fetch
+    // doc won't have shadowTier and we'll set status=READY as before. That's
+    // V4's pre-existing race; we didn't make it worse.
     lead.isVerified = true;
-    lead.status = 'READY_FOR_DISTRIBUTION';
+    let qualificationFailed = false;
+    let qualificationReason = null;
+    try {
+      const freshForStatus = await Lead.findById(lead._id)
+        .select('shadowTier qualityGateCleared adminTierOverride structuralBlockers')
+        .lean();
+      if (freshForStatus) {
+        if (freshForStatus.shadowTier === 'rejected') {
+          qualificationFailed = true;
+          qualificationReason = 'shadowTier=rejected';
+        } else if (freshForStatus.qualityGateCleared === false) {
+          qualificationFailed = true;
+          qualificationReason = 'qualityGateCleared=false';
+        } else if (freshForStatus.adminTierOverride?.tier === 'rejected') {
+          qualificationFailed = true;
+          qualificationReason = 'adminTierOverride=rejected';
+        }
+      }
+    } catch (err) {
+      console.warn(`[PhoneVerify] status-gate fetch failed for ${lead._id}, defaulting to READY:`, err.message);
+    }
+    if (qualificationFailed) {
+      lead.status = 'PENDING_MANUAL_REVIEW';
+      console.log(`[PhoneVerify] qualification failed for ${lead._id} → PENDING_MANUAL_REVIEW (${qualificationReason})`);
+    } else {
+      lead.status = 'READY_FOR_DISTRIBUTION';
+    }
 
-    // Exclusive routing: widget-sourced lead goes straight to that company
-    if (lead.sourceCompany) {
+    // Exclusive routing: widget-sourced lead goes straight to that company.
+    // Skipped when qualification failed — we don't push a rejected lead to a
+    // partner either; admin reviews first.
+    if (lead.sourceCompany && !qualificationFailed) {
       lead.status = 'Purchased';
       await new PurchasedLead({
         company:   lead.sourceCompany,
@@ -301,7 +351,7 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
 
     lead.statusHistory.push({ status: lead.status, timestamp: new Date() });
     await lead.save();
-    console.log(`[PhoneVerify] READY_FOR_DISTRIBUTION — Grade: ${scoring.grade} Price: $${finalPricing.buyNowPrice}`);
+    console.log(`[PhoneVerify] status=${lead.status} — Grade: ${scoring.grade} Price: $${finalPricing.buyNowPrice}`);
 
     // ── Warm transfer (auto-call Grade A mobile leads) ─────────────────────
     // PREVIOUSLY fired here using Abstract's lineType. Now requires Twilio
@@ -315,6 +365,8 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
     void fromPhone;
 
     // ── Side effects: admin notify + mover broadcast ──────────────────────
+    // Admin notify always fires regardless of mover-visibility — admins
+    // need to see fake/rejected leads too.
     sendAdminLeadNotification({
       leadId: lead._id, customerName: lead.customerName,
       customerPhone: lead.customerPhone, customerEmail: lead.customerEmail,
@@ -324,9 +376,41 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       miles: lead.miles, grade: lead.grade, price: lead.buyNowPrice,
       createdAt: lead.createdAt,
     }).catch(err => console.error('[AdminNotify] error:', err.message));
-    broadcastLeadSMS(lead);
-    broadcastLeadEmail(lead).catch(() => {});
-    socketService.emitNewLead(lead);
+
+    // Phase 6.3 — race-safe broadcast guard.
+    // Phase 6.7 — in the sequential V5 chain, validation+scoring have ALREADY
+    // run by the time verifyLeadPhone executes. The DB has fresh shadowTier,
+    // qualityGateCleared, structuralBlockers. The in-memory `lead` doc was
+    // loaded at the TOP of this function (before scoring) and is stale on
+    // those fields. We need both:
+    //   (a) the outer isHiddenFromMoversById check (uses fresh DB read)
+    //   (b) reload the lead doc so the per-channel broadcast guards inside
+    //       broadcastLeadSMS / broadcastLeadEmail / emitNewLead see fresh
+    //       visibility fields — otherwise they'd see qualityGateCleared=false
+    //       (the ingest-time value) and incorrectly suppress legit broadcasts.
+    // Phase 6.8 — qualificationFailed short-circuits broadcasts unconditionally.
+    // This is the env-flag-independent gate: if scoring marked the lead
+    // rejected (or gate=false / override=rejected), NO broadcasts fire,
+    // regardless of routing-mode env config.
+    if (qualificationFailed) {
+      console.log(`[leadVisibility] verifyLeadPhone: suppressed broadcasts for ${lead._id} — qualification failed (${qualificationReason})`);
+      return;
+    }
+
+    const { isHiddenFromMoversById } = require('../utils/leadVisibility');
+    const check = await isHiddenFromMoversById(lead._id);
+    if (check.hidden) {
+      console.log(`[leadVisibility] verifyLeadPhone: suppressed broadcasts for ${lead._id} — ${check.reason} (source=${check.source})`);
+    } else {
+      // Reload so downstream guards in the broadcast services see the
+      // post-qualification fields (shadowTier, qualityGateCleared, etc.)
+      // along with the just-saved status/pricing fields.
+      const freshLead = await Lead.findById(lead._id).lean();
+      const leadForBroadcast = freshLead || lead;
+      broadcastLeadSMS(leadForBroadcast);
+      broadcastLeadEmail(leadForBroadcast).catch(() => {});
+      socketService.emitNewLead(leadForBroadcast);
+    }
 
   } catch (err) {
     console.error(`[PhoneVerify] Unexpected error for lead ${leadId}:`, err.message);

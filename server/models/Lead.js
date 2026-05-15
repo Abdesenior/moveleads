@@ -93,18 +93,58 @@ const LeadSchema = new mongoose.Schema({
   },
   tier:       { type: String, enum: ['hot', 'premium', 'standard', 'review', 'rejected'] },
   tierReason: [{ type: String }],
+  // Phase 6 — denormalized mirror of the latest ScoringSnapshot.tier value.
+  // Used by leadVisibility.moverVisibilityFilter() to filter rejected leads
+  // from mover feeds in `rejected_only` routing mode without joining the
+  // snapshot collection on every request. Written by scoringPipeline
+  // immediately after each snapshot save (failure-tolerant). Missing or
+  // unwritten value keeps the lead visible (safety).
+  shadowTier:           { type: String, enum: ['hot', 'premium', 'standard', 'review', 'rejected'], index: true },
+  shadowTierUpdatedAt:  { type: Date },
+  // Phase 6.3 — quality gate flag. V5 ingest sets this to FALSE so the lead
+  // is invisible to movers until scoring/validation completes. The scoring
+  // pipeline flips it to TRUE in the same atomic update that mirrors
+  // shadowTier (unless the resulting tier is 'rejected', in which case the
+  // flag stays false and the lead is permanently hidden until admin overrides).
+  //
+  // Three states matter for the visibility filter:
+  //   undefined → V4 lead or pre-Phase-6.3 V5 lead — passes through (back-compat)
+  //   false     → V5 lead awaiting scoring OR scoring=rejected — hidden
+  //   true      → scoring completed with non-rejected tier — visible
+  //
+  // The filter clause `{ qualityGateCleared: { $ne: false } }` lets undefined
+  // and true through while blocking explicit false.
+  qualityGateCleared:   { type: Boolean, index: true },
+  // Phase 6.4 — denormalized list of structural-blocker codes computed at
+  // scoring time by leadVisibility.computeStructuralBlockers(). Used by
+  // moverVisibilityFilter() in `blocked_and_review` mode to hide review
+  // leads that have ANY structural blocker. Missing/empty = no blockers
+  // = lead remains visible (back-compat for pre-Phase-6.4 records).
+  structuralBlockers:   [{ type: String }],
   validation: {
     phone:       { type: mongoose.Schema.Types.Mixed },
     route:       { type: mongoose.Schema.Types.Mixed },
     fingerprint: { type: mongoose.Schema.Types.Mixed },
     fraud:       { type: mongoose.Schema.Types.Mixed },
   },
+  // Phase 4 SMS Claim scaffolding — schema present, NEVER WRITTEN in production
+  // until ENABLE_SMS_CLAIM_SCAFFOLD=true (and even then ENABLE_SMS_CLAIM_LIVE=true
+  // is required for the inbound webhook to actually claim). All fields optional.
+  // claimWindow.token is the 4-char claim token (see utils/claimToken.js) used
+  // by the inbound SMS handler to disambiguate "which lead is this reply for".
+  // Token-based from day one — last-broadcast-wins is unsafe when one mover
+  // gets multiple SMS in the window.
   claimWindow: {
-    status:    { type: String, enum: ['open', 'claimed', 'expired'] },
-    expiresAt: { type: Date },
-    offeredTo: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
-    claimedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
-    claimedAt: { type: Date },
+    status:      { type: String, enum: ['open', 'claimed', 'expired'] },
+    openedAt:    { type: Date },
+    expiresAt:   { type: Date },
+    token:       { type: String, trim: true, uppercase: true, index: true, sparse: true },
+    windowMinutes: { type: Number },
+    broadcastTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
+    offeredTo:   { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    claimedBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    claimedAt:   { type: Date },
+    closedReason: { type: String, enum: ['claimed', 'expired', 'admin_revoked'] },
   },
   heavyItems:         [{ type: String }],
   intentConfirmed:    { type: Boolean },
@@ -125,6 +165,18 @@ const LeadSchema = new mongoose.Schema({
   reviewedAt:    { type: Date },
   reviewedBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
   reviewNotes:   { type: String },
+
+  // Phase 3 marketplace pricing V2 — SHADOW ONLY. Computed at ingest by
+  // pricingEngineV2.compute(); the legacy engine still owns buyNowPrice
+  // and the claim/refund path. Lets admin see legacy vs V2 side-by-side.
+  // No migration: optional fields, null on legacy leads.
+  priceShadowV2:             { type: Number },
+  pricingBreakdownShadowV2:  [{
+    code:      { type: String },
+    label:     { type: String },
+    amountUsd: { type: Number },
+    _id:       false,
+  }],
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

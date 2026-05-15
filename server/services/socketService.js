@@ -117,6 +117,16 @@ const emitNewLead = (lead, { force = false } = {}) => {
     return;
   }
 
+  // Phase 6 — suppress socket "new lead" emit for rejected leads to match
+  // feed + SMS + email parity. Dashboard pops shouldn't surface leads the
+  // mover cannot claim anyway.
+  const { isHiddenFromMovers, hiddenReason, routingMode, recordBroadcastSuppressed } = require('../utils/leadVisibility');
+  if (isHiddenFromMovers(lead)) {
+    console.log(`[leadVisibility] suppressed socket emit for ${lead._id}: ${hiddenReason(lead)} (mode=${routingMode()})`);
+    recordBroadcastSuppressed();
+    return;
+  }
+
   // Sanitize lead data for public emission (remove customer contact info)
   // According to requirements: "receive instant JSON payloads of new leads" 
   // Normally, we'd only expose full details after purchase, but "NEW_LEAD_AVAILABLE" 

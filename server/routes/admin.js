@@ -19,7 +19,8 @@ const { logAdminAction } = require('../utils/auditLog');
 const ScoringSnapshot = require('../models/ScoringSnapshot');
 const ValidationLog = require('../models/ValidationLog');
 const scoringPipeline = require('../services/scoringPipeline');
-const { computeDistributionStatus } = require('../utils/distributionStatus');
+const { computeDistributionStatus, computeDistributionLabel } = require('../utils/distributionStatus');
+const { isHiddenFromMovers, routingMode } = require('../utils/leadVisibility');
 
 // ── Helpers for bulk import ───────────────────────────────────────────────────
 function milesFromZips(originZip, destinationZip) {
@@ -469,7 +470,7 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
     // surface distribution-readiness, cap reasons, and recent validation
     // logs without separate round-trips.
     const lead = await Lead.findById(req.params.id)
-      .select('score grade scoreFactors customerName customerPhone customerEmail route homeSize moveDate miles status validation intentConfirmed urgencyBucket heavyItems funnelVersion adminTierOverride reviewedAt reviewedBy reviewNotes')
+      .select('score grade scoreFactors customerName customerPhone customerEmail route homeSize moveDate miles status validation intentConfirmed urgencyBucket heavyItems funnelVersion adminTierOverride reviewedAt reviewedBy reviewNotes buyNowPrice priceShadowV2 pricingBreakdownShadowV2')
       .lean();
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
@@ -484,10 +485,23 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
       .lean();
 
     const distribution = computeDistributionStatus(lead, snapshot);
+    // Phase 6.1 — display-only mover-operations triplet:
+    //   lifecycleStatus   = the legacy Lead.status
+    //   qualityStatus     = the quality-engine output (Ready/Review Required/Blocked/Rejected)
+    //   distributionLabel = mover-visibility outcome (Visible/Hidden/Manual Review/Blocked)
+    const hidden = isHiddenFromMovers(lead);
+    const statusTriplet = {
+      lifecycle:    lead.status || null,
+      quality:      distribution.status || null,
+      distribution: computeDistributionLabel(lead, distribution, { isHidden: hidden }),
+      routingMode:  routingMode(),
+      isHidden:     hidden,
+    };
 
     return res.json({
       ok: true,
       mode: scoringPipeline.currentMode(),
+      statusTriplet,
       lead: {
         _id: lead._id,
         route: lead.route,
@@ -510,6 +524,13 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
           score: lead.score,
           grade: lead.grade,
           scoreFactors: lead.scoreFactors,
+          buyNowPrice: lead.buyNowPrice ?? null,
+        },
+        // Phase 3 marketplace pricing V2 — shadow only. Surfaced for the admin
+        // modal's legacy-vs-V2 panel; not used for charging or refunds.
+        pricingV2: {
+          priceShadowV2: lead.priceShadowV2 ?? null,
+          breakdown: lead.pricingBreakdownShadowV2 || [],
         },
         validation: lead.validation || null,
       },
@@ -560,7 +581,15 @@ async function buildSnapshotPayload(leadId) {
   const validationLogs = await ValidationLog.find({ leadId: lead._id })
     .sort({ checkedAt: -1 }).limit(25).lean();
   const distribution = computeDistributionStatus(lead, snapshot);
-  return { lead, snapshot, distribution, validationLogs };
+  const hidden = isHiddenFromMovers(lead);
+  const statusTriplet = {
+    lifecycle:    lead.status || null,
+    quality:      distribution.status || null,
+    distribution: computeDistributionLabel(lead, distribution, { isHidden: hidden }),
+    routingMode:  routingMode(),
+    isHidden:     hidden,
+  };
+  return { lead, snapshot, distribution, validationLogs, statusTriplet };
 }
 
 // GET /api/admin/leads/:id/validation-logs — paginated validation logs
@@ -584,13 +613,27 @@ router.post('/leads/:id/approve', [auth, admin], async (req, res) => {
     if (!lead) return;
     const requestedTier = req.body?.tier && ['standard','premium','hot'].includes(req.body.tier)
       ? req.body.tier : 'standard';
-    const before = { adminTierOverride: lead.adminTierOverride || null };
+    const before = { adminTierOverride: lead.adminTierOverride || null, qualityGateCleared: lead.qualityGateCleared, status: lead.status };
     lead.adminTierOverride = {
       tier: requestedTier,
       reason: req.body?.reason || 'admin approved for distribution',
       by: req.user.id,
       at: new Date(),
     };
+    // Phase 6.3 — admin approval clears the quality gate. Without this, a V5
+    // lead that was rejected by scoring (qualityGateCleared=false) would stay
+    // hidden from movers even after admin manually approves the override.
+    lead.qualityGateCleared = true;
+    // Phase 6.8 — when verifyLeadPhone held a rejected lead at
+    // PENDING_MANUAL_REVIEW (status-gate fix), admin approval needs to
+    // upgrade the status to READY_FOR_DISTRIBUTION so the lead becomes
+    // visible to movers. The status filter is the lifecycle-level gate;
+    // override alone isn't enough.
+    if (lead.status === 'PENDING_MANUAL_REVIEW') {
+      lead.status = 'READY_FOR_DISTRIBUTION';
+      lead.statusHistory = lead.statusHistory || [];
+      lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
+    }
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.approve',
@@ -623,6 +666,9 @@ router.post('/leads/:id/reject', [auth, admin], async (req, res) => {
       by: req.user.id,
       at: new Date(),
     };
+    // Phase 6.3 — explicit gate=false matches the rejected intent (belt-and-
+    // suspenders alongside status=REJECTED_FAKE + adminTierOverride.tier=rejected).
+    lead.qualityGateCleared = false;
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.reject',
@@ -674,13 +720,27 @@ router.post('/leads/:id/tier-override', [auth, admin], async (req, res) => {
     if (!req.body?.reason || String(req.body.reason).trim().length < 3) {
       return res.status(400).json({ msg: 'reason is required (min 3 chars)' });
     }
-    const before = { adminTierOverride: lead.adminTierOverride || null };
+    const before = { adminTierOverride: lead.adminTierOverride || null, qualityGateCleared: lead.qualityGateCleared, status: lead.status };
     lead.adminTierOverride = {
       tier: requestedTier,
       reason: String(req.body.reason).slice(0, 500),
       by: req.user.id,
       at: new Date(),
     };
+    // Phase 6.3 — sync the quality gate with the override decision so a
+    // mover-visibility check at request time agrees with the override.
+    // 'rejected' override → stays hidden (gate false); anything else →
+    // admin has explicitly approved → gate cleared (true).
+    lead.qualityGateCleared = requestedTier !== 'rejected';
+    // Phase 6.8 — same status-upgrade logic as the approve action: if the
+    // lead was held at PENDING_MANUAL_REVIEW by the status-gate fix and
+    // admin is overriding to a non-rejected tier, upgrade status so the
+    // status filter passes the lead.
+    if (requestedTier !== 'rejected' && lead.status === 'PENDING_MANUAL_REVIEW') {
+      lead.status = 'READY_FOR_DISTRIBUTION';
+      lead.statusHistory = lead.statusHistory || [];
+      lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
+    }
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.tier_override.set',
@@ -701,9 +761,22 @@ router.delete('/leads/:id/tier-override', [auth, admin], async (req, res) => {
   try {
     const lead = await loadLeadOr404(req, res);
     if (!lead) return;
-    const before = { adminTierOverride: lead.adminTierOverride || null };
+    const before = { adminTierOverride: lead.adminTierOverride || null, qualityGateCleared: lead.qualityGateCleared };
     lead.adminTierOverride = undefined;
     lead.markModified('adminTierOverride');
+    // Phase 6.3 — clearing an override reverts the lead to its natural
+    // scoring tier. Re-sync the quality gate to the latest snapshot tier so
+    // visibility agrees with the engine's last verdict. If no snapshot
+    // exists yet, leave the gate as-is (defensive).
+    try {
+      const latestSnap = await ScoringSnapshot.findOne({ leadId: lead._id })
+        .sort({ createdAt: -1 }).select('tier').lean();
+      if (latestSnap && latestSnap.tier) {
+        lead.qualityGateCleared = latestSnap.tier !== 'rejected';
+      }
+    } catch (e) {
+      console.warn('[Admin lead.tier-override.clear] snapshot lookup failed:', e.message);
+    }
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.tier_override.clear',

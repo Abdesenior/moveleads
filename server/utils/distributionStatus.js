@@ -68,6 +68,26 @@ function computeCapReasons(lead, snapshot) {
     });
   }
 
+  // ── Carrier reputation (Phase 2 marketplace work) ─────────────────────
+  // Conservative: only 'high' provider suspicion forces review. 'medium'
+  // is informational (e.g. business VoIP on a VoIP line — sometimes legit).
+  // 'low' / 'unknown' produce no cap reason. Admin can always override.
+  if (phone && phone.providerSuspicion === 'high') {
+    const matched = phone.providerSuspicionMatched ? ` (matched: ${phone.providerSuspicionMatched})` : '';
+    reasons.push({
+      code: 'suspicious_carrier',
+      message: `suspicious carrier${matched} — ${phone.providerSuspicionReason || 'throwaway/virtual provider'}`,
+      severity: 'medium',
+    });
+  } else if (phone && phone.providerSuspicion === 'medium') {
+    const matched = phone.providerSuspicionMatched ? ` (matched: ${phone.providerSuspicionMatched})` : '';
+    reasons.push({
+      code: 'business_voip_carrier',
+      message: `business VoIP carrier on VoIP line${matched}`,
+      severity: 'low', // soft signal only; pairs with telecom_unverified semantics
+    });
+  }
+
   // ── Telecom confidence — three distinct states ─────────────────────────
   // Phase 4.1: split "telecom unverified" into two cap reasons.
   //
@@ -247,7 +267,57 @@ function computeDistributionStatus(lead, snapshot) {
   return { status: 'Ready', capReasons, tier };
 }
 
+/**
+ * Phase 6.1 — Distribution Label (display-only).
+ *
+ * Maps the lead's lifecycle + quality + visibility state onto a single
+ * mover-operations word the admin UI can show next to the existing
+ * legacy status. Three axes, one label:
+ *
+ *   - Lifecycle status  (existing Lead.status: READY_FOR_DISTRIBUTION etc.)
+ *   - Quality status    (computeDistributionStatus().status)
+ *   - Distribution status (this function)
+ *
+ * Output:
+ *   'Visible'        — currently shown to movers (status=Ready, no hide rule)
+ *   'Hidden'         — currently being hidden from movers by the visibility
+ *                      filter (REJECTED_FAKE / admin override = rejected /
+ *                      shadowTier = rejected) AND routing mode is non-off
+ *   'Manual Review'  — quality engine wants admin attention before the lead
+ *                      reaches movers (status=Review Required or Blocked)
+ *   'Blocked'        — permanently blocked at the quality level
+ *                      (status=Rejected — covers tier=rejected + REJECTED_FAKE)
+ *
+ * Pure function. No I/O. Display only — does NOT change routing.
+ *
+ * @param {Object} lead - lean Lead doc
+ * @param {Object} distribution - output of computeDistributionStatus(lead, snapshot)
+ * @param {{ isHidden?: boolean }} [opts]
+ *   isHidden — caller can pass the result of leadVisibility.isHiddenFromMovers(lead)
+ *              so this util stays free of process.env reads. When omitted, the
+ *              'Hidden' bucket is never returned and rejected leads show as
+ *              'Blocked' (still useful) or quality-bucket label.
+ * @returns {'Visible' | 'Hidden' | 'Manual Review' | 'Blocked'}
+ */
+function computeDistributionLabel(lead, distribution, opts = {}) {
+  const status = distribution && distribution.status;
+  const isHidden = opts.isHidden === true;
+
+  // 'Rejected' quality state is the strongest signal — always Blocked,
+  // regardless of whether the visibility filter is engaged.
+  if (status === 'Rejected') return 'Blocked';
+
+  // 'Hidden' takes precedence over Manual Review only when something is
+  // actually hiding the lead right now (filter mode is rejected_only AND
+  // any hide rule fires).
+  if (isHidden) return 'Hidden';
+
+  if (status === 'Review Required' || status === 'Blocked') return 'Manual Review';
+  return 'Visible'; // 'Ready' or unknown/missing
+}
+
 module.exports = {
   computeDistributionStatus,
   computeCapReasons,
+  computeDistributionLabel,
 };

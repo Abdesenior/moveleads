@@ -247,6 +247,19 @@ export default function AdminSettings() {
           subordinate
           parentDisabledHint={!validationData?.toggles?.twilioLookupEnabled ? 'Turn on Twilio Lookup first.' : null}
         />
+
+        <ValidationToggleRow
+          label="Carrier Reputation"
+          description="Classify the Twilio carrier_name into high/medium/low suspicion. High suspicion (TextNow / Pinger / Hushed / Burner / Bandwidth / Twilio CPaaS / Onvoy / Telnyx / etc.) FORCES REVIEW — never auto-rejects. Conservative; admin can always override. Free (uses data already returned by Lookup)."
+          envEnabled={validationData?.env?.carrierReputationEnabled}
+          envName="ENABLE_CARRIER_REPUTATION"
+          toggleEnabled={validationData?.toggles?.carrierReputationEnabled}
+          effective={validationData?.effective?.carrierRep}
+          disabled={validationSaving || !validationData?.toggles?.twilioLookupEnabled}
+          onToggle={() => saveValidationToggle({ carrierReputationEnabled: !validationData?.toggles?.carrierReputationEnabled })}
+          subordinate
+          parentDisabledHint={!validationData?.toggles?.twilioLookupEnabled ? 'Turn on Twilio Lookup first.' : null}
+        />
       </div>
     </AdminLayout>
   );

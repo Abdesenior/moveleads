@@ -113,6 +113,11 @@ app.use('/api/users',          verifiedGate, require('./routes/users'));
 app.use('/api/admin/settings', verifiedGate, require('./routes/settings'));
 app.use('/api/admin/mover-research', verifiedGate, require('./routes/admin/moverResearch'));
 app.use('/api/admin/partner-research', verifiedGate, require('./routes/admin/partnerResearch'));
+// Analytics router — mounted BEFORE generic /api/admin so the specific
+// /quality-analytics, /carrier-analytics, /pricing-v2-analytics paths and
+// /leads/:id/action-timeline get first crack. Falls through to admin.js
+// for unmatched paths under /api/admin.
+app.use('/api/admin',          verifiedGate, require('./routes/adminAnalytics'));
 app.use('/api/admin',          verifiedGate, require('./routes/admin'));
 app.use('/api/disputes',       verifiedGate, require('./routes/disputes'));
 app.use('/api/admin/pricing',  verifiedGate, require('./routes/pricing'));

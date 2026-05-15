@@ -3,6 +3,7 @@ import { AlertTriangle, AlertCircle, CheckCircle, XCircle, RefreshCw, BarChart2 
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 import ScoringSnapshotModal from '../../components/admin/ScoringSnapshotModal';
+import { toMoverLabel } from '../../utils/tierLabels';
 
 /**
  * V5 Phase 4 — Quality Review queue
@@ -272,10 +273,12 @@ function QualityRow({ lead, alt, onOpen }) {
       </td>
       <td>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
-            letterSpacing: 0.5, textTransform: 'uppercase', background: tc.bg, color: tc.fg,
-          }}>{lead._shadowTier || '—'}</span>
+          <span
+            title={toMoverLabel(lead._shadowTier) ? `Mover sees: ${toMoverLabel(lead._shadowTier)}` : undefined}
+            style={{
+              padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
+              letterSpacing: 0.5, textTransform: 'uppercase', background: tc.bg, color: tc.fg,
+            }}>{lead._shadowTier || '—'}</span>
           {typeof composite === 'number' && (
             <span style={{ fontSize: 11, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{composite}</span>
           )}

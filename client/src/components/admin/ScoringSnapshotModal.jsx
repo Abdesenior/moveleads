@@ -1,6 +1,7 @@
-import { useState, useCallback, useContext } from 'react';
-import { X, CheckCircle, XCircle, RefreshCw, Edit3, Trash2, FileText, AlertTriangle } from 'lucide-react';
+import { useState, useCallback, useContext, useEffect } from 'react';
+import { X, CheckCircle, XCircle, RefreshCw, Edit3, Trash2, FileText, AlertTriangle, Clock } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
+import { toMoverLabel } from '../../utils/tierLabels';
 
 /**
  * V5 Phase 4 — Scoring Snapshot Modal with admin actions
@@ -42,6 +43,19 @@ const SEVERITY_COLORS = {
   low:    { bg: '#eff6ff', fg: '#1e40af', border: '#bfdbfe' },
 };
 
+const TIMELINE_COLORS = {
+  lead_created:           { bg: '#f8fafc', border: '#e2e8f0', tagBg: '#e2e8f0', tagFg: '#475569' },
+  validated:              { bg: '#eff6ff', border: '#bfdbfe', tagBg: '#dbeafe', tagFg: '#1e40af' },
+  scored:                 { bg: '#fffbeb', border: '#fde68a', tagBg: '#fef3c7', tagFg: '#92400e' },
+  admin_approved:         { bg: '#ecfdf5', border: '#a7f3d0', tagBg: '#dcfce7', tagFg: '#15803d' },
+  admin_rejected:         { bg: '#fef2f2', border: '#fecaca', tagBg: '#fee2e2', tagFg: '#b91c1c' },
+  rescored:               { bg: '#eff6ff', border: '#bfdbfe', tagBg: '#dbeafe', tagFg: '#1e40af' },
+  tier_override_set:      { bg: '#f5f3ff', border: '#ddd6fe', tagBg: '#ede9fe', tagFg: '#6d28d9' },
+  tier_override_cleared:  { bg: '#f1f5f9', border: '#cbd5e1', tagBg: '#e2e8f0', tagFg: '#475569' },
+  marked_reviewed:        { bg: '#ecfdf5', border: '#a7f3d0', tagBg: '#dcfce7', tagFg: '#047857' },
+  _default:               { bg: '#f8fafc', border: '#e2e8f0', tagBg: '#e2e8f0', tagFg: '#475569' },
+};
+
 export default function ScoringSnapshotModal({ lead, data, loading, error, onClose, onActionComplete }) {
   const { API_URL, token } = useContext(AuthContext);
   const [busy, setBusy] = useState(null); // current action label or null
@@ -51,11 +65,37 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideTier, setOverrideTier] = useState('standard');
   const [overrideReason, setOverrideReason] = useState('');
+  const [timeline, setTimeline] = useState(null);
+  const [timelineErr, setTimelineErr] = useState(null);
+
+  useEffect(() => {
+    if (!lead?._id) return;
+    let cancel = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/admin/leads/${lead._id}/action-timeline`, {
+          headers: { 'x-auth-token': token },
+        });
+        const json = await res.json();
+        if (cancel) return;
+        if (!res.ok || json.ok === false) throw new Error(json.msg || `HTTP ${res.status}`);
+        setTimeline(json.events || []);
+      } catch (err) {
+        if (!cancel) setTimelineErr(err.message || 'Failed to load timeline');
+      }
+    })();
+    return () => { cancel = true; };
+  // Re-fetch after each successful admin action via the parent's onActionComplete:
+  // we listen to `data` changes (parent re-fetches the snapshot endpoint, which
+  // updates `data`). Cheap: timeline endpoint is admin-only, small payload.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?._id, data]);
 
   const snap = data?.snapshot;
   const distribution = data?.distribution;
   const validationLogs = data?.validationLogs || [];
   const leadDetail = data?.lead;
+  const triplet = data?.statusTriplet;
   const tier = snap?.tier;
   const tierColor = (tier && TIER_COLORS[tier]) || TIER_COLORS.standard;
   const statusColor = (distribution?.status && STATUS_COLORS[distribution.status]) || STATUS_COLORS['Ready'];
@@ -138,6 +178,20 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
 
           {!loading && !error && data && (
             <>
+              {/* ── Status triplet (Phase 6.1) — lifecycle / quality / distribution ── */}
+              {triplet && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+                  <TripletCard label="Lifecycle status" value={triplet.lifecycle || '—'} hint="Lead.status (legacy)" />
+                  <TripletCard label="Quality status" value={triplet.quality || '—'} hint="From distribution status" tone={triplet.quality} />
+                  <TripletCard
+                    label="Distribution status"
+                    value={triplet.distribution || '—'}
+                    hint={triplet.routingMode === 'off' ? 'routing mode: off' : `routing mode: ${triplet.routingMode}`}
+                    tone={triplet.distribution}
+                  />
+                </div>
+              )}
+
               {/* ── Distribution status + tier badge ─────────────────── */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{
@@ -154,6 +208,7 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                     background: tierColor.bg, color: tierColor.fg, border: `1px solid ${tierColor.border}`,
                   }}>
                     Tier: {tier}
+                    {toMoverLabel(tier) && <span style={{ marginLeft: 6, opacity: 0.75, fontWeight: 600 }}>· {toMoverLabel(tier)}</span>}
                     {snap?.scores?.compositeScore != null && <span style={{ marginLeft: 6, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>(score {snap.scores.compositeScore})</span>}
                   </div>
                 )}
@@ -191,6 +246,36 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                 </div>
               )}
 
+              {/* ── Pricing: legacy buyNow vs V2 shadow breakdown ──── */}
+              {(leadDetail?.legacy?.buyNowPrice != null || leadDetail?.pricingV2?.priceShadowV2 != null) && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
+                  <div style={{ padding: 14, background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Legacy price (charged)</div>
+                    <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: '#0f172a' }}>
+                      {leadDetail?.legacy?.buyNowPrice != null ? `$${leadDetail.legacy.buyNowPrice}` : '—'}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>multiplier engine · used for claim/refund</div>
+                  </div>
+                  <div style={{ padding: 14, background: '#ecfdf5', borderRadius: 12, border: '1px solid #a7f3d0' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#047857', textTransform: 'uppercase' }}>Shadow V2 price</div>
+                    <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: '#0f172a' }}>
+                      {leadDetail?.pricingV2?.priceShadowV2 != null ? `$${leadDetail.pricingV2.priceShadowV2}` : '—'}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 11, color: '#047857' }}>additive add-ons · NOT charged (shadow)</div>
+                    {Array.isArray(leadDetail?.pricingV2?.breakdown) && leadDetail.pricingV2.breakdown.length > 0 && (
+                      <details style={{ marginTop: 8 }}>
+                        <summary style={{ cursor: 'pointer', fontSize: 11, color: '#047857', fontWeight: 600 }}>breakdown ({leadDetail.pricingV2.breakdown.length})</summary>
+                        <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: 11, color: '#0f172a', lineHeight: 1.6 }}>
+                          {leadDetail.pricingV2.breakdown.map((b, i) => (
+                            <li key={i}>{b.label || b.code} <span style={{ color: '#64748b', marginLeft: 4 }}>${b.amountUsd}</span></li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* ── Legacy vs shadow comparison ──────────────────────── */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 22 }}>
                 <div style={{ padding: 16, background: '#f8fafc', borderRadius: 14, border: '1px solid #e2e8f0' }}>
@@ -211,8 +296,22 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                     <>
                       <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}>
                         <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{snap.scores?.compositeScore ?? '—'}</div>
+                        {/* Phase 6.1 — show capped → raw delta so admin sees the unfiltered score
+                            and the cap level that pulled it down. */}
+                        {snap.breakdown?.compositeCapApplied && snap.breakdown?.compositeRaw != null && (
+                          <div style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
+                            ↓ capped from <span style={{ textDecoration: 'line-through' }}>{snap.breakdown.compositeRaw}</span>
+                            {snap.breakdown.compositeCapValue != null && <span> (cap={snap.breakdown.compositeCapValue})</span>}
+                          </div>
+                        )}
                       </div>
                       <div style={{ marginTop: 4, fontSize: 11, color: '#92400e' }}>engine {snap.engineVersion}{snap.leadStatusAtScoring && ` · status=${snap.leadStatusAtScoring}`}</div>
+                      {Array.isArray(snap.breakdown?.compositeBlockers) && snap.breakdown.compositeBlockers.length > 0 && (
+                        <div style={{ marginTop: 6, fontSize: 11, color: '#92400e' }}>
+                          <strong>{snap.breakdown.compositeBlockers.length}</strong> blocker{snap.breakdown.compositeBlockers.length === 1 ? '' : 's'} active:{' '}
+                          {snap.breakdown.compositeBlockers.map(b => `${b.code} (≤${b.cap})`).join(' · ')}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div style={{ marginTop: 8, fontSize: 13, color: '#92400e' }}>No snapshot yet.</div>
@@ -294,6 +393,34 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                       </div>
                     </details>
                   )}
+
+                  {/* ── Action timeline ───────────────────────────────── */}
+                  <details style={{ marginBottom: 22 }} open>
+                    <summary style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Clock size={12} /> Action timeline {timeline?.length ? `(${timeline.length})` : ''}
+                    </summary>
+                    {timelineErr && <div style={{ marginTop: 8, fontSize: 12, color: '#b91c1c' }}>Timeline unavailable: {timelineErr}</div>}
+                    {!timeline && !timelineErr && <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>Loading timeline…</div>}
+                    {timeline && timeline.length === 0 && <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>No events yet.</div>}
+                    {timeline && timeline.length > 0 && (
+                      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {timeline.map((ev, i) => {
+                          const palette = TIMELINE_COLORS[ev.kind] || TIMELINE_COLORS._default;
+                          return (
+                            <div key={i} style={{ padding: 10, background: palette.bg, border: `1px solid ${palette.border}`, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', background: palette.tagBg, color: palette.tagFg }}>{ev.kind.replace(/_/g, ' ')}</span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{ev.label}</span>
+                                {ev.actor && <span style={{ fontSize: 10, color: '#64748b' }}>· {ev.actor}</span>}
+                                <span style={{ marginLeft: 'auto', fontSize: 10, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{ev.at ? new Date(ev.at).toLocaleString() : '—'}</span>
+                              </div>
+                              {(ev.reason || ev.note) && <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{ev.reason || ev.note}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </details>
 
                   {/* ── Raw breakdown ─────────────────────────────────── */}
                   {snap.breakdown && (
@@ -397,6 +524,7 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                       <button
                         key={t}
                         onClick={() => setOverrideTier(t)}
+                        title={toMoverLabel(t) ? `Mover sees: ${toMoverLabel(t)}` : undefined}
                         style={{
                           padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                           textTransform: 'uppercase',
@@ -431,6 +559,28 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Phase 6.1 — small card for the three-axis status display.
+const TRIPLET_TONES = {
+  Ready:             { bg: '#ecfdf5', border: '#a7f3d0', fg: '#047857' },
+  Visible:           { bg: '#ecfdf5', border: '#a7f3d0', fg: '#047857' },
+  'Review Required': { bg: '#fffbeb', border: '#fde68a', fg: '#b45309' },
+  'Manual Review':   { bg: '#fffbeb', border: '#fde68a', fg: '#b45309' },
+  Hidden:            { bg: '#fef2f2', border: '#fecaca', fg: '#b91c1c' },
+  Blocked:           { bg: '#fef2f2', border: '#fecaca', fg: '#b91c1c' },
+  Rejected:          { bg: '#fef2f2', border: '#fecaca', fg: '#b91c1c' },
+};
+
+function TripletCard({ label, value, hint, tone }) {
+  const t = TRIPLET_TONES[tone] || { bg: '#f8fafc', border: '#e2e8f0', fg: '#475569' };
+  return (
+    <div style={{ padding: 12, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.fg, textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginTop: 4 }}>{value}</div>
+      {hint && <div style={{ fontSize: 10, color: t.fg, marginTop: 2 }}>{hint}</div>}
     </div>
   );
 }

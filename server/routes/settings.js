@@ -6,6 +6,7 @@ const { logAdminAction } = require('../utils/auditLog');
 const validationToggles = require('../services/validationToggles');
 const twilioLookupService = require('../services/twilioLookupService');
 const mapboxService = require('../services/mapboxService');
+const carrierReputation = require('../services/carrierReputation');
 
 // Admin: get global platform configuration
 router.get('/', [auth, admin], async (req, res) => {
@@ -89,6 +90,7 @@ router.get('/validation-toggles', [auth, admin], async (req, res) => {
         mapboxEnabled: mapboxService.isEnabled(),
         twilioLookupEnabled: twilioLookupService.isEnabled(),
         twilioIdentityMatchEnabled: twilioLookupService.isIdentityMatchEnabled(),
+        carrierReputationEnabled: carrierReputation.isEnabled(),
       },
       effective: {
         mapbox: mapboxService.isEnabled() && toggles.mapboxEnabled,
@@ -97,6 +99,10 @@ router.get('/validation-toggles', [auth, admin], async (req, res) => {
                           && twilioLookupService.isIdentityMatchEnabled()
                           && toggles.twilioLookupEnabled
                           && toggles.twilioIdentityMatchEnabled,
+        carrierRep: twilioLookupService.isEnabled()
+                 && carrierReputation.isEnabled()
+                 && toggles.twilioLookupEnabled
+                 && toggles.carrierReputationEnabled,
       },
     });
   } catch (err) {
@@ -107,10 +113,10 @@ router.get('/validation-toggles', [auth, admin], async (req, res) => {
 
 router.patch('/validation-toggles', [auth, admin], async (req, res) => {
   try {
-    const { mapboxEnabled, twilioLookupEnabled, twilioIdentityMatchEnabled } = req.body || {};
+    const { mapboxEnabled, twilioLookupEnabled, twilioIdentityMatchEnabled, carrierReputationEnabled } = req.body || {};
     const before = await validationToggles.get();
     const next = await validationToggles.set({
-      mapboxEnabled, twilioLookupEnabled, twilioIdentityMatchEnabled,
+      mapboxEnabled, twilioLookupEnabled, twilioIdentityMatchEnabled, carrierReputationEnabled,
     });
     logAdminAction({
       actor: req.user.id,

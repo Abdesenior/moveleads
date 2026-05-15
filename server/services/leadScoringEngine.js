@@ -14,7 +14,7 @@
  * re-tuned against historical data before SCORING_MODE flips to live.
  */
 
-const ENGINE_VERSION = 'v5.phase1.0';
+const ENGINE_VERSION = 'v5.phase6.1';
 
 const WEIGHTS = {
   trustScore:       0.20,
@@ -137,12 +137,14 @@ function trustScore(lead) {
     // Line type — Twilio LTI returns 'mobile', 'landline', 'fixedVoip',
     // 'nonFixedVoip', 'tollFree' etc. We use isVoip boolean to catch all
     // VoIP variants. "trusted mobile line" only when mobile + low SMS
-    // pumping AND no local suspicionPattern — wording must align with risk
-    // (don't claim "trusted" next to a "suspicious phone pattern" reason).
+    // pumping AND no local suspicionPattern AND no high carrier suspicion —
+    // wording must align with risk (don't claim "trusted" next to a
+    // "suspicious carrier" or "suspicious phone pattern" reason).
     const isMobile = phoneLookup.lineType === 'mobile';
     const hasSuspicion = !!phoneLookup.suspicionPattern;
+    const carrierSuspicious = phoneLookup.providerSuspicion === 'high';
     if (isMobile) {
-      const trustedMobile = smsPumpingLow && !hasSuspicion;
+      const trustedMobile = smsPumpingLow && !hasSuspicion && !carrierSuspicious;
       trustGain += trustedMobile ? 8 : 5;
       positiveSignals.push(trustedMobile ? 'trusted mobile line' : 'mobile line');
     } else if (phoneLookup.isVoip === true) {
@@ -199,6 +201,17 @@ function trustScore(lead) {
   if (phoneLookup && phoneLookup.suspicionPattern) {
     s -= 5;
     reasons.push(`suspicious phone pattern (${phoneLookup.suspicionPattern}) — review required`);
+  }
+
+  // ── Carrier reputation (Phase 2) ─────────────────────────────────────────
+  // Conservative: 'high' carrier suspicion (TextNow / Pinger / Burner /
+  // Bandwidth / Twilio CPaaS / Onvoy / etc.) is a -5 trust signal AND a
+  // force-review trigger in the tier router. We do NOT auto-reject — admin
+  // can still override since some legitimate movers carry virtual lines.
+  if (phoneLookup && phoneLookup.providerSuspicion === 'high') {
+    s -= 5;
+    const matched = phoneLookup.providerSuspicionMatched ? `:${phoneLookup.providerSuspicionMatched}` : '';
+    reasons.push(`suspicious carrier${matched} (${phoneLookup.carrierName || 'unknown'}) — review required`);
   }
 
   // ── Admin override: REJECTED_FAKE is a strong negative trust signal ────
@@ -470,6 +483,93 @@ function compositeFrom(scores) {
   return Math.round(total / weightSum);
 }
 
+/* ── Composite cap (Phase 6.1 calibration) ─────────────────────────────────
+ *
+ * The raw weighted composite is the average of seven sub-scores. When a lead
+ * has high urgency + value + intent but weak trust + route, the composite can
+ * still land in the 70s — visually premium, even though the lead is
+ * structurally unverifiable. Force-review in the tier router catches the
+ * routing, but the *number* still looks too strong to admins eyeballing the
+ * snapshot.
+ *
+ * This pass caps the composite based on critical trust/route blockers. Caps
+ * are floors-relative: the lowest-cap blocker wins, and multiple blockers
+ * tighten further. The capped value is what flows to the tier router and the
+ * snapshot. The raw uncapped value is preserved in `breakdown.compositeRaw`
+ * for calibration debugging.
+ *
+ * Cap progression (per spec):
+ *   invalid_phone               → 49
+ *   route_unresolved            → 59
+ *   distance_unknown            → 59
+ *   suspicious_phone_pattern    → 59
+ *   voip_line                   → 59
+ *   suspicious_carrier (high)   → 59
+ *   telecom_low_confidence      → 64
+ *   2-3 blockers active         → 49  (tightened beyond individual caps)
+ *   4+ blockers active          → 29  ("severe" → naturally rejected tier)
+ *
+ * Shadow-safe: this only changes the snapshot's compositeScore + tier
+ * downstream. No effect on pricing, buyNowPrice, mover-facing SMS, or admin
+ * routing decisions other than tier classification of new scoring runs.
+ */
+function applyCompositeCap(scores, lead) {
+  const phone = (lead && lead.validation && lead.validation.phone) || {};
+  const routeSuspicious = Array.isArray(lead?.validation?.route?.suspicious)
+    ? lead.validation.route.suspicious : [];
+  const milesNum = Number(lead?.miles) || 0;
+
+  const blockers = [];
+  if (phone.valid === false) {
+    blockers.push({ code: 'invalid_phone', cap: 49 });
+  }
+  if (phone.suspicionPattern) {
+    blockers.push({ code: 'suspicious_phone_pattern', cap: 59 });
+  }
+  if (phone.validityReason === 'twilio_no_enrichment') {
+    blockers.push({ code: 'telecom_low_confidence', cap: 64 });
+  }
+  if (phone.isVoip === true) {
+    blockers.push({ code: 'voip_line', cap: 59 });
+  }
+  if (phone.providerSuspicion === 'high') {
+    blockers.push({ code: 'suspicious_carrier', cap: 59 });
+  }
+  if (routeSuspicious.includes('origin_zip_not_found') ||
+      routeSuspicious.includes('destination_zip_not_found')) {
+    blockers.push({ code: 'route_unresolved', cap: 59 });
+  }
+  if (milesNum <= 0) {
+    blockers.push({ code: 'distance_unknown', cap: 59 });
+  }
+
+  const raw = scores.compositeScore;
+  if (blockers.length === 0) {
+    return { raw, applied: raw, capped: false, cap: null, blockers: [] };
+  }
+
+  // Lowest individual cap among active blockers
+  let effectiveCap = Math.min(...blockers.map(b => b.cap));
+
+  // 2-3 blockers — tighten to 49 (multiple weak signals compound)
+  if (blockers.length >= 2) {
+    effectiveCap = Math.min(effectiveCap, 49);
+  }
+  // 4+ blockers — "severe", drive into the rejected zone naturally
+  if (blockers.length >= 4) {
+    effectiveCap = Math.min(effectiveCap, 29);
+  }
+
+  const applied = Math.min(raw, effectiveCap);
+  return {
+    raw,
+    applied,
+    capped: applied < raw,
+    cap: effectiveCap,
+    blockers,
+  };
+}
+
 /* ── Public API ────────────────────────────────────────────────────────────── */
 
 function score(lead) {
@@ -490,7 +590,14 @@ function score(lead) {
     fraudRiskScore:  fraud.value,
     moverMatchScore: match.value,
   };
-  scores.compositeScore = compositeFrom(scores);
+  const rawComposite = compositeFrom(scores);
+  scores.compositeScore = rawComposite;
+
+  // Phase 6.1 — apply composite cap based on critical blockers. See
+  // applyCompositeCap doc-comment. Capped value is what the tier router and
+  // snapshot consume; raw value is preserved for calibration debugging.
+  const capResult = applyCompositeCap(scores, lead);
+  scores.compositeScore = capResult.applied;
 
   const breakdown = {
     trust:   trust.reasons,
@@ -501,6 +608,10 @@ function score(lead) {
     fraud:   fraud.reasons,
     match:   match.reasons,
     weights: WEIGHTS,
+    compositeRaw:        capResult.raw,
+    compositeCapApplied: capResult.capped,
+    compositeCapValue:   capResult.cap,
+    compositeBlockers:   capResult.blockers,
   };
 
   return { scores, breakdown, engineVersion: ENGINE_VERSION };

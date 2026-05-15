@@ -32,6 +32,7 @@ const ALL_OFF = Object.freeze({
   mapboxEnabled: false,
   twilioLookupEnabled: false,
   twilioIdentityMatchEnabled: false,
+  carrierReputationEnabled: false,
 });
 
 let cache = { value: null, expiresAt: 0 };
@@ -42,6 +43,9 @@ function fromConfig(config) {
     mapboxEnabled:              v.mapboxEnabled === true,
     twilioLookupEnabled:        v.twilioLookupEnabled === true,
     twilioIdentityMatchEnabled: v.twilioIdentityMatchEnabled === true,
+    // Phase 2 carrier reputation — sub-toggle of Twilio Lookup. Only meaningful
+    // when Twilio Lookup runs (the carrier name comes from line_type_intelligence).
+    carrierReputationEnabled:   v.carrierReputationEnabled === true,
   };
 }
 
@@ -90,13 +94,15 @@ async function set(partial) {
     ...(partial.mapboxEnabled !== undefined && { mapboxEnabled: !!partial.mapboxEnabled }),
     ...(partial.twilioLookupEnabled !== undefined && { twilioLookupEnabled: !!partial.twilioLookupEnabled }),
     ...(partial.twilioIdentityMatchEnabled !== undefined && { twilioIdentityMatchEnabled: !!partial.twilioIdentityMatchEnabled }),
+    ...(partial.carrierReputationEnabled !== undefined && { carrierReputationEnabled: !!partial.carrierReputationEnabled }),
   };
 
-  // Safety: if Twilio Lookup is OFF, Identity Match must also be off — it can
-  // never run without its parent. We enforce that on write so nothing in the
-  // DB can express "identity_match=true while parent=false".
+  // Safety: if Twilio Lookup is OFF, Identity Match AND Carrier Reputation
+  // must also be off — both depend on Twilio Lookup data. Enforced on write
+  // so nothing in the DB can express "carrier_reputation=true while parent=false".
   if (next.twilioLookupEnabled === false) {
     next.twilioIdentityMatchEnabled = false;
+    next.carrierReputationEnabled = false;
   }
 
   await PlatformSettings.updateOne(

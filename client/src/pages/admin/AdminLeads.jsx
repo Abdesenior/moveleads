@@ -7,6 +7,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import TablePagination from '../../components/ui/TablePagination';
 import TableSkeleton from '../../components/ui/TableSkeleton';
 import ScoringSnapshotModal from '../../components/admin/ScoringSnapshotModal';
+import { toMoverLabel } from '../../utils/tierLabels';
 
 const CITIES = [
   "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Jacksonville", "Fort Worth", "Columbus", "Charlotte", "Indianapolis", "San Francisco", "Seattle", "Denver", "Nashville", "Oklahoma City", "El Paso", "Washington DC", "Las Vegas", "Louisville", "Memphis", "Portland", "Baltimore", "Milwaukee", "Albuquerque", "Tucson", "Fresno", "Sacramento", "Mesa", "Kansas City", "Atlanta", "Omaha", "Colorado Springs", "Raleigh", "Miami", "Long Beach", "Virginia Beach", "Minneapolis", "Tampa", "New Orleans", "Arlington", "Bakersfield", "Honolulu", "Anaheim", "Aurora", "Santa Ana", "Corpus Christi", "Riverside", "Lexington", "St. Louis", "Pittsburgh", "Stockton", "Anchorage", "Cincinnati", "St. Paul", "Greensboro", "Toledo", "Newark", "Plano", "Henderson", "Orlando", "Lincoln", "Jersey City", "Chandler", "St. Petersburg", "Laredo", "Norfolk", "Madison", "Durham", "Lubbock", "Winston-Salem", "Garland", "Glendale", "Hialeah", "Reno", "Baton Rouge", "Irvine", "Chesapeake", "Irving", "Scottsdale", "North Las Vegas", "Fremont", "Gilbert", "San Bernardino", "Birmingham", "Rochester", "Richmond", "Spokane", "Des Moines", "Montgomery", "Modesto", "Fayetteville", "Tacoma", "Shreveport", "Fontana", "Moreno Valley", "Akron", "Yonkers", "Augusta", "Little Rock", "Amarillo", "Grand Rapids", "Oxnard", "Salt Lake City", "Tallahassee", "Huntsville", "Worcester", "Knoxville", "Providence", "Brownsville", "Santa Clarita", "Garden Grove", "Oceanside", "Fort Lauderdale", "Chattanooga", "Tempe", "Cape Coral", "Eugene", "Peoria", "Cary", "Springfield", "Fort Wayne", "Elk Grove", "Rockford", "Corona", "Hayward", "Clarksville", "Paterson", "Lancaster", "Salinas", "Palmdale", "Sunnyvale", "Pomona", "Escondido", "Surprise", "Pasadena", "Torrance", "Orange", "Fullerton", "Killeen", "McAllen", "Dayton", "Cedar Rapids", "Macon", "Hampton", "Hartford", "Savannah", "Syracuse", "Bridgeport", "Warren", "Sterling Heights", "Roseville", "New Haven", "Olathe", "Mesquite", "Sioux Falls", "Lakewood", "Thornton", "Frisco", "Waco", "Jackson", "Bellevue", "Alexandria", "Gainesville", "Concord", "Elizabeth", "Topeka", "Simi Valley", "Columbia", "Stamford", "Victorville", "Carrollton", "Thousand Oaks", "Abilene", "Vallejo", "Beaumont", "Round Rock", "West Valley City", "Costa Mesa", "Norman", "Wichita", "Midland", "Provo", "Clearwater", "Murfreesboro", "Arvada", "Independence", "Ann Arbor", "Lansing", "El Monte", "Inglewood", "Downey", "Fairfield", "Manchester", "Wilmington", "Clovis", "Lowell", "West Jordan", "Elgin", "Joliet"
@@ -243,11 +244,13 @@ function TierBadge({ tier, composite }) {
   const s = styles[tier] || styles.standard;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{
-        padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
-        letterSpacing: 0.5, textTransform: 'uppercase',
-        background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
-      }}>{tier}</span>
+      <span
+        title={toMoverLabel(tier) ? `Mover sees: ${toMoverLabel(tier)}` : undefined}
+        style={{
+          padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
+          letterSpacing: 0.5, textTransform: 'uppercase',
+          background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
+        }}>{tier}</span>
       {typeof composite === 'number' && (
         <span style={{ fontSize: 11, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{composite}</span>
       )}
@@ -643,11 +646,11 @@ export default function AdminLeads() {
           style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, minWidth: 150 }}
           title="V5 shadow tier (not affecting routing)">
           <option value="">All Tiers</option>
-          <option value="hot">🔥 Hot</option>
-          <option value="premium">⭐ Premium</option>
-          <option value="standard">▫️ Standard</option>
-          <option value="review">⚠️ Review</option>
-          <option value="rejected">⛔ Rejected</option>
+          <option value="hot">🔥 Hot · Ready-to-Book</option>
+          <option value="premium">⭐ Premium · High-Intent</option>
+          <option value="standard">▫️ Standard · Open Request</option>
+          <option value="review">⚠️ Review · Needs Verification</option>
+          <option value="rejected">⛔ Rejected · Blocked</option>
         </select>
       </div>
 

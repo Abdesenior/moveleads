@@ -30,6 +30,7 @@ const fingerprintService = require('./fingerprintService');
 const scoringPipeline = require('./scoringPipeline');
 const twilioLookupService = require('./twilioLookupService');
 const validationToggles = require('./validationToggles');
+const carrierReputation = require('./carrierReputation');
 
 /**
  * Cheap synchronous pre-check — returns true if ANY validation surface is
@@ -40,7 +41,8 @@ const validationToggles = require('./validationToggles');
 function anyEnvFlagEnabled() {
   return twilioLookupService.isEnabled()
     || mapboxService.isEnabled()
-    || fingerprintService.isEnabled();
+    || fingerprintService.isEnabled()
+    || carrierReputation.isEnabled();
 }
 
 /**
@@ -60,15 +62,21 @@ async function resolveEffective() {
     identity: twilioLookupService.isIdentityMatchEnabled(),
     mapbox:   mapboxService.isEnabled(),
     fp:       fingerprintService.isEnabled(),
+    carrier:  carrierReputation.isEnabled(),
   };
   const mapbox       = env.mapbox && toggles.mapboxEnabled;
   const twilioLookup = env.twilio && toggles.twilioLookupEnabled;
   // Identity match: env + admin toggle + Twilio Lookup also effective
   const twilioIdentityMatch =
     env.identity && toggles.twilioIdentityMatchEnabled && twilioLookup;
+  // Carrier reputation: env + admin toggle + Twilio Lookup also effective
+  // (carrier name comes from line_type_intelligence; without Twilio there's
+  // nothing to evaluate).
+  const carrierRep =
+    env.carrier && toggles.carrierReputationEnabled && twilioLookup;
   // Fingerprint has no admin toggle yet (stub still). Env-only.
   const fingerprint  = env.fp;
-  return { mapbox, twilioLookup, twilioIdentityMatch, fingerprint };
+  return { mapbox, twilioLookup, twilioIdentityMatch, carrierRep, fingerprint };
 }
 
 /**
@@ -113,7 +121,7 @@ async function runShadow(leadId) {
   const envOn = anyEnvFlagEnabled();
   const effective = envOn
     ? await resolveEffective()
-    : { mapbox: false, twilioLookup: false, twilioIdentityMatch: false, fingerprint: false };
+    : { mapbox: false, twilioLookup: false, twilioIdentityMatch: false, carrierRep: false, fingerprint: false };
 
   const summary = { leadId: String(lead._id), effective, phone: null, route: null, fingerprint: null };
 
@@ -201,6 +209,15 @@ async function runShadow(leadId) {
     // Write the normalized result onto the Lead doc so the scoring engine
     // and admin UI can read it via lead.validation.phone.* on the next pass.
     if (phoneResult.available || phoneResult.status === 'cached') {
+      // Carrier reputation — env+toggle gated (effective.carrierRep).
+      // When off, we write nulls so downstream branches stay uniform.
+      const carrierEval = effective.carrierRep
+        ? carrierReputation.evaluateCarrier(
+            phoneResult.result?.carrierName ?? null,
+            phoneResult.result?.lineType ?? null,
+          )
+        : null;
+
       const update = {
         valid: phoneResult.result?.valid ?? null,
         // validityReason — set by twilioLookupService when valid is false OR
@@ -216,6 +233,12 @@ async function runShadow(leadId) {
         lineType: phoneResult.result?.lineType ?? null,
         isVoip: phoneResult.result?.isVoip ?? null,
         carrierName: phoneResult.result?.carrierName ?? null,
+        // Phase 2 carrier reputation — written only when env flag is on.
+        // 'high' forces review in the tier router; 'medium' is informational;
+        // 'low'/'unknown' have no tier impact.
+        providerSuspicion: carrierEval?.suspicion ?? null,
+        providerSuspicionMatched: carrierEval?.matched ?? null,
+        providerSuspicionReason: carrierEval?.reason ?? null,
         smsPumpingRisk: phoneResult.result?.smsPumpingRisk ?? null,
         smsPumpingScore: phoneResult.result?.smsPumpingScore ?? null,
         identityMatch: phoneResult.result?.identityMatch ?? null,
@@ -274,16 +297,30 @@ async function runShadow(leadId) {
     summary.fingerprint = { status: fpResult.status };
   }
 
-  // ── Trigger enriched re-score (only if validation data changed) ────────
-  // Fire-and-forget — scoringPipeline.runShadow swallows its own errors.
-  // Skip the re-score when no validation actually ran (e.g. real phone,
-  // all env flags off) — the baseline snapshot from the ingest call is
-  // already correct and a duplicate would just clutter snapshot history.
-  const anyWritten = summary.phone !== null || summary.route !== null || summary.fingerprint !== null;
-  if (anyWritten) {
-    scoringPipeline.runShadow(lead._id).catch(err => {
-      console.error(`[validationPipeline] re-score failed for ${leadId}:`, err.message);
-    });
+  // ── Trigger scoring at the end — ALWAYS, AWAITED (Phase 6.7) ────────
+  // The sequential V5 ingest chain (leadIngestV2.js) AWAITS this entire
+  // validationPipeline call. Inside, we now AWAIT the scoring run so the
+  // chain is truly serial: validation finishes → scoring runs with full
+  // validation data → mirrors shadowTier + qualityGateCleared +
+  // structuralBlockers → validationPipeline returns to the chain → the
+  // chain proceeds to pricing V2 + verifyLeadPhone.
+  //
+  // Why ALWAYS run scoring (no `anyWritten` gate):
+  //   - With Phase 6.7 sequential ingest, validation is the ONLY scoring
+  //     trigger. The previous baseline call from ingest is gone — without
+  //     this trigger, leads with clean phones + env flags off would never
+  //     get scored. Their qualityGateCleared would stay FALSE forever and
+  //     mover-visibility would never open.
+  //   - Even when no provider wrote enrichment, the engine still produces
+  //     a valid tier from the raw lead fields. Running it is cheap and
+  //     guarantees the gate flips correctly.
+  //   - Scoring errors are caught (try/catch). A scoring failure leaves the
+  //     gate at false — the lead stays hidden (safe default), and admin can
+  //     rescore manually.
+  try {
+    await scoringPipeline.runShadow(lead._id);
+  } catch (err) {
+    console.error(`[validationPipeline] scoring at end failed for ${leadId}:`, err.message);
   }
 
   return summary;

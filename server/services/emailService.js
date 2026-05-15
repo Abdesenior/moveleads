@@ -849,6 +849,16 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
     return;
   }
 
+  // Phase 6 — suppress email broadcasts of rejected leads to mirror feed +
+  // SMS behavior. Required for parity: a mover who can't see the lead in
+  // the dashboard shouldn't get an email about it.
+  const { isHiddenFromMovers, hiddenReason, routingMode, recordBroadcastSuppressed } = require('../utils/leadVisibility');
+  if (isHiddenFromMovers(lead)) {
+    console.log(`[leadVisibility] suppressed email broadcast for ${lead._id}: ${hiddenReason(lead)} (mode=${routingMode()})`);
+    recordBroadcastSuppressed();
+    return;
+  }
+
   try {
     const CoverageArea = require('../models/CoverageArea');
     const User = require('../models/User');

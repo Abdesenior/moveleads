@@ -37,6 +37,21 @@ function assign(scores, lead = {}) {
   // Only undeniable HIGH-severity fraud signals reach here. Any single one is
   // enough to auto-reject. Compound MEDIUM signals get caught by the
   // fraudRiskScore <= fraudHardReject catch-all below them.
+  //
+  // Phase 6.5 — structural combos. A lead that's both unverifiable
+  // (invalid phone) AND structurally unfulfillable (no route or distance)
+  // is not "review-worthy", it's garbage. Same for invalid phone with a
+  // suspicious pattern, or both ZIPs missing. These combos hard-reject
+  // BEFORE the "phone invalid → review" rule below them so they win.
+  const phoneEarly = lead.validation?.phone || {};
+  const routeEarlySus = Array.isArray(lead.validation?.route?.suspicious)
+    ? lead.validation.route.suspicious : [];
+  const milesEarly = Number(lead.miles) || 0;
+  const originUnresolved = routeEarlySus.includes('origin_zip_not_found');
+  const destUnresolved   = routeEarlySus.includes('destination_zip_not_found');
+  const routeUnresolved  = originUnresolved || destUnresolved;
+  const distanceUnknown  = milesEarly <= 0;
+
   const hardRejectSignals = [];
   if (lead.status === 'REJECTED_FAKE') {
     hardRejectSignals.push('lead status is REJECTED_FAKE');
@@ -49,6 +64,16 @@ function assign(scores, lead = {}) {
   }
   if (scores.fraudRiskScore <= THRESHOLDS.fraudHardReject) {
     hardRejectSignals.push(`fraudRiskScore ${scores.fraudRiskScore} <= ${THRESHOLDS.fraudHardReject} (compounded mediums)`);
+  }
+  // Phase 6.5 structural combos
+  if (phoneEarly.valid === false && (routeUnresolved || distanceUnknown)) {
+    hardRejectSignals.push('structural: invalid phone + unresolved route/distance');
+  }
+  if (originUnresolved && destUnresolved) {
+    hardRejectSignals.push('structural: both origin AND destination ZIPs unresolved');
+  }
+  if (phoneEarly.valid === false && phoneEarly.suspicionPattern) {
+    hardRejectSignals.push(`structural: invalid phone + suspicious pattern (${phoneEarly.suspicionPattern})`);
   }
   if (hardRejectSignals.length > 0) {
     reasons.push(`hard reject: ${hardRejectSignals.join('; ')}`);
@@ -199,6 +224,15 @@ function assign(scores, lead = {}) {
     if (lead.validation?.phone?.isVoip === true) {
       const lt = lead.validation.phone.lineType || 'voip';
       reviewSignals.push(`voip line type (${lt})`);
+    }
+    // Phase 2 carrier reputation — 'high' suspicion forces review (no
+    // auto-reject, conservative). Catches throwaway/virtual providers
+    // (TextNow, Pinger, Hushed, Burner, Vyke, Bandwidth, Twilio CPaaS,
+    // Onvoy, etc.) that pass NANP + Twilio's structural `valid:true` check.
+    if (lead.validation?.phone?.providerSuspicion === 'high') {
+      const matched = lead.validation.phone.providerSuspicionMatched
+        ? `:${lead.validation.phone.providerSuspicionMatched}` : '';
+      reviewSignals.push(`suspicious carrier${matched} (${lead.validation.phone.carrierName || 'unknown'})`);
     }
     if (lead.validation?.fraud?.disposable === true) {
       reviewSignals.push('phone flagged disposable');

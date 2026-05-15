@@ -44,6 +44,7 @@ const { calculateLeadPrice, calculateAuctionPrice } = require('../utils/pricingE
 const { calculateLeadScore } = require('../services/scoringService');
 const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
+const pricingEngineV2 = require('../services/pricingEngineV2');
 
 /* ── Distance helpers (same as leadIngest.js) ─────────────────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -196,6 +197,13 @@ router.post('/', ingestLimiter, async (req, res) => {
       funnelVersion: 'v5',
       clientSubmissionId: data.clientSubmissionId,
       intentConfirmed: data.intentConfirmed,
+      // Phase 6.3 — start V5 leads BEHIND the quality gate. Mover visibility
+      // requires qualityGateCleared !== false; the scoring pipeline flips
+      // this to true when it saves a snapshot with non-rejected tier (or
+      // leaves it false when tier is rejected). Prevents the race where
+      // verifyLeadPhone marks status=READY_FOR_DISTRIBUTION + fires
+      // broadcasts before scoring/validation has finished.
+      qualityGateCleared: false,
       urgencyBucket: data.urgencyBucket,
       heavyItems: data.heavyItems || [],
       ...(data.moveType && { moveType: data.moveType }),
@@ -223,19 +231,72 @@ router.post('/', ingestLimiter, async (req, res) => {
       throw err;
     }
 
-    // 8. Twilio verification (NON-BLOCKING) — same env-mode logic as V4
+    // 8. Sequential background qualification chain (Phase 6.7) ─────────────────
+    //
+    // The customer-facing response returns immediately below. Behind the
+    // scenes, an async IIFE runs the qualification pipeline in STRICT ORDER:
+    //
+    //   validation → scoring (triggered + awaited inside validation)
+    //              → pricing V2 shadow
+    //              → verifyLeadPhone (status flip + broadcasts)
+    //
+    // Why strict order matters:
+    //   - lead.qualityGateCleared starts FALSE at save (above) — mover
+    //     visibility is blocked.
+    //   - validation writes lead.validation.*
+    //   - scoring (inside validation) writes shadowTier + structuralBlockers
+    //     + qualityGateCleared atomically. ONLY after this does the gate
+    //     potentially flip to TRUE.
+    //   - pricing V2 then reads the post-scoring lead so add-ons reflect
+    //     final validation/tier state.
+    //   - verifyLeadPhone runs LAST: sets status=READY_FOR_DISTRIBUTION,
+    //     re-checks visibility, and only broadcasts if the lead passes the
+    //     final gate. Socket emit, SMS, email all fire post-qualification.
+    //
+    // No fire-and-forget that could race. No baseline scoring (it was the
+    // race source — see prior phase notes). Customer API response is
+    // unaffected; the chain executes after the response is sent.
     const testMode = req.headers['x-test-lead'] === 'true' || process.env.NODE_ENV === 'development';
-    verifyLeadPhone(lead._id, { testMode }).catch(err => {
-      console.error('[Twilio Background Trace] V5 verification failed:', err.message);
-    });
+    const leadId = lead._id;
+    (async () => {
+      try {
+        // (a) Validation (local NANP + Twilio + Mapbox + carrier reputation).
+        //     At the end, validationPipeline awaits scoringPipeline.runShadow,
+        //     which writes the only ScoringSnapshot + mirrors shadowTier,
+        //     qualityGateCleared, structuralBlockers atomically.
+        await validationPipeline.runShadow(leadId);
+      } catch (err) {
+        console.error(`[V5 chain] validation/scoring failed for ${leadId}:`, err.message);
+      }
 
-    // 9. V5 shadow scoring + validation pipelines (same fire-and-forget as V4)
-    scoringPipeline.runShadow(lead._id).catch(err => {
-      console.error('[scoringPipeline] V5 shadow run errored:', err.message);
-    });
-    validationPipeline.runShadow(lead._id).catch(err => {
-      console.error('[validationPipeline] V5 shadow run errored:', err.message);
-    });
+      // (b) Pricing V2 shadow — reads the post-scoring lead so add-on
+      //     predicates evaluate against the final validation/tier state.
+      //     Still shadow-only; never touches buyNowPrice.
+      try {
+        const freshLead = await Lead.findById(leadId).lean();
+        if (freshLead) {
+          const result = await pricingEngineV2.compute(freshLead);
+          if (!result.skipped) {
+            await Lead.updateOne(
+              { _id: leadId },
+              { $set: { priceShadowV2: result.total, pricingBreakdownShadowV2: result.breakdown } }
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`[V5 chain] pricingV2 failed for ${leadId}:`, err.message);
+      }
+
+      // (c) verifyLeadPhone runs LAST: legacy lifecycle + status flip +
+      //     broadcasts. Its internal isHiddenFromMoversById re-check sees
+      //     the FINAL qualification state — if scoring rejected the lead
+      //     (or any other hide rule fires), broadcasts are suppressed.
+      try {
+        await verifyLeadPhone(leadId, { testMode });
+      } catch (err) {
+        console.error(`[V5 chain] verifyLeadPhone failed for ${leadId}:`, err.message);
+      }
+    })();
 
     return res.status(201).json({
       success: true,
