@@ -120,6 +120,32 @@ const UserSchema = new mongoose.Schema({
       crewCount:            { type: String, default: '' },           // '1'|'2-3'|'4-6'|'7+'
     },
   },
+
+  // ── SMS Claim / Instant Jobs (preview only) ──────────────────────────
+  // Additive preference layer for a future real-time claim mode. Today this
+  // is PREVIEW ONLY — nothing in the live request path reads these fields.
+  // Normal SMS notifications (smsNotif + alertChannels) are a SEPARATE
+  // system and are unaffected by anything below.
+  //
+  // status is server-derived on every GET/PATCH:
+  //   'inactive'         — optInRequested === false
+  //   'needs_balance'    — optInRequested === true AND balance < recommended
+  //   'preview_enabled'  — optInRequested === true AND balance >= recommended
+  // A future live launch will introduce 'eligible_live' once the inbound
+  // webhook + claim window infrastructure is enabled by env flag. Until
+  // then 'preview_enabled' is purely a marker — no SMS body, no token,
+  // no balance deduction, no PII release.
+  smsClaim: {
+    status:           { type: String, enum: ['inactive', 'needs_balance', 'preview_enabled'], default: 'inactive' },
+    optInRequested:   { type: Boolean, default: false },
+    maxLeadPrice:     { type: Number,  default: 100 },
+    residentialOnly:  { type: Boolean, default: true },
+    commercialOptIn:  { type: Boolean, default: false },
+    asapOnly:         { type: Boolean, default: false },
+    dailyClaimCap:    { type: Number,  default: 0 },        // 0 = unlimited
+    optInAt:          { type: Date },
+    lastUpdatedAt:    { type: Date },
+  },
 });
 
 module.exports = mongoose.model('user', UserSchema);

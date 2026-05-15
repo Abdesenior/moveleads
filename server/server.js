@@ -109,6 +109,9 @@ app.use('/api/leads/ingest-v2', require('./routes/leadIngestV2'));
 
 // Dashboard data routes — gated on verified email
 app.use('/api/leads',          verifiedGate, require('./routes/leads'));
+// Mount specific user sub-paths BEFORE the generic /api/users so the static
+// /api/users/me/sms-claim wins. Phase B — preview-only Instant Jobs prefs.
+app.use('/api/users/me/sms-claim', verifiedGate, require('./routes/smsClaim'));
 app.use('/api/users',          verifiedGate, require('./routes/users'));
 app.use('/api/admin/settings', verifiedGate, require('./routes/settings'));
 app.use('/api/admin/mover-research', verifiedGate, require('./routes/admin/moverResearch'));
