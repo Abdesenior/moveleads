@@ -46,6 +46,14 @@ function milesFromZips(originZip, destinationZip) {
   return haversine(o.latitude, o.longitude, d.latitude, d.longitude);
 }
 
+/* ── Derive a 2-letter state from a ZIP, server-side. ZIP is canonical;
+   if it doesn't resolve we return '' and the optional schema field
+   stays empty (the UI falls back to city-only). ─────────────────────── */
+function stateFromZip(zip) {
+  const z = zipcodes.lookup(String(zip || ''));
+  return (z && z.state) ? String(z.state).toUpperCase() : '';
+}
+
 // ── Rate limiter: lead ingestion ──────────────────────────────────────────────
 // 5 quote submissions per IP per 10 minutes — prevents form spam and DDoS
 const ingestLimiter = rateLimit({
@@ -143,6 +151,12 @@ router.post('/', ingestLimiter, async (req, res) => {
       }
     }
 
+    // Resolve state: trust client value if present (V4 form already submits
+    // it after a ZIP lookup), else derive server-side from ZIP. ZIP stays
+    // the canonical input — state is just a normalized projection.
+    const originState      = (data.originState      || stateFromZip(data.originZip)).toUpperCase();
+    const destinationState = (data.destinationState || stateFromZip(data.destinationZip)).toUpperCase();
+
     // 6. Save lead with auction fields
     const lead = new Lead({
       route,
@@ -150,6 +164,7 @@ router.post('/', ingestLimiter, async (req, res) => {
       destinationCity: data.destinationCity,
       originZip: data.originZip,
       destinationZip: data.destinationZip,
+      originState, destinationState,
       homeSize: data.homeSize,
       moveDate: new Date(data.moveDate),
       distance,

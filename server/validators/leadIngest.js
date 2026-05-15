@@ -50,6 +50,11 @@ const LeadIngestSchema = z.object({
     .string({ required_error: 'Destination zip code is required' })
     .regex(/^\d{5}$/, 'Destination zip must be a valid 5-digit zip code'),
 
+  // Optional — V4 form already submits these from a ZIP lookup. If absent
+  // or malformed the ingest route derives state from ZIP server-side.
+  originState: z.string().trim().regex(/^[a-z]{2}$/i, 'State must be 2 letters').optional(),
+  destinationState: z.string().trim().regex(/^[a-z]{2}$/i, 'State must be 2 letters').optional(),
+
   homeSize: z.enum(
     ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom', '5+ Bedroom', '4+ Bedroom'],
     { errorMap: () => ({ message: 'Home size must be one of: Studio, 1 Bedroom, 2 Bedroom, 3 Bedroom, 4 Bedroom, 5+ Bedroom' }) }

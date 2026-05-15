@@ -6,6 +6,12 @@ const LeadSchema = new mongoose.Schema({
   destinationCity: { type: String, required: true },
   originZip: { type: String, default: '' },
   destinationZip: { type: String, default: '' },
+  // 2-letter USPS state codes derived from ZIP at ingest (see V4/V5 ingest
+  // routes) and backfilled for legacy docs via scripts/backfillLeadStates.js.
+  // Optional — legacy leads predating this field continue to render city-only
+  // via the client's fmtRoutePart fallback.
+  originState: { type: String, trim: true, uppercase: true, default: '' },
+  destinationState: { type: String, trim: true, uppercase: true, default: '' },
   isVerified: { type: Boolean, default: false },
   homeSize: { type: String, required: true },
   moveDate: { type: Date, required: true },

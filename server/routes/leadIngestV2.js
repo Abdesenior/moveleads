@@ -133,11 +133,15 @@ router.post('/', ingestLimiter, async (req, res) => {
       });
     }
 
-    // 3. Resolve city/state from ZIPs (V5 doesn't collect them client-side)
+    // 3. Resolve city + state from ZIPs (V5 doesn't collect them client-side).
+    //    Both values are now persisted — the marketplace UI renders
+    //    "City, ST" off the stored state when present.
     const origin = cityStateFromZip(data.originZip);
     const dest   = cityStateFromZip(data.destinationZip);
     const originCity      = origin.city;
     const destinationCity = dest.city;
+    const originState      = origin.state;
+    const destinationState = dest.state;
     const route = `${originCity} → ${destinationCity}`;
 
     // 4. Miles — trust client value if > 0, otherwise compute from ZIPs
@@ -172,6 +176,7 @@ router.post('/', ingestLimiter, async (req, res) => {
     const lead = new Lead({
       route, originCity, destinationCity,
       originZip: data.originZip, destinationZip: data.destinationZip,
+      originState, destinationState,
       homeSize: data.homeSize,
       moveDate: new Date(data.moveDate),
       distance,
