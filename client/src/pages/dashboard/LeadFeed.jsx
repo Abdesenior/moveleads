@@ -149,7 +149,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Move Opportunity</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
-              {lead.originCity} → {lead.destinationCity}
+              {fmtRoutePart(lead.originCity, lead.originState)} → {fmtRoutePart(lead.destinationCity, lead.destinationState)}
             </div>
             <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', marginTop: 3, letterSpacing: '0.02em' }}>
               {lead.originZip} → {lead.destinationZip}
@@ -161,6 +161,9 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
         </div>
 
         <div className="modal-body" style={{ padding: '22px 28px' }}>
+          <p style={{ fontSize: 12.5, color: '#94a3b8', margin: '0 0 16px', lineHeight: 1.5 }}>
+            Review the route, timing, and move size before unlocking.
+          </p>
           {/* Lead details */}
           <Row label="Home Size"  value={lead.homeSize || '—'} />
           <Row label="Move Date"  value={lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'} />
@@ -721,17 +724,19 @@ export default function LeadFeed() {
                       onClick={() => { setClaimError(''); setPreviewLead(lead); }}
                     >
                       {/* ── Route ── city-first hierarchy: movers think in
-                          markets, not ZIPs. City reads big, ZIP is the
-                          subtle reference number underneath. */}
+                          markets, not ZIPs. "City, ST" reads big, ZIP is
+                          the subtle reference number underneath. State is
+                          surfaced when present on the lead doc; otherwise
+                          city stands alone. */}
                       <td className="col-route" style={{ padding: '18px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 7 }}>
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.005em' }}>{lead.originCity || '—'}</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.005em' }}>{fmtRoutePart(lead.originCity, lead.originState)}</div>
                             <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{lead.originZip || ''}</div>
                           </div>
                           <div style={{ color: '#cbd5e1', fontSize: 16, fontWeight: 300, margin: '0 2px' }}>→</div>
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.005em' }}>{lead.destinationCity || '—'}</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.005em' }}>{fmtRoutePart(lead.destinationCity, lead.destinationState)}</div>
                             <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{lead.destinationZip || ''}</div>
                           </div>
                         </div>
@@ -745,7 +750,7 @@ export default function LeadFeed() {
                           {isUrgent && <span className="lead-tag tag-urgent" style={{ ...TAG_BASE, background: '#fff7ed', color: '#d97706', border: '1px solid #fde68a' }}>Urgent</span>}
                           {isPremium && (
                             <span className="lead-tag tag-premium" style={{ ...TAG_BASE, background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', border: 'none' }}>
-                              ⭐ Premium Lead
+                              ⭐ High-Value Move
                             </span>
                           )}
                           {lead._matchesPreferences && (
@@ -903,15 +908,16 @@ export default function LeadFeed() {
                   onClick={() => { setClaimError(''); setPreviewLead(lead); }}
                 >
                   {/* Route — city is the primary signal, ZIP is the
-                      reference. Order matches the desktop table. */}
+                      reference. Order matches the desktop table. State
+                      surfaces when present on the lead. */}
                   <div className="lm-route-row">
                     <div className="lm-route-zip">
-                      <span className="lm-city">{lead.originCity || '—'}</span>
+                      <span className="lm-city">{fmtRoutePart(lead.originCity, lead.originState)}</span>
                       <span className="lm-zip">{lead.originZip || ''}</span>
                     </div>
                     <span className="lm-arrow" aria-hidden="true">→</span>
                     <div className="lm-route-zip">
-                      <span className="lm-city">{lead.destinationCity || '—'}</span>
+                      <span className="lm-city">{fmtRoutePart(lead.destinationCity, lead.destinationState)}</span>
                       <span className="lm-zip">{lead.destinationZip || ''}</span>
                     </div>
                   </div>
@@ -1025,6 +1031,18 @@ export default function LeadFeed() {
       )}
     </DashboardLayout>
   );
+}
+
+/* ─── Route formatter ──────────────────────────────────────────────────────
+   Mover-friendly "City, ST" formatting. Falls back to city-only when the
+   state isn't on the lead document. No backend assumption — if originState
+   / destinationState exist (admin lead-edit accepts them today), they show
+   up; otherwise the city stands alone. */
+function fmtRoutePart(city, state) {
+  const c = (city || '').trim();
+  if (!c) return '—';
+  const s = (state || '').trim();
+  return s ? `${c}, ${s.toUpperCase()}` : c;
 }
 
 /* ─── Shared button styles ─────────────────────────────────────────────────── */
