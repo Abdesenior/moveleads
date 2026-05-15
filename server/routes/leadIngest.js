@@ -27,6 +27,7 @@ const { calculateLeadScore } = require('../services/scoringService');
 const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
 const pricingEngineV2 = require('../services/pricingEngineV2');
+const fixedPriceEngine = require('../services/fixedPriceEngine');
 
 /* ── Haversine distance (miles) between two lat/lon pairs ─────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -227,6 +228,19 @@ router.post('/', ingestLimiter, async (req, res) => {
       );
     }).catch(err => {
       console.error('[pricingEngineV2] shadow run errored:', err.message);
+    });
+
+    // Phase 1 fixed-USD shadow — single-rule-wins engine. SHADOW ONLY.
+    // Writes Lead.priceShadowFixed + Lead.pricingFixedRuleCode. Self-skips
+    // if the shadow flag is off or no rule matches. Never touches buyNowPrice.
+    fixedPriceEngine.compute(lead).then(result => {
+      if (result.skipped || !result.matched) return;
+      return Lead.updateOne(
+        { _id: lead._id },
+        { $set: { priceShadowFixed: result.priceUsd, pricingFixedRuleCode: result.ruleCode } }
+      );
+    }).catch(err => {
+      console.error('[fixedPriceEngine] shadow run errored:', err.message);
     });
 
     res.status(201).json({

@@ -45,6 +45,7 @@ const { calculateLeadScore } = require('../services/scoringService');
 const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
 const pricingEngineV2 = require('../services/pricingEngineV2');
+const fixedPriceEngine = require('../services/fixedPriceEngine');
 
 /* ── Distance helpers (same as leadIngest.js) ─────────────────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -290,6 +291,23 @@ router.post('/', ingestLimiter, async (req, res) => {
         }
       } catch (err) {
         console.error(`[V5 chain] pricingV2 failed for ${leadId}:`, err.message);
+      }
+
+      // Phase 1 fixed-USD shadow — single-rule-wins engine. SHADOW ONLY.
+      // Mirrors the V2 placement so both engines see the post-scoring lead.
+      try {
+        const freshLead = await Lead.findById(leadId).lean();
+        if (freshLead) {
+          const result = await fixedPriceEngine.compute(freshLead);
+          if (!result.skipped && result.matched) {
+            await Lead.updateOne(
+              { _id: leadId },
+              { $set: { priceShadowFixed: result.priceUsd, pricingFixedRuleCode: result.ruleCode } }
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`[V5 chain] fixedPriceEngine failed for ${leadId}:`, err.message);
       }
 
       // (c) verifyLeadPhone runs LAST: legacy lifecycle + status flip +

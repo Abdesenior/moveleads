@@ -183,6 +183,16 @@ const LeadSchema = new mongoose.Schema({
     amountUsd: { type: Number },
     _id:       false,
   }],
+
+  // Fixed-USD pricing engine (Phase 1 of legacy-multiplier deprecation) —
+  // SHADOW ONLY. Computed at ingest by fixedPriceEngine.compute(); the
+  // legacy multiplier engine still owns buyNowPrice. priceShadowFixed is
+  // the winning rule's exact USD price (no stacking, no math).
+  // pricingFixedRuleCode records WHICH rule won, indexed sparse so we can
+  // quickly query which leads matched a given rule. Null on leads where
+  // no rule matched (or rule set is empty).
+  priceShadowFixed:      { type: Number },
+  pricingFixedRuleCode:  { type: String, index: { sparse: true } },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.
