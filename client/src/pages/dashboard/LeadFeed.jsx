@@ -147,12 +147,12 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
         {/* Header */}
         <div style={{ background: 'linear-gradient(135deg,#0a192f,#112240)', padding: '22px 28px', borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Lead Preview</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Move Opportunity</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
-              {lead.originZip} → {lead.destinationZip}
-            </div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>
               {lead.originCity} → {lead.destinationCity}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', marginTop: 3, letterSpacing: '0.02em' }}>
+              {lead.originZip} → {lead.destinationZip}
             </div>
           </div>
           <button className="close-btn" onClick={onClose} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'rgba(255,255,255,0.7)', borderRadius: 9, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
@@ -231,7 +231,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                   onClick={() => onBuyNow(lead)}
                   disabled={claiming}
                   style={{ flex: 2, ...BTN_PRIMARY, borderRadius: 12, padding: '12px', opacity: claiming ? 0.6 : 1 }}>
-                  {claiming ? 'Claiming…' : `Buy Now $${buyNowPrice.toFixed(2)} ›`}
+                  {claiming ? 'Claiming…' : `Unlock Lead — $${buyNowPrice.toFixed(2)} ›`}
                 </button>
               </div>
             ) : (
@@ -239,7 +239,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                 onClick={() => onClaim(lead)}
                 disabled={claiming}
                 style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
-                {claiming ? 'Claiming…' : `Claim Lead — $${buyNowPrice.toFixed(2)} ›`}
+                {claiming ? 'Claiming…' : `Unlock Lead — $${buyNowPrice.toFixed(2)} ›`}
               </button>
             )}
           </div>
@@ -720,17 +720,19 @@ export default function LeadFeed() {
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       onClick={() => { setClaimError(''); setPreviewLead(lead); }}
                     >
-                      {/* ── Route ── */}
+                      {/* ── Route ── city-first hierarchy: movers think in
+                          markets, not ZIPs. City reads big, ZIP is the
+                          subtle reference number underneath. */}
                       <td className="col-route" style={{ padding: '18px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 7 }}>
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{lead.originZip || '—'}</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{lead.originCity}</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.005em' }}>{lead.originCity || '—'}</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{lead.originZip || ''}</div>
                           </div>
                           <div style={{ color: '#cbd5e1', fontSize: 16, fontWeight: 300, margin: '0 2px' }}>→</div>
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{lead.destinationZip || '—'}</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{lead.destinationCity}</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.005em' }}>{lead.destinationCity || '—'}</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{lead.destinationZip || ''}</div>
                           </div>
                         </div>
                         {/* Tags */}
@@ -841,7 +843,7 @@ export default function LeadFeed() {
                               style={{ ...BTN_PRIMARY, opacity: claimingId === id ? 0.6 : 1 }}>
                               {claimingId === id ? 'Claiming…' : (
                                 <>
-                                  <span className="cta-text-desktop">Buy ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›</span>
+                                  <span className="cta-text-desktop">Unlock ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›</span>
                                   <span className="cta-text-mobile">Unlock for ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}</span>
                                 </>
                               )}
@@ -852,8 +854,8 @@ export default function LeadFeed() {
                             className="cta-view"
                             onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); }}
                             style={{ ...BTN_PRIMARY }}>
-                            <span className="cta-text-desktop">View ›</span>
-                            <span className="cta-text-mobile">View details</span>
+                            <span className="cta-text-desktop">Get Details ›</span>
+                            <span className="cta-text-mobile">Get details</span>
                           </button>
                         )}
                       </td>
@@ -900,16 +902,17 @@ export default function LeadFeed() {
                   className="lm-card"
                   onClick={() => { setClaimError(''); setPreviewLead(lead); }}
                 >
-                  {/* Route */}
+                  {/* Route — city is the primary signal, ZIP is the
+                      reference. Order matches the desktop table. */}
                   <div className="lm-route-row">
                     <div className="lm-route-zip">
-                      <span className="lm-zip">{lead.originZip || '—'}</span>
-                      <span className="lm-city">{lead.originCity}</span>
+                      <span className="lm-city">{lead.originCity || '—'}</span>
+                      <span className="lm-zip">{lead.originZip || ''}</span>
                     </div>
                     <span className="lm-arrow" aria-hidden="true">→</span>
                     <div className="lm-route-zip">
-                      <span className="lm-zip">{lead.destinationZip || '—'}</span>
-                      <span className="lm-city">{lead.destinationCity}</span>
+                      <span className="lm-city">{lead.destinationCity || '—'}</span>
+                      <span className="lm-zip">{lead.destinationZip || ''}</span>
                     </div>
                   </div>
 
@@ -1040,6 +1043,7 @@ const BTN_OUTLINE = {
 };
 
 const TAG_BASE = {
-  display: 'inline-block', borderRadius: 20,
-  padding: '2px 8px', fontSize: 11, fontWeight: 700,
+  display: 'inline-flex', alignItems: 'center', borderRadius: 999,
+  padding: '3px 10px', fontSize: 11, fontWeight: 700,
+  letterSpacing: '0.01em', lineHeight: 1.45,
 };
