@@ -183,6 +183,20 @@ const LeadSchema = new mongoose.Schema({
     amountUsd: { type: Number },
     _id:       false,
   }],
+
+  // Simplified additive USD pricing engine — SHADOW ONLY (Phase 1). Computed
+  // at ingest by pricingEngineSimple.compute() against the unified
+  // PricingRule collection. buyNowPrice continues to come from the legacy
+  // multiplier engine until Phase 3 cutover.
+  // priceShadowSimple = sum of BASE + matching DISTANCE/HOME_SIZE/URGENCY/
+  // VERIFICATION/HEAVY_ITEM rows, clamped to the [$10, $250] safety band.
+  priceShadowSimple:         { type: Number },
+  pricingBreakdownSimple:    [{
+    category:   { type: String },
+    matchValue: { type: String },
+    amountUsd:  { type: Number },
+    _id:        false,
+  }],
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

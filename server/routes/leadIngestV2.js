@@ -45,6 +45,7 @@ const { calculateLeadScore } = require('../services/scoringService');
 const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
 const pricingEngineV2 = require('../services/pricingEngineV2');
+const pricingEngineSimple = require('../services/pricingEngineSimple');
 
 /* ── Distance helpers (same as leadIngest.js) ─────────────────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -290,6 +291,24 @@ router.post('/', ingestLimiter, async (req, res) => {
         }
       } catch (err) {
         console.error(`[V5 chain] pricingV2 failed for ${leadId}:`, err.message);
+      }
+
+      // Simplified additive USD pricing — Phase 1 SHADOW ONLY. Same
+      // placement as V2 so both engines see the post-scoring lead with
+      // the final qualification context (tier, validation, heavyItems).
+      try {
+        const freshLead = await Lead.findById(leadId).lean();
+        if (freshLead) {
+          const result = await pricingEngineSimple.compute(freshLead);
+          if (!result.skipped && result.total != null) {
+            await Lead.updateOne(
+              { _id: leadId },
+              { $set: { priceShadowSimple: result.total, pricingBreakdownSimple: result.breakdown } }
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`[V5 chain] pricingEngineSimple failed for ${leadId}:`, err.message);
       }
 
       // (c) verifyLeadPhone runs LAST: legacy lifecycle + status flip +

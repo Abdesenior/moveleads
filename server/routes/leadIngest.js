@@ -27,6 +27,7 @@ const { calculateLeadScore } = require('../services/scoringService');
 const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
 const pricingEngineV2 = require('../services/pricingEngineV2');
+const pricingEngineSimple = require('../services/pricingEngineSimple');
 
 /* ── Haversine distance (miles) between two lat/lon pairs ─────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -227,6 +228,21 @@ router.post('/', ingestLimiter, async (req, res) => {
       );
     }).catch(err => {
       console.error('[pricingEngineV2] shadow run errored:', err.message);
+    });
+
+    // Simplified additive USD pricing — Phase 1 SHADOW ONLY. Reads
+    // PricingRule rows with amountUsd set, sums BASE + matching DISTANCE
+    // / HOME_SIZE / URGENCY / VERIFICATION / HEAVY_ITEM rows, clamps to
+    // [$10, $250]. NEVER touches buyNowPrice. Self-skips when shadow flag
+    // is off or rule fetch fails.
+    pricingEngineSimple.compute(lead).then(result => {
+      if (result.skipped || result.total == null) return;
+      return Lead.updateOne(
+        { _id: lead._id },
+        { $set: { priceShadowSimple: result.total, pricingBreakdownSimple: result.breakdown } }
+      );
+    }).catch(err => {
+      console.error('[pricingEngineSimple] shadow run errored:', err.message);
     });
 
     res.status(201).json({
