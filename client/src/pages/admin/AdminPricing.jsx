@@ -1,270 +1,482 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { DollarSign, Plus, Trash2, Edit2, CheckCircle, XCircle, AlertCircle, Info, ArrowLeft, Loader } from 'lucide-react';
+import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import { Plus, Sparkles, Trash2, Power, Check, X, Info, RefreshCcw } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
+import { useToast } from '../../components/ui/Toast';
+
+/*
+ * AdminPricing — Phase 2 of the simplified pricing migration.
+ *
+ * Flat-table editor on the unified PricingRule collection. Operators edit
+ * a single USD amount per rule. No multipliers, no predicates, no
+ * templates, no "1.5×" / "stacking" copy.
+ *
+ * Live charges still come from the legacy multiplier engine until Phase 3
+ * cutover — banner at the top makes this explicit.
+ */
 
 const CATEGORIES = [
-  { id: 'HOME_SIZE', label: 'Home Size' },
-  { id: 'DISTANCE', label: 'Distance' },
-  { id: 'MOVE_DATE', label: 'Move Date' },
+  { key: 'BASE',         label: 'Base price',     blurb: 'Universal base — every lead starts here.' },
+  { key: 'DISTANCE',     label: 'Distance',       blurb: 'Local / Long Distance / Cross Country.' },
+  { key: 'HOME_SIZE',    label: 'Home size',      blurb: 'Studio through 5+ Bedroom.' },
+  { key: 'URGENCY',      label: 'Urgency',        blurb: 'How soon the move date is.' },
+  { key: 'VERIFICATION', label: 'Verification',   blurb: 'Phone / identity confidence signals.' },
+  { key: 'HEAVY_ITEM',   label: 'Heavy items',    blurb: 'Specialty items the customer flagged.' },
 ];
+
+const NEW_RULE_DEFAULTS = {
+  BASE:         { matchValue: '', amountUsd: 20 },
+  DISTANCE:     { matchValue: '', amountUsd: 0 },
+  HOME_SIZE:    { matchValue: '', amountUsd: 0 },
+  URGENCY:      { matchValue: '', amountUsd: 0 },
+  VERIFICATION: { matchValue: '', amountUsd: 0 },
+  HEAVY_ITEM:   { matchValue: '', amountUsd: 0 },
+};
+
+// Suggested match values for each category — pre-fills the modal datalist
+// but admin can type anything. We never enforce these on the server; the
+// engine matches by exact string, so typos = silent no-match (operators
+// see this instantly in the shadow comparison panel below).
+const MATCH_SUGGESTIONS = {
+  DISTANCE:     ['Local', 'Long Distance', 'Cross Country'],
+  HOME_SIZE:    ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom', '5+ Bedroom'],
+  URGENCY:      ['Standard', 'Soon', 'Urgent'],
+  VERIFICATION: ['phone_verified', 'mobile_line', 'identity_match'],
+  HEAVY_ITEM:   ['piano', 'safe', 'pool_table', 'hot_tub', 'motorcycle'],
+};
 
 export default function AdminPricing() {
   const { API_URL, token } = useContext(AuthContext);
+  const toast = useToast();
+
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  
-  // Rule Form State
-  const [showForm, setShowForm] = useState(false);
+  const [creating, setCreating] = useState(null);
+  const [comparing, setComparing] = useState(false);
+  const [compareRows, setCompareRows] = useState([]);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({
-    category: 'HOME_SIZE',
-    matchValue: '',
-    multiplier: 1.0,
-    description: ''
-  });
+  const [editValue, setEditValue] = useState('');
 
   const fetchRules = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/admin/pricing`, {
-        headers: { 'x-auth-token': token }
-      });
-      const data = await res.json();
-      if (Array.isArray(data)) setRules(data);
-    } catch (err) {
-      console.error('Error fetching rules:', err);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch(`${API_URL}/admin/pricing`, { headers: { 'x-auth-token': token } });
+      const json = await res.json();
+      if (res.ok) setRules(json);
+      else toast.error('Could not load rules');
+    } catch (e) { toast.error('Could not load rules'); }
+    finally { setLoading(false); }
+  }, [API_URL, token, toast]);
+
+  const fetchCompare = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/admin/pricing/shadow-compare?limit=15`, { headers: { 'x-auth-token': token } });
+      const json = await res.json();
+      if (res.ok) setCompareRows(json.rows || []);
+    } catch (e) { console.error('shadow-compare failed', e); }
   }, [API_URL, token]);
 
-  useEffect(() => {
-    fetchRules();
-  }, [fetchRules]);
+  useEffect(() => { fetchRules(); fetchCompare(); }, [fetchRules, fetchCompare]);
 
-  const saveRule = async (e) => {
-    e.preventDefault();
-    setSaving(true);
+  async function saveAmount(rule, nextAmountUsd) {
+    const n = Number(nextAmountUsd);
+    if (!Number.isFinite(n)) { toast.error('Enter a number'); return; }
     try {
-      const url = editingId ? `${API_URL}/admin/pricing/${editingId}` : `${API_URL}/admin/pricing`;
-      const method = editingId ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 
-          'x-auth-token': token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-      
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.msg || 'Failed to save rule');
-      }
-      
-      await fetchRules();
-      setShowForm(false);
-      setEditingId(null);
-      setFormData({ category: 'HOME_SIZE', matchValue: '', multiplier: 1.0, description: '' });
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleRule = async (rule) => {
-    try {
-      await fetch(`${API_URL}/admin/pricing/${rule._id}`, {
+      const res = await fetch(`${API_URL}/admin/pricing/${rule._id}`, {
         method: 'PUT',
-        headers: { 
-          'x-auth-token': token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ isActive: !rule.isActive })
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ amountUsd: n }),
       });
-      setRules(rules.map(r => r._id === rule._id ? { ...r, isActive: !r.isActive } : r));
-    } catch (err) {
-      console.error('Error toggling rule:', err);
-    }
-  };
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Save failed');
+      toast.success(`${rule.category} · ${rule.matchValue || '—'} → $${n}`);
+      setEditingId(null);
+      fetchRules();
+    } catch (e) { toast.error(e.message); }
+  }
 
-  const deleteRule = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this rule?')) return;
+  async function toggleActive(rule) {
     try {
-      await fetch(`${API_URL}/admin/pricing/${id}`, {
-        method: 'DELETE',
-        headers: { 'x-auth-token': token }
+      const res = await fetch(`${API_URL}/admin/pricing/${rule._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ isActive: !rule.isActive }),
       });
-      setRules(rules.filter(r => r._id !== id));
-    } catch (err) {
-      console.error('Error deleting rule:', err);
-    }
-  };
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Toggle failed');
+      toast.success(`${json.category} · ${json.matchValue || '—'} ${json.isActive ? 'enabled' : 'disabled'}`);
+      fetchRules();
+    } catch (e) { toast.error(e.message); }
+  }
 
-  const editRule = (rule) => {
-    setEditingId(rule._id);
-    setFormData({
-      category: rule.category,
-      matchValue: rule.matchValue,
-      multiplier: rule.multiplier,
-      description: rule.description || ''
-    });
-    setShowForm(true);
-  };
+  async function remove(rule) {
+    if (!window.confirm(`Delete rule "${rule.category} · ${rule.matchValue || '—'}"?`)) return;
+    try {
+      const res = await fetch(`${API_URL}/admin/pricing/${rule._id}`, {
+        method: 'DELETE', headers: { 'x-auth-token': token },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Delete failed');
+      toast.success('Rule deleted');
+      fetchRules();
+    } catch (e) { toast.error(e.message); }
+  }
+
+  async function create(category, matchValue, amountUsd, description) {
+    try {
+      const res = await fetch(`${API_URL}/admin/pricing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ category, matchValue, amountUsd: Number(amountUsd), description }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Create failed');
+      toast.success('Rule created');
+      setCreating(null);
+      fetchRules();
+    } catch (e) { toast.error(e.message); }
+  }
+
+  async function seedDefaults() {
+    if (!window.confirm('Seed missing default rules? Existing rules will not be overwritten.')) return;
+    try {
+      const res = await fetch(`${API_URL}/admin/pricing/seed-defaults`, {
+        method: 'POST', headers: { 'x-auth-token': token },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Seed failed');
+      toast.success(`Seeded ${json.created.length} rule${json.created.length === 1 ? '' : 's'}`,
+                    `${json.skipped.length} already existed`);
+      fetchRules();
+    } catch (e) { toast.error(e.message); }
+  }
+
+  const grouped = useMemo(() => {
+    const m = new Map(CATEGORIES.map(c => [c.key, []]));
+    for (const r of rules) {
+      const bucket = m.get(r.category) || [];
+      bucket.push(r);
+      m.set(r.category, bucket);
+    }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => String(a.matchValue || '').localeCompare(String(b.matchValue || '')));
+    }
+    return m;
+  }, [rules]);
 
   return (
     <AdminLayout>
-      <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-heading)' }}>Pricing Rules</h1>
-          <p>Configure dynamic lead prices based on move characteristics</p>
-        </div>
-        <button onClick={() => { setShowForm(true); setEditingId(null); }} className="btn-primary" style={{
-          display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12
-        }}>
-          <Plus size={18} /> Add Rule
-        </button>
-      </header>
+      <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px' }}>Pricing Rules</h1>
+        <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px', lineHeight: 1.5, maxWidth: 760 }}>
+          Each rule is a simple USD amount added to the lead's final price. Click any dollar value to edit. Rules within the same category stack additively.
+        </p>
 
-      {showForm && (
-        <div className="panel" style={{ marginBottom: 24, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-          <h3 style={{ marginBottom: 20 }}>{editingId ? 'Edit Pricing Rule' : 'New Pricing Rule'}</h3>
-          <form onSubmit={saveRule} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#64748b' }}>CATEGORY</label>
-              <select 
-                value={formData.category} 
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #e2e8f0' }}
-              >
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
+        <div style={shadowBanner}>
+          <Info size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>USD pricing is currently running in shadow.</div>
+            <div style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>
+              Live charges (<code style={inlineCode}>buyNowPrice</code>) still come from the legacy engine until the operator-approved cutover. Edits here are persisted but only affect the shadow column <code style={inlineCode}>priceShadowSimple</code> for now. Use the comparison panel below to verify alignment before cutover.
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#64748b' }}>MATCH VALUE (Exact)</label>
-              <input 
-                type="text" 
-                value={formData.matchValue}
-                onChange={(e) => setFormData({...formData, matchValue: e.target.value})}
-                placeholder="e.g. 3 Bedroom House, Long Distance"
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #e2e8f0' }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#64748b' }}>MULTIPLIER (e.g. 1.5)</label>
-              <input 
-                type="number" 
-                step="0.01"
-                value={formData.multiplier}
-                onChange={(e) => setFormData({...formData, multiplier: parseFloat(e.target.value)})}
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #e2e8f0' }}
-              />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#64748b' }}>DESCRIPTION</label>
-              <input 
-                type="text" 
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Brief explanation of this pricing rule"
-                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #e2e8f0' }}
-              />
-            </div>
-            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, marginTop: 8 }}>
-              <button type="submit" disabled={saving} className="btn-primary" style={{ padding: '10px 24px' }}>
-                {saving ? 'Saving...' : 'Save Rule'}
-              </button>
-              <button type="button" onClick={() => setShowForm(false)} style={{
-                background: '#fff', border: '1px solid #e2e8f0', padding: '10px 24px', borderRadius: 8, cursor: 'pointer'
-              }}>Cancel</button>
-            </div>
-          </form>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button onClick={seedDefaults} style={secondaryBtn}>
+            <Sparkles size={14} /> Seed missing defaults
+          </button>
+          <button onClick={() => setComparing(c => !c)} style={secondaryBtn}>
+            <RefreshCcw size={14} /> {comparing ? 'Hide' : 'Show'} shadow comparison
+          </button>
+        </div>
+
+        {comparing && <ComparePanel rows={compareRows} onRefresh={fetchCompare} />}
+
+        {loading ? (
+          <div style={{ padding: 24, color: '#71717a', textAlign: 'center' }}>Loading…</div>
+        ) : CATEGORIES.map(cat => (
+          <CategorySection
+            key={cat.key}
+            category={cat}
+            rules={grouped.get(cat.key) || []}
+            editingId={editingId}
+            editValue={editValue}
+            onStartEdit={(r) => { setEditingId(r._id); setEditValue(String(r.amountUsd ?? 0)); }}
+            onCancelEdit={() => setEditingId(null)}
+            onSetEditValue={setEditValue}
+            onSaveAmount={saveAmount}
+            onToggleActive={toggleActive}
+            onDelete={remove}
+            onNew={() => setCreating(cat.key)}
+          />
+        ))}
+
+        {creating && (
+          <CreateModal
+            category={creating}
+            onClose={() => setCreating(null)}
+            onCreate={create}
+          />
+        )}
+      </div>
+    </AdminLayout>
+  );
+}
+
+function CategorySection({ category, rules, editingId, editValue, onStartEdit, onCancelEdit, onSetEditValue, onSaveAmount, onToggleActive, onDelete, onNew }) {
+  return (
+    <section style={section}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
+        <div>
+          <h2 style={sectionH}>{category.label}</h2>
+          <p style={{ fontSize: 12, color: '#71717a', margin: 0 }}>{category.blurb}</p>
+        </div>
+        <button onClick={onNew} style={addRowBtn}>
+          <Plus size={12} /> Add rule
+        </button>
+      </div>
+
+      {rules.length === 0 ? (
+        <div style={emptyState}>No rules in this category yet. Click <strong>Add rule</strong> or use <strong>Seed missing defaults</strong>.</div>
+      ) : (
+        <div style={tableWrap}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+            <thead style={{ background: '#fafafa', textAlign: 'left' }}>
+              <tr>
+                <th style={th}>Match</th>
+                <th style={{ ...th, width: 160 }}>Amount (USD)</th>
+                <th style={{ ...th, width: 80 }}>Active</th>
+                <th style={th}>Description</th>
+                <th style={{ ...th, width: 60, textAlign: 'right' }}>Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map(rule => {
+                const isEditing = editingId === rule._id;
+                const has = Number.isFinite(rule.amountUsd);
+                return (
+                  <tr key={rule._id} style={{ borderTop: '1px solid #f4f4f5' }}>
+                    <td style={td}>
+                      {rule.matchValue
+                        ? <code style={matchChip}>{rule.matchValue}</code>
+                        : <span style={{ color: '#71717a', fontStyle: 'italic' }}>(singleton)</span>}
+                    </td>
+                    <td style={td}>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>$</span>
+                          <input
+                            type="number"
+                            value={editValue}
+                            onChange={e => onSetEditValue(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') onSaveAmount(rule, editValue);
+                              if (e.key === 'Escape') onCancelEdit();
+                            }}
+                            autoFocus
+                            style={amountInput}
+                          />
+                          <button onClick={() => onSaveAmount(rule, editValue)} style={miniBtn('#16a34a')}><Check size={12} /></button>
+                          <button onClick={onCancelEdit} style={miniBtn('#71717a')}><X size={12} /></button>
+                        </div>
+                      ) : (
+                        <button onClick={() => onStartEdit(rule)} style={amountButton(has)}>
+                          {has ? `$${rule.amountUsd}` : '— set USD —'}
+                        </button>
+                      )}
+                    </td>
+                    <td style={td}>
+                      <button onClick={() => onToggleActive(rule)} style={activePill(rule.isActive)} title={rule.isActive ? 'Click to disable' : 'Click to enable'}>
+                        <Power size={11} /> {rule.isActive ? 'Active' : 'Off'}
+                      </button>
+                    </td>
+                    <td style={{ ...td, color: '#52525b', fontSize: 12.5 }}>{rule.description || <span style={{ color: '#cbd5e1' }}>—</span>}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>
+                      <button onClick={() => onDelete(rule)} style={trashBtn} aria-label="Delete rule"><Trash2 size={14} /></button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
+    </section>
+  );
+}
 
-      <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
-        <table className="leads-table">
-          <thead>
+function ComparePanel({ rows, onRefresh }) {
+  if (!rows.length) {
+    return (
+      <section style={section}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <h2 style={sectionH}>Shadow comparison</h2>
+          <button onClick={onRefresh} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 12 }}><RefreshCcw size={11} /> Refresh</button>
+        </div>
+        <p style={{ fontSize: 13, color: '#71717a', margin: 0 }}>
+          No leads have shadow USD pricing yet. Seed some rules and wait for fresh ingest to populate <code style={inlineCode}>priceShadowSimple</code>.
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section style={section}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h2 style={sectionH}>Shadow comparison — recent leads</h2>
+        <button onClick={onRefresh} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 12 }}><RefreshCcw size={11} /> Refresh</button>
+      </div>
+      <p style={{ fontSize: 12, color: '#71717a', margin: '0 0 10px' }}>
+        Side-by-side legacy vs USD shadow on the latest leads. Use this to validate alignment before any cutover.
+      </p>
+      <div style={tableWrap}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead style={{ background: '#fafafa', textAlign: 'left' }}>
             <tr>
-              <th style={{ paddingLeft: 24 }}>Rule Description</th>
-              <th>Category</th>
-              <th>Value</th>
-              <th>Multiplier</th>
-              <th>Status</th>
-              <th style={{ textAlign: 'right', paddingRight: 24 }}>Actions</th>
+              <th style={th}>Route</th>
+              <th style={th}>Miles</th>
+              <th style={th}>Home</th>
+              <th style={th}>Legacy buyNow</th>
+              <th style={th}>USD shadow</th>
+              <th style={th}>Δ</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan="6" style={{ padding: 40, textAlign: 'center' }}><Loader className="spinner" /></td></tr>
-            ) : rules.length === 0 ? (
-              <tr><td colSpan="6" className="table-empty">No dynamic pricing rules set. Using global base price.</td></tr>
-            ) : (
-              rules.map((rule) => (
-                <tr key={rule._id} style={{ opacity: rule.isActive ? 1 : 0.6 }}>
-                  <td style={{ paddingLeft: 24 }}>
-                    <div style={{ fontWeight: 600, color: '#0f172a' }}>{rule.description || 'No description'}</div>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', background: '#f1f5f9', padding: '4px 8px', borderRadius: 4 }}>
-                      {rule.category}
-                    </span>
-                  </td>
-                  <td><code style={{ background: '#f8fafc', padding: '2px 6px', borderRadius: 4 }}>{rule.matchValue}</code></td>
-                  <td>
-                    <strong style={{ color: rule.multiplier > 1 ? '#16a34a' : rule.multiplier < 1 ? '#dc2626' : '#64748b' }}>
-                      {rule.multiplier}x
-                    </strong>
-                  </td>
-                  <td>
-                    <button 
-                      onClick={() => toggleRule(rule)}
-                      style={{ 
-                        border: 'none', background: 'none', cursor: 'pointer',
-                        color: rule.isActive ? '#16a34a' : '#94a3b8'
-                      }}
-                    >
-                      {rule.isActive ? <CheckCircle size={20} /> : <XCircle size={20} />}
-                    </button>
-                  </td>
-                  <td style={{ textAlign: 'right', paddingRight: 24 }}>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                      <button onClick={() => editRule(rule)} className="btn-icon" style={{ background: '#f1f5f9', color: '#2563eb' }}>
-                        <Edit2 size={14} />
-                      </button>
-                      <button onClick={() => deleteRule(rule._id)} className="btn-icon" style={{ background: '#fee2e2', color: '#dc2626' }}>
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+            {rows.map(r => {
+              const legacy = Number(r.buyNowPrice) || 0;
+              const shadow = Number(r.priceShadowSimple) || 0;
+              const delta  = shadow - legacy;
+              const deltaColor = delta > 0 ? '#dc2626' : delta < 0 ? '#16a34a' : '#71717a';
+              return (
+                <tr key={r._id} style={{ borderTop: '1px solid #f4f4f5' }}>
+                  <td style={td}>{r.originCity} → {r.destinationCity}</td>
+                  <td style={td}>{r.miles}</td>
+                  <td style={td}>{r.homeSize}</td>
+                  <td style={td}>${legacy}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>${shadow}</td>
+                  <td style={{ ...td, fontWeight: 700, color: deltaColor }}>
+                    {delta === 0 ? '—' : `${delta > 0 ? '+' : ''}$${delta}`}
                   </td>
                 </tr>
-              ))
-            )}
+              );
+            })}
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
 
-      <div style={{ marginTop: 24, padding: 20, background: '#eff6ff', borderRadius: 12, display: 'flex', gap: 16 }}>
-        <Info size={24} color="#3b82f6" />
-        <div>
-          <h4 style={{ color: '#1e40af', margin: '0 0 4px' }}>How stacking works</h4>
-          <p style={{ margin: 0, fontSize: 13, color: '#1e40af', opacity: 0.8 }}>
-            Multiple rules are applied <strong>multiplicatively</strong>. For example, if a lead is 'Long Distance' (1.5x) AND '3 Bedroom House' (1.2x), the final price multiplier will be <strong>1.8x</strong> (1.5 * 1.2).
-          </p>
+function CreateModal({ category, onClose, onCreate }) {
+  const defaults = NEW_RULE_DEFAULTS[category] || NEW_RULE_DEFAULTS.HOME_SIZE;
+  const [matchValue, setMatchValue]   = useState(defaults.matchValue);
+  const [amountUsd, setAmountUsd]     = useState(defaults.amountUsd);
+  const [description, setDescription] = useState('');
+  const suggestions = MATCH_SUGGESTIONS[category] || [];
+  const requiresMatch = category !== 'BASE';
+
+  function submit() {
+    if (requiresMatch && !matchValue.trim()) return;
+    onCreate(category, matchValue.trim(), amountUsd, description);
+  }
+
+  return (
+    <div onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 16px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()}
+           style={{ width: 'min(440px, 100%)', background: '#fff', borderRadius: 14, padding: 24, position: 'relative', boxShadow: '0 24px 60px rgba(15,23,42,0.18)' }}>
+        <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', right: 12, top: 12, background: 'transparent', border: 0, cursor: 'pointer' }}><X size={18} /></button>
+        <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 14px' }}>New {category.toLowerCase().replace('_', ' ')} rule</h2>
+
+        {requiresMatch && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={fieldLabel}>Match value</label>
+            <input
+              value={matchValue}
+              onChange={e => setMatchValue(e.target.value)}
+              style={input}
+              placeholder={suggestions[0] || 'e.g. Local'}
+              list={suggestions.length ? `suggestions-${category}` : undefined}
+              autoFocus
+            />
+            {suggestions.length > 0 && (
+              <datalist id={`suggestions-${category}`}>
+                {suggestions.map(s => <option key={s} value={s} />)}
+              </datalist>
+            )}
+            {suggestions.length > 0 && (
+              <p style={hint}>Suggestions: {suggestions.join(', ')}</p>
+            )}
+          </div>
+        )}
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Amount (USD)</label>
+          <input type="number" value={amountUsd} onChange={e => setAmountUsd(e.target.value)} style={input} placeholder="0" />
+          <p style={hint}>Range: -200 to 500. Use negative values for discounts.</p>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={fieldLabel}>Description (optional)</label>
+          <input value={description} onChange={e => setDescription(e.target.value)} style={input} placeholder="Internal note" />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={secondaryBtn}>Cancel</button>
+          <button onClick={submit} disabled={requiresMatch && !matchValue.trim()} style={primaryBtn(requiresMatch && !matchValue.trim())}>Create rule</button>
         </div>
       </div>
-      
-      <style>{`
-        .spinner { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .btn-icon { width: 32px; height: 32px; border: none; border-radius: 8px; cursor: pointer; display: flex; alignItems: center; justifyContent: center; transition: all 0.2s; }
-        .btn-icon:hover { transform: translateY(-1px); filter: brightness(0.95); }
-      `}</style>
-    </AdminLayout>
+    </div>
   );
+}
+
+// ── Styles ──────────────────────────────────────────────────────────────
+const section    = { background: '#fff', border: '1px solid #e4e4e7', borderRadius: 12, padding: 16, marginBottom: 14 };
+const sectionH   = { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: '#0f172a' };
+const th         = { padding: '10px 12px', fontSize: 11, fontWeight: 600, color: '#52525b', textTransform: 'uppercase', letterSpacing: 0.4 };
+const td         = { padding: '10px 12px', verticalAlign: 'middle' };
+const tableWrap  = { background: '#fff', borderRadius: 8, border: '1px solid #e4e4e7', overflow: 'hidden' };
+const emptyState = { padding: 14, fontSize: 13, color: '#71717a', background: '#fafafa', borderRadius: 8, border: '1px dashed #e4e4e7' };
+const inlineCode = { background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontSize: 12 };
+const matchChip  = { background: '#f4f4f5', padding: '2px 8px', borderRadius: 6, fontSize: 12.5, color: '#0f172a', fontWeight: 600 };
+const trashBtn   = { background: 'transparent', border: 0, color: '#71717a', cursor: 'pointer', padding: 4 };
+const fieldLabel = { fontSize: 12, fontWeight: 600, color: '#52525b', display: 'block', marginBottom: 4 };
+const input      = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d4d4d8', fontSize: 13, boxSizing: 'border-box' };
+const hint       = { fontSize: 11, color: '#a1a1aa', margin: '4px 0 0' };
+const amountInput = { width: 80, padding: '4px 8px', borderRadius: 6, border: '1px solid #d4d4d8', fontSize: 14, fontWeight: 700 };
+const secondaryBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, background: '#fff', color: '#0f172a', border: '1px solid #d4d4d8', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
+const shadowBanner = { display: 'flex', alignItems: 'flex-start', gap: 10, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a', borderRadius: 10, padding: 14, marginBottom: 16 };
+const addRowBtn  = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, background: '#fff', color: '#0f172a', border: '1px solid #d4d4d8', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
+
+function amountButton(has) {
+  return {
+    background: has ? '#ecfdf5' : '#fef2f2',
+    color:      has ? '#047857' : '#991b1b',
+    border:     '1px solid ' + (has ? '#a7f3d0' : '#fecaca'),
+    padding:    '4px 12px',
+    borderRadius: 8,
+    fontWeight: 800,
+    fontSize: 14,
+    cursor: 'pointer',
+    minWidth: 80,
+    textAlign: 'left',
+  };
+}
+function activePill(active) {
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    padding: '3px 9px', borderRadius: 999,
+    background: active ? '#ecfdf5' : '#fef2f2',
+    color: active ? '#047857' : '#991b1b',
+    border: '1px solid ' + (active ? '#a7f3d0' : '#fecaca'),
+    fontSize: 11, fontWeight: 700, cursor: 'pointer',
+  };
+}
+function miniBtn(color) { return { background: 'transparent', border: 0, padding: 4, cursor: 'pointer', color }; }
+function primaryBtn(disabled) {
+  return {
+    padding: '8px 18px', borderRadius: 8,
+    background: disabled ? '#cbd5e1' : '#0f172a', color: '#fff', border: 0,
+    fontSize: 13, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
+  };
 }
