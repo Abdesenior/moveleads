@@ -142,6 +142,9 @@ export default function AdminLayout({ children }) {
           <NavLink to="/admin/pricing" title={collapsed ? 'Pricing Rules' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <DollarSign size={18} /> <span className="nav-label">Pricing Rules</span>
           </NavLink>
+          <NavLink to="/admin/pricing-addons" title={collapsed ? 'Pricing Add-Ons' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <DollarSign size={18} /> <span className="nav-label">Pricing Add-Ons</span>
+          </NavLink>
           <NavLink to="/admin/mover-research" title={collapsed ? 'Mover Research' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <ClipboardList size={18} /> <span className="nav-label">Mover Research</span>
           </NavLink>
