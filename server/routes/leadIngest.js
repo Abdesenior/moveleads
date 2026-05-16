@@ -28,6 +28,7 @@ const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
 const pricingEngineV2 = require('../services/pricingEngineV2');
 const pricingEngineSimple = require('../services/pricingEngineSimple');
+const { instantDispatchEnabled } = require('../utils/instantDispatch');
 
 /* ── Haversine distance (miles) between two lat/lon pairs ─────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -209,15 +210,17 @@ router.post('/', ingestLimiter, async (req, res) => {
       startingBidPrice: auctionPricing.startingBidPrice,
       currentBidPrice: auctionPricing.startingBidPrice,
       pricingEngineVersion,
-      // Phase A — forward-only stamp. Reads ENABLE_INSTANT_DISPATCH but does
-      // NOT branch any other ingest behavior yet: every lead still gets the
-      // 24-hour auction window below. The stamp is what Phase B will switch on.
-      distributionModel: (
-        String(process.env.ENABLE_INSTANT_DISPATCH || '').toLowerCase() === 'true'
-        || String(process.env.ENABLE_INSTANT_DISPATCH || '') === '1'
-      ) ? 'instant' : 'auction',
+      // Phase B — distribution model branches on ENABLE_INSTANT_DISPATCH.
+      //   'auction' (default) → 24-hour bid window via auctionEndsAt below.
+      //   'instant'           → no auctionEndsAt; cron skips it; bid route 409s;
+      //                          claim happens only via /buy-now or SMS claim.
+      // auctionStatus stays 'active' for both so the buy-now atomic flip
+      // (active → buy_now) continues to work without route changes.
+      distributionModel: instantDispatchEnabled() ? 'instant' : 'auction',
       auctionStatus: 'active',
-      auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24-hour window
+      // Auction-only: 24-hour bid window. Instant leads have no expiry and
+      // live in auctionStatus='active' until claimed (or admin-deleted).
+      ...(instantDispatchEnabled() ? {} : { auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
       ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }]
     });

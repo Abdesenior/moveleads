@@ -34,6 +34,13 @@ async function settleOneLead(leadId) {
       _id: leadId,
       auctionStatus: { $in: ['active', 'settling'] },
       auctionEndsAt: { $lte: new Date() },
+      // Phase B — instant-dispatch leads must never settle through the
+      // auction path. They already lack `auctionEndsAt` so this $lte clause
+      // would skip them on its own; this $ne is belt-and-suspenders against
+      // any future code that mistakenly writes auctionEndsAt to an instant
+      // lead. Existing (pre-Phase-A) leads have no distributionModel field
+      // and pass through ($ne matches missing).
+      distributionModel: { $ne: 'instant' },
     },
     { $set: { auctionStatus: 'settling' } },
     { new: true }
@@ -171,6 +178,8 @@ cron.schedule('*/2 * * * *', async () => {
     const expired = await Lead.find({
       auctionStatus: { $in: ['active', 'settling'] },
       auctionEndsAt: { $lte: new Date() },
+      // Phase B — see settleOneLead for rationale.
+      distributionModel: { $ne: 'instant' },
     }).select('_id');
 
     for (const lead of expired) {

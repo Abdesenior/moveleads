@@ -154,6 +154,10 @@ const emitNewLead = (lead, { force = false } = {}) => {
     currentBidPrice:  lead.currentBidPrice  || 0,
     auctionEndsAt:    lead.auctionEndsAt    || null,
     auctionStatus:    lead.auctionStatus    || 'active',
+    // Phase B — tells the client which CTA to render without a re-fetch.
+    // 'instant' leads hide the bid surface entirely. Missing field on pre-
+    // Phase-A leads falls back to 'auction' (matches the schema default).
+    distributionModel: lead.distributionModel || 'auction',
   };
 
   const originRoom      = `zip_${lead.originZip}`;

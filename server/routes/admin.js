@@ -14,6 +14,7 @@ const { calculateLeadScore } = require('../services/scoringService');
 const { emitNewLead } = require('../services/socketService');
 const { sendAdminLeadNotification, sendDisputeApprovedEmail } = require('../services/emailService');
 const { sendMoverLeadSMS } = require('../services/smsService');
+const { instantDispatchEnabled } = require('../utils/instantDispatch');
 const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
 const ScoringSnapshot = require('../models/ScoringSnapshot');
@@ -336,12 +337,9 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
         currentBidPrice: pricing.startingBidPrice,
         price: pricing.buyNowPrice,
         auctionStatus: 'active',
-        auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        // Phase A — forward-only distribution-model stamp (see leadIngest.js).
-        distributionModel: (
-          String(process.env.ENABLE_INSTANT_DISPATCH || '').toLowerCase() === 'true'
-          || String(process.env.ENABLE_INSTANT_DISPATCH || '') === '1'
-        ) ? 'instant' : 'auction',
+        // Phase B — instant leads skip auctionEndsAt; see leadIngest.js.
+        ...(instantDispatchEnabled() ? {} : { auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
+        distributionModel: instantDispatchEnabled() ? 'instant' : 'auction',
         statusHistory: [{ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() }],
       });
 

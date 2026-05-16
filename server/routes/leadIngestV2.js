@@ -46,6 +46,7 @@ const scoringPipeline = require('../services/scoringPipeline');
 const validationPipeline = require('../services/validationPipeline');
 const pricingEngineV2 = require('../services/pricingEngineV2');
 const pricingEngineSimple = require('../services/pricingEngineSimple');
+const { instantDispatchEnabled } = require('../utils/instantDispatch');
 
 /* ── Distance helpers (same as leadIngest.js) ─────────────────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
@@ -215,13 +216,12 @@ router.post('/', ingestLimiter, async (req, res) => {
       startingBidPrice: auctionPricing.startingBidPrice,
       currentBidPrice: auctionPricing.startingBidPrice,
       pricingEngineVersion,
-      // Phase A — forward-only stamp (see leadIngest.js for full rationale).
-      distributionModel: (
-        String(process.env.ENABLE_INSTANT_DISPATCH || '').toLowerCase() === 'true'
-        || String(process.env.ENABLE_INSTANT_DISPATCH || '') === '1'
-      ) ? 'instant' : 'auction',
+      // Phase B — see leadIngest.js for full rationale on distributionModel
+      // branching. auctionStatus stays 'active' for both models so /buy-now
+      // keeps working without route changes; only auctionEndsAt is gated.
+      distributionModel: instantDispatchEnabled() ? 'instant' : 'auction',
       auctionStatus: 'active',
-      auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      ...(instantDispatchEnabled() ? {} : { auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
       ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }],
 

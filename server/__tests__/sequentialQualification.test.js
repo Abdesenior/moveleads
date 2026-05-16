@@ -116,6 +116,9 @@ const twilioSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'twilio
     const [path] = Object.keys(clause);
     const op = clause[path];
     const value = path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), doc);
+    // Mongo idiom: `{ field: null }` matches docs where the field is null or
+    // missing. Used by the suspicionPattern raw-fallback clause.
+    if (op === null) return value === null || value === undefined;
     if (op.$ne !== undefined) return value !== op.$ne;
     if (op.$nin !== undefined) {
       if (value === undefined) return true;

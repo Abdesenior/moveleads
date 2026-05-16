@@ -57,6 +57,16 @@ router.post('/:leadId', auth, async (req, res) => {
 
     const lead = await Lead.findById(req.params.leadId);
     if (!lead)                            return res.status(404).json({ error: 'Lead not found' });
+    // Phase B — instant-dispatch leads do not accept bids. Buy-now / SMS
+    // claim is the only purchase path for them. Return 409 (conflict with
+    // the resource's distribution model) BEFORE any state mutation so the
+    // route can never leave behind a partial write on an instant lead.
+    if (lead.distributionModel === 'instant') {
+      return res.status(409).json({
+        error: 'bidding_not_supported',
+        message: 'This lead is instant-dispatch only. Use Unlock Lead to claim it.',
+      });
+    }
     // Phase 6 — block bidding on rejected leads in rejected_only/full mode.
     if (isHiddenFromMovers(lead)) {
       console.log(`[leadVisibility] blocked bid on ${lead._id} by ${req.user.id}: ${hiddenReason(lead)} (mode=${routingMode()})`);
