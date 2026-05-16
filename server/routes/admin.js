@@ -337,6 +337,11 @@ router.post('/leads/import', [auth, admin], async (req, res) => {
         price: pricing.buyNowPrice,
         auctionStatus: 'active',
         auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        // Phase A — forward-only distribution-model stamp (see leadIngest.js).
+        distributionModel: (
+          String(process.env.ENABLE_INSTANT_DISPATCH || '').toLowerCase() === 'true'
+          || String(process.env.ENABLE_INSTANT_DISPATCH || '') === '1'
+        ) ? 'instant' : 'auction',
         statusHistory: [{ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() }],
       });
 

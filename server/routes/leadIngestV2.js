@@ -215,6 +215,11 @@ router.post('/', ingestLimiter, async (req, res) => {
       startingBidPrice: auctionPricing.startingBidPrice,
       currentBidPrice: auctionPricing.startingBidPrice,
       pricingEngineVersion,
+      // Phase A — forward-only stamp (see leadIngest.js for full rationale).
+      distributionModel: (
+        String(process.env.ENABLE_INSTANT_DISPATCH || '').toLowerCase() === 'true'
+        || String(process.env.ENABLE_INSTANT_DISPATCH || '') === '1'
+      ) ? 'instant' : 'auction',
       auctionStatus: 'active',
       auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),

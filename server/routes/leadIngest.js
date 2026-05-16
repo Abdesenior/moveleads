@@ -209,6 +209,13 @@ router.post('/', ingestLimiter, async (req, res) => {
       startingBidPrice: auctionPricing.startingBidPrice,
       currentBidPrice: auctionPricing.startingBidPrice,
       pricingEngineVersion,
+      // Phase A — forward-only stamp. Reads ENABLE_INSTANT_DISPATCH but does
+      // NOT branch any other ingest behavior yet: every lead still gets the
+      // 24-hour auction window below. The stamp is what Phase B will switch on.
+      distributionModel: (
+        String(process.env.ENABLE_INSTANT_DISPATCH || '').toLowerCase() === 'true'
+        || String(process.env.ENABLE_INSTANT_DISPATCH || '') === '1'
+      ) ? 'instant' : 'auction',
       auctionStatus: 'active',
       auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24-hour window
       ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),

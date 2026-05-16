@@ -208,6 +208,34 @@ const LeadSchema = new mongoose.Schema({
   // (version=undefined) keep behaving exactly as they did before Phase 3
   // shipped — no migration, no backfill, no re-derivation.
   pricingEngineVersion:      { type: String, enum: ['legacy', 'simple'] },
+
+  // ── Distribution model — Phase A (forward-only stamp, no behavior change) ──
+  //
+  // Captures HOW a lead is sold:
+  //   'auction'  → 24h bid window + buy-now (legacy primary path; default for
+  //                back-compat and for all leads created while the
+  //                ENABLE_INSTANT_DISPATCH env flag is off)
+  //   'instant'  → buy-now / SMS-claim only, first-come-first-served,
+  //                no auction window, no bidding. Set when ingest sees
+  //                ENABLE_INSTANT_DISPATCH=true.
+  //
+  // Phase A invariant: the field is WRITTEN at ingest but NOT yet read by any
+  // money path. Bid routes, settlement cron, broadcast pipeline, UI — all
+  // still assume the auction model. Flipping the env flag in this phase only
+  // changes WHICH STRING gets stored; nothing else.
+  //
+  // Phase B will branch ingest defaults (skip auctionEndsAt/startingBidPrice
+  // on 'instant' leads), block bid attempts on 'instant' leads, and hide
+  // auction UI for them. Phase C flips the flag in prod.
+  //
+  // Default 'auction' so any back-compat path (admin POST body-spread,
+  // CSV import scripts, test fixtures) keeps the current behavior without
+  // needing an explicit value.
+  distributionModel: {
+    type: String,
+    enum: ['auction', 'instant'],
+    default: 'auction',
+  },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.
