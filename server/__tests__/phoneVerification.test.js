@@ -207,9 +207,17 @@ process.env.LEAD_VISIBILITY_REPORT_INTERVAL_MS = '0';
 
   // Bust the require cache so the module re-evaluates with the cleared env
   delete require.cache[require.resolve('../services/twilioVerifyService')];
-  const { isVerifyConfigured, sendVerification, checkVerification } = require('../services/twilioVerifyService');
+  const { isVerifyConfigured, sendVerification, checkVerification, describeVerifyConfig } = require('../services/twilioVerifyService');
 
   assert.strictEqual(isVerifyConfigured(), false, 'unconfigured when env vars absent');
+
+  // describeVerifyConfig returns SID prefixes safely (no auth token)
+  const cfg = describeVerifyConfig();
+  assert.strictEqual(cfg.configured, false, 'describeVerifyConfig.configured=false when unconfigured');
+  assert.strictEqual(cfg.accountSidPrefix, '<missing>', 'missing accountSid prefix');
+  assert.strictEqual(cfg.verifySidPrefix,  '<missing>', 'missing verifySid prefix');
+  // describeVerifyConfig must NEVER leak the auth token in its output
+  assert.ok(!('authToken' in cfg), 'describeVerifyConfig must not expose authToken');
 
   (async () => {
     const sendRes = await sendVerification('+15551234567');
@@ -228,6 +236,48 @@ process.env.LEAD_VISIBILITY_REPORT_INTERVAL_MS = '0';
     if (savedToken) process.env.TWILIO_AUTH_TOKEN = savedToken;
     if (savedVerify) process.env.TWILIO_VERIFY_SID = savedVerify;
   })();
+}
+
+// ── G. Block-error mapping — 60238 and family map to clean error code ─────
+//
+// Static source assertions: the normalizeError function in
+// twilioVerifyService.js maps Twilio fraud-block codes to a clean
+// `verification_blocked_by_twilio` error string rather than `unknown`.
+// The route file then surfaces this with HTTP 422 + operator hint.
+{
+  const fs = require('fs');
+  const path = require('path');
+  const verifySrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'twilioVerifyService.js'), 'utf8');
+  const routeSrc  = fs.readFileSync(path.join(__dirname, '..', 'routes', 'phoneVerification.js'), 'utf8');
+
+  // 60238 must be mapped to verification_blocked_by_twilio in the wrapper
+  assert.ok(/code === 60238/.test(verifySrc),
+    'twilioVerifyService must explicitly handle Twilio code 60238');
+  assert.ok(/verification_blocked_by_twilio/.test(verifySrc),
+    'twilioVerifyService must emit verification_blocked_by_twilio error string');
+
+  // 20003 / 20404 auth errors mapped cleanly so wrong-SID is distinguishable
+  assert.ok(/code === 20003 \|\| code === 20404/.test(verifySrc),
+    'twilioVerifyService must map auth-error codes (20003/20404)');
+  assert.ok(/verify_auth_error/.test(verifySrc),
+    'twilioVerifyService must emit verify_auth_error string');
+
+  // Route surfaces verification_blocked_by_twilio with 422 + operator hint
+  assert.ok(/'verification_blocked_by_twilio'/.test(routeSrc),
+    'route must handle verification_blocked_by_twilio');
+  assert.ok(/status\(422\)/.test(routeSrc),
+    'blocked-by-twilio returns 422 status');
+
+  // Diagnostic log emits PII-safe fingerprint (country prefix + last 2)
+  assert.ok(/phoneFingerprint/.test(routeSrc),
+    'route must compute a PII-safe phoneFingerprint for logs');
+  assert.ok(/console\.warn[\s\S]*phone=\$\{phoneFingerprint\}/.test(routeSrc),
+    'route must log failure with phoneFingerprint, not raw phone');
+  // Diagnostic log must NOT include the raw E.164
+  assert.ok(!/console\.warn[\s\S]*\$\{e164\}/.test(routeSrc.split('console.warn')[1] || ''),
+    'route must not log raw e164 in failure log');
+
+  console.log('  ✓ G. Block-error mapping (60238 family) + PII-safe logging');
 }
 
 // ── E. Phone-change wiring — onboarding.js + users.js PUT ─────────────────

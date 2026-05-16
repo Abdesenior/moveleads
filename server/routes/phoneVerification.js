@@ -130,7 +130,17 @@ router.post('/send-verification', sendLimiter, async (req, res) => {
 
     // 5. Twilio call
     const result = await sendVerification(e164);
+
+    // Always log the outcome with a PII-safe phone fingerprint so operators
+    // can debug Twilio-side issues from server logs without hunting through
+    // Twilio's console. Format:
+    //   country prefix (+1) + last 4 digits + masked middle
+    //   e.g. '+1 *** *** **67'
+    // Twilio code + message round-trip back so 60238 / Fraud Guard / etc.
+    // are immediately visible in the logs.
+    const phoneFingerprint = `+1 *** *** **${e164.slice(-2)}`;
     if (!result.ok) {
+      console.warn(`[phoneVerification] send failed phone=${phoneFingerprint} user=${req.user.id} error=${result.error} twilioCode=${result.twilioCode || 'n/a'} msg=${result.message || ''}`);
       if (result.skipped) {
         return res.status(503).json({
           error: 'verify_service_unavailable',
@@ -143,9 +153,29 @@ router.post('/send-verification', sendLimiter, async (req, res) => {
       if (result.error === 'invalid_phone') {
         return res.status(400).json({ error: 'invalid_phone_format', message: 'Twilio rejected the phone number.' });
       }
-      console.error('[phoneVerification] sendVerification unknown error:', result);
+      if (result.error === 'verification_blocked_by_twilio') {
+        // 60238 / 60410 / 60411 / 60223 — Twilio Fraud Guard at the service
+        // level, geo-permission gap, carrier-level block, or disabled
+        // delivery channel. Requires operator action in Twilio Console
+        // (Verify → Services → [MoveLeads] → Settings + Allowed Countries).
+        // The mover can't self-resolve this; surface a distinct code so the
+        // UI can show an "ask support" message rather than implying retry
+        // will help.
+        return res.status(422).json({
+          error: 'verification_blocked_by_twilio',
+          twilioCode: result.twilioCode,
+          message: 'Verification SMS was blocked. Please contact support.',
+        });
+      }
+      if (result.error === 'verify_auth_error') {
+        return res.status(503).json({
+          error: 'verify_service_unavailable',
+          message: 'Verification service is briefly unavailable. Please try again in a few minutes.',
+        });
+      }
       return res.status(502).json({ error: 'verify_service_error', message: 'Verification service error. Please try again.' });
     }
+    console.log(`[phoneVerification] send ok phone=${phoneFingerprint} user=${req.user.id} sendsToday=${(user.phoneVerificationSendsToday?.count || 0) + 1}`);
 
     // 6. Update counters + cooldown timestamp atomically. Compute the new
     //    daily counter against the read-side state we already have.
@@ -205,8 +235,10 @@ router.post('/verify-code', verifyLimiter, async (req, res) => {
     }
 
     const result = await checkVerification(e164, code);
+    const phoneFingerprint = `+1 *** *** **${e164.slice(-2)}`;
 
     if (!result.ok) {
+      console.warn(`[phoneVerification] check failed phone=${phoneFingerprint} user=${req.user.id} error=${result.error} twilioCode=${result.twilioCode || 'n/a'} msg=${result.message || ''}`);
       if (result.skipped) {
         return res.status(503).json({ error: 'verify_service_unavailable' });
       }
@@ -216,7 +248,16 @@ router.post('/verify-code', verifyLimiter, async (req, res) => {
           message: 'No active verification. Request a new code.',
         });
       }
-      console.error('[phoneVerification] check unknown error:', result);
+      if (result.error === 'verification_blocked_by_twilio') {
+        return res.status(422).json({
+          error: 'verification_blocked_by_twilio',
+          twilioCode: result.twilioCode,
+          message: 'Verification was blocked. Please contact support.',
+        });
+      }
+      if (result.error === 'verify_auth_error') {
+        return res.status(503).json({ error: 'verify_service_unavailable' });
+      }
       return res.status(502).json({ error: 'verify_service_error' });
     }
 

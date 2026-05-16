@@ -102,6 +102,11 @@ export default function VerifyPhoneModal({ isOpen, onClose, onSuccess }) {
       case 'daily_limit':            return 'You’ve hit the daily verification limit. Try again tomorrow.';
       case 'verify_service_unavailable': return 'Verification service is briefly unavailable. Please try again shortly.';
       case 'invalid_phone_format':   return 'That phone number doesn’t look valid. Update it in your profile and try again.';
+      case 'verification_blocked_by_twilio':
+        // Twilio Fraud Guard at the service level / geo-permission gap /
+        // carrier block. The mover can't self-resolve — needs operator
+        // action in Twilio Console. Tell them so they don't burn retries.
+        return 'Verification SMS was blocked by our SMS provider. Please contact support — we’ll get this resolved quickly.';
       case 'invalid_code':           return 'Code didn’t match. Double-check and try again.';
       case 'invalid_code_format':    return 'Enter the full 6-digit code.';
       case 'verification_expired':   return 'Code expired or too many attempts. Send a new code.';

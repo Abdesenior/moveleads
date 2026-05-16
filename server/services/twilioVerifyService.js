@@ -40,6 +40,61 @@ function isVerifyConfigured() {
 }
 
 /**
+ * Safe-to-log prefix of a Twilio SID. SIDs are not secrets (they're
+ * routinely visible in Twilio console URLs + dashboards) but we keep
+ * log output tight: first 6 chars + last 4 + middle masked.
+ *
+ *   <example-account-sid>  →  <masked-sid>
+ *
+ * Used by:
+ *   - startup config dump (logVerifyConfigOnce)
+ *   - per-attempt diagnostic logs in routes/phoneVerification.js
+ */
+function _maskSid(sid) {
+  if (!sid || typeof sid !== 'string' || sid.length < 12) return '<missing>';
+  return `${sid.slice(0, 6)}…${sid.slice(-4)}`;
+}
+
+/**
+ * Verify config snapshot for diagnostics. Returns ONLY non-secret
+ * identifiers: SID prefixes, account-mode hint, and whether the service
+ * is wired. The actual auth token is never returned.
+ *
+ * Account-mode detection (trial vs production) requires an extra REST
+ * call to /Accounts/{sid}, which we don't fire on every request. Callers
+ * can use describeVerifyConfig() once at startup to surface it.
+ */
+function describeVerifyConfig() {
+  return {
+    configured: isVerifyConfigured(),
+    accountSidPrefix: _maskSid(accountSid),
+    verifySidPrefix:  _maskSid(verifyService),
+    sameAccountFamily: Boolean(accountSid && verifyService),
+    // We can't infer trial/production from local env alone — the SID
+    // format doesn't differ. Operator must check Twilio console.
+  };
+}
+
+/**
+ * One-shot startup log so the operator can confirm at deploy time that the
+ * server picked up the right credentials. Logs only prefixes — no auth
+ * token, no full SIDs.
+ *
+ * Idempotent: safe to call multiple times; only the first call logs.
+ */
+let _startupLogged = false;
+function logVerifyConfigOnce() {
+  if (_startupLogged) return;
+  _startupLogged = true;
+  const cfg = describeVerifyConfig();
+  if (!cfg.configured) {
+    console.warn(`[twilioVerify] NOT CONFIGURED — accountSid=${cfg.accountSidPrefix} verifySid=${cfg.verifySidPrefix}. /api/users/me/phone/* routes will 503.`);
+    return;
+  }
+  console.log(`[twilioVerify] configured — accountSid=${cfg.accountSidPrefix} verifySid=${cfg.verifySidPrefix}`);
+}
+
+/**
  * Create a fresh verification — Twilio generates a 6-digit code and sends
  * an SMS to the E.164 number provided.
  *
@@ -105,26 +160,48 @@ async function checkVerification(e164Phone, code) {
 
 /**
  * Map Twilio SDK errors into the small result shape the route layer expects.
- * Twilio error codes we care about specifically:
- *   - 20429: rate limit exceeded
- *   - 60200: invalid parameter (often malformed phone)
- *   - 60203: max send attempts reached for this phone
- *   - 60212: too many concurrent verifications for this phone
- * Everything else surfaces as `unknown` and gets a 502 from the route.
+ *
+ * Codes we care about specifically:
+ *   20429 / 60203 / 60212 → twilio_rate_limit (per-phone / per-account rate)
+ *   60200                 → invalid_phone (malformed number)
+ *   60238                 → verification_blocked_by_twilio (Fraud Guard at
+ *                           the service level, geo-permission gap, or
+ *                           Twilio's internal block heuristics)
+ *   60410 / 60411         → verification_blocked_by_twilio (carrier-level
+ *                           blocks, similar operator action required)
+ *   60223                 → verification_blocked_by_twilio (delivery
+ *                           channel disabled for the destination)
+ *   20003 / 20404         → verify_auth_error (wrong VERIFY_SID for this
+ *                           account, or auth token invalid)
+ *
+ * Everything else surfaces as `unknown` and the route returns 502.
+ * Both ways the original twilioCode + message round-trip back so the
+ * route can log the diagnostic detail without us having to know every
+ * Twilio code in advance.
  */
 function normalizeError(err) {
   const code = err?.code ?? err?.status ?? null;
+  const message = err?.message || 'Twilio Verify error';
+
   if (code === 20429 || code === 60203 || code === 60212) {
-    return { ok: false, error: 'twilio_rate_limit', twilioCode: code, message: err.message };
+    return { ok: false, error: 'twilio_rate_limit', twilioCode: code, message };
   }
   if (code === 60200) {
-    return { ok: false, error: 'invalid_phone', twilioCode: code, message: err.message };
+    return { ok: false, error: 'invalid_phone', twilioCode: code, message };
   }
-  return { ok: false, error: 'unknown', twilioCode: code, message: err?.message || 'Twilio Verify error' };
+  if (code === 60238 || code === 60410 || code === 60411 || code === 60223) {
+    return { ok: false, error: 'verification_blocked_by_twilio', twilioCode: code, message };
+  }
+  if (code === 20003 || code === 20404) {
+    return { ok: false, error: 'verify_auth_error', twilioCode: code, message };
+  }
+  return { ok: false, error: 'unknown', twilioCode: code, message };
 }
 
 module.exports = {
   isVerifyConfigured,
   sendVerification,
   checkVerification,
+  describeVerifyConfig,
+  logVerifyConfigOnce,
 };

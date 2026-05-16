@@ -174,5 +174,12 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Surface Twilio Verify config on boot so operators can confirm at deploy
+// time that the right credentials were picked up. Logs only SID prefixes —
+// no auth token, no full SIDs. Quiet no-op if the wrapper isn't loaded yet.
+try {
+  require('./services/twilioVerifyService').logVerifyConfigOnce();
+} catch (_e) { /* non-fatal */ }
+
 const PORT = process.env.PORT || 5005;
 server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
