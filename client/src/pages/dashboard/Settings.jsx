@@ -150,8 +150,6 @@ export default function SettingsPage() {
     if (user?.maxDistance === 'Long Distance') return 'Long Distance only (> 100 miles)';
     return 'Any Distance';
   });
-  const [receiveLiveTransfers, setReceiveLiveTransfers] = useState(user?.receiveLiveTransfers ?? false);
-  const [liveTransferMsg, setLiveTransferMsg] = useState('');
   const [prefsSaving, setPrefsSaving]   = useState(false);
   const [prefsMsg, setPrefsMsg]         = useState('');
 
@@ -181,25 +179,6 @@ export default function SettingsPage() {
     }
   };
 
-  /* Auto-save live transfer toggle on change */
-  const handleLiveTransferToggle = async (val) => {
-    setReceiveLiveTransfers(val);
-    try {
-      const res = await fetch(`${API_URL}/users/${user._id}`, {
-        method: 'PUT',
-        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiveLiveTransfers: val }),
-      });
-      if (!res.ok) throw new Error();
-      await refreshUser();
-      setLiveTransferMsg('Live transfer preference saved');
-      setTimeout(() => setLiveTransferMsg(''), 3000);
-    } catch {
-      setLiveTransferMsg('Failed to save — try again');
-      setTimeout(() => setLiveTransferMsg(''), 3000);
-    }
-  };
-
   /* Danger */
   const [dangerDeleting, setDangerDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -212,7 +191,6 @@ export default function SettingsPage() {
     if (!user) return;
     setEmailNotif(user.emailNotif ?? true);
     setSmsNotif(user.smsNotif ?? false);
-    setReceiveLiveTransfers(user.receiveLiveTransfers ?? false);
     setProfilePhone(user.phone || '');
     setServiceStates(Array.isArray(user.serviceStates) ? user.serviceStates : []);
     didInit.current = true;
@@ -241,12 +219,12 @@ export default function SettingsPage() {
     fetch(`${API_URL}/users/${user._id}`, {
       method: 'PUT',
       headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailNotif, smsNotif, receiveLiveTransfers }),
+      body: JSON.stringify({ emailNotif, smsNotif }),
     })
       .then(() => refreshUser())
       .catch(() => {})
       .finally(() => setSaving(false));
-  }, [emailNotif, smsNotif, receiveLiveTransfers]); // eslint-disable-line
+  }, [emailNotif, smsNotif]); // eslint-disable-line
 
   const saveCoverageZips = async (nextZips) => {
     setCoverageSaving(true);
@@ -336,7 +314,7 @@ export default function SettingsPage() {
       const res = await fetch(`${API_URL}/users/${user._id}`, {
         method: 'PUT',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preferredHomeSizes, maxDistance, receiveLiveTransfers }),
+        body: JSON.stringify({ preferredHomeSizes, maxDistance }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.msg || 'Failed to save preferences');
@@ -463,30 +441,6 @@ export default function SettingsPage() {
                   <Toggle on={row.value} onChange={row.onChange} />
                 </div>
               ))}
-
-              {/* Live Phone Transfers — third toggle row */}
-              <div style={{ padding: '18px 24px', borderBottom: '1px solid #f1f5f9' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                      <span style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>Live Phone Transfers</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: 20 }}>$40/lead</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
-                      When a premium lead requests a quote, our system will call your phone directly. Press 1 to accept and instantly connect with the customer.
-                    </div>
-                  </div>
-                  <Toggle on={receiveLiveTransfers} onChange={setReceiveLiveTransfers} />
-                </div>
-                <div style={{ marginTop: 10, fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '7px 12px' }}>
-                  ⚠️ You will be charged $40 per accepted call. Ensure your balance stays above $50.
-                </div>
-                {liveTransferMsg && (
-                  <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: liveTransferMsg.startsWith('Failed') ? '#dc2626' : '#16a34a' }}>
-                    ✓ {liveTransferMsg}
-                  </div>
-                )}
-              </div>
 
               <div style={{ padding: '16px 24px' }}>
                 <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
@@ -776,33 +730,6 @@ export default function SettingsPage() {
                     <option>Long Distance only (&gt; 100 miles)</option>
                   </select>
                 </div>
-              </div>
-
-              {/* Live Transfer Toggle Section */}
-              <div style={{ padding: '0 24px 20px' }}>
-                <div style={{ 
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                  padding: '16px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' 
-                }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 2 }}>
-                      Receive Live Phone Transfers ($40/lead)
-                    </div>
-                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
-                      When a premium lead requests a quote, our system will call your phone directly. 
-                      Press 1 to accept the lead and instantly connect with the customer. Normal balance requirements apply.
-                    </div>
-                  </div>
-                  <Toggle on={receiveLiveTransfers} onChange={handleLiveTransferToggle} />
-                </div>
-                <div style={{ marginTop: 10, fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px' }}>
-                  ⚠️ You will be charged $40 per accepted call. Ensure your balance stays above $50.
-                </div>
-                {liveTransferMsg && (
-                  <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: liveTransferMsg.startsWith('Failed') ? '#dc2626' : '#16a34a' }}>
-                    ✓ {liveTransferMsg}
-                  </div>
-                )}
               </div>
 
               <div style={{ padding: '0 24px 24px' }}>

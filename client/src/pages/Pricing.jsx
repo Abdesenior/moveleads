@@ -39,14 +39,6 @@ const pricingPageFaqSchema = {
     },
     {
       '@type': 'Question',
-      name: 'What is a Live Warm Transfer?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'When a Grade A lead submits, our system calls the customer immediately. If they press 1, your phone rings. Press 1 to accept and you\'re instantly connected to a live customer ready to book. You\'re charged $40 only if you accept the call.'
-      }
-    },
-    {
-      '@type': 'Question',
       name: 'How is Lead Grade calculated?',
       acceptedAnswer: {
         '@type': 'Answer',
@@ -202,7 +194,7 @@ export default function Pricing() {
             </div>
           </Reveal>
 
-          <div className="pricing-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, alignItems: 'start' }}>
+          <div className="pricing-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, alignItems: 'start' }}>
             {/* Card 1 — Standard */}
             <Reveal delay={0.05}>
               <div style={{ background: '#fff', border: `1px solid ${BL}`, borderRadius: 20, padding: '32px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
@@ -270,44 +262,6 @@ export default function Pricing() {
               </div>
             </Reveal>
 
-            {/* Card 3 — Warm Transfer */}
-            <Reveal delay={0.19}>
-              <div style={{ background: '#fff', border: `1px solid ${BL}`, borderRadius: 20, padding: '32px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 12, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ORANGE }}><Phone size={20} /></div>
-                  <div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: NAVY, fontFamily: F }}>Live Warm Transfer</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>Live customer on the line</div>
-                  </div>
-                </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#fff7ed', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 8, padding: '4px 10px', marginBottom: 14, fontSize: 12, fontWeight: 700, color: ORANGE }}>
-                  🔥 Highest conversion rate
-                </div>
-                <div style={{ marginBottom: 20 }}>
-                  <span style={{ fontSize: 40, fontWeight: 800, color: NAVY, fontFamily: F, letterSpacing: '-0.03em' }}>$40</span>
-                  <span style={{ fontSize: 14, color: '#94a3b8', marginLeft: 4 }}>/call accepted</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
-                  {[
-                    'Opt in from your Settings page',
-                    'Grade A lead submits → we call them instantly',
-                    'They press 1 → your phone rings',
-                    'Press 1 to accept — live customer, ready to book',
-                  ].map((t, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
-                      <CheckCircle size={14} color="#22c55e" style={{ marginTop: 2, flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, color: '#475569', lineHeight: 1.5 }}>{t}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ padding: '10px 14px', background: '#fff7ed', borderRadius: 10, fontSize: 12, color: '#92400e', borderLeft: `3px solid ${ORANGE}`, marginBottom: 10 }}>
-                  <strong>Best for:</strong> Movers who want instant live connections
-                </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>
-                  Requires balance ≥ $50. Opt-in required in Settings.
-                </div>
-              </div>
-            </Reveal>
           </div>
         </div>
       </section>
@@ -416,7 +370,6 @@ export default function Pricing() {
                       { type: 'Local urgent', size: '2 Bedroom', dist: '< 100 mi', grade: 'B', price: '$20', highlight: false },
                       { type: 'Long distance', size: '3 Bedroom', dist: '500+ mi', grade: 'B', price: '$45', highlight: false },
                       { type: 'Long distance peak', size: '4 Bedroom', dist: '1,000+ mi', grade: 'A', price: '$75', highlight: false },
-                      { type: 'Live Warm Transfer', size: 'Any', dist: 'Any', grade: 'A only', price: '$40/call', highlight: true },
                     ].map((row, i) => (
                       <tr key={i} style={{ borderBottom: `1px solid ${BL}`, background: row.highlight ? '#fff7ed' : i % 2 === 0 ? '#fff' : '#fafbfc' }}>
                         <td style={{ padding: '14px 20px', fontWeight: 600, color: NAVY }}>{row.type}</td>
@@ -462,7 +415,6 @@ export default function Pricing() {
             ['Do I need a subscription?', 'No. Add balance and buy leads whenever you want. There are no monthly fees, no contracts, and no minimums. You only pay when you claim a lead.'],
             ['What if a lead has a bad phone number?', 'Every lead is verified via Twilio before entering the marketplace. If you receive an invalid or disconnected number, contact support within 24 hours for a full credit.'],
             ["Can I set a territory so I only see local leads?", "Yes — set your coverage zip codes in Settings and only leads that match will appear in your feed. You won't see (or be charged for) leads outside your area."],
-            ['What is a Live Warm Transfer?', "When a Grade A lead submits, our system calls the customer immediately. If they press 1, your phone rings. Press 1 to accept and you're instantly connected to a live customer ready to book. You're charged $40 only if you accept the call."],
             ['How is Lead Grade calculated?', 'We score every lead on distance, home size, urgency, and whether the phone number is a real mobile line. Grade A = highest value, long-distance, peak season. Grade C = standard local leads.'],
           ]} />
         </div>

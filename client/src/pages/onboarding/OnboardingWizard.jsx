@@ -22,7 +22,7 @@ const stripePromiseSingleton = (() => {
 // Internal step state numbering:
 //   1 = Dispatch base + pickup
 //   2 = Delivery coverage
-//   3 = Alerts (phone, SMS, email, Live Phone Transfers)
+//   3 = Alerts (phone, SMS, email)
 //   4 = Setup-complete celebration interstitial (no progress bar)
 //   5 = Activate / balance picker (no Stripe call yet)
 //   6 = Secure payment (Stripe Payment Element)
@@ -128,7 +128,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     phone: user?.phone || '',
     smsNotif:             user?.smsNotif !== undefined ? !!user.smsNotif : true,
     emailNotif:           user?.emailNotif !== undefined ? !!user.emailNotif : true,
-    receiveLiveTransfers: !!user?.receiveLiveTransfers,
   });
 
   const [tier, setTier] = useState(100);
@@ -184,8 +183,8 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   // The useState initializer above runs synchronously on first mount, when
   // `user` may still be null (the wizard mounts from DashboardLayout before
   // /auth/me returns). Email already works because it's passed as a prop and
-  // re-renders pick up the late value. Phone, smsNotif, emailNotif, and
-  // receiveLiveTransfers live in `answers` state, so they need an effect.
+  // re-renders pick up the late value. Phone, smsNotif, and emailNotif live
+  // in `answers` state, so they need an effect.
   // Never overwrites typed input — only fills empty/default fields.
   useEffect(() => {
     if (!user) return;
@@ -227,7 +226,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             phone:                (typeof a.phone === 'string' && a.phone) ? formatUSPhone(a.phone) : prev.phone,
             smsNotif:             (typeof a.smsNotif === 'boolean') ? a.smsNotif : prev.smsNotif,
             emailNotif:           (typeof a.emailNotif === 'boolean') ? a.emailNotif : prev.emailNotif,
-            receiveLiveTransfers: (typeof a.receiveLiveTransfers === 'boolean') ? a.receiveLiveTransfers : prev.receiveLiveTransfers,
           }));
         }
       })
@@ -256,7 +254,6 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           phone: normalizeUSDigits(answers.phone),
           smsNotif: answers.smsNotif,
           emailNotif: answers.emailNotif,
-          receiveLiveTransfers: answers.receiveLiveTransfers,
         },
       }),
     });
@@ -725,7 +722,7 @@ function previewMessage(p) {
   return <span>Coverage ready</span>;
 }
 
-// ── Step 3: Alerts (phone + SMS + email + Live Transfers) ───────────────────
+// ── Step 3: Alerts (phone + SMS + email) ────────────────────────────────────
 function ScreenAlerts({ answers, setAnswer, userEmail }) {
   // Show inline phone validation only once the user has typed something —
   // empty field is "incomplete", not "invalid".
@@ -825,7 +822,6 @@ function ScreenSetupComplete({ answers, onClaim }) {
   const enabledChannels = [];
   if (answers.smsNotif) enabledChannels.push('SMS');
   if (answers.emailNotif) enabledChannels.push('Email');
-  if (answers.receiveLiveTransfers) enabledChannels.push('Live calls');
   const alertsBody = enabledChannels.length
     ? `${enabledChannels.join(' · ')} alerts prepared`
     : 'In-dashboard alerts prepared';
