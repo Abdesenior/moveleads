@@ -86,7 +86,6 @@ app.get('/api/health', async (req, res) => {
 //   /api/auth         — the verification mechanism itself + /me which the
 //                       client polls to discover verification status.
 //   /api/twilio       — Twilio webhooks (signature verified, no JWT).
-//   /api/voice        — Twilio voice webhooks (signature verified, no JWT).
 //   /api/public       — unauthenticated lead-volume + quote-ingest endpoints.
 //   /api/billing/webhook — Stripe webhook (mounted above, signature verified).
 const { auth, requireEmailVerified } = require('./middleware/auth');
@@ -95,7 +94,28 @@ const verifiedGate = [auth, requireEmailVerified];
 app.use('/api/auth',   require('./routes/auth'));    // PUBLIC: verification mechanism
 app.use('/api/public', require('./routes/public'));  // PUBLIC: lead-volume / quote ingest
 app.use('/api/twilio', require('./routes/twilio'));  // PUBLIC: Twilio signature-verified webhooks
-app.use('/api/voice',  require('./routes/voice'));   // PUBLIC: Twilio voice webhooks
+// ── Phase 2A — Warm-transfer / Live Phone Transfer surface RETIRED ──────────
+// /api/voice (Twilio voice webhooks → warm-transfer flow) is intentionally
+// UNMOUNTED. All paths under /api/voice/* now return 404 from Express.
+//
+// Kept for historical compatibility / potential future re-introduction:
+//   - server/routes/voice.js                  (file remains on disk)
+//   - server/utils/findEligibleMovers.js      (receiveLiveTransfers filter)
+//   - User.receiveLiveTransfers               (schema field — permanent)
+//   - Lead.isWarmTransfer                     (schema field — permanent)
+//   - PurchasedLead.isLiveTransfer            (schema field — permanent)
+//   - Existing Transaction rows with description 'Live Warm Transfer'
+//
+// Operator action required at deploy: disconnect the inbound voice webhook
+// in the Twilio console (Phone Numbers → Active Numbers → Voice Config),
+// otherwise Twilio will keep posting to a now-404'd URL and log retrieval
+// failures. See conversation: Live Transfer Phase 2A.
+//
+// Do NOT delete routes/voice.js or any of the schema fields above without
+// coordinating with the retirement plan. Schema removal is explicitly
+// out of scope — protects historical records from Mongoose strip-on-save.
+//
+// app.use('/api/voice',  require('./routes/voice'));   // PUBLIC: Twilio voice webhooks
 app.use('/api/founding-movers', require('./routes/foundingMovers')); // PUBLIC: Founding Mover Program intake
 app.use('/api/partner-research', require('./routes/partnerResearch')); // PUBLIC: Partner validation funnels (realtors + FB groups)
 
