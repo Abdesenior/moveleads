@@ -358,4 +358,4 @@ Commit hashes referenced in this document:
 - `78a1138` — Phase B server
 - `a5cdd06` — Phase B client
 - `4e409cf` — Phase D client cleanup
-- *(pending)* — Phase D server filter
+- `36d73ae` — Phase D server filter (main mover feed is instant-only)
