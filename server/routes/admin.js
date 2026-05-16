@@ -470,7 +470,7 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
     // surface distribution-readiness, cap reasons, and recent validation
     // logs without separate round-trips.
     const lead = await Lead.findById(req.params.id)
-      .select('score grade scoreFactors customerName customerPhone customerEmail route homeSize moveDate miles status validation intentConfirmed urgencyBucket heavyItems funnelVersion adminTierOverride reviewedAt reviewedBy reviewNotes buyNowPrice priceShadowV2 pricingBreakdownShadowV2')
+      .select('score grade scoreFactors customerName customerPhone customerEmail route homeSize moveDate miles status validation intentConfirmed urgencyBucket heavyItems funnelVersion adminTierOverride reviewedAt reviewedBy reviewNotes buyNowPrice priceShadowV2 pricingBreakdownShadowV2 priceShadowSimple pricingBreakdownSimple pricingEngineVersion')
       .lean();
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
 
@@ -531,6 +531,18 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
         pricingV2: {
           priceShadowV2: lead.priceShadowV2 ?? null,
           breakdown: lead.pricingBreakdownShadowV2 || [],
+        },
+        // Simplified additive USD engine (Phase 1+/3 cutover). Surfaced for
+        // the admin modal's Price Breakdown card so operators can verify
+        // post-cutover that:
+        //   • engineVersion === 'simple' leads have buyNowPrice === priceShadowSimple
+        //   • engineVersion === 'legacy' / null leads stay on their original price
+        //   • the breakdown lines match what the operator configured in /admin/pricing
+        // Read-only — never reads back into any money path.
+        pricingSimple: {
+          engineVersion:     lead.pricingEngineVersion || null,
+          priceShadowSimple: lead.priceShadowSimple ?? null,
+          breakdown:         lead.pricingBreakdownSimple || [],
         },
         validation: lead.validation || null,
       },

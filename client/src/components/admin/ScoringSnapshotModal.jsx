@@ -246,35 +246,15 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                 </div>
               )}
 
-              {/* ── Pricing: legacy buyNow vs V2 shadow breakdown ──── */}
-              {(leadDetail?.legacy?.buyNowPrice != null || leadDetail?.pricingV2?.priceShadowV2 != null) && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
-                  <div style={{ padding: 14, background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Legacy price (charged)</div>
-                    <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: '#0f172a' }}>
-                      {leadDetail?.legacy?.buyNowPrice != null ? `$${leadDetail.legacy.buyNowPrice}` : '—'}
-                    </div>
-                    <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>multiplier engine · used for claim/refund</div>
-                  </div>
-                  <div style={{ padding: 14, background: '#ecfdf5', borderRadius: 12, border: '1px solid #a7f3d0' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#047857', textTransform: 'uppercase' }}>Shadow V2 price</div>
-                    <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: '#0f172a' }}>
-                      {leadDetail?.pricingV2?.priceShadowV2 != null ? `$${leadDetail.pricingV2.priceShadowV2}` : '—'}
-                    </div>
-                    <div style={{ marginTop: 4, fontSize: 11, color: '#047857' }}>additive add-ons · NOT charged (shadow)</div>
-                    {Array.isArray(leadDetail?.pricingV2?.breakdown) && leadDetail.pricingV2.breakdown.length > 0 && (
-                      <details style={{ marginTop: 8 }}>
-                        <summary style={{ cursor: 'pointer', fontSize: 11, color: '#047857', fontWeight: 600 }}>breakdown ({leadDetail.pricingV2.breakdown.length})</summary>
-                        <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: 11, color: '#0f172a', lineHeight: 1.6 }}>
-                          {leadDetail.pricingV2.breakdown.map((b, i) => (
-                            <li key={i}>{b.label || b.code} <span style={{ color: '#64748b', marginLeft: 4 }}>${b.amountUsd}</span></li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* ── Price Breakdown card (Phase 3 cutover monitoring) ─── */}
+              <PriceBreakdownCard
+                liveBuyNowPrice={leadDetail?.legacy?.buyNowPrice}
+                engineVersion={leadDetail?.pricingSimple?.engineVersion}
+                priceShadowSimple={leadDetail?.pricingSimple?.priceShadowSimple}
+                breakdown={leadDetail?.pricingSimple?.breakdown}
+                v2={leadDetail?.pricingV2}
+              />
+
 
               {/* ── Legacy vs shadow comparison ──────────────────────── */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 22 }}>
@@ -602,5 +582,168 @@ function ActionButton({ label, icon, color, bg, onClick, disabled, loading }) {
       {icon}
       {loading ? `${label}…` : label}
     </button>
+  );
+}
+
+/*
+ * PriceBreakdownCard — observability panel for the Phase 3 cutover.
+ *
+ * Renders one of two layouts based on lead.pricingEngineVersion:
+ *
+ *   'simple'           → Live USD pricing active. buyNowPrice should equal
+ *                        priceShadowSimple — show breakdown prominently and
+ *                        warn if they diverge.
+ *
+ *   'legacy' / null    → Lead was priced by the legacy multiplier engine
+ *                        BEFORE the cutover. buyNowPrice is the live charged
+ *                        price; priceShadowSimple (if present) is shadow-only
+ *                        observability data — never charged, never compared
+ *                        for correctness, just for monitoring divergence.
+ *
+ * Read-only: never touches engine logic, money paths, or any field on Lead.
+ */
+function PriceBreakdownCard({ liveBuyNowPrice, engineVersion, priceShadowSimple, breakdown, v2 }) {
+  const live      = (liveBuyNowPrice ?? null) !== null ? Number(liveBuyNowPrice) : null;
+  const shadow    = (priceShadowSimple ?? null) !== null ? Number(priceShadowSimple) : null;
+  const isSimple  = engineVersion === 'simple';
+  const hasBreakdown = Array.isArray(breakdown) && breakdown.length > 0;
+  const delta     = (live != null && shadow != null) ? (shadow - live) : null;
+  const driftWarn = isSimple && live != null && shadow != null && live !== shadow;
+
+  // No data at all — skip the card entirely.
+  if (live == null && shadow == null) return null;
+
+  const accentBg     = isSimple ? '#ecfdf5' : '#f8fafc';
+  const accentBorder = isSimple ? '#a7f3d0' : '#e2e8f0';
+  const accentText   = isSimple ? '#047857' : '#475569';
+
+  return (
+    <div style={{ background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 18 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: accentText, textTransform: 'uppercase' }}>
+          Price breakdown
+        </div>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '2px 10px', borderRadius: 999,
+          background: isSimple ? '#0f766e' : '#64748b', color: '#fff',
+          fontSize: 11, fontWeight: 700,
+        }}>
+          {isSimple ? 'USD pricing active' : 'Legacy-priced lead'}
+        </span>
+      </div>
+
+      {/* Key/value summary grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: hasBreakdown ? 14 : 4 }}>
+        <PB_Row label="Live buyNowPrice" value={live != null ? `$${live}` : '—'} bold />
+        <PB_Row label="Pricing engine" value={engineVersion || 'undefined'} mono />
+        {!isSimple && (
+          <PB_Row label="Shadow USD price" value={shadow != null ? `$${shadow}` : '—'} />
+        )}
+        {!isSimple && delta != null && (
+          <PB_Row
+            label="Δ (shadow − live)"
+            value={delta === 0 ? '$0' : `${delta > 0 ? '+' : ''}$${delta}`}
+            color={delta > 0 ? '#dc2626' : delta < 0 ? '#16a34a' : '#64748b'}
+          />
+        )}
+        {isSimple && (
+          <PB_Row label="Shadow USD price" value={shadow != null ? `$${shadow}` : '—'} />
+        )}
+      </div>
+
+      {/* Drift warning for simple leads */}
+      {driftWarn && (
+        <div style={{
+          padding: '8px 12px', borderRadius: 8,
+          background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b',
+          fontSize: 12, fontWeight: 600, marginBottom: hasBreakdown ? 14 : 0,
+        }}>
+          ⚠ Live buyNowPrice (${live}) does not match priceShadowSimple (${shadow}). Both should be identical for a simple-priced lead. Possible causes: rules changed between ingest and Twilio reprice, or simple engine fell back to legacy mid-lifecycle.
+        </div>
+      )}
+
+      {/* Plain context for legacy leads */}
+      {!isSimple && (
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: hasBreakdown ? 14 : 0, lineHeight: 1.5 }}>
+          {engineVersion === 'legacy'
+            ? 'This lead was priced by the legacy multiplier engine before the cutover. Shadow USD price is observability-only — never charged or compared for correctness.'
+            : 'This lead pre-dates the simple-engine cutover. Shadow USD price below is for monitoring only.'}
+        </div>
+      )}
+
+      {/* Breakdown */}
+      {hasBreakdown && (
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.6, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>
+            {isSimple ? 'Breakdown (live)' : 'Breakdown (shadow)'}
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+            <tbody>
+              {breakdown.map((b, i) => (
+                <tr key={i}>
+                  <td style={{ padding: '4px 0', color: '#52525b', width: '34%' }}>
+                    {b.category === 'BASE' ? 'Base' : b.category}
+                  </td>
+                  <td style={{ padding: '4px 0', color: '#52525b', width: '46%' }}>
+                    {b.matchValue || (b.category === 'BASE' ? '' : '—')}
+                  </td>
+                  <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 700, color: (Number(b.amountUsd) || 0) < 0 ? '#16a34a' : '#0f172a' }}>
+                    {(Number(b.amountUsd) || 0) >= 0 ? `+$${b.amountUsd}` : `-$${Math.abs(b.amountUsd)}`}
+                  </td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: '1px solid #e2e8f0' }}>
+                <td colSpan={2} style={{ padding: '6px 0 0', fontWeight: 700, color: '#0f172a' }}>
+                  Final
+                </td>
+                <td style={{ padding: '6px 0 0', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#0f172a' }}>
+                  ${shadow ?? breakdown.reduce((s, b) => s + (Number(b.amountUsd) || 0), 0)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Legacy V2 comparison — collapsed by default, kept during the
+          migration window. Only renders when V2 actually has data to show. */}
+      {v2 && (v2.priceShadowV2 != null || (Array.isArray(v2.breakdown) && v2.breakdown.length > 0)) && (
+        <details style={{ marginTop: 10 }}>
+          <summary style={{ cursor: 'pointer', fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+            Compare with V2 add-on shadow (legacy comparison)
+          </summary>
+          <div style={{ marginTop: 8, padding: 10, background: '#f8fafc', borderRadius: 8, fontSize: 12 }}>
+            <div style={{ marginBottom: 6 }}>
+              V2 shadow total: <strong>{v2.priceShadowV2 != null ? `$${v2.priceShadowV2}` : '—'}</strong>
+            </div>
+            {Array.isArray(v2.breakdown) && v2.breakdown.length > 0 && (
+              <ul style={{ margin: 0, paddingLeft: 16, color: '#0f172a', lineHeight: 1.6 }}>
+                {v2.breakdown.map((b, i) => (
+                  <li key={i}>{b.label || b.code} <span style={{ color: '#64748b', marginLeft: 4 }}>${b.amountUsd}</span></li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function PB_Row({ label, value, bold, mono, color }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, color: '#64748b', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{
+        fontSize: bold ? 22 : 14,
+        fontWeight: bold ? 800 : 600,
+        color: color || '#0f172a',
+        fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : 'inherit',
+      }}>
+        {value}
+      </div>
+    </div>
   );
 }
