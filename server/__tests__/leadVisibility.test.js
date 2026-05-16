@@ -228,15 +228,17 @@ function loadFreshCapturing(envValue) {
     blockers({ miles: 500, validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment' }, route: { suspicious: [] } } }),
     [], 'telecom_low_confidence alone → not structural'
   );
+  // Phase 6.7 — suspicion_pattern alone is now structural (admin review)
   assert.deepStrictEqual(
     blockers({ miles: 500, validation: { phone: { valid: true, suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } } }),
-    [], 'suspicion_pattern alone → not structural'
+    ['suspicion_pattern'], 'suspicion_pattern alone → structural (Phase 6.7)'
   );
 
-  // COMBO (telecom_low_confidence + suspicion_pattern) → structural
+  // COMBO: telecom_low_confidence + suspicion_pattern → both codes emitted
+  // (combo code retained for back-compat with pre-Phase-6.7 denormalized arrays)
   assert.deepStrictEqual(
     blockers({ miles: 500, validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment', suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } } }),
-    ['low_confidence_plus_pattern'], 'low_conf + pattern combo → structural'
+    ['suspicion_pattern', 'low_confidence_plus_pattern'], 'low_conf + pattern → suspicion_pattern + combo (back-compat)'
   );
 
   // High fraud signals
@@ -266,18 +268,20 @@ function loadFreshCapturing(envValue) {
   assert.strictEqual(r.$and.length, 4, 'rejected_only → 4 clauses');
 
   const b = loadFresh('blocked_and_review').moverVisibilityFilter();
-  // Phase 6.6: base 4 + denormalized $nin + 6 raw-field clauses = 11
-  assert.strictEqual(b.$and.length, 11, 'blocked_and_review → 11 clauses (base 4 + structural $nin + 6 raw fallback)');
+  // Phase 6.7: base 4 + denormalized $nin + 7 raw-field clauses = 12
+  assert.strictEqual(b.$and.length, 12, 'blocked_and_review → 12 clauses (base 4 + structural $nin + 7 raw fallback)');
 
   const denormClause = b.$and[4];
   assert.ok(denormClause.structuralBlockers && Array.isArray(denormClause.structuralBlockers.$nin),
     'denormalized clause uses $nin against hide-worthy codes');
   assert.ok(denormClause.structuralBlockers.$nin.includes('invalid_phone'), 'invalid_phone in $nin list');
+  assert.ok(denormClause.structuralBlockers.$nin.includes('suspicion_pattern'), 'suspicion_pattern in $nin list (Phase 6.7)');
 
-  // Phase 6.6 raw-validation fallback clauses
+  // Phase 6.6/6.7 raw-validation fallback clauses
   const allKeys = b.$and.map(c => Object.keys(c)[0]);
   assert.ok(allKeys.includes('validation.phone.valid'), 'raw fallback: validation.phone.valid clause present');
   assert.ok(allKeys.includes('validation.phone.providerSuspicion'), 'raw fallback: providerSuspicion clause present');
+  assert.ok(allKeys.includes('validation.phone.suspicionPattern'), 'raw fallback: suspicionPattern clause present (Phase 6.7)');
   assert.ok(allKeys.includes('validation.route.suspicious'), 'raw fallback: route.suspicious clause present');
   assert.ok(allKeys.includes('miles'), 'raw fallback: miles clause present');
   assert.ok(allKeys.includes('validation.fraud.smsPumpingRisk'), 'raw fallback: sms pumping clause present');
@@ -342,7 +346,7 @@ function loadFreshCapturing(envValue) {
     ['VoIP only',                  { shadowTier: 'review', validation: { phone: { valid: true, isVoip: true }, route: { suspicious: [] } }, miles: 500 }, false],
     ['Telecom unverified only',    { shadowTier: 'review', validation: { phone: { /* no checkedAt, no validityReason */ }, route: { suspicious: [] } }, miles: 500 }, false],
     ['Telecom low confidence only',{ shadowTier: 'review', validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment' }, route: { suspicious: [] } }, miles: 500 }, false],
-    ['Suspicion pattern only',     { shadowTier: 'review', validation: { phone: { valid: true, suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } }, miles: 500 }, false],
+    ['Suspicion pattern only',     { shadowTier: 'review', validation: { phone: { valid: true, suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } }, miles: 500 }, true],
     ['Route unresolved',           { shadowTier: 'review', validation: { phone: { valid: true }, route: { suspicious: ['origin_zip_not_found'] } }, miles: 500 }, true],
     ['Invalid phone',              { shadowTier: 'review', validation: { phone: { valid: false }, route: { suspicious: [] } }, miles: 500 }, true],
     ['Pattern + low confidence',   { shadowTier: 'review', validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment', suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } }, miles: 500 }, true],
@@ -381,6 +385,12 @@ function loadFreshCapturing(envValue) {
     const op = clause[path];
     // Resolve dotted path
     const value = path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), doc);
+    // Mongo idiom: `{ field: null }` matches docs where the field is null OR
+    // missing. Used as a raw-fallback clause for nullable signals like
+    // validation.phone.suspicionPattern.
+    if (op === null) {
+      return value === null || value === undefined;
+    }
     if (op.$ne !== undefined) {
       // Mongo $ne against missing → TRUE (missing is "not equal")
       return value !== op.$ne;
@@ -465,7 +475,19 @@ function loadFreshCapturing(envValue) {
   assert.strictEqual(isVisible({ ...cleanLead, validation: { fingerprint: { bot: true } } }), false,
     'raw: confirmed bot hides');
 
-  console.log('  ✓ Phase 6.6 raw-field fallback catches stale/legacy structural leads');
+  // Phase 6.7 — suspicionPattern raw fallback
+  assert.strictEqual(
+    isVisible({ ...cleanLead, validation: { phone: { valid: true, suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } } }),
+    false,
+    'raw: suspicionPattern set hides (Phase 6.7)'
+  );
+  assert.strictEqual(
+    isVisible({ ...cleanLead, validation: { phone: { valid: true, suspicionPattern: null }, route: { suspicious: [] } } }),
+    true,
+    'raw: suspicionPattern=null keeps visible'
+  );
+
+  console.log('  ✓ Phase 6.6/6.7 raw-field fallback catches stale/legacy structural leads');
 }
 
 // Phase 6.5 — tier router hard-reject combos

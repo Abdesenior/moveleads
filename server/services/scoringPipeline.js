@@ -94,13 +94,20 @@ async function runShadow(leadId) {
       // (or missing) denormalized fields, which the visibility filter
       // treats as "still pending" (safe default).
       const structuralBlockers = computeStructuralBlockers(lead);
+      // Phase 6.7 — qualityGateCleared also fails when phone.suspicionPattern
+      // is present. Telecom Lookup may still validate the number, but the
+      // shape pattern indicates submitter-quality concerns: the lead must
+      // wait for admin review (status=PENDING_MANUAL_REVIEW via twilioService)
+      // before mover broadcast. Hard-rejection still happens only via tier
+      // (handled by leadTierRouter combo rules), not here.
+      const hasSuspicionPattern = !!(lead.validation && lead.validation.phone && lead.validation.phone.suspicionPattern);
       try {
         await Lead.updateOne(
           { _id: lead._id },
           { $set: {
               shadowTier: tier,
               shadowTierUpdatedAt: new Date(),
-              qualityGateCleared: tier !== 'rejected',
+              qualityGateCleared: tier !== 'rejected' && !hasSuspicionPattern,
               structuralBlockers,
           } }
         );

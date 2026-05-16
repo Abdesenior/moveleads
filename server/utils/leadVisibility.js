@@ -99,25 +99,32 @@ function filterModeActive() {
  *   - isHiddenFromMovers fallback when the lead doc lacks the denormalized field
  *
  * "Structural" = the lead is fundamentally hard or impossible to fulfill from
- * a mover's perspective. Soft/calibration signals (VoIP alone, telecom_low_
- * confidence alone, single suspicion_pattern alone) are NOT structural — they
- * indicate "we couldn't verify identity" but the lead may still be legit.
+ * a mover's perspective, OR carries a submitter-quality signal that warrants
+ * admin review before mover exposure. Soft/calibration signals (VoIP alone,
+ * telecom_low_confidence alone) are still NOT structural.
  *
  * Blocker codes returned (each is independently set):
- *   route_unresolved          — origin OR destination ZIP not found in Mapbox
- *   distance_unknown          — miles === 0 (couldn't compute distance)
- *   invalid_phone             — Twilio explicitly says invalid OR local NANP rule
- *   suspicious_carrier        — carrierReputation flagged provider as 'high'
- *   low_confidence_plus_pattern — BOTH telecom_low_confidence AND suspicion_pattern
- *                               present (double-uncertainty about phone identity)
- *   high_sms_pumping          — Twilio SMS pumping risk = 'high'
- *   fingerprint_bot           — fingerprint service confirmed bot
+ *   route_unresolved   — origin OR destination ZIP not found in Mapbox
+ *   distance_unknown   — miles === 0 (couldn't compute distance)
+ *   invalid_phone      — Twilio explicitly says invalid OR local NANP rule
+ *   suspicious_carrier — carrierReputation flagged provider as 'high'
+ *   suspicion_pattern  — phone-shape pattern fired (alternating/low-distinct/etc.).
+ *                        Telecom Lookup may still say the number is valid; the
+ *                        pattern indicates submitter quality is questionable,
+ *                        so the lead is held for admin review rather than
+ *                        auto-pushed to movers. Auto-reject only happens when
+ *                        combined with another hard signal (handled in
+ *                        leadTierRouter, not here).
+ *   low_confidence_plus_pattern — kept for back-compat with leads scored before
+ *                        suspicion_pattern alone became structural; functionally
+ *                        a strict subset of the new rule.
+ *   high_sms_pumping   — Twilio SMS pumping risk = 'high'
+ *   fingerprint_bot    — fingerprint service confirmed bot
  *
  * Deliberately excluded (single-signal "soft" cases):
- *   voip_line / isVoip                — phone is VoIP but legit-looking
- *   telecom_low_confidence alone       — twilio_no_enrichment with no other red flags
- *   telecom_unverified                 — no Twilio Lookup at all (toggle off)
- *   suspicion_pattern alone            — pattern fired but Twilio still validated cleanly
+ *   voip_line / isVoip            — phone is VoIP but legit-looking
+ *   telecom_low_confidence alone  — twilio_no_enrichment with no other red flags
+ *   telecom_unverified            — no Twilio Lookup at all (toggle off)
  *
  * @param {Object|null|undefined} lead - Lead document (lean or mongoose)
  * @returns {string[]} array of structural blocker codes (possibly empty)
@@ -148,7 +155,15 @@ function computeStructuralBlockers(lead) {
   if (phone.providerSuspicion === 'high') {
     out.push('suspicious_carrier');
   }
-  // COMBO: telecom_low_confidence AND suspicion_pattern (double uncertainty)
+  // Phone-shape pattern: alternating / low-distinct / sequential. Now an
+  // independent structural blocker — pattern alone is enough to hold the
+  // lead for admin review even if Twilio Lookup validates the number.
+  if (phone.suspicionPattern) {
+    out.push('suspicion_pattern');
+  }
+  // COMBO: telecom_low_confidence AND suspicion_pattern. Subsumed by the
+  // single-pattern rule above; kept emitted for back-compat with downstream
+  // analytics and pre-existing denormalized `structuralBlockers` arrays.
   const lowConf = phone.validityReason === 'twilio_no_enrichment';
   const suspPattern = !!phone.suspicionPattern;
   if (lowConf && suspPattern) {
@@ -255,6 +270,7 @@ const HIDE_WORTHY_STRUCTURAL_CODES = Object.freeze([
   'invalid_phone',
   'route_unresolved',
   'distance_unknown',
+  'suspicion_pattern',
   'low_confidence_plus_pattern',
   'suspicious_carrier',
   'high_sms_pumping',
@@ -330,6 +346,9 @@ function moverVisibilityFilter() {
     clauses.push({ miles: { $ne: 0 } });
     clauses.push({ 'validation.fraud.smsPumpingRisk': { $ne: 'high' } });
     clauses.push({ 'validation.fingerprint.bot': { $ne: true } });
+    // suspicion_pattern raw fallback: any non-null pattern string hides.
+    // `{ field: null }` is Mongo's idiom for "field is null OR missing".
+    clauses.push({ 'validation.phone.suspicionPattern': null });
   }
 
   return { $and: clauses };
