@@ -89,9 +89,21 @@ router.get('/', auth, async (req, res) => {
       // tier rejected). Purchased leads bypass the filter — a mover can
       // always see leads they already bought, even if the lead has since
       // been rejected by an admin.
+      //
+      // Phase D — main feed is instant-only. `distributionModel: 'instant'`
+      // excludes pre-Phase-A leads (missing field) and Phase-A leads stamped
+      // 'auction'. Only instant-stamped leads reach the mover marketplace.
+      // Old auction leads continue to settle in the background via the
+      // existing settle cron; they remain queryable by admin views (which
+      // don't apply this filter) and remain visible to their buyers via the
+      // purchased-leads branch of the $or below (which also bypasses this
+      // filter). DELIBERATELY not added to moverVisibilityFilter() — that
+      // helper enforces quality/safety gates, not product-surface taxonomy.
+      // See docs/marketplace-architecture.md §3 and §7.
       const availableBranch = {
         status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
         moveDate: { $gte: new Date() }, // Only future move dates
+        distributionModel: 'instant',
         $or: [
           { sourceCompany: { $exists: false } }, // Public "platform" leads
           { sourceCompany: req.user.id }         // Leads from their own widget
