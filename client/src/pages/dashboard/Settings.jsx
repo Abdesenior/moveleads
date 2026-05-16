@@ -1,7 +1,8 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus, Star, ExternalLink, Globe } from 'lucide-react';
+import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus, Star, ExternalLink, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import VerifyPhoneModal from '../../components/VerifyPhoneModal';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
 
@@ -158,6 +159,12 @@ export default function SettingsPage() {
   const [profilePhone, setProfilePhone]         = useState(user?.phone || '');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg]       = useState('');
+
+  /* Phone verification modal — opened from the SMS Alert Phone row below.
+     Reads phoneVerified state directly from AuthContext.user; refreshUser()
+     inside the modal flips the badge to "Verified" the moment Twilio
+     approves. */
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   const saveProfile = async () => {
     setProfileSaving(true);
@@ -781,9 +788,51 @@ export default function SettingsPage() {
                   className="input-field"
                   style={{ width: '100%', boxSizing: 'border-box' }}
                 />
-                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, marginBottom: 24 }}>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, marginBottom: 12 }}>
                   Enter your mobile number to receive SMS alerts when new leads match your area. Enable <strong>SMS Notifications</strong> in the Notifications tab to activate.
                 </p>
+
+                {/* Phone verification status — required for SMS alerts + SMS Claim.
+                    NOT required for email alerts, dashboard access, or onboarding.
+                    A verified phone is the operational identity layer for SMS reply
+                    matching (SMS Claim) and the TCPA compliance gate for outbound
+                    lead-alert SMS. */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: 12, padding: '12px 14px', marginBottom: 24,
+                  background: user?.phoneVerified ? '#f0fdf4' : '#fffbeb',
+                  border: `1px solid ${user?.phoneVerified ? '#bbf7d0' : '#fde68a'}`,
+                  borderRadius: 10,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    {user?.phoneVerified
+                      ? <ShieldCheck size={18} color="#16a34a" style={{ flexShrink: 0 }} />
+                      : <ShieldAlert  size={18} color="#d97706" style={{ flexShrink: 0 }} />}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: user?.phoneVerified ? '#15803d' : '#92400e' }}>
+                        {user?.phoneVerified ? 'Phone verified' : 'Phone not verified'}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>
+                        {user?.phoneVerified
+                          ? <>Receiving SMS alerts on this number{user.phoneVerifiedAt ? ` · verified ${new Date(user.phoneVerifiedAt).toLocaleDateString()}` : ''}.</>
+                          : <>Required to receive SMS lead alerts. Email alerts work without verification.</>}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVerifyOpen(true)}
+                    style={{
+                      padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+                      background: user?.phoneVerified ? '#fff' : 'linear-gradient(135deg,#2563eb,#1d4ed8)',
+                      color: user?.phoneVerified ? '#2563eb' : '#fff',
+                      boxShadow: user?.phoneVerified ? 'none' : '0 2px 8px rgba(37,99,235,0.25)',
+                      border: user?.phoneVerified ? '1px solid #bfdbfe' : 'none',
+                    }}>
+                    {user?.phoneVerified ? 'Re-verify' : 'Verify Phone'}
+                  </button>
+                </div>
 
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
                   Google Review Link
@@ -939,6 +988,12 @@ export default function SettingsPage() {
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
+
+      <VerifyPhoneModal
+        isOpen={verifyOpen}
+        onClose={() => setVerifyOpen(false)}
+        onSuccess={() => setVerifyOpen(false)}
+      />
     </DashboardLayout>
   );
 }

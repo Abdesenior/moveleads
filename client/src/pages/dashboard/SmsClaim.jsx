@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, BellRing, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import VerifyPhoneModal from '../../components/VerifyPhoneModal';
 import { AuthContext } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 
@@ -26,6 +27,7 @@ export default function SmsClaim() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const [draft, setDraft]     = useState(null);   // local copy of preferences for the form
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   const fetchState = useCallback(async () => {
     setLoading(true);
@@ -169,7 +171,15 @@ export default function SmsClaim() {
           <h2 style={panelH}>Readiness</h2>
           <div style={{ display: 'grid', gap: 8 }}>
             <ReadyRow ok={r.balanceMet}              label={`Balance ≥ $${fmt(r.recommendedBalance)}`} cta={!r.balanceMet && <Link to="/dashboard/billing" style={linkSm}>Add Funds →</Link>} />
-            <ReadyRow ok={r.phoneVerified}           label="Phone verified" />
+            <ReadyRow
+              ok={r.phoneVerified}
+              label="Phone verified"
+              cta={!r.phoneVerified && (
+                <button onClick={() => setVerifyOpen(true)} style={ctaBtnStyle}>
+                  Verify →
+                </button>
+              )}
+            />
             <ReadyRow ok={!r.smsOptOut}              label="SMS not opted out (no STOP keyword)" />
             <ReadyRow ok={r.smsNotifEnabled}         label="SMS alerts channel enabled" cta={!r.smsNotifEnabled && <Link to="/dashboard/settings" style={linkSm}>Settings →</Link>} />
             <ReadyRow ok={r.coverageConfigured}      label="Coverage area set" />
@@ -272,6 +282,12 @@ export default function SmsClaim() {
           Live SMS claiming launches with the next product update. No contract — disable anytime.
         </p>
       </div>
+
+      <VerifyPhoneModal
+        isOpen={verifyOpen}
+        onClose={() => setVerifyOpen(false)}
+        onSuccess={() => { setVerifyOpen(false); fetchState(); }}
+      />
     </DashboardLayout>
   );
 }
@@ -329,6 +345,7 @@ const subPanelP = { fontSize: 13, color: '#334155', lineHeight: 1.5, margin: 0 }
 const code     = { background: '#0f172a', color: '#fff', padding: '1px 6px', borderRadius: 4, fontSize: 12, fontWeight: 700 };
 const link     = { color: '#0f172a', textDecoration: 'underline' };
 const linkSm   = { fontSize: 12, fontWeight: 700, color: '#ea580c', textDecoration: 'none' };
+const ctaBtnStyle = { fontSize: 12, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', border: 'none', padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit' };
 const badgePreview = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 999, background: '#fff7ed', color: '#9a3412', fontSize: 11, fontWeight: 800, border: '1px solid #fdba74', textTransform: 'uppercase', letterSpacing: 0.4 };
 const banner = (bg, br, color) => ({ background: bg, border: `1px solid ${br}`, borderRadius: 14, padding: 16, marginTop: 20, color, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' });
 const addFundsBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, background: '#ea580c', color: '#fff', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' };
