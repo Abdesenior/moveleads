@@ -16,6 +16,16 @@ const isDistributable = (l) =>
   l.auctionStatus !== 'sold' &&
   l.auctionStatus !== 'expired';
 
+/* ─── Distribution-model predicates (Phase B client gating) ─────────────────
+   `lead.distributionModel` is stamped at ingest server-side. Old leads (pre-
+   Phase-A) have no field; the strict equality check below treats them as
+   auction by default, which matches the schema fallback in socketService.
+   isInstant → instant-dispatch lead: hide bid UI, single Unlock CTA.
+   isAuction → 24h auction lead in its active window: show bid + buy combo. */
+const isInstantLead = (lead) => lead?.distributionModel === 'instant';
+const isAuctionLead = (lead) =>
+  lead?.auctionStatus === 'active' && lead?.distributionModel !== 'instant';
+
 /* ─── Inline countdown tag ─────────────────────────────────────────────────── */
 function TimeLeftTag({ endsAt }) {
   const calc = useCallback(() => {
@@ -131,7 +141,8 @@ function Row({ label, value }) {
 /* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
 function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error }) {
   useBodyScrollLock();
-  const isAuction   = lead.auctionStatus === 'active';
+  const isInstant   = isInstantLead(lead);
+  const isAuction   = isAuctionLead(lead);
   const currentBid  = lead.currentBidPrice || 0;
   const buyNowPrice = getLeadPrice(lead);
   const displayPrice = isAuction
@@ -223,6 +234,16 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                   Add Funds →
                 </button>
               </div>
+            ) : isInstant ? (
+              /* Instant-dispatch: single Unlock CTA. Routes through the same
+                 atomic /buy-now endpoint as auction buy-now — server treats
+                 instant leads identically once they reach buy-now. */
+              <button
+                onClick={() => onBuyNow(lead)}
+                disabled={claiming}
+                style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
+                {claiming ? 'Claiming…' : `Unlock Lead — $${buyNowPrice.toFixed(2)} ›`}
+              </button>
             ) : isAuction ? (
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
@@ -374,11 +395,15 @@ export default function LeadFeed() {
       setLeads(prev => [lead, ...prev.filter(l => (l._id||l.id) !== (lead._id||lead.id))]);
     });
     socket.on('bid_update', (d) => {
-      setLeads(prev => prev.map(l =>
-        (l._id||l.id)?.toString() === d.leadId?.toString()
-          ? { ...l, currentBidPrice: d.currentBidPrice, auctionEndsAt: d.auctionEndsAt, bids: Array(d.totalBids).fill(null) }
-          : l
-      ));
+      setLeads(prev => prev.map(l => {
+        if ((l._id||l.id)?.toString() !== d.leadId?.toString()) return l;
+        // Phase B — bid_update is never emitted by the server for instant
+        // leads. If one arrives for an instant lead (stale event, server
+        // bug), ignore it so we don't accidentally render auction state on
+        // a card that should only show Unlock.
+        if (isInstantLead(l)) return l;
+        return { ...l, currentBidPrice: d.currentBidPrice, auctionEndsAt: d.auctionEndsAt, bids: Array(d.totalBids).fill(null) };
+      }));
     });
     socket.on('lead_sold', (d) => {
       // Guard: skip if this was our own buy-now purchase — handleBuyNow already updated state
@@ -392,6 +417,11 @@ export default function LeadFeed() {
 
       setLeads(prev => {
         const wonLead = prev.find(l => (l._id||l.id)?.toString() === leadId);
+        // Phase B — auction_settled is never emitted by the server for
+        // instant leads (cron skips them). If one arrives for an instant
+        // lead, ignore it entirely — instant leads have no auction state
+        // and shouldn't trigger winner/outbid flows.
+        if (wonLead && isInstantLead(wonLead)) return prev;
 
         if (isWinner) {
           // Cron settled this auction in our favour — show success + refresh balance
@@ -702,7 +732,8 @@ export default function LeadFeed() {
               <tbody>
                 {displayedLeads.map((lead, i) => {
                   const id        = (lead._id || lead.id)?.toString();
-                  const isAuction = lead.auctionStatus === 'active';
+                  const isInstant = isInstantLead(lead);
+                  const isAuction = isAuctionLead(lead);
                   const isLD      = lead.distance === 'Long Distance';
                   const daysToMove = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
                   const isToday   = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
@@ -831,7 +862,22 @@ export default function LeadFeed() {
 
                       {/* ── Action ── */}
                       <td className="col-action" style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {isAuction ? (
+                        {isInstant ? (
+                          /* Instant-dispatch lead: single Unlock CTA. No bid
+                             button, no Get Details detour — click claims. */
+                          <button
+                            className="cta-buy"
+                            onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
+                            disabled={claimingId === id}
+                            style={{ ...BTN_PRIMARY, opacity: claimingId === id ? 0.6 : 1 }}>
+                            {claimingId === id ? 'Claiming…' : (
+                              <>
+                                <span className="cta-text-desktop">Unlock ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›</span>
+                                <span className="cta-text-mobile">Unlock for ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}</span>
+                              </>
+                            )}
+                          </button>
+                        ) : isAuction ? (
                           <div className="cta-group" style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                             <button
                               className="cta-bid"
@@ -878,7 +924,7 @@ export default function LeadFeed() {
           <div className="leads-mobile-list" role="list">
             {displayedLeads.map((lead) => {
               const id        = (lead._id || lead.id)?.toString();
-              const isAuction = lead.auctionStatus === 'active';
+              const isAuction = isAuctionLead(lead);
               const isLD      = lead.distance === 'Long Distance';
               const daysToMove = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
               const isToday   = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
