@@ -30,7 +30,30 @@ const UserSchema = new mongoose.Schema({
   // phoneVerified: partner-side phone verification gate. Outbound lead
   // alert SMS only fires when this is true. (Distinct from any lead-side
   // phone verification on the Lead model.)
+  //
+  // ── Phone-change invariant (Phase 1 verification) ───────────────────────
+  // Every write site that updates User.phone MUST also reset phoneVerified
+  // to false + clear phoneVerifiedAt when the new value differs from the
+  // existing one. Use utils/phoneVerification.applyPhoneChange() to compute
+  // the patch. Never mutate phoneVerified manually anywhere except the
+  // /verify-code success branch.
   phoneVerified: { type: Boolean, default: false },
+  // phoneVerifiedAt: timestamp of the most recent successful verification.
+  // Set only by the /verify-code route on Twilio status='approved'. Cleared
+  // whenever phoneVerified flips back to false (phone change, etc.).
+  phoneVerifiedAt: { type: Date, default: null },
+  // phoneVerificationLastSentAt: timestamp of the most recent OTP send.
+  // Used to enforce the 60s cooldown between sends. Updated by
+  // /send-verification on every successful Twilio Verify create call.
+  phoneVerificationLastSentAt: { type: Date, default: null },
+  // phoneVerificationSendsToday: per-user daily send counter for OTP
+  // requests. dayKey is the UTC start-of-day ISO date string (YYYY-MM-DD);
+  // count resets when a new UTC day rolls over. Enforces the 10-sends/24h
+  // ceiling in /send-verification.
+  phoneVerificationSendsToday: {
+    dayKey: { type: String, default: '' },
+    count:  { type: Number, default: 0 },
+  },
   // smsCounters: per-mover daily Twilio SMS counter for the cap enforced
   // in twilioService.broadcastLeadSMS. `date` is the UTC start-of-day of
   // the count; resets when a new UTC day rolls over.

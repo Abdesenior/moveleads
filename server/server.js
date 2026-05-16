@@ -132,6 +132,10 @@ app.use('/api/leads',          verifiedGate, require('./routes/leads'));
 // Mount specific user sub-paths BEFORE the generic /api/users so the static
 // /api/users/me/sms-claim wins. Phase B — preview-only Instant Jobs prefs.
 app.use('/api/users/me/sms-claim', verifiedGate, require('./routes/smsClaim'));
+// Phone verification — Twilio Verify-backed OTP flow. Mounted before the
+// generic /api/users router so /api/users/me/phone/* paths win. Capability
+// gates SMS alerts + SMS Claim; NOT a dashboard-access gate.
+app.use('/api/users/me/phone', verifiedGate, require('./routes/phoneVerification'));
 app.use('/api/users',          verifiedGate, require('./routes/users'));
 app.use('/api/admin/settings', verifiedGate, require('./routes/settings'));
 app.use('/api/admin/mover-research', verifiedGate, require('./routes/admin/moverResearch'));

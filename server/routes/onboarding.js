@@ -11,6 +11,7 @@ const {
 } = require('../utils/coverageExpansion');
 const { suggestPlaces } = require('../utils/placeAutocomplete');
 const zipcodes = require('zipcodes');
+const { normalizeUSDigits, applyPhoneChange } = require('../utils/phoneVerification');
 
 // Whitelisted answer keys to prevent setting arbitrary fields
 const ANSWER_KEYS = [
@@ -76,14 +77,18 @@ router.post('/save-step', auth, async (req, res) => {
           // anything from the client (formatted "(555) 555-5555", E.164
           // "+15555555555", or raw "5555555555") and stores a single
           // canonical 10-digit string. Drops a leading "1" if present.
-          let phoneDigits = answers.phone.replace(/\D/g, '');
-          if (phoneDigits.length === 11 && phoneDigits.startsWith('1')) phoneDigits = phoneDigits.slice(1);
-          phoneDigits = phoneDigits.slice(0, 10);
+          const phoneDigits = normalizeUSDigits(answers.phone);
           if (phoneDigits) {
+            // Phone-change invariant: when the new value differs from the
+            // stored one, applyPhoneChange resets phoneVerified to false +
+            // clears phoneVerifiedAt. Idempotent re-saves (same number)
+            // produce an empty patch.
+            const existing = await User.findById(req.user.id).select('phone').lean();
+            Object.assign(update, applyPhoneChange(existing?.phone, phoneDigits));
+            // Always reflect the normalized form back through answers so
+            // resumes display the same canonical value via the wizard's
+            // formatter, regardless of whether the value changed.
             update['phone'] = phoneDigits;
-            // Also persist the normalized form in answers so resumes show
-            // the same canonical value back through the wizard's display
-            // formatter.
             answers.phone = phoneDigits;
           }
         }

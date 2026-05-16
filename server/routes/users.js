@@ -7,6 +7,7 @@ const Lead = require('../models/Lead');
 const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
 const { regenerateCoverageForUser_v2 } = require('../utils/coverageExpansion');
+const { normalizeUSDigits, applyPhoneChange } = require('../utils/phoneVerification');
 
 // Canonical 50 US states + DC. Matches client/src/data/usStates.js. Used to
 // validate `serviceStates` in self-update payloads — unknown codes are
@@ -47,8 +48,33 @@ router.put('/:id', auth, async (req, res) => {
 
     // Strip fields that must never be changed via this endpoint regardless of caller.
     // Role and balance changes go through dedicated admin-only routes.
+    // phoneVerified is also stripped — it can only flip true via the
+    // /api/users/me/phone/verify-code route after Twilio Verify approval.
+    // phoneVerifiedAt + phoneVerification* are server-managed state.
     const { role, balance, isSuspended, password, isEmailVerified,
-            emailVerificationToken, resetPasswordToken, ...safeBody } = req.body;
+            emailVerificationToken, resetPasswordToken,
+            phoneVerified, phoneVerifiedAt,
+            phoneVerificationLastSentAt, phoneVerificationSendsToday,
+            ...safeBody } = req.body;
+
+    // ── Phone-change invariant ─────────────────────────────────────────────
+    // If the caller is updating `phone`, normalize to digits-only and let
+    // applyPhoneChange reset phoneVerified to false when the value changes.
+    // Idempotent re-save (same number) leaves verification state intact.
+    if ('phone' in safeBody) {
+      const newDigits = normalizeUSDigits(safeBody.phone);
+      if (!newDigits && safeBody.phone) {
+        return res.status(400).json({ msg: 'Invalid phone number' });
+      }
+      const patch = applyPhoneChange(user.phone, newDigits);
+      if (Object.keys(patch).length > 0) {
+        Object.assign(safeBody, patch);
+      } else {
+        // Either same as existing or empty input — store the normalized form
+        // without touching verification state.
+        safeBody.phone = newDigits || user.phone;
+      }
+    }
 
     // ── serviceStates validation + canonical mirror ────────────────────────
     // Source of truth for "what states does this mover operate in" is
