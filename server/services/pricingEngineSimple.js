@@ -83,7 +83,15 @@ function classifyLead(lead) {
     }
   }
 
-  const heavyItems = Array.isArray(lead && lead.heavyItems) ? lead.heavyItems : [];
+  // Pricing intentionally treats "heavy items" as a single boolean signal
+  // instead of per-item exact-string matching. Movers still see the actual
+  // selected items in the lead detail view (lead.heavyItems on the doc is
+  // preserved untouched). Operators define ONE rule:
+  //   HEAVY_ITEM · has_heavy_items · +$X
+  // and the engine fires it whenever the lead reports any heavy item at all.
+  // Removes the case / typo / custom-item fragility of per-item matching.
+  const rawHeavy = Array.isArray(lead && lead.heavyItems) ? lead.heavyItems : [];
+  const heavyItems = rawHeavy.length > 0 ? ['has_heavy_items'] : [];
 
   return { distance, urgency, homeSize, verifications, heavyItems };
 }

@@ -24,16 +24,19 @@ const CATEGORIES = [
   { key: 'HEAVY_ITEM',   label: 'Heavy items',    blurb: 'Specialty items the customer flagged.',                                   defaultOpen: false },
 ];
 
-// Display-only normalization for heavy-item match values. Operators may
-// store anything in the matchValue (free string), but well-known items get
-// title-cased for readability in the table and breakdown.
+// Display-only normalization for heavy-item match values. Pricing now uses
+// a single 'has_heavy_items' signal — operators define ONE rule and the
+// engine fires it whenever the lead reports any heavy item at all. The
+// per-item entries below are kept only so any legacy/inactive rows in the
+// DB still render with friendly labels in the admin table.
 const HEAVY_ITEM_DISPLAY = {
-  piano:      'Piano',
-  safe:       'Heavy Safe',
-  pool_table: 'Pool Table',
-  hot_tub:    'Hot Tub',
-  motorcycle: 'Motorcycle',
-  gun_safe:   'Gun Safe',
+  has_heavy_items: 'Has heavy items',
+  piano:           'Piano (legacy)',
+  safe:            'Heavy Safe (legacy)',
+  pool_table:      'Pool Table (legacy)',
+  hot_tub:         'Hot Tub (legacy)',
+  motorcycle:      'Motorcycle (legacy)',
+  gun_safe:        'Gun Safe (legacy)',
 };
 function displayMatchValue(category, matchValue) {
   if (category === 'HEAVY_ITEM' && HEAVY_ITEM_DISPLAY[matchValue]) return HEAVY_ITEM_DISPLAY[matchValue];
@@ -58,7 +61,7 @@ const MATCH_SUGGESTIONS = {
   HOME_SIZE:    ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom', '5+ Bedroom'],
   URGENCY:      ['Standard', 'Soon', 'Urgent'],
   VERIFICATION: ['phone_verified', 'mobile_line', 'identity_match'],
-  HEAVY_ITEM:   ['piano', 'safe', 'pool_table', 'hot_tub', 'motorcycle'],
+  HEAVY_ITEM:   ['has_heavy_items'],
 };
 
 export default function AdminPricing() {
@@ -472,7 +475,11 @@ function SimulatorPanel({ API_URL, token }) {
   const [homeSize, setHomeSize] = useState('2 Bedroom');
   const [urgency, setUrgency]   = useState('Urgent');
   const [flags, setFlags]       = useState(['phone_verified']);
-  const [heavyItems, setHeavyItems] = useState(['piano']);
+  // Simulator sends a single representative item when the toggle is on —
+  // classifyLead collapses to ['has_heavy_items'] regardless of contents,
+  // so any non-empty array exercises the same code path.
+  const [hasHeavyItems, setHasHeavyItems] = useState(true);
+  const heavyItems = hasHeavyItems ? ['Piano'] : [];
   const [result, setResult]     = useState(null);
   const [loading, setLoading]   = useState(false);
   const debRef = useRef(null);
@@ -504,9 +511,6 @@ function SimulatorPanel({ API_URL, token }) {
   function toggleFlag(f) {
     setFlags(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
   }
-  function toggleItem(i) {
-    setHeavyItems(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
-  }
 
   return (
     <section style={section}>
@@ -535,11 +539,8 @@ function SimulatorPanel({ API_URL, token }) {
           <div style={{ marginTop: 12 }}>
             <div style={pickerLabel}>Heavy items</div>
             <div style={chipRow}>
-              {['piano', 'safe', 'pool_table', 'hot_tub'].map(i => (
-                <button key={i} type="button" onClick={() => toggleItem(i)} style={chipStyle(heavyItems.includes(i))}>
-                  {displayMatchValue('HEAVY_ITEM', i)}
-                </button>
-              ))}
+              <button type="button" onClick={() => setHasHeavyItems(true)}  style={chipStyle(hasHeavyItems)}>Has heavy items</button>
+              <button type="button" onClick={() => setHasHeavyItems(false)} style={chipStyle(!hasHeavyItems)}>None</button>
             </div>
           </div>
         </div>

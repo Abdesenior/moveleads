@@ -59,9 +59,10 @@ const DEFAULT_SEED = [
   { category: 'VERIFICATION', matchValue: 'mobile_line',      amountUsd: 3,  description: 'Cellular line (not VoIP)' },
   { category: 'VERIFICATION', matchValue: 'identity_match',   amountUsd: 5,  description: 'Name matches Twilio identity' },
 
-  { category: 'HEAVY_ITEM',   matchValue: 'piano',            amountUsd: 10, description: '' },
-  { category: 'HEAVY_ITEM',   matchValue: 'safe',             amountUsd: 15, description: '' },
-  { category: 'HEAVY_ITEM',   matchValue: 'pool_table',       amountUsd: 10, description: '' },
+  // Heavy items are a SINGLE boolean signal in pricing. classifyLead emits
+  // ['has_heavy_items'] when the lead reports any heavy item; operators set
+  // one rule for the surcharge. Avoids per-item case/typo/custom fragility.
+  { category: 'HEAVY_ITEM',   matchValue: 'has_heavy_items',  amountUsd: 10, description: '' },
 ];
 
 // ── GET /api/admin/pricing — list all rules ──────────────────────────────
