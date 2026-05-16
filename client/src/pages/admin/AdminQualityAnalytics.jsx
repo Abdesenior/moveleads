@@ -11,20 +11,22 @@ import MetricCard from '../../components/admin/MetricCard';
  * /admin/quality-analytics — read-only visibility dashboard.
  *
  * Four tabs:
- *   1. Overview     — tier distribution, distribution-readiness, cap reasons,
- *                     review queue ops, V5 vs V4 quality
- *   2. Carrier      — provider suspicion analytics (over-flag detector)
- *   3. Pricing V2   — legacy vs shadow V2 comparison + add-on frequency
- *   4. API Costs    — Twilio/Mapbox call counts + estimated cost
+ *   1. Overview              — tier distribution, distribution-readiness,
+ *                              cap reasons, review queue ops, V5 vs V4 quality
+ *   2. Carrier               — provider suspicion analytics (over-flag detector)
+ *   3. Pricing Intelligence  — legacy vs simple-engine price drift across
+ *                              tiers, home sizes, distance classes + rule
+ *                              frequency. Ongoing marketplace observability.
+ *   4. API Costs             — Twilio/Mapbox call counts + estimated cost
  *
  * Default range: 7 days. Each tab fetches lazily.
  */
 
 const TABS = [
-  { key: 'overview', label: 'Overview',     icon: BarChart2 },
-  { key: 'carrier',  label: 'Carrier',      icon: PhoneCall },
-  { key: 'pricing',  label: 'Pricing V2',   icon: DollarSign },
-  { key: 'costs',    label: 'API Costs',    icon: Activity },
+  { key: 'overview', label: 'Overview',              icon: BarChart2 },
+  { key: 'carrier',  label: 'Carrier',               icon: PhoneCall },
+  { key: 'pricing',  label: 'Pricing Intelligence',  icon: DollarSign },
+  { key: 'costs',    label: 'API Costs',             icon: Activity },
 ];
 
 const RANGE_PRESETS = [
@@ -54,7 +56,7 @@ export default function AdminQualityAnalytics() {
       let url;
       if (tab === 'overview') url = `${API_URL}/admin/quality-analytics?days=${days}`;
       else if (tab === 'carrier') url = `${API_URL}/admin/carrier-analytics?days=${days}`;
-      else if (tab === 'pricing') url = `${API_URL}/admin/pricing-v2-analytics?days=${days}`;
+      else if (tab === 'pricing') url = `${API_URL}/admin/pricing-analytics?days=${days}`;
       else url = `${API_URL}/admin/validation-costs?days=${days}`;
       const res = await fetch(url, { headers });
       const json = await res.json();
@@ -282,7 +284,13 @@ function CategoryBadge({ category }) {
   return <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', background: s.bg, color: s.fg }}>{category}</span>;
 }
 
-/* ─── Pricing V2 ───────────────────────────────────────────────────────── */
+/* ─── Pricing Intelligence ─────────────────────────────────────────────────
+   Ongoing marketplace observability — compares the active claim price
+   (Lead.buyNowPrice) against simple-engine shadow (Lead.priceShadowSimple)
+   to surface pricing drift across tiers, home sizes, distance classes, and
+   individual rules. Sample is restricted to leads still priced by the legacy
+   engine; simple-stamped leads have no meaningful delta. As legacy retires
+   over time, this sample naturally shrinks. */
 function PricingTab({ data, loading }) {
   if (loading && !data) return <Loading />;
   if (!data) return <Empty />;
@@ -290,22 +298,40 @@ function PricingTab({ data, loading }) {
   const dollar = (n) => n == null ? '—' : `$${Math.round(n * 100) / 100}`;
   const signedDollar = (n) => n == null ? '—' : `${n >= 0 ? '+' : ''}$${Math.round(n * 100) / 100}`;
 
+  // Empty-state guard. Fires when the query returns zero comparable leads —
+  // for instance when the window contains only simple-stamped leads (the
+  // expected steady state once legacy fully retires).
+  if (data.compared === 0) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13, background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        No comparable leads in this window.<br/>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>Comparison runs only against legacy-priced leads (pricingEngineVersion ≠ 'simple').</span>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* Muted helper — clarifies why the sample size is smaller than total
+          lead volume, and why it shrinks over time as legacy retires. */}
+      <div style={{ fontSize: 12, color: '#94a3b8', padding: '4px 2px' }}>
+        Comparison runs only against legacy-priced leads. Simple-stamped leads are excluded — their delta is zero by construction.
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <MetricCard label="Compared leads" value={data.compared} sub={`Last ${data.range.days}d`} />
+        <MetricCard label="Compared leads" value={data.compared} sub={`Last ${data.range.days}d · legacy-priced`} />
         <MetricCard label="Avg legacy" value={dollar(data.legacyAvg)} tone="default" />
-        <MetricCard label="Avg V2 shadow" value={dollar(data.v2Avg)} tone="info" />
+        <MetricCard label="Avg simple engine" value={dollar(data.simpleAvg)} tone="info" />
         <MetricCard label="Avg delta" value={signedDollar(data.deltaAvg)} tone={data.deltaAvg > 0 ? 'success' : data.deltaAvg < 0 ? 'warning' : 'default'} />
         <MetricCard label="Median delta" value={signedDollar(data.deltaMedian)} />
-        <MetricCard label="V2 higher" value={data.counts.v2Higher} tone="success" />
-        <MetricCard label="V2 lower" value={data.counts.v2Lower} tone="warning" />
+        <MetricCard label="Simple higher" value={data.counts.simpleHigher} tone="success" />
+        <MetricCard label="Simple lower" value={data.counts.simpleLower} tone="warning" />
         <MetricCard label="Same" value={data.counts.same} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
         {data.maxPositiveDelta && (
-          <Section title="Biggest positive delta (V2 charged more)">
+          <Section title="Biggest positive delta (simple engine higher)">
             <div style={{ fontSize: 13 }}>
               <strong>{signedDollar(data.maxPositiveDelta.value)}</strong>
               <div style={{ color: '#64748b', marginTop: 4 }}>{data.maxPositiveDelta.lead.route} · {data.maxPositiveDelta.lead.customerName}</div>
@@ -313,7 +339,7 @@ function PricingTab({ data, loading }) {
           </Section>
         )}
         {data.maxNegativeDelta && (
-          <Section title="Biggest negative delta (V2 charged less)">
+          <Section title="Biggest negative delta (simple engine lower)">
             <div style={{ fontSize: 13 }}>
               <strong>{signedDollar(data.maxNegativeDelta.value)}</strong>
               <div style={{ color: '#64748b', marginTop: 4 }}>{data.maxNegativeDelta.lead.route} · {data.maxNegativeDelta.lead.customerName}</div>
@@ -328,20 +354,20 @@ function PricingTab({ data, loading }) {
         <Section title="By distance class"><BreakdownTable rows={data.byDistance} /></Section>
       </div>
 
-      <Section title="Add-on / discount frequency">
+      <Section title="Rule frequency (add-ons and discounts)">
         <div style={{ overflow: 'auto' }}>
           <table className="leads-table" style={{ background: '#fff' }}>
-            <thead><tr><th>Code</th><th>Label</th><th>Type</th><th>Applied</th><th>Total $</th><th>Avg $</th></tr></thead>
+            <thead><tr><th>Category</th><th>Match</th><th>Type</th><th>Applied</th><th>Total $</th><th>Avg $</th></tr></thead>
             <tbody>
-              {data.addOnFrequency.length === 0 && <tr><td colSpan={6} style={{ color: '#94a3b8', textAlign: 'center', padding: 16 }}>No add-ons applied yet — seed PricingAddOn collection to see breakdown.</td></tr>}
-              {data.addOnFrequency.map((a, i) => (
+              {data.ruleFrequency.length === 0 && <tr><td colSpan={6} style={{ color: '#94a3b8', textAlign: 'center', padding: 16 }}>No pricing rules fired on leads in this window.</td></tr>}
+              {data.ruleFrequency.map((r, i) => (
                 <tr key={i}>
-                  <td><code style={{ fontSize: 11 }}>{a.code}</code></td>
-                  <td>{a.label}</td>
-                  <td><span style={{ padding: '2px 6px', fontSize: 10, fontWeight: 700, borderRadius: 4, background: a.type === 'discount' ? '#fef3c7' : '#dbeafe', color: a.type === 'discount' ? '#92400e' : '#1e40af' }}>{a.type}</span></td>
-                  <td>{a.applied}</td>
-                  <td>${Math.round(a.totalUsd * 100) / 100}</td>
-                  <td>${Math.round((a.totalUsd / a.applied) * 100) / 100}</td>
+                  <td><code style={{ fontSize: 11 }}>{r.category}</code></td>
+                  <td>{r.matchValue || '—'}</td>
+                  <td><span style={{ padding: '2px 6px', fontSize: 10, fontWeight: 700, borderRadius: 4, background: r.type === 'discount' ? '#fef3c7' : '#dbeafe', color: r.type === 'discount' ? '#92400e' : '#1e40af' }}>{r.type}</span></td>
+                  <td>{r.applied}</td>
+                  <td>${Math.round(r.totalUsd * 100) / 100}</td>
+                  <td>${Math.round((r.totalUsd / r.applied) * 100) / 100}</td>
                 </tr>
               ))}
             </tbody>
@@ -352,16 +378,16 @@ function PricingTab({ data, loading }) {
       <Section title={`Top ${Math.min(data.table.length, 200)} surprising rows (sorted by |delta|)`}>
         <div style={{ overflow: 'auto', maxHeight: 480 }}>
           <table className="leads-table" style={{ background: '#fff' }}>
-            <thead><tr><th>Lead</th><th>Tier</th><th>Legacy</th><th>V2</th><th>Δ</th><th>Add-ons</th><th>Discounts</th></tr></thead>
+            <thead><tr><th>Lead</th><th>Tier</th><th>Legacy</th><th>Simple</th><th>Δ</th><th>Surcharges</th><th>Discounts</th></tr></thead>
             <tbody>
               {data.table.map((r, i) => (
                 <tr key={i}>
                   <td><div style={{ fontSize: 12, fontWeight: 600 }}>{r.route}</div><div style={{ fontSize: 10, color: '#94a3b8' }}>{r.customerName}</div></td>
                   <td style={{ fontSize: 11 }}>{r.tier}</td>
                   <td>{dollar(r.legacy)}</td>
-                  <td style={{ color: '#1e40af', fontWeight: 700 }}>{dollar(r.v2)}</td>
+                  <td style={{ color: '#1e40af', fontWeight: 700 }}>{dollar(r.simple)}</td>
                   <td style={{ color: r.delta > 0 ? '#047857' : r.delta < 0 ? '#b45309' : '#64748b', fontWeight: 700 }}>{signedDollar(r.delta)}</td>
-                  <td style={{ fontSize: 10, color: '#1e40af' }}>{r.addOns.join(', ') || '—'}</td>
+                  <td style={{ fontSize: 10, color: '#1e40af' }}>{r.surcharges.join(', ') || '—'}</td>
                   <td style={{ fontSize: 10, color: '#92400e' }}>{r.discounts.join(', ') || '—'}</td>
                 </tr>
               ))}
@@ -377,12 +403,12 @@ function BreakdownTable({ rows }) {
   if (!rows || rows.length === 0) return <Muted>No data.</Muted>;
   return (
     <table className="leads-table" style={{ background: '#fff', fontSize: 12 }}>
-      <thead><tr><th>Group</th><th>Count</th><th>Legacy avg</th><th>V2 avg</th><th>Δ avg</th></tr></thead>
+      <thead><tr><th>Group</th><th>Count</th><th>Legacy avg</th><th>Simple avg</th><th>Δ avg</th></tr></thead>
       <tbody>
         {rows.map((r, i) => (
           <tr key={i}>
             <td>{r.key}</td><td>{r.count}</td>
-            <td>${r.legacyAvg}</td><td>${r.v2Avg}</td>
+            <td>${r.legacyAvg}</td><td>${r.simpleAvg}</td>
             <td style={{ color: r.deltaAvg > 0 ? '#047857' : r.deltaAvg < 0 ? '#b45309' : '#64748b' }}>{r.deltaAvg >= 0 ? '+' : ''}${r.deltaAvg}</td>
           </tr>
         ))}

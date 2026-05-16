@@ -15,9 +15,14 @@
  *      → top carriers + suspicion bucket distribution + suspicion-by-tier
  *        + suspicion-by-admin-outcome
  *
- *   GET /pricing-v2-analytics?days=7
- *      → average legacy vs V2 prices + delta stats + add-on frequency +
- *        per-tier and per-distance class breakdowns
+ *   GET /pricing-analytics?days=7
+ *      → average legacy vs simple-engine prices + delta stats + rule
+ *        frequency + per-tier / per-home-size / per-distance class
+ *        breakdowns. Comparison sample is restricted to leads still priced
+ *        by the legacy engine (pricingEngineVersion !== 'simple') so the
+ *        delta is meaningful — simple-stamped leads have buyNowPrice ===
+ *        priceShadowSimple by construction. Long-term marketplace
+ *        observability surface; intentionally NOT migration-flavoured.
  *
  *   GET /validation-costs?days=7
  *      → call counts + estimated cost by provider/type
@@ -368,47 +373,64 @@ router.get('/carrier-analytics', [auth, admin], async (req, res) => {
   }
 });
 
-// ── 3. Pricing V2 Shadow Analytics ──────────────────────────────────────────
+// ── 3. Pricing Intelligence ─────────────────────────────────────────────────
+//
+// Permanent marketplace observability surface. Compares the active claim
+// price (Lead.buyNowPrice) against the simple-engine shadow output
+// (Lead.priceShadowSimple) to surface pricing drift across tiers, home
+// sizes, distance classes, and individual rules.
+//
+// Sample restriction: only leads where pricingEngineVersion !== 'simple'.
+// Reason: simple-stamped leads have buyNowPrice === priceShadowSimple by
+// construction (the live engine and the shadow are the same module), so
+// their delta is always zero and would just inflate the "same" bucket.
+// Filtering them out keeps the drift signal meaningful. As the legacy
+// engine retires (Phase E4), this sample naturally shrinks to zero — at
+// which point the tab becomes a Deal Room / next-experiment surface.
 
-router.get('/pricing-v2-analytics', [auth, admin], async (req, res) => {
+router.get('/pricing-analytics', [auth, admin], async (req, res) => {
   try {
     const { days, since } = dateRange(req.query.days);
 
-    // Only consider leads where BOTH legacy buyNowPrice and shadow priceShadowV2
-    // are present — anything else is not comparable.
+    // Comparable sample: legacy-priced leads with simple-engine shadow data.
+    // Missing pricingEngineVersion (pre-Phase-3 leads) is treated as legacy.
     const leads = await Lead.find({
       createdAt: { $gte: since },
       buyNowPrice: { $exists: true, $ne: null },
-      priceShadowV2: { $exists: true, $ne: null },
+      priceShadowSimple: { $exists: true, $ne: null },
+      pricingEngineVersion: { $ne: 'simple' },
     })
-      .select('buyNowPrice priceShadowV2 pricingBreakdownShadowV2 homeSize miles funnelVersion adminTierOverride customerName originCity destinationCity createdAt')
+      .select('buyNowPrice priceShadowSimple pricingBreakdownSimple pricingEngineVersion homeSize miles funnelVersion adminTierOverride customerName originCity destinationCity createdAt')
       .lean();
 
     const leadIds = leads.map(l => l._id);
     const snaps = await fetchLatestSnapshots(leadIds);
 
-    let legacySum = 0, v2Sum = 0;
+    let legacySum = 0, simpleSum = 0;
     const deltas = [];
-    let v2Higher = 0, v2Lower = 0, sameCount = 0;
+    let simpleHigher = 0, simpleLower = 0, sameCount = 0;
     let maxPosDelta = { value: -Infinity, lead: null };
     let maxNegDelta = { value: Infinity, lead: null };
 
-    const byTier = {};        // tier → { count, legacyAvg, v2Avg, deltaAvg }
+    const byTier = {};        // tier → { count, legacySum, simpleSum }
     const byHomeSize = {};
     const byDistance = {};
-    const addOnFreq = {};     // code → { label, applied, totalUsd, type: 'add'|'discount' }
+    // Rule frequency keyed by composite (category, matchValue). pricingBreakdownSimple
+    // is the canonical pricing explanation layer — keep its structure intact
+    // (do not mutate the shape of breakdown entries when aggregating).
+    const ruleFreq = {};
 
     const tableRows = [];
 
     for (const lead of leads) {
       const legacy = Number(lead.buyNowPrice) || 0;
-      const v2 = Number(lead.priceShadowV2) || 0;
-      const delta = v2 - legacy;
+      const simple = Number(lead.priceShadowSimple) || 0;
+      const delta = simple - legacy;
       legacySum += legacy;
-      v2Sum += v2;
+      simpleSum += simple;
       deltas.push(delta);
-      if (delta > 0) v2Higher += 1;
-      else if (delta < 0) v2Lower += 1;
+      if (delta > 0) simpleHigher += 1;
+      else if (delta < 0) simpleLower += 1;
       else sameCount += 1;
       if (delta > maxPosDelta.value) maxPosDelta = { value: delta, lead: { _id: lead._id, route: `${lead.originCity} → ${lead.destinationCity}`, customerName: lead.customerName } };
       if (delta < maxNegDelta.value) maxNegDelta = { value: delta, lead: { _id: lead._id, route: `${lead.originCity} → ${lead.destinationCity}`, customerName: lead.customerName } };
@@ -416,33 +438,38 @@ router.get('/pricing-v2-analytics', [auth, admin], async (req, res) => {
       const snap = snaps.get(String(lead._id));
       const tier = snap?.tier || lead.adminTierOverride?.tier || 'unscored';
       const friendly = toMoverLabel(tier) || tier;
-      if (!byTier[friendly]) byTier[friendly] = { count: 0, legacySum: 0, v2Sum: 0 };
+      if (!byTier[friendly]) byTier[friendly] = { count: 0, legacySum: 0, simpleSum: 0 };
       byTier[friendly].count += 1;
       byTier[friendly].legacySum += legacy;
-      byTier[friendly].v2Sum += v2;
+      byTier[friendly].simpleSum += simple;
 
       const hs = lead.homeSize || 'unknown';
-      if (!byHomeSize[hs]) byHomeSize[hs] = { count: 0, legacySum: 0, v2Sum: 0 };
+      if (!byHomeSize[hs]) byHomeSize[hs] = { count: 0, legacySum: 0, simpleSum: 0 };
       byHomeSize[hs].count += 1;
       byHomeSize[hs].legacySum += legacy;
-      byHomeSize[hs].v2Sum += v2;
+      byHomeSize[hs].simpleSum += simple;
 
       const dc = distanceClass(lead.miles);
-      if (!byDistance[dc]) byDistance[dc] = { count: 0, legacySum: 0, v2Sum: 0 };
+      if (!byDistance[dc]) byDistance[dc] = { count: 0, legacySum: 0, simpleSum: 0 };
       byDistance[dc].count += 1;
       byDistance[dc].legacySum += legacy;
-      byDistance[dc].v2Sum += v2;
+      byDistance[dc].simpleSum += simple;
 
-      // Add-ons & discounts (skip the "base" row)
-      for (const line of (lead.pricingBreakdownShadowV2 || [])) {
-        if (line.code === 'base') continue;
-        const code = line.code || 'unknown';
-        const isDiscount = (Number(line.amountUsd) || 0) < 0;
-        if (!addOnFreq[code]) {
-          addOnFreq[code] = { code, label: line.label || code, applied: 0, totalUsd: 0, type: isDiscount ? 'discount' : 'add' };
+      // Rule frequency — skip the BASE row (it is the floor, not a rule fire).
+      // Group by (category, matchValue) composite so e.g. DISTANCE/Long Distance
+      // and DISTANCE/Cross Country are tracked separately.
+      for (const line of (lead.pricingBreakdownSimple || [])) {
+        if (line.category === 'BASE') continue;
+        const category = line.category || 'UNKNOWN';
+        const matchValue = line.matchValue || '';
+        const key = `${category}::${matchValue}`;
+        const amount = Number(line.amountUsd) || 0;
+        const isDiscount = amount < 0;
+        if (!ruleFreq[key]) {
+          ruleFreq[key] = { category, matchValue, applied: 0, totalUsd: 0, type: isDiscount ? 'discount' : 'add' };
         }
-        addOnFreq[code].applied += 1;
-        addOnFreq[code].totalUsd += Number(line.amountUsd) || 0;
+        ruleFreq[key].applied += 1;
+        ruleFreq[key].totalUsd += amount;
       }
 
       tableRows.push({
@@ -451,10 +478,15 @@ router.get('/pricing-v2-analytics', [auth, admin], async (req, res) => {
         customerName: lead.customerName,
         tier: friendly,
         legacy,
-        v2,
+        simple,
         delta,
-        addOns: (lead.pricingBreakdownShadowV2 || []).filter(b => b.code !== 'base' && (Number(b.amountUsd) || 0) > 0).map(b => b.code),
-        discounts: (lead.pricingBreakdownShadowV2 || []).filter(b => (Number(b.amountUsd) || 0) < 0).map(b => b.code),
+        pricingEngineVersion: lead.pricingEngineVersion || 'legacy',
+        surcharges: (lead.pricingBreakdownSimple || [])
+          .filter(b => b.category !== 'BASE' && (Number(b.amountUsd) || 0) > 0)
+          .map(b => `${b.category}/${b.matchValue || '∅'}`),
+        discounts: (lead.pricingBreakdownSimple || [])
+          .filter(b => (Number(b.amountUsd) || 0) < 0)
+          .map(b => `${b.category}/${b.matchValue || '∅'}`),
       });
     }
 
@@ -462,9 +494,9 @@ router.get('/pricing-v2-analytics', [auth, admin], async (req, res) => {
       return Object.entries(group).map(([key, v]) => ({
         key,
         count: v.count,
-        legacyAvg: v.count ? Math.round((v.legacySum / v.count) * 100) / 100 : 0,
-        v2Avg:     v.count ? Math.round((v.v2Sum     / v.count) * 100) / 100 : 0,
-        deltaAvg:  v.count ? Math.round(((v.v2Sum - v.legacySum) / v.count) * 100) / 100 : 0,
+        legacyAvg: v.count ? Math.round((v.legacySum  / v.count) * 100) / 100 : 0,
+        simpleAvg: v.count ? Math.round((v.simpleSum  / v.count) * 100) / 100 : 0,
+        deltaAvg:  v.count ? Math.round(((v.simpleSum - v.legacySum) / v.count) * 100) / 100 : 0,
       })).sort((a, b) => b.count - a.count);
     }
 
@@ -473,16 +505,16 @@ router.get('/pricing-v2-analytics', [auth, admin], async (req, res) => {
       range: { days, since },
       compared: leads.length,
       legacyAvg: leads.length ? Math.round((legacySum / leads.length) * 100) / 100 : 0,
-      v2Avg:     leads.length ? Math.round((v2Sum     / leads.length) * 100) / 100 : 0,
+      simpleAvg: leads.length ? Math.round((simpleSum / leads.length) * 100) / 100 : 0,
       deltaAvg:  leads.length ? Math.round((average(deltas) || 0) * 100) / 100 : 0,
       deltaMedian: median(deltas),
       maxPositiveDelta: maxPosDelta.value === -Infinity ? null : maxPosDelta,
       maxNegativeDelta: maxNegDelta.value === Infinity ? null : maxNegDelta,
-      counts: { v2Higher, v2Lower, same: sameCount },
+      counts: { simpleHigher, simpleLower, same: sameCount },
       byTier:     summarize(byTier),
       byHomeSize: summarize(byHomeSize),
       byDistance: summarize(byDistance),
-      addOnFrequency: Object.values(addOnFreq).sort((a, b) => b.applied - a.applied),
+      ruleFrequency: Object.values(ruleFreq).sort((a, b) => b.applied - a.applied),
       // Cap at 200 rows so the UI can render without choking on large windows.
       // Sorted by absolute delta so the most surprising rows are first.
       table: tableRows
@@ -490,8 +522,8 @@ router.get('/pricing-v2-analytics', [auth, admin], async (req, res) => {
         .slice(0, 200),
     });
   } catch (err) {
-    console.error('[pricing-v2-analytics]', err.message);
-    res.status(500).json({ ok: false, msg: 'Pricing V2 analytics query failed', error: err.message });
+    console.error('[pricing-analytics]', err.message);
+    res.status(500).json({ ok: false, msg: 'Pricing analytics query failed', error: err.message });
   }
 });
 
