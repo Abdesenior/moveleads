@@ -184,12 +184,11 @@ const LeadSchema = new mongoose.Schema({
     _id:       false,
   }],
 
-  // Simplified additive USD pricing engine — SHADOW ONLY (Phase 1). Computed
-  // at ingest by pricingEngineSimple.compute() against the unified
-  // PricingRule collection. buyNowPrice continues to come from the legacy
-  // multiplier engine until Phase 3 cutover.
-  // priceShadowSimple = sum of BASE + matching DISTANCE/HOME_SIZE/URGENCY/
-  // VERIFICATION/HEAVY_ITEM rows, clamped to the [$10, $250] safety band.
+  // Simplified additive USD pricing engine — Phase 1 shadow + Phase 3
+  // forward-only cutover. Computed at ingest by pricingEngineSimple.compute()
+  // against the unified PricingRule collection. priceShadowSimple is the
+  // sum of BASE + matching DISTANCE/HOME_SIZE/URGENCY/VERIFICATION/HEAVY_ITEM
+  // rows, clamped to [$10, $250].
   priceShadowSimple:         { type: Number },
   pricingBreakdownSimple:    [{
     category:   { type: String },
@@ -197,6 +196,18 @@ const LeadSchema = new mongoose.Schema({
     amountUsd:  { type: Number },
     _id:        false,
   }],
+
+  // Phase 3 forward-only marker: which engine wrote buyNowPrice at ingest.
+  //   undefined → pre-Phase-3 lead (legacy multiplier engine; never touched)
+  //   'legacy'  → created with ENABLE_PRICING_SIMPLE_LIVE off
+  //   'simple'  → created with ENABLE_PRICING_SIMPLE_LIVE on
+  //
+  // The Twilio phone-verification reprice (services/twilioService.js)
+  // dispatches by this field, so a lead never switches engines mid-life,
+  // even if the operator flips the env flag mid-stream. Existing leads
+  // (version=undefined) keep behaving exactly as they did before Phase 3
+  // shipped — no migration, no backfill, no re-derivation.
+  pricingEngineVersion:      { type: String, enum: ['legacy', 'simple'] },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

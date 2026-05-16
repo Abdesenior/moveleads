@@ -124,13 +124,37 @@ router.post('/', ingestLimiter, async (req, res) => {
       data.moveDate
     );
 
-    // 5. Auction pricing based on score/grade
-    const auctionPricing = await calculateAuctionPrice({
-      homeSize: data.homeSize,
-      miles,
-      moveDate: data.moveDate,
-      grade,
-    });
+    // 5. Auction pricing — Phase 3 forward-only cutover.
+    //    If ENABLE_PRICING_SIMPLE_LIVE=true, NEW leads get their buyNowPrice
+    //    from pricingEngineSimple.compute() and are stamped with
+    //    pricingEngineVersion='simple'. Else they take the legacy path and
+    //    are stamped 'legacy'. The Twilio reprice respects this field, so
+    //    a lead never switches engines after creation. Existing leads
+    //    (version=undefined) keep behaving exactly as they always have.
+    const useSimpleLive = String(process.env.ENABLE_PRICING_SIMPLE_LIVE || '').toLowerCase() === 'true'
+                       || String(process.env.ENABLE_PRICING_SIMPLE_LIVE || '') === '1';
+    let auctionPricing;
+    let pricingEngineVersion;
+    if (useSimpleLive) {
+      const simple = await pricingEngineSimple.compute({
+        miles, moveDate: data.moveDate, homeSize: data.homeSize, heavyItems: [], validation: {},
+      });
+      if (simple.total != null && !simple.skipped) {
+        const buyNow = Number(simple.total);
+        const startingBid = Math.max(9, Math.round(buyNow * 0.6 / 5) * 5);
+        auctionPricing       = { buyNowPrice: buyNow, startingBidPrice: startingBid };
+        pricingEngineVersion = 'simple';
+      } else {
+        // Fall back to legacy if simple engine can't compute (rules empty,
+        // shadow flag off, etc). Stamped 'legacy' so the Twilio reprice
+        // takes the legacy path too — keeps the lead consistent.
+        auctionPricing = await calculateAuctionPrice({ homeSize: data.homeSize, miles, moveDate: data.moveDate, grade });
+        pricingEngineVersion = 'legacy';
+      }
+    } else {
+      auctionPricing = await calculateAuctionPrice({ homeSize: data.homeSize, miles, moveDate: data.moveDate, grade });
+      pricingEngineVersion = 'legacy';
+    }
 
     // 5b. Validate sourceCompany. The intake form is public, so anyone can
     //     stamp an attribution. We only accept it if it resolves to an
@@ -184,6 +208,7 @@ router.post('/', ingestLimiter, async (req, res) => {
       buyNowPrice: auctionPricing.buyNowPrice,
       startingBidPrice: auctionPricing.startingBidPrice,
       currentBidPrice: auctionPricing.startingBidPrice,
+      pricingEngineVersion,
       auctionStatus: 'active',
       auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24-hour window
       ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),

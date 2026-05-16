@@ -158,9 +158,29 @@ router.post('/', ingestLimiter, async (req, res) => {
     const { score, grade, scoreFactors } = calculateLeadScore(
       { homeSize: data.homeSize }, miles, null, data.moveDate
     );
-    const auctionPricing = await calculateAuctionPrice({
-      homeSize: data.homeSize, miles, moveDate: data.moveDate, grade,
-    });
+    // Phase 3 forward-only cutover — see leadIngest.js for the full
+    // contract. NEW leads only; existing docs are never re-priced.
+    const useSimpleLive = String(process.env.ENABLE_PRICING_SIMPLE_LIVE || '').toLowerCase() === 'true'
+                       || String(process.env.ENABLE_PRICING_SIMPLE_LIVE || '') === '1';
+    let auctionPricing;
+    let pricingEngineVersion;
+    if (useSimpleLive) {
+      const simple = await pricingEngineSimple.compute({
+        miles, moveDate: data.moveDate, homeSize: data.homeSize, heavyItems: [], validation: {},
+      });
+      if (simple.total != null && !simple.skipped) {
+        const buyNow = Number(simple.total);
+        const startingBid = Math.max(9, Math.round(buyNow * 0.6 / 5) * 5);
+        auctionPricing       = { buyNowPrice: buyNow, startingBidPrice: startingBid };
+        pricingEngineVersion = 'simple';
+      } else {
+        auctionPricing = await calculateAuctionPrice({ homeSize: data.homeSize, miles, moveDate: data.moveDate, grade });
+        pricingEngineVersion = 'legacy';
+      }
+    } else {
+      auctionPricing = await calculateAuctionPrice({ homeSize: data.homeSize, miles, moveDate: data.moveDate, grade });
+      pricingEngineVersion = 'legacy';
+    }
 
     // 6. sourceCompany — same defensive resolution as V4
     let resolvedSourceCompany;
@@ -194,6 +214,7 @@ router.post('/', ingestLimiter, async (req, res) => {
       buyNowPrice: auctionPricing.buyNowPrice,
       startingBidPrice: auctionPricing.startingBidPrice,
       currentBidPrice: auctionPricing.startingBidPrice,
+      pricingEngineVersion,
       auctionStatus: 'active',
       auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),

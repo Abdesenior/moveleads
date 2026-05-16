@@ -9,6 +9,7 @@ const { wantsChannel, isWithinDispatchHours, matchesMoveTypes } = require('../ut
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
+const pricingEngineSimple = require('./pricingEngineSimple');
 const { sendAdminLeadNotification, broadcastLeadEmail } = require('./emailService');
 const { sendMoverLeadSMS } = require('./smsService');
 
@@ -283,9 +284,32 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
     lead.grade        = scoring.grade;
     lead.scoreFactors = scoring.scoreFactors;
 
-    const finalPricing = await calculateAuctionPrice({
-      homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade,
-    });
+    // Phase 3 forward-only reprice. Dispatch by lead.pricingEngineVersion
+    // — leads created with version='simple' get repriced via the additive
+    // USD engine (validation.phone is now populated, so VERIFICATION rows
+    // can match). Leads with version='legacy' or undefined (every doc
+    // that existed before Phase 3) keep the legacy multiplier path
+    // unchanged. No existing lead is ever rerouted to a different engine.
+    let finalPricing;
+    if (lead.pricingEngineVersion === 'simple') {
+      const simple = await pricingEngineSimple.compute(lead);
+      if (simple.total != null && !simple.skipped) {
+        const buyNow = Number(simple.total);
+        const startingBid = Math.max(9, Math.round(buyNow * 0.6 / 5) * 5);
+        finalPricing = { buyNowPrice: buyNow, startingBidPrice: startingBid };
+      } else {
+        // Simple engine couldn't compute — fall back to legacy. Mark the
+        // lead so subsequent ops stay consistent.
+        finalPricing = await calculateAuctionPrice({
+          homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade,
+        });
+        lead.pricingEngineVersion = 'legacy';
+      }
+    } else {
+      finalPricing = await calculateAuctionPrice({
+        homeSize: lead.homeSize, miles: lead.miles, moveDate: lead.moveDate, grade: scoring.grade,
+      });
+    }
     lead.buyNowPrice      = finalPricing.buyNowPrice;
     lead.price            = finalPricing.buyNowPrice;
     lead.startingBidPrice = finalPricing.startingBidPrice;

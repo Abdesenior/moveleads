@@ -16,13 +16,29 @@ import { useToast } from '../../components/ui/Toast';
  */
 
 const CATEGORIES = [
-  { key: 'BASE',         label: 'Base price',     blurb: 'Universal base — every lead starts here.' },
-  { key: 'DISTANCE',     label: 'Distance',       blurb: 'Local / Long Distance / Cross Country.' },
-  { key: 'HOME_SIZE',    label: 'Home size',      blurb: 'Studio through 5+ Bedroom.' },
-  { key: 'URGENCY',      label: 'Urgency',        blurb: 'How soon the move date is.' },
-  { key: 'VERIFICATION', label: 'Verification',   blurb: 'Phone / identity confidence signals.' },
-  { key: 'HEAVY_ITEM',   label: 'Heavy items',    blurb: 'Specialty items the customer flagged.' },
+  { key: 'BASE',         label: 'Base price',     blurb: 'Universal base — every lead starts here.',                                defaultOpen: true  },
+  { key: 'DISTANCE',     label: 'Distance',       blurb: 'Local (<100 mi) · Long Distance (100–999 mi) · Cross Country (1000+ mi).', defaultOpen: true  },
+  { key: 'HOME_SIZE',    label: 'Home size',      blurb: 'Studio through 5+ Bedroom.',                                              defaultOpen: true  },
+  { key: 'URGENCY',      label: 'Urgency',        blurb: 'Urgent (≤7 days) · Soon (8–14 days) · Standard (15+ days).',              defaultOpen: true  },
+  { key: 'VERIFICATION', label: 'Verification',   blurb: 'Phone / identity confidence signals.',                                    defaultOpen: false },
+  { key: 'HEAVY_ITEM',   label: 'Heavy items',    blurb: 'Specialty items the customer flagged.',                                   defaultOpen: false },
 ];
+
+// Display-only normalization for heavy-item match values. Operators may
+// store anything in the matchValue (free string), but well-known items get
+// title-cased for readability in the table and breakdown.
+const HEAVY_ITEM_DISPLAY = {
+  piano:      'Piano',
+  safe:       'Heavy Safe',
+  pool_table: 'Pool Table',
+  hot_tub:    'Hot Tub',
+  motorcycle: 'Motorcycle',
+  gun_safe:   'Gun Safe',
+};
+function displayMatchValue(category, matchValue) {
+  if (category === 'HEAVY_ITEM' && HEAVY_ITEM_DISPLAY[matchValue]) return HEAVY_ITEM_DISPLAY[matchValue];
+  return matchValue || '';
+}
 
 const NEW_RULE_DEFAULTS = {
   BASE:         { matchValue: '', amountUsd: 20 },
@@ -261,19 +277,28 @@ export default function AdminPricing() {
 }
 
 function CategorySection({ category, rules, editingId, editValue, onStartEdit, onCancelEdit, onSetEditValue, onSaveAmount, onToggleActive, onDelete, onNew }) {
+  const [open, setOpen] = useState(category.defaultOpen !== false);
+  const activeCount = rules.filter(r => r.isActive).length;
   return (
     <section style={section}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
-        <div>
-          <h2 style={sectionH}>{category.label}</h2>
-          <p style={{ fontSize: 12, color: '#71717a', margin: 0 }}>{category.blurb}</p>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
+        <button type="button" onClick={() => setOpen(o => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 0, padding: 0, textAlign: 'left', cursor: 'pointer', flex: 1, minWidth: 0 }}>
+          {open ? <ChevronDown size={16} color="#71717a" /> : <ChevronRight size={16} color="#71717a" />}
+          <div style={{ minWidth: 0 }}>
+            <h2 style={sectionH}>
+              {category.label}{' '}
+              <span style={{ fontSize: 12, fontWeight: 500, color: '#94a3b8' }}>· {activeCount} active</span>
+            </h2>
+            <p style={{ fontSize: 12, color: '#71717a', margin: 0 }}>{category.blurb}</p>
+          </div>
+        </button>
         <button onClick={onNew} style={addRowBtn}>
           <Plus size={12} /> Add rule
         </button>
       </div>
 
-      {rules.length === 0 ? (
+      {!open ? null : rules.length === 0 ? (
         <div style={emptyState}>No rules in this category yet. Click <strong>Add rule</strong> or use <strong>Seed missing defaults</strong>.</div>
       ) : (
         <div style={tableWrap}>
@@ -295,7 +320,7 @@ function CategorySection({ category, rules, editingId, editValue, onStartEdit, o
                   <tr key={rule._id} style={{ borderTop: '1px solid #f4f4f5' }}>
                     <td style={td}>
                       {rule.matchValue
-                        ? <code style={matchChip}>{rule.matchValue}</code>
+                        ? <code style={matchChip}>{displayMatchValue(rule.category, rule.matchValue)}</code>
                         : <span style={{ color: '#71717a', fontStyle: 'italic' }}>(singleton)</span>}
                     </td>
                     <td style={td}>
@@ -355,7 +380,7 @@ function ComparePanel({ rows, onRefresh }) {
     return (
       <section style={section}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <h2 style={sectionH}>Shadow comparison</h2>
+          <h2 style={sectionH}>Price comparison</h2>
           <button onClick={onRefresh} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 12 }}><RefreshCcw size={11} /> Refresh</button>
         </div>
         <p style={{ fontSize: 13, color: '#71717a', margin: 0 }}>
@@ -367,7 +392,7 @@ function ComparePanel({ rows, onRefresh }) {
   return (
     <section style={section}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <h2 style={sectionH}>Shadow comparison — recent leads</h2>
+        <h2 style={sectionH}>Price comparison — recent leads</h2>
         <button onClick={onRefresh} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 12 }}><RefreshCcw size={11} /> Refresh</button>
       </div>
       <p style={{ fontSize: 12, color: '#71717a', margin: '0 0 10px' }}>
@@ -438,7 +463,7 @@ function BreakdownTable({ lines, total }) {
         {lines.map((l, i) => (
           <tr key={i}>
             <td style={{ padding: '4px 0', color: '#52525b', width: '40%' }}>{labelForCategory(l.category)}</td>
-            <td style={{ padding: '4px 0', color: '#52525b', width: '40%' }}>{l.matchValue || '(singleton)'}</td>
+            <td style={{ padding: '4px 0', color: '#52525b', width: '40%' }}>{displayMatchValue(l.category, l.matchValue) || '(singleton)'}</td>
             <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 700, color: (Number(l.amountUsd) || 0) < 0 ? '#16a34a' : '#0f172a' }}>
               {(Number(l.amountUsd) || 0) >= 0 ? `+$${l.amountUsd}` : `-$${Math.abs(l.amountUsd)}`}
             </td>
@@ -446,7 +471,7 @@ function BreakdownTable({ lines, total }) {
         ))}
         {total != null && (
           <tr style={{ borderTop: '1px solid #e4e4e7' }}>
-            <td style={{ padding: '6px 0 0', fontWeight: 700, color: '#0f172a' }}>Final shadow price</td>
+            <td style={{ padding: '6px 0 0', fontWeight: 700, color: '#0f172a' }}>Estimated lead price</td>
             <td />
             <td style={{ padding: '6px 0 0', textAlign: 'right', fontWeight: 800, color: '#0f172a', fontSize: 14 }}>${total}</td>
           </tr>
@@ -624,7 +649,9 @@ function SimulatorPanel({ API_URL, token }) {
             <div style={pickerLabel}>Heavy items</div>
             <div style={chipRow}>
               {['piano', 'safe', 'pool_table', 'hot_tub'].map(i => (
-                <button key={i} type="button" onClick={() => toggleItem(i)} style={chipStyle(heavyItems.includes(i))}>{i}</button>
+                <button key={i} type="button" onClick={() => toggleItem(i)} style={chipStyle(heavyItems.includes(i))}>
+                  {displayMatchValue('HEAVY_ITEM', i)}
+                </button>
               ))}
             </div>
           </div>
@@ -633,7 +660,7 @@ function SimulatorPanel({ API_URL, token }) {
         {/* Result */}
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
-            Shadow engine result {loading ? '· computing…' : ''}
+            Price breakdown {loading ? '· computing…' : ''}
           </div>
           {!result ? (
             <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Pick attributes to see the breakdown.</p>
