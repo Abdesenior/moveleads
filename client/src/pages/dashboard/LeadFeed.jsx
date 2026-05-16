@@ -16,17 +16,24 @@ const isDistributable = (l) =>
   l.auctionStatus !== 'sold' &&
   l.auctionStatus !== 'expired';
 
-/* ─── Distribution-model predicates (Phase B client gating) ─────────────────
-   `lead.distributionModel` is stamped at ingest server-side. Old leads (pre-
-   Phase-A) have no field; the strict equality check below treats them as
-   auction by default, which matches the schema fallback in socketService.
-   isInstant → instant-dispatch lead: hide bid UI, single Unlock CTA.
-   isAuction → 24h auction lead in its active window: show bid + buy combo. */
+/* ─── DORMANT — Distribution-model predicates (Deal Room reuse) ─────────────
+   Phase D removed the main feed's bid surface; these predicates no longer
+   gate any rendering in this file. Kept as the canonical classifiers paired
+   with the dormant BidModal / TimeLeftTag below — the future Deal Room page
+   will import the same predicates to decide which leads render auction UI
+   vs. instant UI. Do NOT delete — see docs/marketplace-architecture.md. */
+// eslint-disable-next-line no-unused-vars
 const isInstantLead = (lead) => lead?.distributionModel === 'instant';
+// eslint-disable-next-line no-unused-vars
 const isAuctionLead = (lead) =>
   lead?.auctionStatus === 'active' && lead?.distributionModel !== 'instant';
 
-/* ─── Inline countdown tag ─────────────────────────────────────────────────── */
+/* ─── DORMANT — TimeLeftTag (Deal Room reuse) ───────────────────────────────
+   Phase D removed all main-feed call sites for this component. It is kept in
+   this file as the canonical countdown badge for the future Deal Room page
+   (auction inventory layer). Do NOT delete without coordinating with the
+   Deal Room implementation plan — see docs/marketplace-architecture.md. */
+// eslint-disable-next-line no-unused-vars
 function TimeLeftTag({ endsAt }) {
   const calc = useCallback(() => {
     const diff = new Date(endsAt) - Date.now();
@@ -70,7 +77,14 @@ function useBodyScrollLock() {
   }, []);
 }
 
-/* ─── Bid modal ────────────────────────────────────────────────────────────── */
+/* ─── DORMANT — BidModal (Deal Room reuse) ──────────────────────────────────
+   Phase D removed the main feed's bid surface entirely; no entry point in
+   this file opens this modal anymore. It is preserved here as the canonical
+   bid-placement UI for the future Deal Room page (auction inventory layer,
+   admin-curated stale leads, regional bundles). Do NOT delete without
+   coordinating with the Deal Room implementation plan — see
+   docs/marketplace-architecture.md. */
+// eslint-disable-next-line no-unused-vars
 function BidModal({ lead, balance, onClose, onBid }) {
   useBodyScrollLock();
   const minBid = (lead.currentBidPrice || lead.startingBidPrice || 9) + 5;
@@ -139,15 +153,15 @@ function Row({ label, value }) {
 }
 
 /* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
-function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claiming, error }) {
+function PreviewModal({ lead, balance, onClose, onClaim, onBuyNow, claiming, error }) {
   useBodyScrollLock();
-  const isInstant   = isInstantLead(lead);
-  const isAuction   = isAuctionLead(lead);
-  const currentBid  = lead.currentBidPrice || 0;
+  // Phase D — main feed is instant-only. The bid surface was removed from this
+  // modal; what remains is a single Unlock CTA. We still distinguish "active"
+  // leads (use the atomic /buy-now route via onBuyNow) from non-active legacy
+  // admin-imports (use the older /api/leads/:id/claim route via onClaim).
+  const isClaimable = lead.auctionStatus === 'active';
   const buyNowPrice = getLeadPrice(lead);
-  const displayPrice = isAuction
-    ? (currentBid > 0 ? currentBid : lead.startingBidPrice || buyNowPrice)
-    : buyNowPrice;
+  const displayPrice = buyNowPrice;
   const isLD           = lead.distance === 'Long Distance';
   const [openedAt]     = useState(() => Date.now());
   const daysToMove     = lead.moveDate ? (new Date(lead.moveDate) - openedAt) / 86400000 : 99;
@@ -203,7 +217,7 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {isAuction ? (currentBid > 0 ? 'Current Bid' : 'Starting Bid') : 'Price'}
+                  Price
                 </div>
                 <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a' }}>${displayPrice.toFixed ? displayPrice.toFixed(2) : displayPrice}</div>
               </div>
@@ -234,33 +248,13 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
                   Add Funds →
                 </button>
               </div>
-            ) : isInstant ? (
-              /* Instant-dispatch: single Unlock CTA. Routes through the same
-                 atomic /buy-now endpoint as auction buy-now — server treats
-                 instant leads identically once they reach buy-now. */
-              <button
-                onClick={() => onBuyNow(lead)}
-                disabled={claiming}
-                style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
-                {claiming ? 'Claiming…' : `Unlock Lead — $${buyNowPrice.toFixed(2)} ›`}
-              </button>
-            ) : isAuction ? (
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  onClick={() => { onClose(); onBid(lead); }}
-                  style={{ flex: 1, ...BTN_OUTLINE, borderRadius: 12, padding: '12px' }}>
-                  Place Bid
-                </button>
-                <button
-                  onClick={() => onBuyNow(lead)}
-                  disabled={claiming}
-                  style={{ flex: 2, ...BTN_PRIMARY, borderRadius: 12, padding: '12px', opacity: claiming ? 0.6 : 1 }}>
-                  {claiming ? 'Claiming…' : `Unlock Lead — $${buyNowPrice.toFixed(2)} ›`}
-                </button>
-              </div>
             ) : (
+              /* Single Unlock CTA. /buy-now is the canonical claim endpoint
+                 for any lead in auctionStatus='active' (instant leads and
+                 legacy auction leads alike); onClaim handles the older
+                 admin-imported lead path where auctionStatus !== 'active'. */
               <button
-                onClick={() => onClaim(lead)}
+                onClick={() => isClaimable ? onBuyNow(lead) : onClaim(lead)}
                 disabled={claiming}
                 style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
                 {claiming ? 'Claiming…' : `Unlock Lead — $${buyNowPrice.toFixed(2)} ›`}
@@ -273,26 +267,23 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBid, onBuyNow, claimi
   );
 }
 
-/* ─── Success modal (buy-now + auction win) ─────────────────────────────────── */
+/* ─── Success modal — instant unlock confirmation ────────────────────────────
+   Phase D removed the auction-win variant (Gavel icon + "Auction Won!" copy +
+   "won the auction with a bid of $X" paragraph). The only path that set
+   data.fromAuction was the auction_settled socket listener, also removed.
+   When Deal Room adds back auction settlement on its own page, it can extend
+   this modal or fork its own variant. */
 function SuccessModal({ data, onClose, onNavigate }) {
   useBodyScrollLock();
-  const fromAuction = data.fromAuction;
-  const hasContact  = data.lead?.customerName && data.lead?.customerPhone;
+  const hasContact = data.lead?.customerName && data.lead?.customerPhone;
   return (
     <div className="modal-overlay">
       <div className="modal-content success-modal">
         <div className="success-icon-box">
-          {fromAuction ? <Gavel size={48} /> : <CheckCircle size={48} />}
+          <CheckCircle size={48} />
         </div>
-        <h2>{fromAuction ? 'Auction Won!' : 'Lead Unlocked!'}</h2>
-        {fromAuction ? (
-          <p>
-            You won the auction with a bid of <strong>${data.finalPrice}</strong>.
-            The amount has been deducted from your balance and the lead is now in your customers.
-          </p>
-        ) : (
-          <p>You now have full access to the customer's contact details.</p>
-        )}
+        <h2>Lead Unlocked!</h2>
+        <p>You now have full access to the customer's contact details.</p>
         {hasContact && (
           <div className="contact-details-box">
             <div className="detail-item"><User size={18} /><div><label>Customer Name</label><span>{data.lead.customerName}</span></div></div>
@@ -346,7 +337,6 @@ export default function LeadFeed() {
   const [successData, setSuccessData]   = useState(null);
   const [previewLead, setPreviewLead]   = useState(null);
   const [claimError, setClaimError]     = useState('');
-  const [bidLead, setBidLead]           = useState(null);
   const [claimingId, setClaimingId]     = useState(null);
   const [search, setSearch]             = useState('');
   const [distFilter, setDistFilter]     = useState('all');
@@ -357,9 +347,7 @@ export default function LeadFeed() {
   // for you" when the mover has any preferences set; otherwise "All leads".
   const hasPrefs = !!(user?.maxDistance || (user?.preferredHomeSizes && user.preferredHomeSizes.length));
   const [feedScope, setFeedScope]       = useState(hasPrefs ? 'matched' : 'all');
-  const [outbidToast, setOutbidToast]   = useState(''); // "you were outbid" banner
   const pollRef   = useRef(null);
-  const myBidsRef = useRef(new Set()); // lead IDs the current user has bid on
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -394,54 +382,17 @@ export default function LeadFeed() {
       playNewLeadSound();
       setLeads(prev => [lead, ...prev.filter(l => (l._id||l.id) !== (lead._id||lead.id))]);
     });
-    socket.on('bid_update', (d) => {
-      setLeads(prev => prev.map(l => {
-        if ((l._id||l.id)?.toString() !== d.leadId?.toString()) return l;
-        // Phase B — bid_update is never emitted by the server for instant
-        // leads. If one arrives for an instant lead (stale event, server
-        // bug), ignore it so we don't accidentally render auction state on
-        // a card that should only show Unlock.
-        if (isInstantLead(l)) return l;
-        return { ...l, currentBidPrice: d.currentBidPrice, auctionEndsAt: d.auctionEndsAt, bids: Array(d.totalBids).fill(null) };
-      }));
-    });
+    // Phase D — bid_update / auction_settled listeners removed from the main
+    // feed. The main marketplace is instant-only; server never emits those
+    // events for instant leads. Future Deal Room page will subscribe to them
+    // in its own listener block.
     socket.on('lead_sold', (d) => {
       // Guard: skip if this was our own buy-now purchase — handleBuyNow already updated state
       if (d.buyerId && d.buyerId === user?._id?.toString()) return;
       setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== d.leadId?.toString()));
     });
-    socket.on('auction_settled', (d) => {
-      const winnerId = d.winnerId?.toString();
-      const leadId   = d.leadId?.toString();
-      const isWinner = winnerId && winnerId === user?._id?.toString();
-
-      setLeads(prev => {
-        const wonLead = prev.find(l => (l._id||l.id)?.toString() === leadId);
-        // Phase B — auction_settled is never emitted by the server for
-        // instant leads (cron skips them). If one arrives for an instant
-        // lead, ignore it entirely — instant leads have no auction state
-        // and shouldn't trigger winner/outbid flows.
-        if (wonLead && isInstantLead(wonLead)) return prev;
-
-        if (isWinner) {
-          // Cron settled this auction in our favour — show success + refresh balance
-          setTimeout(() => {
-            setSuccessData({ lead: wonLead || { _id: leadId }, finalPrice: d.finalPrice, fromAuction: true });
-            refreshUser();
-          }, 0);
-        } else if (myBidsRef.current.has(leadId)) {
-          // We bid on this lead but someone else won
-          myBidsRef.current.delete(leadId);
-          setTimeout(() => {
-            setOutbidToast('You were outbid — this lead was claimed by another mover.');
-          }, 0);
-        }
-
-        return prev.filter(l => (l._id||l.id)?.toString() !== leadId);
-      });
-    });
     return () => { stopPolling(); socket.disconnect(); };
-  }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling, refreshUser, user?._id]);
+  }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling, user?._id]);
 
   const handleBuyNow = async (lead) => {
     const id      = (lead._id || lead.id)?.toString();
@@ -470,17 +421,6 @@ export default function LeadFeed() {
       setSuccessData({ lead: data.lead || lead });
       refreshUser();
     } finally { setClaimingId(null); }
-  };
-
-  const handleBid = async (amount) => {
-    if (!bidLead) return;
-    const id  = (bidLead._id || bidLead.id)?.toString();
-    const res = await fetch(`${API_URL}/bids/${id}`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ amount }) });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Failed to place bid'); return; }
-    myBidsRef.current.add(id); // Track that we have an active bid on this lead
-    setLeads(prev => prev.map(l => (l._id||l.id)?.toString() === id ? { ...l, currentBidPrice: data.currentBidPrice, auctionEndsAt: data.auctionEndsAt } : l));
-    setBidLead(null);
   };
 
   const handleClaim = async (lead) => {
@@ -731,19 +671,15 @@ export default function LeadFeed() {
               </thead>
               <tbody>
                 {displayedLeads.map((lead, i) => {
-                  const id        = (lead._id || lead.id)?.toString();
-                  const isInstant = isInstantLead(lead);
-                  const isAuction = isAuctionLead(lead);
-                  const isLD      = lead.distance === 'Long Distance';
-                  const daysToMove = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
-                  const isToday   = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
-                  const isUrgent  = daysToMove > 1 && daysToMove <= 7;
-                  const isPremium = lead.grade === 'A';
-                  const currentBid = lead.currentBidPrice || 0;
-                  const buyNowPrice  = getLeadPrice(lead);
-                  const displayPrice = isAuction
-                    ? (currentBid > 0 ? currentBid : lead.startingBidPrice || buyNowPrice)
-                    : buyNowPrice;
+                  const id          = (lead._id || lead.id)?.toString();
+                  const isClaimable = lead.auctionStatus === 'active';
+                  const isLD        = lead.distance === 'Long Distance';
+                  const daysToMove  = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
+                  const isToday     = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
+                  const isUrgent    = daysToMove > 1 && daysToMove <= 7;
+                  const isPremium   = lead.grade === 'A';
+                  const buyNowPrice = getLeadPrice(lead);
+                  const displayPrice = buyNowPrice;
 
                   return (
                     <tr
@@ -776,7 +712,6 @@ export default function LeadFeed() {
                           <span className="lead-tag tag-distance" style={{ ...TAG_BASE, background: isLD ? '#f0f4ff' : '#f0fdf4', color: isLD ? '#3b5bdb' : '#16a34a', border: `1px solid ${isLD ? '#c5d3ff' : '#bbf7d0'}` }}>
                             {isLD ? 'Long Distance' : 'Local'}
                           </span>
-                          {isAuction && lead.auctionEndsAt && <TimeLeftTag endsAt={lead.auctionEndsAt} />}
                           {isToday  && <span className="lead-tag tag-today" style={{ ...TAG_BASE, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>Today!</span>}
                           {isUrgent && <span className="lead-tag tag-urgent" style={{ ...TAG_BASE, background: '#fff7ed', color: '#d97706', border: '1px solid #fde68a' }}>Urgent</span>}
                           {isPremium && (
@@ -808,15 +743,6 @@ export default function LeadFeed() {
                         <span className="mobile-urgency-inline" aria-hidden="true">
                           {(() => {
                             if (isToday) return ' · Today';
-                            if (isAuction && lead.auctionEndsAt) {
-                              const diff = new Date(lead.auctionEndsAt) - Date.now();
-                              if (diff > 0) {
-                                const h = Math.floor(diff / 3600000);
-                                if (h >= 24) return ` · ${Math.floor(h / 24)}d left`;
-                                if (h >= 1)  return ` · ${h}h left`;
-                                return ' · Ending soon';
-                              }
-                            }
                             if (isUrgent) return ' · Urgent';
                             return '';
                           })()}
@@ -833,38 +759,25 @@ export default function LeadFeed() {
 
                       {/* ── Price ── */}
                       <td className="col-price" style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
-                        {/* Desktop view — preserved exactly as before */}
                         <div className="price-desktop">
                           <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a' }}>
                             ${displayPrice.toFixed ? displayPrice.toFixed(2) : displayPrice}
                           </div>
-                          {isAuction && currentBid > 0 && (
-                            <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>current bid</div>
-                          )}
-                          {isAuction && currentBid === 0 && (
-                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>starting bid</div>
-                          )}
                         </div>
-                        {/* Mobile view — unlock price dominant, bid secondary */}
                         <div className="price-mobile">
                           <div className="price-unlock-row">
                             <span className="price-unlock-amount">${buyNowPrice.toFixed ? buyNowPrice.toFixed(2) : buyNowPrice}</span>
                             <span className="price-unlock-label">unlock</span>
                           </div>
-                          {isAuction && currentBid > 0 && (
-                            <div className="price-bid-caption">Current bid ${currentBid.toFixed ? currentBid.toFixed(2) : currentBid}</div>
-                          )}
-                          {isAuction && currentBid === 0 && (
-                            <div className="price-bid-caption">Starting bid ${(lead.startingBidPrice || buyNowPrice).toFixed ? (lead.startingBidPrice || buyNowPrice).toFixed(2) : (lead.startingBidPrice || buyNowPrice)}</div>
-                          )}
                         </div>
                       </td>
 
-                      {/* ── Action ── */}
+                      {/* ── Action ── single Unlock CTA. Active leads claim
+                          via the atomic /buy-now route; non-active legacy
+                          admin-imports open the preview modal where the
+                          older /api/leads/:id/claim path is used. */}
                       <td className="col-action" style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {isInstant ? (
-                          /* Instant-dispatch lead: single Unlock CTA. No bid
-                             button, no Get Details detour — click claims. */
+                        {isClaimable ? (
                           <button
                             className="cta-buy"
                             onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
@@ -877,29 +790,6 @@ export default function LeadFeed() {
                               </>
                             )}
                           </button>
-                        ) : isAuction ? (
-                          <div className="cta-group" style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                            <button
-                              className="cta-bid"
-                              onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); setBidLead(lead); }}
-                              style={{ ...BTN_OUTLINE, padding: '8px 14px', fontSize: 12 }}>
-                              <Gavel size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                              <span className="cta-text-desktop">Bid</span>
-                              <span className="cta-text-mobile">Place bid</span>
-                            </button>
-                            <button
-                              className="cta-buy"
-                              onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
-                              disabled={claimingId === id}
-                              style={{ ...BTN_PRIMARY, opacity: claimingId === id ? 0.6 : 1 }}>
-                              {claimingId === id ? 'Claiming…' : (
-                                <>
-                                  <span className="cta-text-desktop">Unlock ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice} ›</span>
-                                  <span className="cta-text-mobile">Unlock for ${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
                         ) : (
                           <button
                             className="cta-view"
@@ -923,28 +813,17 @@ export default function LeadFeed() {
               call the exact same handlers as the desktop table rows. */}
           <div className="leads-mobile-list" role="list">
             {displayedLeads.map((lead) => {
-              const id        = (lead._id || lead.id)?.toString();
-              const isAuction = isAuctionLead(lead);
-              const isLD      = lead.distance === 'Long Distance';
-              const daysToMove = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
-              const isToday   = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
-              const isUrgent  = daysToMove > 1 && daysToMove <= 7;
-              const currentBid = lead.currentBidPrice || 0;
+              const id          = (lead._id || lead.id)?.toString();
+              const isLD        = lead.distance === 'Long Distance';
+              const daysToMove  = lead.moveDate ? (new Date(lead.moveDate) - Date.now()) / 86400000 : 99;
+              const isToday     = lead.moveDate ? new Date(lead.moveDate).toDateString() === new Date().toDateString() : false;
+              const isUrgent    = daysToMove > 1 && daysToMove <= 7;
               const buyNowPrice = getLeadPrice(lead);
-              const startingBid = lead.startingBidPrice || buyNowPrice;
 
               // Inline urgency text (replaces the urgency badges).
               let urgencyText = '';
               if (isToday) urgencyText = 'Today';
-              else if (isAuction && lead.auctionEndsAt) {
-                const diff = new Date(lead.auctionEndsAt) - Date.now();
-                if (diff > 0) {
-                  const h = Math.floor(diff / 3600000);
-                  if (h >= 24) urgencyText = `${Math.floor(h / 24)}d left`;
-                  else if (h >= 1) urgencyText = `${h}h left`;
-                  else urgencyText = 'Ending soon';
-                }
-              } else if (isUrgent) urgencyText = 'Urgent';
+              else if (isUrgent) urgencyText = 'Urgent';
 
               return (
                 <article
@@ -997,15 +876,8 @@ export default function LeadFeed() {
                     <span className="lm-price-amount">${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}</span>
                     <span className="lm-price-label">unlock</span>
                   </div>
-                  {isAuction && (
-                    <div className="lm-bid-caption">
-                      {currentBid > 0
-                        ? `Current bid $${currentBid.toFixed ? currentBid.toFixed(2) : currentBid}`
-                        : `Starting bid $${startingBid.toFixed ? startingBid.toFixed(2) : startingBid}`}
-                    </div>
-                  )}
 
-                  {/* Actions */}
+                  {/* Single Unlock CTA. */}
                   <button
                     type="button"
                     className="lm-cta-primary"
@@ -1016,15 +888,6 @@ export default function LeadFeed() {
                       ? 'Claiming…'
                       : `Unlock for $${buyNowPrice.toFixed ? buyNowPrice.toFixed(0) : buyNowPrice}`}
                   </button>
-                  {isAuction && (
-                    <button
-                      type="button"
-                      className="lm-cta-secondary"
-                      onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); setBidLead(lead); }}
-                    >
-                      Place bid
-                    </button>
-                  )}
                 </article>
               );
             })}
@@ -1041,12 +904,8 @@ export default function LeadFeed() {
           error={claimError}
           onClose={() => { setPreviewLead(null); setClaimError(''); }}
           onClaim={handleClaim}
-          onBid={(lead) => setBidLead(lead)}
           onBuyNow={handleBuyNow}
         />
-      )}
-      {bidLead && (
-        <BidModal lead={bidLead} balance={balance} onClose={() => setBidLead(null)} onBid={handleBid} />
       )}
       {successData && (
         <SuccessModal
@@ -1054,26 +913,6 @@ export default function LeadFeed() {
           onClose={() => setSuccessData(null)}
           onNavigate={() => { setSuccessData(null); navigate('/dashboard/customers'); }}
         />
-      )}
-
-      {/* ── Outbid toast ─────────────────────────────────────────────────── */}
-      {outbidToast && (
-        <div style={{
-          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
-          background: '#1e293b', color: '#f1f5f9', borderRadius: 12,
-          padding: '14px 22px', fontSize: 14, fontWeight: 600,
-          display: 'flex', alignItems: 'center', gap: 12,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.25)', zIndex: 13600,
-          animation: 'fadeInUp 0.2s ease',
-        }}>
-          <ZapOff size={16} color="#f59e0b" />
-          {outbidToast}
-          <button
-            onClick={() => setOutbidToast('')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0 0 0 8px', fontSize: 16, lineHeight: 1 }}>
-            ×
-          </button>
-        </div>
       )}
     </DashboardLayout>
   );
