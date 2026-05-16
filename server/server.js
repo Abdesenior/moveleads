@@ -124,7 +124,6 @@ app.use('/api/admin',          verifiedGate, require('./routes/adminAnalytics'))
 app.use('/api/admin',          verifiedGate, require('./routes/admin'));
 app.use('/api/disputes',       verifiedGate, require('./routes/disputes'));
 app.use('/api/admin/pricing',  verifiedGate, require('./routes/pricing'));
-app.use('/api/admin/pricing-addons', verifiedGate, require('./routes/admin/pricingAddons'));
 app.use('/api/billing',        verifiedGate, require('./routes/billing'));   // webhook mounted separately above
 app.use('/api/onboarding',     verifiedGate, require('./routes/onboarding'));
 app.use('/api/purchases',      verifiedGate, require('./routes/purchases'));

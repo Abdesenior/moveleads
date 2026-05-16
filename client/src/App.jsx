@@ -51,7 +51,6 @@ const AdminRevenue = lazy(() => import('./pages/admin/AdminRevenue'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminDisputes = lazy(() => import('./pages/admin/AdminDisputes'));
 const AdminPricing = lazy(() => import('./pages/admin/AdminPricing'));
-const AdminPricingAddons = lazy(() => import('./pages/admin/AdminPricingAddons'));
 const AdminMoverResearch = lazy(() => import('./pages/admin/AdminMoverResearch'));
 const AdminPartnerResearch = lazy(() => import('./pages/admin/AdminPartnerResearch'));
 const FoundingMovers = lazy(() => import('./pages/FoundingMovers'));
@@ -125,7 +124,6 @@ function App() {
               <Route path="/admin/revenue" element={<ProtectedRoute requireAdmin><AdminRevenue /></ProtectedRoute>} />
               <Route path="/admin/disputes" element={<ProtectedRoute requireAdmin><AdminDisputes /></ProtectedRoute>} />
               <Route path="/admin/pricing" element={<ProtectedRoute requireAdmin><AdminPricing /></ProtectedRoute>} />
-              <Route path="/admin/pricing-addons" element={<ProtectedRoute requireAdmin><AdminPricingAddons /></ProtectedRoute>} />
               <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
               <Route path="/admin/mover-research" element={<ProtectedRoute requireAdmin><AdminMoverResearch /></ProtectedRoute>} />
               <Route path="/admin/partner-research" element={<ProtectedRoute requireAdmin><AdminPartnerResearch /></ProtectedRoute>} />

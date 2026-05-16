@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
-import { Plus, Sparkles, Trash2, Power, Check, X, Info, RefreshCcw, AlertTriangle, Wand2, Calculator, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Sparkles, Trash2, Power, Check, X, Info, RefreshCcw, Calculator, ChevronDown, ChevronRight } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
@@ -72,8 +72,7 @@ export default function AdminPricing() {
   const [compareRows, setCompareRows] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
-  const [audit, setAudit] = useState(null);
-  const [normalizing, setNormalizing] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
 
   const fetchRules = useCallback(async () => {
     setLoading(true);
@@ -94,30 +93,7 @@ export default function AdminPricing() {
     } catch (e) { console.error('shadow-compare failed', e); }
   }, [API_URL, token]);
 
-  const fetchAudit = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/admin/pricing/audit`, { headers: { 'x-auth-token': token } });
-      const json = await res.json();
-      if (res.ok) setAudit(json);
-    } catch (e) { console.error('audit failed', e); }
-  }, [API_URL, token]);
-
-  async function normalizeDescriptions() {
-    if (!window.confirm('Rewrite legacy multiplier-style descriptions into USD language? Only rows with an USD amount set are touched.')) return;
-    setNormalizing(true);
-    try {
-      const res = await fetch(`${API_URL}/admin/pricing/normalize-descriptions`, {
-        method: 'POST', headers: { 'x-auth-token': token },
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.msg || 'Normalize failed');
-      toast.success(`Rewrote ${json.rewritten.length} description${json.rewritten.length === 1 ? '' : 's'}`);
-      fetchRules(); fetchAudit();
-    } catch (e) { toast.error(e.message); }
-    finally { setNormalizing(false); }
-  }
-
-  useEffect(() => { fetchRules(); fetchCompare(); fetchAudit(); }, [fetchRules, fetchCompare, fetchAudit]);
+  useEffect(() => { fetchRules(); fetchCompare(); }, [fetchRules, fetchCompare]);
 
   async function saveAmount(rule, nextAmountUsd) {
     const n = Number(nextAmountUsd);
@@ -132,7 +108,7 @@ export default function AdminPricing() {
       if (!res.ok) throw new Error(json.msg || 'Save failed');
       toast.success(`${rule.category} · ${rule.matchValue || '—'} → $${n}`);
       setEditingId(null);
-      fetchRules(); fetchAudit();
+      fetchRules();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -146,7 +122,7 @@ export default function AdminPricing() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.msg || 'Toggle failed');
       toast.success(`${json.category} · ${json.matchValue || '—'} ${json.isActive ? 'enabled' : 'disabled'}`);
-      fetchRules(); fetchAudit();
+      fetchRules();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -159,22 +135,22 @@ export default function AdminPricing() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.msg || 'Delete failed');
       toast.success('Rule deleted');
-      fetchRules(); fetchAudit();
+      fetchRules();
     } catch (e) { toast.error(e.message); }
   }
 
-  async function create(category, matchValue, amountUsd, description) {
+  async function create(category, matchValue, amountUsd) {
     try {
       const res = await fetch(`${API_URL}/admin/pricing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ category, matchValue, amountUsd: Number(amountUsd), description }),
+        body: JSON.stringify({ category, matchValue, amountUsd: Number(amountUsd) }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.msg || 'Create failed');
       toast.success('Rule created');
       setCreating(null);
-      fetchRules(); fetchAudit();
+      fetchRules();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -188,7 +164,7 @@ export default function AdminPricing() {
       if (!res.ok) throw new Error(json.msg || 'Seed failed');
       toast.success(`Seeded ${json.created.length} rule${json.created.length === 1 ? '' : 's'}`,
                     `${json.skipped.length} already existed`);
-      fetchRules(); fetchAudit();
+      fetchRules();
     } catch (e) { toast.error(e.message); }
   }
 
@@ -224,24 +200,20 @@ export default function AdminPricing() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          <button onClick={seedDefaults} style={secondaryBtn}>
-            <Sparkles size={14} /> Seed missing defaults
+          {rules.length === 0 && (
+            <button onClick={seedDefaults} style={secondaryBtn}>
+              <Sparkles size={14} /> Seed missing defaults
+            </button>
+          )}
+          <button onClick={() => setShowSimulator(s => !s)} style={secondaryBtn}>
+            <Calculator size={14} /> {showSimulator ? 'Hide' : 'Test'} pricing
           </button>
           <button onClick={() => setComparing(c => !c)} style={secondaryBtn}>
-            <RefreshCcw size={14} /> {comparing ? 'Hide' : 'Show'} shadow comparison
+            <RefreshCcw size={14} /> {comparing ? 'Hide' : 'Show'} price comparison
           </button>
         </div>
 
-        {audit && (audit.missingAmountUsd.length > 0 || audit.legacyDescriptions.length > 0 || audit.suspiciousMatch.length > 0) && (
-          <AuditPanel
-            audit={audit}
-            onNormalize={normalizeDescriptions}
-            normalizing={normalizing}
-            onDelete={remove}
-          />
-        )}
-
-        <SimulatorPanel API_URL={API_URL} token={token} />
+        {showSimulator && <SimulatorPanel API_URL={API_URL} token={token} />}
 
         {comparing && <ComparePanel rows={compareRows} onRefresh={fetchCompare} />}
 
@@ -308,7 +280,6 @@ function CategorySection({ category, rules, editingId, editValue, onStartEdit, o
                 <th style={th}>Match</th>
                 <th style={{ ...th, width: 160 }}>Amount (USD)</th>
                 <th style={{ ...th, width: 80 }}>Active</th>
-                <th style={th}>Description</th>
                 <th style={{ ...th, width: 60, textAlign: 'right' }}>Delete</th>
               </tr>
             </thead>
@@ -352,7 +323,6 @@ function CategorySection({ category, rules, editingId, editValue, onStartEdit, o
                         <Power size={11} /> {rule.isActive ? 'Active' : 'Off'}
                       </button>
                     </td>
-                    <td style={{ ...td, color: '#52525b', fontSize: 12.5 }}>{rule.description || <span style={{ color: '#cbd5e1' }}>—</span>}</td>
                     <td style={{ ...td, textAlign: 'right' }}>
                       <button onClick={() => onDelete(rule)} style={trashBtn} aria-label="Delete rule"><Trash2 size={14} /></button>
                     </td>
@@ -493,89 +463,6 @@ function labelForCategory(c) {
   }
 }
 
-// ── Audit panel ──────────────────────────────────────────────────────────
-// Surfaces rows that need operator attention: missing USD amount, legacy
-// multiplier-style descriptions, and matchValues that look mis-categorized.
-function AuditPanel({ audit, onNormalize, normalizing, onDelete }) {
-  return (
-    <section style={{ ...section, background: '#fff7ed', borderColor: '#fdba74' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <AlertTriangle size={16} color="#c2410c" />
-        <h2 style={{ ...sectionH, color: '#9a3412', margin: 0 }}>Rules needing attention</h2>
-      </div>
-      <p style={{ fontSize: 12.5, color: '#9a3412', margin: '0 0 12px', lineHeight: 1.5 }}>
-        These flags exist because the rule set was migrated from the legacy multiplier engine. Resolve them before cutover to keep the breakdown clean.
-      </p>
-
-      {audit.legacyDescriptions.length > 0 && (
-        <div style={{ marginBottom: 14, padding: 12, background: '#fff', border: '1px solid #fed7aa', borderRadius: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
-              {audit.legacyDescriptions.length} description{audit.legacyDescriptions.length === 1 ? '' : 's'} use legacy multiplier language
-            </div>
-            <button onClick={onNormalize} disabled={normalizing}
-                    style={{ ...secondaryBtn, background: '#0f172a', color: '#fff', border: 0, opacity: normalizing ? 0.6 : 1 }}>
-              <Wand2 size={13} /> {normalizing ? 'Rewriting…' : 'Rewrite to USD language'}
-            </button>
-          </div>
-          <p style={{ fontSize: 11.5, color: '#71717a', margin: '0 0 8px' }}>
-            Examples below. Click <em>Rewrite to USD language</em> to convert all of them based on the current amount.
-          </p>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#52525b', lineHeight: 1.6 }}>
-            {audit.legacyDescriptions.slice(0, 5).map(r => (
-              <li key={r._id}>
-                <code style={inlineCode}>{r.category} · {r.matchValue || '—'}</code>{' '}
-                <span style={{ color: '#a1a1aa' }}>{r.description}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {audit.missingAmountUsd.length > 0 && (
-        <div style={{ marginBottom: 14, padding: 12, background: '#fff', border: '1px solid #fed7aa', borderRadius: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', marginBottom: 6 }}>
-            {audit.missingAmountUsd.length} active rule{audit.missingAmountUsd.length === 1 ? '' : 's'} without a USD amount
-          </div>
-          <p style={{ fontSize: 11.5, color: '#71717a', margin: '0 0 8px' }}>
-            The simple engine ignores rules without an amount. Click the red "— set USD —" button in the category table below to assign a value.
-          </p>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#52525b', lineHeight: 1.6 }}>
-            {audit.missingAmountUsd.slice(0, 8).map(r => (
-              <li key={r._id}>
-                <code style={inlineCode}>{r.category} · {r.matchValue || '—'}</code>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {audit.suspiciousMatch.length > 0 && (
-        <div style={{ padding: 12, background: '#fff', border: '1px solid #fed7aa', borderRadius: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', marginBottom: 6 }}>
-            {audit.suspiciousMatch.length} rule{audit.suspiciousMatch.length === 1 ? '' : 's'} look mis-categorized
-          </div>
-          <p style={{ fontSize: 11.5, color: '#71717a', margin: '0 0 8px' }}>
-            These match values aren't in the canonical set for their category — most commonly a legacy mistake (e.g. an <code style={inlineCode}>HOME_SIZE</code> row with <code style={inlineCode}>Urgent</code>). Review and delete or recreate under the correct category.
-          </p>
-          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-            {audit.suspiciousMatch.map(r => (
-              <li key={r._id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '4px 0' }}>
-                <code style={{ ...inlineCode, background: '#fee2e2', color: '#991b1b' }}>{r.category} · {r.matchValue}</code>
-                <span style={{ color: '#71717a' }}>${Number.isFinite(r.amountUsd) ? r.amountUsd : '—'}</span>
-                <span style={{ flex: 1 }} />
-                <button onClick={() => onDelete(r)} style={{ ...trashBtn, color: '#dc2626' }} aria-label="Delete suspect rule">
-                  <Trash2 size={13} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </section>
-  );
-}
-
 // ── Simulator panel ──────────────────────────────────────────────────────
 // Operator picks lead attributes; the server runs the REAL
 // pricingEngineSimple.compute() on a synthetic lead and returns the
@@ -697,15 +584,14 @@ function PickerRow({ label, options, value, onChange }) {
 
 function CreateModal({ category, onClose, onCreate }) {
   const defaults = NEW_RULE_DEFAULTS[category] || NEW_RULE_DEFAULTS.HOME_SIZE;
-  const [matchValue, setMatchValue]   = useState(defaults.matchValue);
-  const [amountUsd, setAmountUsd]     = useState(defaults.amountUsd);
-  const [description, setDescription] = useState('');
+  const [matchValue, setMatchValue] = useState(defaults.matchValue);
+  const [amountUsd, setAmountUsd]   = useState(defaults.amountUsd);
   const suggestions = MATCH_SUGGESTIONS[category] || [];
   const requiresMatch = category !== 'BASE';
 
   function submit() {
     if (requiresMatch && !matchValue.trim()) return;
-    onCreate(category, matchValue.trim(), amountUsd, description);
+    onCreate(category, matchValue.trim(), amountUsd);
   }
 
   return (
@@ -738,15 +624,10 @@ function CreateModal({ category, onClose, onCreate }) {
           </div>
         )}
 
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 16 }}>
           <label style={fieldLabel}>Amount (USD)</label>
           <input type="number" value={amountUsd} onChange={e => setAmountUsd(e.target.value)} style={input} placeholder="0" />
           <p style={hint}>Range: -200 to 500. Use negative values for discounts.</p>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={fieldLabel}>Description (optional)</label>
-          <input value={description} onChange={e => setDescription(e.target.value)} style={input} placeholder="Internal note" />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
