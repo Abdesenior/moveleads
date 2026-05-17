@@ -1100,13 +1100,35 @@ export default function AdminLeads() {
             ) : sortedLeads.length === 0 ? (
               <tr><td colSpan="10" className="table-empty">No leads match your search and filters.</td></tr>
             ) : (
-              pagedLeads.map((lead, i) => (
+              pagedLeads.map((lead, i) => {
+              // Phase 1.7 — pre-action eligibility hints. Marks rows that would
+              // fail the move_to_deal_room server validation: past move date,
+              // expired status, or already purchased. Pure UX hint — selection
+              // still works; the server is the authoritative gate.
+              const movePast = lead.moveDate && new Date(lead.moveDate) < new Date();
+              const isExpiredOrPurchased = lead.status === 'Expired' || lead.status === 'Purchased';
+              const dealIneligible = movePast || isExpiredOrPurchased;
+              const ineligibleReason = lead.status === 'Purchased' ? 'Already purchased — inventory cannot change'
+                                     : lead.status === 'Expired' ? 'Lead expired — restore status before moving to Deal Room'
+                                     : movePast ? 'Move date has passed — archive instead'
+                                     : null;
+              return (
               <tr key={lead._id} style={{ background: i % 2 === 0 ? '#fff' : '#fcfdfe' }}>
-                <td style={{ paddingLeft: 16, width: 36 }}>
+                <td style={{ paddingLeft: 16, width: 36, position: 'relative' }}>
                   <input type="checkbox"
                     checked={selectedIds.has(String(lead._id))}
                     onChange={() => toggleSelect(String(lead._id))}
                   />
+                  {dealIneligible && (
+                    <span
+                      title={ineligibleReason}
+                      style={{
+                        position: 'absolute', left: 36, top: '50%', transform: 'translateY(-50%)',
+                        width: 6, height: 6, borderRadius: 3, background: '#ef4444',
+                        boxShadow: '0 0 0 2px #fff',
+                      }}
+                    />
+                  )}
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1154,7 +1176,8 @@ export default function AdminLeads() {
                   </div>
                 </td>
               </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>

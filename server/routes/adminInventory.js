@@ -118,6 +118,39 @@ router.post('/bulk', [auth, admin], async (req, res) => {
         continue;
       }
 
+      // Phase 1.7 — move_to_deal_room must fail leads that would silently
+      // disappear on the mover side. The /api/leads/deals query requires:
+      //   status IN ['Available', 'READY_FOR_DISTRIBUTION']
+      //   moveDate >= now
+      // Without these pre-checks, admin sees "moved" but the mover Deal
+      // Room shows nothing. Reject early with admin-actionable messages.
+      // Archive and restore_to_main are unaffected — those don't depend on
+      // mover visibility.
+      if (action === 'move_to_deal_room') {
+        const now = new Date();
+        if (lead.moveDate && new Date(lead.moveDate) < now) {
+          rejected.push({
+            leadId,
+            reason: "Move date has already passed. Movers can't fulfill past moves — archive this lead instead.",
+          });
+          continue;
+        }
+        if (lead.status === 'Expired') {
+          rejected.push({
+            leadId,
+            reason: "Lead is expired and won't be visible in Deal Room. Archive it, or restore an active status before moving.",
+          });
+          continue;
+        }
+        if (!['Available', 'READY_FOR_DISTRIBUTION'].includes(lead.status)) {
+          rejected.push({
+            leadId,
+            reason: `Lead status "${lead.status}" is not eligible for Deal Room. Only Available / READY_FOR_DISTRIBUTION leads can be discounted.`,
+          });
+          continue;
+        }
+      }
+
       const before = {
         inventoryChannel: lead.inventoryChannel,
         buyNowPrice: lead.buyNowPrice,
