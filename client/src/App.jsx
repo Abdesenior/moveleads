@@ -20,6 +20,7 @@ const GetQuoteV2 = lazy(() => import('./pages/GetQuoteV2'));
 const GetQuoteV3 = lazy(() => import('./pages/GetQuoteV3'));
 const GetQuoteV4 = lazy(() => import('./pages/GetQuoteV4'));
 const GetQuoteV5 = lazy(() => import('./pages/GetQuoteV5'));
+const GetQuoteV6 = lazy(() => import('./pages/GetQuoteV6'));
 const Partners = lazy(() => import('./pages/Partners'));
 const ThankYou = lazy(() => import('./pages/ThankYou'));
 const ForMovers = lazy(() => import('./pages/ForMovers'));
@@ -89,6 +90,7 @@ function App() {
               <Route path="/get-quote-v3" element={<GetQuoteV3 />} />
               <Route path="/get-quote-v4" element={<GetQuoteV4 />} />
               <Route path="/get-quote-v5" element={<GetQuoteV5 />} />
+              <Route path="/get-quote-v6" element={<GetQuoteV6 />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/move/:originCity/:destCity" element={<MoveRoute />} />
               <Route path="/thank-you" element={<ThankYou />} />

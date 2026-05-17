@@ -122,6 +122,16 @@ const LeadIngestV2Schema = z.object({
     .enum(['residential', 'commercial', 'office', 'storage', 'other'])
     .optional(),
 
+  // V6 conversational funnel — operational difficulty signals.
+  // Both fields OPTIONAL so V5 payloads continue to validate unchanged.
+  homeType: z
+    .enum(['house', 'apartment', 'condo', 'townhouse', 'storage', 'other'])
+    .optional(),
+
+  stairs: z
+    .enum(['ground_floor', 'walk_up_2', 'walk_up_3plus', 'elevator'])
+    .optional(),
+
   heavyItems: z
     .array(z.string().min(1).max(80))
     .max(20, 'Too many heavy items')
@@ -148,7 +158,10 @@ const LeadIngestV2Schema = z.object({
     .min(8)
     .max(64),
 
-  funnelVersion: z.literal('v5'),
+  // V6 conversational funnel is additive — same data contract, richer UX.
+  // Accept both versions on the same ingest endpoint; client stamps the
+  // version it shipped from for analytics segmentation.
+  funnelVersion: z.enum(['v5', 'v6']),
 
   // Optional attribution stamp
   sourceCompany: z.string().optional(),

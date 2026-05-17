@@ -156,6 +156,15 @@ const LeadSchema = new mongoose.Schema({
   intentConfirmed:    { type: Boolean },
   urgencyBucket:      { type: String, enum: ['asap', 'this_week', 'this_month', 'flexible'] },
   moveType:           { type: String, enum: ['residential', 'commercial', 'office', 'storage', 'other'] },
+  // V6 conversational funnel — operational difficulty signals.
+  // `homeType` is the customer's physical dwelling (house/apartment/etc.);
+  // distinct from `moveType` (residential/commercial classification).
+  // `stairs` captures walk-up vs elevator vs ground floor — biggest
+  // under-quote risk for movers per pre-V6 audit. Both fields are
+  // OPTIONAL: V4/V5 leads never populate them; the scoring engine does
+  // not read them yet (separate workstream).
+  homeType:           { type: String, enum: ['house', 'apartment', 'condo', 'townhouse', 'storage', 'other'] },
+  stairs:             { type: String, enum: ['ground_floor', 'walk_up_2', 'walk_up_3plus', 'elevator'] },
   funnelVersion:      { type: String },
   clientSubmissionId: { type: String },
   adminTierOverride: {

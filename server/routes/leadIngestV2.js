@@ -48,6 +48,26 @@ const pricingEngineV2 = require('../services/pricingEngineV2');
 const pricingEngineSimple = require('../services/pricingEngineSimple');
 const { instantDispatchEnabled } = require('../utils/instantDispatch');
 
+/**
+ * Derive an `urgencyBucket` enum from a specific `moveDate`. V6 conversational
+ * funnel may capture an exact date via the calendar branch instead of a
+ * bucket select — server bridges to the bucket so existing scoring code
+ * (which reads `urgencyBucket`) keeps working unchanged.
+ *
+ * Bucket thresholds match the leadScoringEngine urgency bands. Returns
+ * undefined for invalid / missing input so the caller can default cleanly.
+ */
+function deriveUrgencyBucket(moveDate) {
+  if (!moveDate) return undefined;
+  const d = (moveDate instanceof Date) ? moveDate : new Date(moveDate);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const daysAway = Math.round((d.getTime() - Date.now()) / 86400000);
+  if (daysAway <= 7)  return 'asap';
+  if (daysAway <= 14) return 'this_week';
+  if (daysAway <= 30) return 'this_month';
+  return 'flexible';
+}
+
 /* ── Distance helpers (same as leadIngest.js) ─────────────────────────────── */
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 3959;
@@ -225,20 +245,30 @@ router.post('/', ingestLimiter, async (req, res) => {
       ...(resolvedSourceCompany && { sourceCompany: resolvedSourceCompany }),
       statusHistory: [{ status: 'Pending Verification', timestamp: new Date() }],
 
-      // V5-only fields
-      funnelVersion: 'v5',
+      // V5/V6 fields. funnelVersion is taken from the validated payload so
+      // V5 clients stamp 'v5' and V6 conversational-funnel clients stamp
+      // 'v6'. Both flow through the same ingest pipeline.
+      funnelVersion: data.funnelVersion,
       clientSubmissionId: data.clientSubmissionId,
       intentConfirmed: data.intentConfirmed,
-      // Phase 6.3 — start V5 leads BEHIND the quality gate. Mover visibility
-      // requires qualityGateCleared !== false; the scoring pipeline flips
-      // this to true when it saves a snapshot with non-rejected tier (or
-      // leaves it false when tier is rejected). Prevents the race where
-      // verifyLeadPhone marks status=READY_FOR_DISTRIBUTION + fires
-      // broadcasts before scoring/validation has finished.
+      // Phase 6.3 — start V5/V6 leads BEHIND the quality gate. Mover
+      // visibility requires qualityGateCleared !== false; the scoring
+      // pipeline flips this to true when it saves a snapshot with
+      // non-rejected tier (or leaves it false when tier is rejected).
+      // Prevents the race where verifyLeadPhone marks
+      // status=READY_FOR_DISTRIBUTION + fires broadcasts before
+      // scoring/validation has finished.
       qualityGateCleared: false,
-      urgencyBucket: data.urgencyBucket,
+      // V6 may capture an exact moveDate via calendar; the urgencyBucket
+      // can be derived from it server-side when the client only sends a
+      // bucket OR only sends a date. Both fields end up on the doc so
+      // downstream consumers can read whichever is most informative.
+      urgencyBucket: data.urgencyBucket || deriveUrgencyBucket(data.moveDate),
       heavyItems: data.heavyItems || [],
       ...(data.moveType && { moveType: data.moveType }),
+      // V6 operational-difficulty signals. Optional — schema accepts null.
+      ...(data.homeType && { homeType: data.homeType }),
+      ...(data.stairs && { stairs: data.stairs }),
     });
 
     try {
