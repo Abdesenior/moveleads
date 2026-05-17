@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState, useCallback } from 'react';
-import { Tag, MapPin, Calendar, Home, RefreshCw, AlertCircle, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Tag, MapPin, Calendar, Home, RefreshCw, AlertCircle, X, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { toMoverLabel } from '../../utils/tierLabels';
@@ -35,6 +36,12 @@ export default function Deals() {
   // showing lead/price/balance details. The actual purchase happens only
   // after the user clicks "Confirm Unlock".
   const [confirmLead, setConfirmLead] = useState(null);
+  // V1.8 — success banner after a confirmed unlock. Tells the mover the
+  // purchase succeeded and directs them to My Leads. Without this, the deal
+  // just silently disappears from the list, which is disorienting (matches
+  // the production confusion where admin/movers thought "lead went missing"
+  // after a successful purchase).
+  const [lastUnlocked, setLastUnlocked] = useState(null); // { route, price }
 
   const fetchDeals = useCallback(async () => {
     setLoading(true);
@@ -85,9 +92,11 @@ export default function Deals() {
       if (!res.ok) {
         throw new Error(json.error || json.msg || `HTTP ${res.status}`);
       }
-      // Success → close modal, refresh balance in AuthContext, refresh deals.
-      // The purchased lead moves to status='Purchased' and drops out of the
-      // /deals query naturally; it appears in My Leads via /api/purchases.
+      // Success → close modal, surface a confirmation banner so the mover
+      // knows the purchase landed (lead disappears from the list otherwise
+      // and the silence is disorienting), refresh balance, refresh deals.
+      const route = `${confirmLead.originCity || '—'} → ${confirmLead.destinationCity || '—'}`;
+      setLastUnlocked({ route, price });
       setConfirmLead(null);
       if (typeof refreshUser === 'function') {
         refreshUser().catch(() => { /* non-fatal */ });
@@ -121,6 +130,30 @@ export default function Deals() {
           They've been hand-picked and discounted by our team. Unlock works the same way as Live Leads.
         </p>
       </div>
+
+      {lastUnlocked && (
+        <div style={{
+          padding: '12px 16px', marginBottom: 14, borderRadius: 6,
+          background: '#ecfdf5', border: '1px solid #a7f3d0',
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+        }}>
+          <CheckCircle size={18} color="#047857" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 200, fontSize: 13, color: '#064e3b' }}>
+            <strong>Unlocked ${lastUnlocked.price}.</strong>{' '}
+            <span style={{ color: '#065f46' }}>{lastUnlocked.route}</span>{' '}
+            is now in your My Leads.
+          </div>
+          <Link to="/dashboard/my-leads"
+            style={{ padding: '7px 14px', borderRadius: 4, background: '#047857', color: '#fff', fontWeight: 600, fontSize: 12, textDecoration: 'none', letterSpacing: 0.2 }}>
+            View in My Leads
+          </Link>
+          <button onClick={() => setLastUnlocked(null)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#065f46', padding: 4 }}
+            aria-label="Dismiss">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input

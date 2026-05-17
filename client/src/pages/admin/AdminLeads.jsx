@@ -277,6 +277,12 @@ function InventoryChannelBadge({ lead }) {
   const now = Number(lead.buyNowPrice) || 0;
   const pct = (channel === 'deal_room' && origin > 0 && now < origin)
     ? Math.round((1 - now / origin) * 100) : 0;
+  // V1.8 — call out terminal states. When a deal_room lead has been
+  // purchased, admin needs to see at a glance that it's no longer visible
+  // to movers (status filter excludes it). The Channel column previously
+  // showed "Deal Room" + discount %, which made it look "live in Deal Room"
+  // — confusing because the lead is actually sold and gone from the surface.
+  const isSold = lead.status === 'Purchased';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{
@@ -284,7 +290,16 @@ function InventoryChannelBadge({ lead }) {
         letterSpacing: 0.3, textTransform: 'uppercase',
         background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
       }}>{s.label}</span>
-      {pct > 0 && (
+      {channel === 'deal_room' && isSold && (
+        <span
+          title="This lead was sold from Deal Room and is no longer visible to movers."
+          style={{
+            padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+            letterSpacing: 0.3, textTransform: 'uppercase',
+            background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a',
+          }}>Sold</span>
+      )}
+      {pct > 0 && !isSold && (
         <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }} title={`Was $${origin}, now $${now}`}>−{pct}%</span>
       )}
     </div>
