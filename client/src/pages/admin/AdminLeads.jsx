@@ -258,6 +258,39 @@ function TierBadge({ tier, composite }) {
   );
 }
 
+/* ── Deal Room V1 — Inventory channel badge ─────────────────────────────────
+ * Shows which surface a lead belongs to. Default 'main' for legacy docs
+ * (no field) so admin sees consistent labels across the table. The
+ * mover-side equivalent has no UI (movers don't see Channel) — this is
+ * admin-only.
+ * ───────────────────────────────────────────────────────────────────────── */
+function InventoryChannelBadge({ lead }) {
+  const channel = lead.inventoryChannel || 'main';
+  const styles = {
+    main:      { bg: '#eff6ff', fg: '#1e40af', border: '#bfdbfe', label: 'Main' },
+    deal_room: { bg: '#fffbeb', fg: '#92400e', border: '#fde68a', label: 'Deal Room' },
+    archived:  { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1', label: 'Archived' },
+  };
+  const s = styles[channel] || styles.main;
+  // Show discount % subtitle when in deal_room and we have originalPrice.
+  const origin = Number(lead.originalPrice) || 0;
+  const now = Number(lead.buyNowPrice) || 0;
+  const pct = (channel === 'deal_room' && origin > 0 && now < origin)
+    ? Math.round((1 - now / origin) * 100) : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{
+        padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
+        letterSpacing: 0.5, textTransform: 'uppercase',
+        background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
+      }}>{s.label}</span>
+      {pct > 0 && (
+        <span style={{ fontSize: 11, color: '#b45309', fontWeight: 700 }} title={`Was $${origin}, now $${now}`}>−{pct}%</span>
+      )}
+    </div>
+  );
+}
+
 export default function AdminLeads() {
   const { API_URL, token } = useContext(AuthContext);
   const [leads, setLeads] = useState([]);
@@ -271,6 +304,17 @@ export default function AdminLeads() {
   const [statusFilter, setStatusFilter] = useState('');
   // Phase 4 — tier filter on the shadow-mode V5 tier column
   const [tierFilter, setTierFilter] = useState('');
+  // Deal Room V1 — inventory channel filter + bulk-select state
+  const [channelFilter, setChannelFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState(null);
+  // Deal modal state — opens when admin clicks "Move to Deal Room"
+  const [dealModalOpen, setDealModalOpen] = useState(false);
+  const [dealMode, setDealMode] = useState('price'); // 'price' | 'percent'
+  const [dealPriceInput, setDealPriceInput] = useState('');
+  const [discountPctInput, setDiscountPctInput] = useState('');
+  const [dealReason, setDealReason] = useState('');
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -518,7 +562,20 @@ export default function AdminLeads() {
       l.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = !statusFilter || l.status === statusFilter;
     const matchTier = !tierFilter || l._shadowTier === tierFilter;
-    return matchSearch && matchStatus && matchTier;
+    // Deal Room V1 — channel filter. Default ('') matches everything (admin
+    // sees all channels). Specific selection filters to that channel; the
+    // 'main_legacy' option targets the operational cohort: 'auction'-stamped
+    // or pre-Phase-A leads that are no longer surfacing in the live feed
+    // but haven't been moved to Deal Room or archived. Useful for triage.
+    const ch = l.inventoryChannel || 'main'; // missing field treated as 'main'
+    let matchChannel = true;
+    if (channelFilter === 'main') matchChannel = ch === 'main';
+    else if (channelFilter === 'deal_room') matchChannel = ch === 'deal_room';
+    else if (channelFilter === 'archived') matchChannel = ch === 'archived';
+    else if (channelFilter === 'main_legacy') {
+      matchChannel = ch === 'main' && (l.distributionModel !== 'instant');
+    }
+    return matchSearch && matchStatus && matchTier && matchChannel;
   });
 
   const toggleSort = (key) => {
@@ -527,7 +584,106 @@ export default function AdminLeads() {
     setPage(1);
   };
 
-  useEffect(() => { setPage(1); }, [searchTerm, statusFilter, tierFilter, sortKey, sortDir]);
+  useEffect(() => {
+    setPage(1);
+    // When filters change, the rows the admin can see shift — clear selection
+    // to avoid acting on a hidden lead.
+    setSelectedIds(new Set());
+  }, [searchTerm, statusFilter, tierFilter, channelFilter, sortKey, sortDir]);
+
+  // Deal Room V1 — bulk-action helpers (Phase 3 admin UI).
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const selectAllVisible = () => {
+    setSelectedIds(new Set(pagedLeads.map(l => String(l._id))));
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // POST helper for /api/admin/inventory/bulk. Returns the parsed JSON or
+  // throws. Caller manages busy/error UI state. Refreshes the leads list on
+  // success so the admin sees the new channel state immediately.
+  const callInventoryBulk = async (body) => {
+    setBulkBusy(true); setBulkError(null);
+    try {
+      const res = await fetch(`${API_URL}/admin/inventory/bulk`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || json.ok === false) throw new Error(json.msg || `HTTP ${res.status}`);
+      // Refresh — lift the leads back from the server so the new state lands.
+      // Cheap: same fetch the page already does at mount.
+      const refresh = await fetch(`${API_URL}/admin/leads?limit=500`, { headers: { 'x-auth-token': token } });
+      if (refresh.ok) {
+        const j = await refresh.json();
+        if (Array.isArray(j)) setLeads(j);
+        else if (Array.isArray(j.leads)) setLeads(j.leads);
+      }
+      clearSelection();
+      return json;
+    } catch (err) {
+      setBulkError(err.message || 'Bulk action failed');
+      throw err;
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const submitMoveToDealRoom = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    const body = { leadIds: ids, action: 'move_to_deal_room', reason: dealReason || undefined };
+    if (dealMode === 'price') {
+      const dp = Number(dealPriceInput);
+      if (!Number.isFinite(dp) || dp <= 0) {
+        setBulkError('Enter a positive deal price.');
+        return;
+      }
+      body.dealPrice = dp;
+    } else {
+      const pct = Number(discountPctInput);
+      if (!Number.isFinite(pct) || pct <= 0 || pct >= 100) {
+        setBulkError('Enter a discount percent between 1 and 99.');
+        return;
+      }
+      body.discountPercent = pct;
+    }
+    try {
+      await callInventoryBulk(body);
+      setDealModalOpen(false);
+      setDealPriceInput(''); setDiscountPctInput(''); setDealReason('');
+    } catch { /* error already surfaced in bulkError */ }
+  };
+
+  const submitArchive = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    if (!window.confirm(`Archive ${ids.length} lead${ids.length === 1 ? '' : 's'}? They will be hidden from BOTH the Live Feed and the Deal Room. Admin can still see them here.`)) return;
+    try { await callInventoryBulk({ leadIds: ids, action: 'archive' }); } catch {}
+  };
+
+  const submitRestoreToMain = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    // Make the "this is NOT automatic promotion to Live Feed" copy unmissable.
+    const ok = window.confirm(
+      `Restore ${ids.length} lead${ids.length === 1 ? '' : 's'} to neutral inventory state?\n\n` +
+      `This will:\n` +
+      `  • Remove them from the Deal Room\n` +
+      `  • Restore their original (pre-discount) price\n\n` +
+      `This will NOT automatically put them back in the Live Feed. ` +
+      `Legacy auction-stamped leads stay hidden from /dashboard/leads ` +
+      `until you separately re-stamp them as instant dispatch.`
+    );
+    if (!ok) return;
+    try { await callInventoryBulk({ leadIds: ids, action: 'restore_to_main' }); } catch {}
+  };
 
   const sortedLeads = [...filtered].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -652,14 +808,135 @@ export default function AdminLeads() {
           <option value="review">⚠️ Review · Needs Verification</option>
           <option value="rejected">⛔ Rejected · Blocked</option>
         </select>
+        {/* Deal Room V1 — inventory channel filter. 'Eligible (legacy)'
+            highlights the ~110 unsold leads that no longer appear in the
+            live feed but haven't been moved to Deal Room or archived —
+            the operational cohort admin should triage first. */}
+        <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)}
+          style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, minWidth: 170 }}
+          title="Inventory channel (where the lead is surfaced)">
+          <option value="">All Channels</option>
+          <option value="main">▫️ Main (Live Feed eligible)</option>
+          <option value="deal_room">🏷️ Deal Room</option>
+          <option value="archived">🗄️ Archived</option>
+          <option value="main_legacy">⚠️ Eligible (legacy, not in feed)</option>
+        </select>
       </div>
+
+      {/* Deal Room V1 — bulk action bar. Sticky at top of the panel when
+          any leads are selected. Three actions: Move to Deal Room (opens
+          a small modal), Archive, Restore to Main. */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 5,
+          padding: 14, marginBottom: 12, borderRadius: 14,
+          background: '#0f172a', color: '#fff',
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          boxShadow: '0 4px 14px rgba(15,23,42,0.25)',
+        }}>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>
+            {selectedIds.size} selected
+          </span>
+          <button onClick={() => { setDealModalOpen(true); setBulkError(null); }}
+            disabled={bulkBusy}
+            style={{ padding: '8px 14px', borderRadius: 8, background: '#f59e0b', color: '#0f172a', border: 'none', fontWeight: 700, fontSize: 12, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+            🏷️ Move to Deal Room
+          </button>
+          <button onClick={submitArchive} disabled={bulkBusy}
+            style={{ padding: '8px 14px', borderRadius: 8, background: '#fef2f2', color: '#991b1b', border: 'none', fontWeight: 700, fontSize: 12, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+            🗄️ Archive
+          </button>
+          <button onClick={submitRestoreToMain} disabled={bulkBusy}
+            title="Removes from Deal Room and restores original price. Does NOT auto-promote to Live Feed."
+            style={{ padding: '8px 14px', borderRadius: 8, background: '#eff6ff', color: '#1e40af', border: 'none', fontWeight: 700, fontSize: 12, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+            ↩️ Restore to Main (neutral state)
+          </button>
+          <button onClick={clearSelection} disabled={bulkBusy}
+            style={{ padding: '8px 14px', borderRadius: 8, background: 'transparent', color: '#cbd5e1', border: '1px solid #475569', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          {bulkError && (
+            <span style={{ marginLeft: 'auto', color: '#fca5a5', fontSize: 12 }}>{bulkError}</span>
+          )}
+        </div>
+      )}
+
+      {/* Deal Room V1 — Move to Deal Room modal */}
+      {dealModalOpen && (
+        <div onClick={() => !bulkBusy && setDealModalOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 460, width: '100%', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+              Move {selectedIds.size} lead{selectedIds.size === 1 ? '' : 's'} to Deal Room
+            </h3>
+            <p style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
+              The lead's current price will be saved as the original. The new price below becomes the discounted buy-now price.
+              <strong> Existing buy-now and refund logic are unchanged.</strong>
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button type="button" onClick={() => setDealMode('price')}
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: dealMode === 'price' ? '2px solid #f59e0b' : '1px solid #e2e8f0', background: dealMode === 'price' ? '#fffbeb' : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                Explicit price (uniform)
+              </button>
+              <button type="button" onClick={() => setDealMode('percent')}
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: dealMode === 'percent' ? '2px solid #f59e0b' : '1px solid #e2e8f0', background: dealMode === 'percent' ? '#fffbeb' : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                Discount % (per lead)
+              </button>
+            </div>
+            {dealMode === 'price' ? (
+              <div style={{ marginTop: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Deal price ($)</label>
+                <input type="number" min="1" step="1" value={dealPriceInput} onChange={e => setDealPriceInput(e.target.value)}
+                  placeholder="e.g. 25"
+                  style={{ width: '100%', padding: '10px 12px', marginTop: 6, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>Same price applied to every selected lead.</div>
+              </div>
+            ) : (
+              <div style={{ marginTop: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Discount (%)</label>
+                <input type="number" min="1" max="99" step="1" value={discountPctInput} onChange={e => setDiscountPctInput(e.target.value)}
+                  placeholder="e.g. 50"
+                  style={{ width: '100%', padding: '10px 12px', marginTop: 6, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>Server computes each lead's deal price as round(originalPrice × (1 − discount%)).</div>
+              </div>
+            )}
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Reason (optional, audit log)</label>
+              <input type="text" value={dealReason} onChange={e => setDealReason(e.target.value)}
+                placeholder="e.g. Aged 7d, no buyers"
+                style={{ width: '100%', padding: '10px 12px', marginTop: 6, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            {bulkError && (
+              <div style={{ marginTop: 12, padding: 10, background: '#fef2f2', color: '#b91c1c', borderRadius: 8, fontSize: 12 }}>{bulkError}</div>
+            )}
+            <div style={{ marginTop: 18, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => { setDealModalOpen(false); setBulkError(null); }} disabled={bulkBusy}
+                style={{ padding: '10px 16px', borderRadius: 8, background: 'transparent', border: '1px solid #e2e8f0', color: '#475569', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitMoveToDealRoom} disabled={bulkBusy}
+                style={{ padding: '10px 18px', borderRadius: 8, background: '#f59e0b', color: '#0f172a', border: 'none', fontWeight: 800, fontSize: 13, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+                {bulkBusy ? 'Moving…' : `Move ${selectedIds.size}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="panel" style={{ padding: 0, overflow: 'hidden', borderRadius: 18 }}>
         <table className="leads-table">
           <thead>
             <tr>
-              <th style={{ paddingLeft: 24 }}>
+              <th style={{ paddingLeft: 16, width: 36 }}>
+                <input type="checkbox"
+                  checked={pagedLeads.length > 0 && pagedLeads.every(l => selectedIds.has(String(l._id)))}
+                  onChange={e => e.target.checked ? selectAllVisible() : clearSelection()}
+                  title="Select all visible on this page"
+                />
+              </th>
+              <th>
                 <button type="button" onClick={() => toggleSort('route')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 900, color: sortKey === 'route' ? 'var(--bg-navy)' : 'var(--text-muted)' }}>
                   Route {sortKey === 'route' && <span style={{ color: 'var(--accent-orange)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
                 </button>
@@ -694,18 +971,25 @@ export default function AdminLeads() {
                   Tier {sortKey === 'tier' && <span style={{ color: 'var(--accent-orange)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
                 </button>
               </th>
+              <th title="Inventory channel (where the lead is surfaced)">Channel</th>
               <th style={{ textAlign: 'right', paddingRight: 24 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableSkeleton rowCount={pageSize} colCount={8} />
+              <TableSkeleton rowCount={pageSize} colCount={10} />
             ) : sortedLeads.length === 0 ? (
-              <tr><td colSpan="8" className="table-empty">No leads match your search and filters.</td></tr>
+              <tr><td colSpan="10" className="table-empty">No leads match your search and filters.</td></tr>
             ) : (
               pagedLeads.map((lead, i) => (
               <tr key={lead._id} style={{ background: i % 2 === 0 ? '#fff' : '#fcfdfe' }}>
-                <td style={{ paddingLeft: 24 }}>
+                <td style={{ paddingLeft: 16, width: 36 }}>
+                  <input type="checkbox"
+                    checked={selectedIds.has(String(lead._id))}
+                    onChange={() => toggleSelect(String(lead._id))}
+                  />
+                </td>
+                <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <MapPin size={14} color="#3b82f6" />
@@ -733,6 +1017,9 @@ export default function AdminLeads() {
                 </td>
                 <td>
                   <TierBadge tier={lead._shadowTier} composite={lead._shadowComposite} />
+                </td>
+                <td>
+                  <InventoryChannelBadge lead={lead} />
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: 24 }}>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>

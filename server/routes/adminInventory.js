@@ -47,7 +47,7 @@ router.post('/bulk', [auth, admin], async (req, res) => {
     return res.status(503).json({ ok: false, msg: 'Deal Room feature is disabled (ENABLE_DEAL_ROOM=false)' });
   }
 
-  const { leadIds, action, dealPrice, reason } = req.body || {};
+  const { leadIds, action, dealPrice, discountPercent, reason } = req.body || {};
 
   // ── Input validation ────────────────────────────────────────────────────
   if (!Array.isArray(leadIds) || leadIds.length === 0) {
@@ -59,11 +59,26 @@ router.post('/bulk', [auth, admin], async (req, res) => {
   if (!ALLOWED_ACTIONS.has(action)) {
     return res.status(400).json({ ok: false, msg: `action must be one of: ${[...ALLOWED_ACTIONS].join(', ')}` });
   }
-  // dealPrice is REQUIRED for move_to_deal_room, ignored otherwise.
+  // move_to_deal_room accepts EITHER dealPrice (uniform across selection) OR
+  // discountPercent (computed per-lead from each lead's pre-deal price).
+  // Exactly one must be provided.
   if (action === 'move_to_deal_room') {
-    const dp = Number(dealPrice);
-    if (!Number.isFinite(dp) || dp <= 0) {
-      return res.status(400).json({ ok: false, msg: 'dealPrice must be a positive number for move_to_deal_room' });
+    const dpProvided = dealPrice !== undefined && dealPrice !== null && dealPrice !== '';
+    const pctProvided = discountPercent !== undefined && discountPercent !== null && discountPercent !== '';
+    if (dpProvided === pctProvided) {
+      return res.status(400).json({ ok: false, msg: 'provide exactly one of dealPrice OR discountPercent for move_to_deal_room' });
+    }
+    if (dpProvided) {
+      const dp = Number(dealPrice);
+      if (!Number.isFinite(dp) || dp <= 0) {
+        return res.status(400).json({ ok: false, msg: 'dealPrice must be a positive number' });
+      }
+    }
+    if (pctProvided) {
+      const pct = Number(discountPercent);
+      if (!Number.isFinite(pct) || pct <= 0 || pct >= 100) {
+        return res.status(400).json({ ok: false, msg: 'discountPercent must be a number in (0, 100)' });
+      }
     }
   }
 
@@ -108,12 +123,20 @@ router.post('/bulk', [auth, admin], async (req, res) => {
       };
 
       if (action === 'move_to_deal_room') {
-        const dp = Number(dealPrice);
         // Snapshot the pre-deal price ONCE — re-moving a lead that's already
         // in Deal Room should NOT overwrite the original (otherwise repeated
         // moves would erase the true pre-deal anchor).
         if (lead.originalPrice == null) {
           lead.originalPrice = lead.buyNowPrice;
+        }
+        // Compute the per-lead deal price. With dealPrice → uniform. With
+        // discountPercent → derived per-lead from each lead's originalPrice.
+        let dp;
+        if (dealPrice !== undefined && dealPrice !== null && dealPrice !== '') {
+          dp = Number(dealPrice);
+        } else {
+          const pct = Number(discountPercent);
+          dp = Math.max(1, Math.round(lead.originalPrice * (1 - pct / 100)));
         }
         // Sanity: deal price can't exceed the original (defines "discount").
         // Block at endpoint level — UI can already validate this, but the
@@ -160,7 +183,11 @@ router.post('/bulk', [auth, admin], async (req, res) => {
         targetId: lead._id,
         before,
         after,
-        metadata: { dealPrice: action === 'move_to_deal_room' ? Number(dealPrice) : undefined, reason: reason || undefined },
+        metadata: {
+          dealPrice: action === 'move_to_deal_room' ? after.buyNowPrice : undefined,
+          discountPercent: action === 'move_to_deal_room' && discountPercent ? Number(discountPercent) : undefined,
+          reason: reason || undefined,
+        },
       });
 
       processed.push({ leadId: String(lead._id), action, before, after });
