@@ -6,7 +6,7 @@ import {
 import {
   Wallet, ShoppingBag, Trophy, TrendingDown,
   ArrowUpCircle, Clock, Plus, Zap, MapPin, Truck,
-  AlertTriangle, ChevronRight, Code
+  AlertTriangle, ChevronRight
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { AuthContext } from '../context/AuthContext';
@@ -222,15 +222,6 @@ export default function Dashboard() {
       sub: 'Lifetime investment',
       icon: <TrendingDown size={18} />,
       accent: '#8b5cf6',
-    },
-    {
-      title: 'AI Sales Rep',
-      value: 'Widget',
-      sub: 'Embed on your site',
-      icon: <Code size={18} />,
-      accent: '#ec4899',
-      cta: 'Get Code',
-      onCta: () => navigate('/dashboard/widget'),
     },
   ];
 
