@@ -39,6 +39,7 @@ const SettingsPage = lazy(() => import('./pages/dashboard/Settings'));
 const Widget = lazy(() => import('./pages/dashboard/Widget'));
 const ResolutionCenter = lazy(() => import('./pages/dashboard/ResolutionCenter'));
 const SmsClaim = lazy(() => import('./pages/dashboard/SmsClaim'));
+const Deals = lazy(() => import('./pages/dashboard/Deals'));
 
 const WidgetPage = lazy(() => import('./pages/WidgetPage'));
 const WidgetEmbedPage = lazy(() => import('./pages/WidgetEmbedPage'));
@@ -117,6 +118,7 @@ function App() {
               <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/dashboard/resolution-center" element={<ProtectedRoute><ResolutionCenter /></ProtectedRoute>} />
               <Route path="/dashboard/sms-claim" element={<ProtectedRoute><SmsClaim /></ProtectedRoute>} />
+              <Route path="/dashboard/deals" element={<ProtectedRoute><Deals /></ProtectedRoute>} />
 
               <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
               <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminLeads /></ProtectedRoute>} />

@@ -3,7 +3,7 @@ import { NavLink, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CreditCard, User, Settings,
   Menu, X, LogOut, Briefcase, Zap, Code, MessageSquareWarning,
-  BellRing, ChevronLeft, ChevronRight
+  BellRing, ChevronLeft, ChevronRight, Tag
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
@@ -17,6 +17,7 @@ import '../dashboard.css';
 const NAV_ITEMS = [
   { to: '/dashboard',          end: true,  icon: <LayoutDashboard size={18} />, label: 'Overview'   },
   { to: '/dashboard/leads',    end: false, icon: <Zap size={18} />,             label: 'Live Leads'  },
+  { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Deal Room'   },
   { to: '/dashboard/sms-claim',end: false, icon: <BellRing size={18} />,        label: 'Instant Jobs' },
   { to: '/dashboard/my-leads', end: false, icon: <Briefcase size={18} />,       label: 'My Leads'    },
   { to: '/dashboard/customers',end: false, icon: <Users size={18} />,           label: 'Customers'   },
