@@ -359,3 +359,9 @@ Commit hashes referenced in this document:
 - `a5cdd06` — Phase B client
 - `4e409cf` — Phase D client cleanup
 - `36d73ae` — Phase D server filter (main mover feed is instant-only)
+- `2db8899` — Live Transfer UX removal
+- `8614a7a` — Warm-transfer Phase 2A (/api/voice unmounted)
+
+## Related architecture docs
+
+- [phone-verification.md](./phone-verification.md) — Mover phone verification rollout (Twilio Verify). **Currently in HOLD pending upstream Twilio code 60238 resolution.** `User.phoneVerified` is the hard gate read by `broadcastLeadSMS` and (future) SMS Claim. The verification flow is implemented end-to-end (commits `e9d5d13`, `06aca2b`, `7d58d33`) but cannot be exercised until Twilio support clears the block. Verification is capability-gated (SMS alerts + SMS Claim only), NOT signup-gated.
