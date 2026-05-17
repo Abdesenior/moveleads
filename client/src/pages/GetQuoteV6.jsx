@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * GetQuoteV6 — Conversational qualification funnel.
@@ -323,6 +323,20 @@ export default function GetQuoteV6() {
   const sectionLabel = SECTION_LABELS[sectionIdx];
   const canGoBack = history.length > 0 && node !== NODE.SUCCESS;
 
+  // Branch the page shell: the landing/route step renders as a hero
+  // (no header bar, no section dots, full-bleed); every subsequent node
+  // renders inside the standard step shell so the funnel feels like
+  // progressing through a guided flow.
+  if (node === NODE.ROUTE) {
+    return (
+      <HeroLanding
+        answers={answers}
+        patch={patch}
+        next={() => goto(NODE.TIMING_PIVOT)}
+      />
+    );
+  }
+
   return (
     <div style={pageStyle}>
       <header style={headerStyle}>
@@ -341,9 +355,6 @@ export default function GetQuoteV6() {
           <div style={sectionLabelStyle}>{sectionLabel}</div>
         )}
 
-        {node === NODE.ROUTE && (
-          <RouteStep answers={answers} patch={patch} next={() => goto(NODE.TIMING_PIVOT)} />
-        )}
         {node === NODE.TIMING_PIVOT && (
           <TimingPivot
             onYes={() => { patch({ knowsDate: true }); goto(NODE.DATE_PICKER); }}
@@ -407,13 +418,39 @@ export default function GetQuoteV6() {
 // ║  Step components                                                      ║
 // ╚══════════════════════════════════════════════════════════════════════╝
 
-function RouteStep({ answers, patch, next }) {
+/**
+ * HeroLanding — V6's landing/entry layout for the route (ZIP) capture step.
+ *
+ * Replaces what was a card-styled `RouteStep` inside the funnel shell with a
+ * full-bleed hero that immediately asks for both ZIPs. Visually inspired by
+ * /get-quote-v4's hero treatment (same design tokens, same /hero-moving.webp
+ * asset, same layout pattern) but feeds the V6 state machine without
+ * duplicating any route or submission logic.
+ *
+ * Architecture notes:
+ *   - This is still the `NODE.ROUTE` node of the V6 state machine. Same
+ *     `next()` advances to `NODE.TIMING_PIVOT`. All downstream nodes
+ *     (timing → home → specialty → contact) receive the prefilled
+ *     pickupZip/destinationZip via the same `answers` object they already
+ *     read from. No new submission path; no payload-shape changes.
+ *   - Enrichment uses the same zippopotam.us call as the previous
+ *     RouteStep. Server still re-enriches authoritatively via Mapbox at
+ *     ingest time.
+ *   - Service chips at the bottom are COSMETIC — they exist as trust
+ *     signals showing what kinds of moves the marketplace handles. They
+ *     do NOT mutate state; that would mix concerns and complicate the
+ *     state machine for marginal UX gain. If you want them to feed
+ *     moveType in the future, that's a separate workstream.
+ */
+function HeroLanding({ answers, patch, next }) {
   const [pickupErr, setPickupErr] = useState('');
   const [destErr, setDestErr] = useState('');
   const [enriching, setEnriching] = useState(false);
+  const [enrichmentFailed, setEnrichmentFailed] = useState(false);
+  const destInputRef = useRef(null);
 
   // Lazy ZIP-to-city/state via free zippopotam.us (no auth, generous limits).
-  // If it fails, we still allow submission; server re-enriches via Mapbox.
+  // If it fails, submission still works; server re-enriches via Mapbox.
   const enrich = useCallback(async (zip, side) => {
     if (!/^\d{5}$/.test(zip)) return;
     setEnriching(true);
@@ -430,10 +467,14 @@ function RouteStep({ answers, patch, next }) {
       } else {
         patch({ destinationCity: city, destinationState: state });
       }
+      setEnrichmentFailed(false);
     } catch (_e) {
-      // Non-fatal — submission still works; server enriches via Mapbox.
+      // Don't block continue — server enriches authoritatively. Just
+      // surface a friendly note so the user understands the missing
+      // city/state label.
       if (side === 'pickup') patch({ originCity: '', originState: '' });
       else patch({ destinationCity: '', destinationState: '' });
+      setEnrichmentFailed(true);
     } finally {
       setEnriching(false);
     }
@@ -452,89 +493,188 @@ function RouteStep({ answers, patch, next }) {
     if (cleaned.length === 5) enrich(cleaned, 'dest');
   };
 
-  const canContinue = answers.pickupZip.length === 5 && answers.destinationZip.length === 5
-    && answers.pickupZip !== answers.destinationZip;
+  // Friendly inline guidance — duplicate-ZIP and invalid-format messages
+  // surface before the user hits the CTA so they don't bounce off an
+  // error after committing.
+  const sameZip = answers.pickupZip.length === 5
+    && answers.destinationZip.length === 5
+    && answers.pickupZip === answers.destinationZip;
+
+  const canContinue = answers.pickupZip.length === 5
+    && answers.destinationZip.length === 5
+    && !sameZip
+    && !enriching;
 
   const onContinue = () => {
-    if (answers.pickupZip.length !== 5) { setPickupErr('Enter a 5-digit ZIP'); return; }
-    if (answers.destinationZip.length !== 5) { setDestErr('Enter a 5-digit ZIP'); return; }
-    if (answers.pickupZip === answers.destinationZip) {
-      setDestErr('Destination must differ from origin'); return;
+    if (answers.pickupZip.length !== 5) {
+      setPickupErr("We couldn't find that ZIP. Please check it and try again.");
+      return;
+    }
+    if (answers.destinationZip.length !== 5) {
+      setDestErr("We couldn't find that ZIP. Please check it and try again.");
+      return;
+    }
+    if (sameZip) {
+      setDestErr("Pickup and drop-off ZIPs can't be the same.");
+      return;
     }
     next();
   };
 
-  // Crude client-side miles estimate via cached ZIP centroids. Not authoritative —
-  // server recomputes via Mapbox. Only used for the route-preview banner.
-  const milesEst = useMemo(() => {
-    if (!answers.originCity || !answers.destinationCity) return null;
-    // We don't ship a full ZIP→latlng table here. Skip the estimate; server
-    // will compute it and display in the response. Showing "miles" depends
-    // on server enrichment via the existing Mapbox pipeline.
-    return null;
-  }, [answers.originCity, answers.destinationCity]);
-
-  const showPreview = answers.originCity && answers.destinationCity;
+  const showPreview = answers.originCity && answers.destinationCity && !sameZip;
 
   return (
-    <div style={stepStyle}>
-      <h1 style={h1Style}>Where are you moving?</h1>
-      <p style={subStyle}>We'll use this to match you with movers who serve your route.</p>
+    <div style={heroPageStyle}>
+      {/* ── Header bar — minimal: brand only ─────────────────────────────── */}
+      <header style={heroHeaderStyle}>
+        <div style={brandStyle}>MoveLeads</div>
+      </header>
 
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Moving from</label>
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="postal-code"
-          placeholder="ZIP code"
-          value={answers.pickupZip}
-          onChange={e => handlePickup(e.target.value)}
-          style={inputStyle}
-          aria-invalid={!!pickupErr}
-        />
-        {answers.originCity && (
-          <div style={hintStyle}>{answers.originCity}, {answers.originState}</div>
-        )}
-        {pickupErr && <div style={errStyle}>{pickupErr}</div>}
+      {/* ── Trust strip — small banner directly under header ─────────────── */}
+      <div style={trustStripStyle}>
+        Compare trusted movers — free quote request
       </div>
 
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Moving to</label>
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="postal-code"
-          placeholder="ZIP code"
-          value={answers.destinationZip}
-          onChange={e => handleDest(e.target.value)}
-          style={inputStyle}
-          aria-invalid={!!destErr}
-        />
-        {answers.destinationCity && (
-          <div style={hintStyle}>{answers.destinationCity}, {answers.destinationState}</div>
-        )}
-        {destErr && <div style={errStyle}>{destErr}</div>}
-      </div>
-
-      {showPreview && (
-        <div style={routePreviewStyle}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: T.ink }}>
-            {answers.originCity}, {answers.originState}
-            <span style={{ color: T.accent, margin: '0 10px' }}>→</span>
-            {answers.destinationCity}, {answers.destinationState}
+      <main style={heroMainStyle}>
+        <div style={heroGridStyle}>
+          {/* ── Mobile-first hero image (shows above copy on mobile, side on desktop) */}
+          <div style={heroPhotoStyle}>
+            <img
+              src="/hero-moving.webp"
+              alt="Moving truck and a family at their new home"
+              style={heroPhotoImgStyle}
+            />
           </div>
-          {milesEst != null && (
-            <div style={{ fontSize: 13, color: T.ink2, marginTop: 4 }}>
-              ~{milesEst} miles
+
+          {/* ── Hero copy + ZIP capture ──────────────────────────────────── */}
+          <div style={heroCopyStyle}>
+            <h1 style={heroH1Style}>
+              Find Verified Movers <span style={{ color: T.accent }}>Without Overpaying</span>
+            </h1>
+            <p style={heroSubStyle}>
+              Tell us where you're moving and we'll match you with movers ready for your route.
+            </p>
+
+            <div style={heroFormStyle}>
+              <div style={zipFieldRowStyle}>
+                <ZipField
+                  label="Moving from"
+                  value={answers.pickupZip}
+                  onChange={handlePickup}
+                  city={answers.originCity}
+                  state={answers.originState}
+                  error={pickupErr}
+                />
+                <ZipField
+                  label="Moving to"
+                  value={answers.destinationZip}
+                  onChange={handleDest}
+                  city={answers.destinationCity}
+                  state={answers.destinationState}
+                  error={destErr}
+                  inputRef={destInputRef}
+                />
+              </div>
+
+              {sameZip && (
+                <div style={inlineGuidanceStyle}>
+                  Pickup and drop-off ZIPs can't be the same.
+                </div>
+              )}
+              {enrichmentFailed && !sameZip && answers.pickupZip.length === 5 && answers.destinationZip.length === 5 && (
+                <div style={{ ...inlineGuidanceStyle, color: T.ink2 }}>
+                  We couldn't calculate the route right now, but you can still continue.
+                </div>
+              )}
+
+              {showPreview && (
+                <div style={routePreviewStyle}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: T.ink }}>
+                    {answers.originCity}, {answers.originState}
+                    <span style={{ color: T.accent, margin: '0 10px' }}>→</span>
+                    {answers.destinationCity}, {answers.destinationState}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={!canContinue}
+                onClick={onContinue}
+                style={{
+                  ...heroCtaStyle,
+                  ...(canContinue ? {} : heroCtaDisabledStyle),
+                }}
+              >
+                {enriching ? 'Checking…' : 'Start My Quote'}
+              </button>
+
+              {/* ── Tiny trust row under CTA ─────────────────────────────── */}
+              <div style={tinyTrustRowStyle}>
+                <span>Free quote request</span>
+                <span style={tinyTrustDotStyle}>•</span>
+                <span>No obligation</span>
+                <span style={tinyTrustDotStyle}>•</span>
+                <span>Verified movers</span>
+              </div>
             </div>
-          )}
+
+            {/* ── Cosmetic service chips (NOT functional — pure trust signal) */}
+            <div style={serviceChipsStyle}>
+              {['Local move', 'Long-distance move', 'Apartment', 'House', 'Office move', 'Packing help'].map(label => (
+                <span key={label} style={serviceChipStyle}>{label}</span>
+              ))}
+            </div>
+
+            {/* ── Trusted-by row (platform-name text only, no logos / fake reviews) */}
+            <div style={trustedByRowStyle}>
+              <div style={trustedByLabelStyle}>Trusted by movers serving</div>
+              <div style={trustedByListStyle}>
+                <span>50 states</span>
+                <span style={tinyTrustDotStyle}>•</span>
+                <span>Local & long-distance</span>
+                <span style={tinyTrustDotStyle}>•</span>
+                <span>Same-day available</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer style={footerStyle}>
+        <span style={{ fontSize: 11, color: T.mute }}>
+          Your information stays private. Used only to match you with movers.
+        </span>
+      </footer>
+    </div>
+  );
+}
+
+/** Compact ZIP input — used inside HeroLanding's ZIP row. */
+function ZipField({ label, value, onChange, city, state, error, inputRef }) {
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <label style={zipFieldLabelStyle}>{label}</label>
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        autoComplete="postal-code"
+        placeholder="ZIP"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          ...zipFieldInputStyle,
+          borderColor: error ? T.danger : T.line,
+        }}
+        aria-invalid={!!error}
+      />
+      {city && (
+        <div style={zipFieldHintStyle}>
+          {city}{state ? `, ${state}` : ''}
         </div>
       )}
-
-      <PrimaryBtn disabled={!canContinue || enriching} onClick={onContinue}>
-        Continue
-      </PrimaryBtn>
+      {error && <div style={zipFieldErrStyle}>{error}</div>}
     </div>
   );
 }
@@ -1096,4 +1236,235 @@ const footerStyle = {
   textAlign: 'center',
   background: T.surface,
   borderTop: `1px solid ${T.line2}`,
+};
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  Hero landing styles (route step only)                               ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+const heroPageStyle = {
+  minHeight: '100vh',
+  background: T.bg,
+  fontFamily: T.sans,
+  color: T.ink,
+  display: 'flex', flexDirection: 'column',
+};
+
+const heroHeaderStyle = {
+  padding: '16px 20px',
+  background: T.surface,
+  borderBottom: `1px solid ${T.line2}`,
+};
+
+const trustStripStyle = {
+  background: T.trustGreen,
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: 600,
+  padding: '8px 20px',
+  textAlign: 'center',
+  letterSpacing: '0.02em',
+};
+
+const heroMainStyle = {
+  flex: 1,
+  padding: '0 0 32px',
+};
+
+// Mobile-first stacked grid; desktop split via media query inside the
+// page-level <style> if needed. For now, this is intentionally simple —
+// the image stacks above the copy and the copy gets the ZIP form first.
+const heroGridStyle = {
+  maxWidth: 1100,
+  margin: '0 auto',
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+const heroPhotoStyle = {
+  width: '100%',
+  position: 'relative',
+  overflow: 'hidden',
+  maxHeight: 220,
+  // Subtle gradient overlay at the bottom edge so the headline doesn't
+  // feel disconnected from the image.
+  background: T.bg2,
+};
+
+const heroPhotoImgStyle = {
+  width: '100%',
+  height: '100%',
+  maxHeight: 220,
+  objectFit: 'cover',
+  objectPosition: 'center 60%',
+  display: 'block',
+};
+
+const heroCopyStyle = {
+  padding: '24px 20px 8px',
+  maxWidth: 560,
+  width: '100%',
+  margin: '0 auto',
+};
+
+const heroH1Style = {
+  fontSize: 28,
+  fontWeight: 800,
+  lineHeight: 1.15,
+  color: T.ink,
+  margin: '0 0 12px',
+  letterSpacing: '-0.025em',
+};
+
+const heroSubStyle = {
+  fontSize: 14.5,
+  color: T.ink2,
+  margin: '0 0 22px',
+  lineHeight: 1.55,
+};
+
+const heroFormStyle = {
+  background: T.surface,
+  border: `1px solid ${T.line2}`,
+  borderRadius: 18,
+  padding: '18px 16px',
+  boxShadow: T.cardShadow,
+};
+
+const zipFieldRowStyle = {
+  display: 'flex',
+  gap: 10,
+};
+
+const zipFieldLabelStyle = {
+  display: 'block',
+  fontSize: 11,
+  fontWeight: 800,
+  color: T.ink2,
+  marginBottom: 6,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+};
+
+const zipFieldInputStyle = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '14px 14px',
+  fontSize: 17,
+  fontFamily: T.sans,
+  fontWeight: 600,
+  color: T.ink,
+  border: `1.5px solid ${T.line}`,
+  borderRadius: 12,
+  background: T.surface,
+  outline: 'none',
+  letterSpacing: '0.04em',
+  transition: 'border-color 160ms ease',
+};
+
+const zipFieldHintStyle = {
+  fontSize: 11.5,
+  color: T.ok,
+  marginTop: 5,
+  fontWeight: 700,
+};
+
+const zipFieldErrStyle = {
+  fontSize: 11.5,
+  color: T.danger,
+  marginTop: 5,
+  fontWeight: 600,
+};
+
+const inlineGuidanceStyle = {
+  fontSize: 12.5,
+  color: T.danger,
+  marginTop: 10,
+  fontWeight: 600,
+};
+
+const heroCtaStyle = {
+  width: '100%',
+  marginTop: 14,
+  padding: '16px 18px',
+  background: `linear-gradient(135deg, ${T.accent}, #E07000)`,
+  color: '#fff',
+  border: 'none',
+  borderRadius: 14,
+  fontFamily: T.sans,
+  fontSize: 15,
+  fontWeight: 800,
+  cursor: 'pointer',
+  boxShadow: T.ctaShadow,
+  transition: 'all 200ms ease',
+  letterSpacing: '0.01em',
+};
+
+const heroCtaDisabledStyle = {
+  background: T.line,
+  boxShadow: 'none',
+  cursor: 'not-allowed',
+  color: '#fff',
+};
+
+const tinyTrustRowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  marginTop: 12,
+  fontSize: 11,
+  fontWeight: 600,
+  color: T.ink2,
+  flexWrap: 'wrap',
+};
+
+const tinyTrustDotStyle = {
+  color: T.mute,
+};
+
+const serviceChipsStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  marginTop: 20,
+  justifyContent: 'center',
+};
+
+const serviceChipStyle = {
+  display: 'inline-block',
+  padding: '7px 12px',
+  background: T.bg2,
+  border: `1px solid ${T.line}`,
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
+  color: T.ink2,
+};
+
+const trustedByRowStyle = {
+  marginTop: 22,
+  padding: '14px 0',
+  borderTop: `1px solid ${T.line2}`,
+  textAlign: 'center',
+};
+
+const trustedByLabelStyle = {
+  fontSize: 10.5,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  color: T.mute,
+  marginBottom: 6,
+};
+
+const trustedByListStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  fontSize: 12,
+  fontWeight: 600,
+  color: T.ink2,
+  flexWrap: 'wrap',
 };
