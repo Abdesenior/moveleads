@@ -266,13 +266,13 @@ function TierBadge({ tier, composite }) {
  * ───────────────────────────────────────────────────────────────────────── */
 function InventoryChannelBadge({ lead }) {
   const channel = lead.inventoryChannel || 'main';
+  // Monochrome, operational palette. No orange/playful colors.
   const styles = {
-    main:      { bg: '#eff6ff', fg: '#1e40af', border: '#bfdbfe', label: 'Main' },
-    deal_room: { bg: '#fffbeb', fg: '#92400e', border: '#fde68a', label: 'Deal Room' },
-    archived:  { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1', label: 'Archived' },
+    main:      { bg: '#f3f4f6', fg: '#374151', border: '#e5e7eb', label: 'Main' },
+    deal_room: { bg: '#eef2ff', fg: '#3730a3', border: '#c7d2fe', label: 'Deal Room' },
+    archived:  { bg: '#f3f4f6', fg: '#6b7280', border: '#d1d5db', label: 'Archived' },
   };
   const s = styles[channel] || styles.main;
-  // Show discount % subtitle when in deal_room and we have originalPrice.
   const origin = Number(lead.originalPrice) || 0;
   const now = Number(lead.buyNowPrice) || 0;
   const pct = (channel === 'deal_room' && origin > 0 && now < origin)
@@ -280,13 +280,94 @@ function InventoryChannelBadge({ lead }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{
-        padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
-        letterSpacing: 0.5, textTransform: 'uppercase',
+        padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600,
+        letterSpacing: 0.3, textTransform: 'uppercase',
         background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
       }}>{s.label}</span>
       {pct > 0 && (
-        <span style={{ fontSize: 11, color: '#b45309', fontWeight: 700 }} title={`Was $${origin}, now $${now}`}>−{pct}%</span>
+        <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }} title={`Was $${origin}, now $${now}`}>−{pct}%</span>
       )}
+    </div>
+  );
+}
+
+/* ── Deal Room V1.6 — bulk action result modal ──────────────────────────────
+ * Shows per-lead processed vs rejected breakdown after every bulk action.
+ * Replaces V1's silent partial-success. Operational styling — no emojis,
+ * neutral colors, monospace lead IDs for grep-ability.
+ * ───────────────────────────────────────────────────────────────────────── */
+function BulkResultModal({ result, onClose }) {
+  const { action, processed, rejected } = result;
+  const verb = action === 'move_to_deal_room' ? 'Move to Deal Room'
+             : action === 'archive' ? 'Archive'
+             : action === 'restore_to_main' ? 'Restore to Main'
+             : action;
+  const total = processed.length + rejected.length;
+  return (
+    <div onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()}
+        style={{ background: '#fff', borderRadius: 6, padding: 0, maxWidth: 560, width: '100%', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' }}>Bulk action result</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>{verb}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, fontSize: 12, fontWeight: 600 }}>
+            <span style={{ color: '#047857' }}>{processed.length} moved</span>
+            {rejected.length > 0 && <span style={{ color: '#b91c1c' }}>{rejected.length} skipped</span>}
+            <span style={{ color: '#6b7280' }}>of {total}</span>
+          </div>
+        </div>
+
+        <div style={{ overflow: 'auto', flex: 1, padding: '12px 18px' }}>
+          {processed.length > 0 && (
+            <details open={rejected.length === 0} style={{ marginBottom: 12 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: '#047857', textTransform: 'uppercase', marginBottom: 6 }}>
+                Processed ({processed.length})
+              </summary>
+              <ul style={{ margin: 0, padding: '6px 0 0 0', listStyle: 'none', fontSize: 12, color: '#374151' }}>
+                {processed.map((p, i) => (
+                  <li key={i} style={{ padding: '6px 8px', background: i % 2 === 0 ? '#f9fafb' : '#fff', borderRadius: 3, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11 }}>
+                    {p.leadId}
+                    {p.before && p.after && p.action === 'move_to_deal_room' && (
+                      <span style={{ marginLeft: 8, color: '#6b7280' }}>${p.before.buyNowPrice} → ${p.after.buyNowPrice}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {rejected.length > 0 && (
+            <details open>
+              <summary style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: '#b91c1c', textTransform: 'uppercase', marginBottom: 6 }}>
+                Skipped ({rejected.length})
+              </summary>
+              <ul style={{ margin: 0, padding: '6px 0 0 0', listStyle: 'none', fontSize: 12, color: '#374151' }}>
+                {rejected.map((r, i) => (
+                  <li key={i} style={{ padding: '8px 8px', background: i % 2 === 0 ? '#fef2f2' : '#fff', borderRadius: 3, marginBottom: 4 }}>
+                    <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, color: '#6b7280' }}>{r.leadId}</div>
+                    <div style={{ fontSize: 12, color: '#991b1b', marginTop: 2 }}>{r.reason}</div>
+                  </li>
+                ))}
+              </ul>
+              <div style={{ marginTop: 10, padding: 10, background: '#f9fafb', borderRadius: 4, fontSize: 11, color: '#6b7280', lineHeight: 1.5 }}>
+                Skipped leads remain selected so you can retry with adjusted inputs (e.g. a lower deal price) or deselect them.
+              </div>
+            </details>
+          )}
+          {processed.length === 0 && rejected.length === 0 && (
+            <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No leads were processed.</div>
+          )}
+        </div>
+
+        <div style={{ padding: '12px 18px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose}
+            style={{ padding: '8px 18px', borderRadius: 4, background: '#1f2937', color: '#fff', border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -309,6 +390,9 @@ export default function AdminLeads() {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState(null);
+  // Result modal — surfaces processed vs rejected after every bulk action.
+  // Fixes the silent partial-success anti-pattern from V1.
+  const [bulkResult, setBulkResult] = useState(null); // { action, processed: [], rejected: [] }
   // Deal modal state — opens when admin clicks "Move to Deal Room"
   const [dealModalOpen, setDealModalOpen] = useState(false);
   const [dealMode, setDealMode] = useState('price'); // 'price' | 'percent'
@@ -604,9 +688,11 @@ export default function AdminLeads() {
   };
   const clearSelection = () => setSelectedIds(new Set());
 
-  // POST helper for /api/admin/inventory/bulk. Returns the parsed JSON or
-  // throws. Caller manages busy/error UI state. Refreshes the leads list on
-  // success so the admin sees the new channel state immediately.
+  // POST helper for /api/admin/inventory/bulk. Surfaces processed vs
+  // rejected breakdown via setBulkResult so admin always sees the outcome
+  // (fixes V1's silent partial-success anti-pattern). Selection is kept
+  // intact when there are rejections so admin can adjust the dealPrice and
+  // retry; selection is cleared only when ALL items succeeded.
   const callInventoryBulk = async (body) => {
     setBulkBusy(true); setBulkError(null);
     try {
@@ -617,15 +703,35 @@ export default function AdminLeads() {
       });
       const json = await res.json();
       if (!res.ok || json.ok === false) throw new Error(json.msg || `HTTP ${res.status}`);
-      // Refresh — lift the leads back from the server so the new state lands.
-      // Cheap: same fetch the page already does at mount.
+
+      // Refresh the leads list so the new channel state is visible.
       const refresh = await fetch(`${API_URL}/admin/leads?limit=500`, { headers: { 'x-auth-token': token } });
       if (refresh.ok) {
         const j = await refresh.json();
         if (Array.isArray(j)) setLeads(j);
         else if (Array.isArray(j.leads)) setLeads(j.leads);
       }
-      clearSelection();
+
+      // Always surface the outcome.
+      setBulkResult({
+        action: body.action,
+        processed: Array.isArray(json.processed) ? json.processed : [],
+        rejected:  Array.isArray(json.rejected)  ? json.rejected  : [],
+      });
+
+      // Only clear selection when everything succeeded. Partial-failure keeps
+      // the selection so admin can review + retry with different inputs.
+      if ((json.rejectedCount || 0) === 0) {
+        clearSelection();
+      } else {
+        // Deselect just the successfully-processed leads — leaves rejected
+        // ones still selected for easy retry.
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          for (const p of (json.processed || [])) next.delete(String(p.leadId));
+          return next;
+        });
+      }
       return json;
     } catch (err) {
       setBulkError(err.message || 'Bulk action failed');
@@ -802,58 +908,60 @@ export default function AdminLeads() {
           style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, minWidth: 150 }}
           title="V5 shadow tier (not affecting routing)">
           <option value="">All Tiers</option>
-          <option value="hot">🔥 Hot · Ready-to-Book</option>
-          <option value="premium">⭐ Premium · High-Intent</option>
-          <option value="standard">▫️ Standard · Open Request</option>
-          <option value="review">⚠️ Review · Needs Verification</option>
-          <option value="rejected">⛔ Rejected · Blocked</option>
+          <option value="hot">Hot · Ready-to-Book</option>
+          <option value="premium">Premium · High-Intent</option>
+          <option value="standard">Standard · Open Request</option>
+          <option value="review">Review · Needs Verification</option>
+          <option value="rejected">Rejected · Blocked</option>
         </select>
         {/* Deal Room V1 — inventory channel filter. 'Eligible (legacy)'
             highlights the ~110 unsold leads that no longer appear in the
             live feed but haven't been moved to Deal Room or archived —
             the operational cohort admin should triage first. */}
         <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)}
-          style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, minWidth: 170 }}
+          style={{ padding: '12px 16px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 13, minWidth: 170, background: '#fff' }}
           title="Inventory channel (where the lead is surfaced)">
-          <option value="">All Channels</option>
-          <option value="main">▫️ Main (Live Feed eligible)</option>
-          <option value="deal_room">🏷️ Deal Room</option>
-          <option value="archived">🗄️ Archived</option>
-          <option value="main_legacy">⚠️ Eligible (legacy, not in feed)</option>
+          <option value="">All channels</option>
+          <option value="main">Main (Live Feed eligible)</option>
+          <option value="deal_room">Deal Room</option>
+          <option value="archived">Archived</option>
+          <option value="main_legacy">Eligible (legacy, not in feed)</option>
         </select>
       </div>
 
       {/* Deal Room V1 — bulk action bar. Sticky at top of the panel when
-          any leads are selected. Three actions: Move to Deal Room (opens
-          a small modal), Archive, Restore to Main. */}
+          any leads are selected. Operational/dispatch-tool styling:
+          neutral graphite background, text-only buttons, no emojis. */}
       {selectedIds.size > 0 && (
         <div style={{
           position: 'sticky', top: 0, zIndex: 5,
-          padding: 14, marginBottom: 12, borderRadius: 14,
-          background: '#0f172a', color: '#fff',
-          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-          boxShadow: '0 4px 14px rgba(15,23,42,0.25)',
+          padding: '10px 14px', marginBottom: 12, borderRadius: 6,
+          background: '#1f2937', color: '#f1f5f9',
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+          borderLeft: '3px solid #3b82f6',
         }}>
-          <span style={{ fontWeight: 700, fontSize: 13 }}>
-            {selectedIds.size} selected
+          <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: 0.2 }}>
+            {selectedIds.size} {selectedIds.size === 1 ? 'lead' : 'leads'} selected
           </span>
-          <button onClick={() => { setDealModalOpen(true); setBulkError(null); }}
+          <span style={{ width: 1, height: 18, background: '#374151' }} />
+          <button onClick={() => { setDealModalOpen(true); setBulkError(null); setBulkResult(null); }}
             disabled={bulkBusy}
-            style={{ padding: '8px 14px', borderRadius: 8, background: '#f59e0b', color: '#0f172a', border: 'none', fontWeight: 700, fontSize: 12, cursor: bulkBusy ? 'wait' : 'pointer' }}>
-            🏷️ Move to Deal Room
+            style={{ padding: '7px 14px', borderRadius: 4, background: '#2563eb', color: '#fff', border: 'none', fontWeight: 600, fontSize: 12, letterSpacing: 0.2, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+            Move to Deal Room
           </button>
           <button onClick={submitArchive} disabled={bulkBusy}
-            style={{ padding: '8px 14px', borderRadius: 8, background: '#fef2f2', color: '#991b1b', border: 'none', fontWeight: 700, fontSize: 12, cursor: bulkBusy ? 'wait' : 'pointer' }}>
-            🗄️ Archive
+            style={{ padding: '7px 14px', borderRadius: 4, background: '#374151', color: '#f1f5f9', border: '1px solid #4b5563', fontWeight: 600, fontSize: 12, letterSpacing: 0.2, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+            Archive
           </button>
           <button onClick={submitRestoreToMain} disabled={bulkBusy}
             title="Removes from Deal Room and restores original price. Does NOT auto-promote to Live Feed."
-            style={{ padding: '8px 14px', borderRadius: 8, background: '#eff6ff', color: '#1e40af', border: 'none', fontWeight: 700, fontSize: 12, cursor: bulkBusy ? 'wait' : 'pointer' }}>
-            ↩️ Restore to Main (neutral state)
+            style={{ padding: '7px 14px', borderRadius: 4, background: '#374151', color: '#f1f5f9', border: '1px solid #4b5563', fontWeight: 600, fontSize: 12, letterSpacing: 0.2, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+            Restore to Main
           </button>
           <button onClick={clearSelection} disabled={bulkBusy}
-            style={{ padding: '8px 14px', borderRadius: 8, background: 'transparent', color: '#cbd5e1', border: '1px solid #475569', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-            Cancel
+            style={{ padding: '7px 12px', borderRadius: 4, background: 'transparent', color: '#9ca3af', border: 'none', fontWeight: 500, fontSize: 12, cursor: 'pointer' }}>
+            Clear selection
           </button>
           {bulkError && (
             <span style={{ marginLeft: 'auto', color: '#fca5a5', fontSize: 12 }}>{bulkError}</span>
@@ -861,62 +969,73 @@ export default function AdminLeads() {
         </div>
       )}
 
+      {/* Deal Room V1.6 — bulk action result modal. Always opens after a
+          bulk action completes (success or partial-fail) so admin sees
+          exactly what was moved and what was skipped + why. */}
+      {bulkResult && (
+        <BulkResultModal result={bulkResult} onClose={() => setBulkResult(null)} />
+      )}
+
       {/* Deal Room V1 — Move to Deal Room modal */}
       {dealModalOpen && (
         <div onClick={() => !bulkBusy && setDealModalOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 460, width: '100%', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
-              Move {selectedIds.size} lead{selectedIds.size === 1 ? '' : 's'} to Deal Room
-            </h3>
-            <p style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
-              The lead's current price will be saved as the original. The new price below becomes the discounted buy-now price.
-              <strong> Existing buy-now and refund logic are unchanged.</strong>
+            style={{ background: '#fff', borderRadius: 6, padding: 0, maxWidth: 460, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' }}>Inventory action</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+                Move {selectedIds.size} {selectedIds.size === 1 ? 'lead' : 'leads'} to Deal Room
+              </div>
+            </div>
+            <div style={{ padding: 18 }}>
+            <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>
+              The lead's current price is saved as the original; the new price below becomes the buy-now price. Buy-now and refund logic are unchanged.
             </p>
-            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+            <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
               <button type="button" onClick={() => setDealMode('price')}
-                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: dealMode === 'price' ? '2px solid #f59e0b' : '1px solid #e2e8f0', background: dealMode === 'price' ? '#fffbeb' : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '7px 10px', borderRadius: 4, border: dealMode === 'price' ? '1px solid #2563eb' : '1px solid #d1d5db', background: dealMode === 'price' ? '#eff6ff' : '#fff', color: dealMode === 'price' ? '#1d4ed8' : '#374151', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
                 Explicit price (uniform)
               </button>
               <button type="button" onClick={() => setDealMode('percent')}
-                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: dealMode === 'percent' ? '2px solid #f59e0b' : '1px solid #e2e8f0', background: dealMode === 'percent' ? '#fffbeb' : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '7px 10px', borderRadius: 4, border: dealMode === 'percent' ? '1px solid #2563eb' : '1px solid #d1d5db', background: dealMode === 'percent' ? '#eff6ff' : '#fff', color: dealMode === 'percent' ? '#1d4ed8' : '#374151', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
                 Discount % (per lead)
               </button>
             </div>
             {dealMode === 'price' ? (
               <div style={{ marginTop: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Deal price ($)</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#374151', letterSpacing: 0.3 }}>Deal price ($)</label>
                 <input type="number" min="1" step="1" value={dealPriceInput} onChange={e => setDealPriceInput(e.target.value)}
                   placeholder="e.g. 25"
-                  style={{ width: '100%', padding: '10px 12px', marginTop: 6, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
-                <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>Same price applied to every selected lead.</div>
+                  style={{ width: '100%', padding: '8px 10px', marginTop: 6, borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+                <div style={{ marginTop: 4, fontSize: 11, color: '#6b7280' }}>Applied uniformly. Leads with original price below this value will be skipped.</div>
               </div>
             ) : (
               <div style={{ marginTop: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Discount (%)</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#374151', letterSpacing: 0.3 }}>Discount (%)</label>
                 <input type="number" min="1" max="99" step="1" value={discountPctInput} onChange={e => setDiscountPctInput(e.target.value)}
                   placeholder="e.g. 50"
-                  style={{ width: '100%', padding: '10px 12px', marginTop: 6, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
-                <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>Server computes each lead's deal price as round(originalPrice × (1 − discount%)).</div>
+                  style={{ width: '100%', padding: '8px 10px', marginTop: 6, borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+                <div style={{ marginTop: 4, fontSize: 11, color: '#6b7280' }}>Each lead's deal price = round(originalPrice × (1 − discount%)).</div>
               </div>
             )}
             <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Reason (optional, audit log)</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#374151', letterSpacing: 0.3 }}>Reason (audit log, optional)</label>
               <input type="text" value={dealReason} onChange={e => setDealReason(e.target.value)}
                 placeholder="e.g. Aged 7d, no buyers"
-                style={{ width: '100%', padding: '10px 12px', marginTop: 6, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+                style={{ width: '100%', padding: '8px 10px', marginTop: 6, borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
             </div>
             {bulkError && (
-              <div style={{ marginTop: 12, padding: 10, background: '#fef2f2', color: '#b91c1c', borderRadius: 8, fontSize: 12 }}>{bulkError}</div>
+              <div style={{ marginTop: 12, padding: 10, background: '#fef2f2', color: '#991b1b', borderRadius: 4, fontSize: 12, border: '1px solid #fecaca' }}>{bulkError}</div>
             )}
-            <div style={{ marginTop: 18, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            </div>
+            <div style={{ padding: '12px 18px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => { setDealModalOpen(false); setBulkError(null); }} disabled={bulkBusy}
-                style={{ padding: '10px 16px', borderRadius: 8, background: 'transparent', border: '1px solid #e2e8f0', color: '#475569', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                style={{ padding: '8px 16px', borderRadius: 4, background: '#fff', border: '1px solid #d1d5db', color: '#374151', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button type="button" onClick={submitMoveToDealRoom} disabled={bulkBusy}
-                style={{ padding: '10px 18px', borderRadius: 8, background: '#f59e0b', color: '#0f172a', border: 'none', fontWeight: 800, fontSize: 13, cursor: bulkBusy ? 'wait' : 'pointer' }}>
+                style={{ padding: '8px 18px', borderRadius: 4, background: '#2563eb', color: '#fff', border: 'none', fontWeight: 600, fontSize: 12, cursor: bulkBusy ? 'wait' : 'pointer' }}>
                 {bulkBusy ? 'Moving…' : `Move ${selectedIds.size}`}
               </button>
             </div>

@@ -212,6 +212,84 @@ const leadModelSrc = fs.readFileSync(path.join(__dirname, '..', 'models', 'Lead.
   console.log(`  ✓ C. Main / Deals mutual exclusion across ${cases.length} cases`);
 }
 
+// ── D2. Bulk endpoint partial-success contract (Phase 1.6) ───────────────
+// Static check: the endpoint returns processed[] and rejected[] arrays, and
+// the rejection messages are admin-actionable (mention the actual reason)
+// rather than terse internals like "lead has buyers".
+{
+  // Returned envelope shape
+  assert.ok(/processed:\s*processed\.length/.test(adminInventorySrc) || /processedCount:\s*processed\.length/.test(adminInventorySrc),
+    'bulk endpoint must return processedCount');
+  assert.ok(/rejectedCount:\s*rejected\.length/.test(adminInventorySrc),
+    'bulk endpoint must return rejectedCount');
+  assert.ok(/processed,\s*\n\s*rejected,/.test(adminInventorySrc),
+    'bulk endpoint must return processed[] and rejected[] arrays in response');
+
+  // Admin-actionable rejection messages
+  assert.ok(/Already purchased — inventory cannot be changed/.test(adminInventorySrc),
+    'rejection: purchased-lead message must explain the constraint, not just say "has buyers"');
+  assert.ok(/Lower the deal price or deselect this lead/.test(adminInventorySrc),
+    'rejection: dealPrice>originalPrice message must tell admin how to fix it');
+  assert.ok(/Lead no longer exists/.test(adminInventorySrc),
+    'rejection: not-found message must read naturally');
+  assert.ok(/Invalid lead id format/.test(adminInventorySrc),
+    'rejection: invalid ObjectId message must read naturally');
+  console.log('  ✓ D2. Bulk partial-success contract — admin-actionable rejection messages');
+}
+
+// ── E. Client surfaces the partial-success result (Phase 1.6) ─────────────
+{
+  const adminLeadsSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'admin', 'AdminLeads.jsx'), 'utf8');
+  assert.ok(/setBulkResult\s*\(/.test(adminLeadsSrc),
+    'AdminLeads must set bulkResult after the bulk call (surfaces processed/rejected to UI)');
+  assert.ok(/BulkResultModal/.test(adminLeadsSrc),
+    'AdminLeads must render BulkResultModal so admin sees per-lead outcomes');
+  // Selection should NOT be unconditionally cleared anymore — only when
+  // rejectedCount === 0 OR via the per-lead-processed deselection.
+  assert.ok(/rejectedCount[\s\S]{0,40}===\s*0[\s\S]{0,80}clearSelection/.test(adminLeadsSrc),
+    'AdminLeads must keep selection intact when any leads were rejected (no silent clear)');
+  console.log('  ✓ E. AdminLeads surfaces partial-success result + keeps selection on rejection');
+}
+
+// ── F. Deal Room mover-side unlock confirmation (Phase 1.6) ───────────────
+{
+  const dealsSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'dashboard', 'Deals.jsx'), 'utf8');
+  // Modal exists
+  assert.ok(/UnlockConfirmModal/.test(dealsSrc),
+    'Deals.jsx must define UnlockConfirmModal');
+  // Two-step flow: openConfirm sets state, submitConfirmedUnlock fires the request
+  assert.ok(/openConfirm\s*=\s*\(/.test(dealsSrc),
+    'Deals.jsx must define openConfirm (step 1: open modal, no purchase yet)');
+  assert.ok(/submitConfirmedUnlock\s*=\s*async/.test(dealsSrc),
+    'Deals.jsx must define submitConfirmedUnlock (step 2: actual purchase)');
+  // DealCard now passes lead object to openConfirm (not (id, price))
+  assert.ok(/onUnlock\s*=\s*\{\s*openConfirm\s*\}/.test(dealsSrc),
+    'DealCard onUnlock must be wired to openConfirm');
+  // Modal shows balance math + warning
+  assert.ok(/balanceAfter/.test(dealsSrc),
+    'UnlockConfirmModal must compute balance after unlock');
+  assert.ok(/Purchase is final/.test(dealsSrc),
+    'UnlockConfirmModal must include a finality warning');
+  // Reuses existing endpoint — no new money path
+  assert.ok(/\/bids\/\$\{leadId\}\/buy-now/.test(dealsSrc),
+    'submitConfirmedUnlock must POST to the existing /bids/:id/buy-now endpoint');
+  console.log('  ✓ F. Deals page has unlock confirmation modal with balance math + finality warning');
+}
+
+// ── G. UI cleanup (Phase 1.6) — no emojis in operational UI ───────────────
+{
+  const adminLeadsSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'admin', 'AdminLeads.jsx'), 'utf8');
+  // The admin bulk action bar block (sticky one) and its buttons must not
+  // contain the old emoji prefixes. Check the specific tokens that were
+  // present in the V1 code.
+  const oldEmojis = ['🏷️', '🗄️', '↩️', '⭐', '🔥', '⛔'];
+  for (const e of oldEmojis) {
+    assert.ok(!adminLeadsSrc.includes(e),
+      `Operational UI must not contain emoji "${e}" (cleanup pass)`);
+  }
+  console.log('  ✓ G. AdminLeads stripped of playful emojis in operational UI');
+}
+
 // ── D. money-path invariant (static check) ────────────────────────────────
 {
   // bids.js buy-now must still charge lead.buyNowPrice (which IS the deal price

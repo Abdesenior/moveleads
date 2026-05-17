@@ -91,7 +91,7 @@ router.post('/bulk', [auth, admin], async (req, res) => {
     if (seen.has(s)) continue;
     seen.add(s);
     if (!mongoose.isValidObjectId(s)) {
-      rejected.push({ leadId: s, reason: 'invalid ObjectId' });
+      rejected.push({ leadId: s, reason: 'Invalid lead id format.' });
       continue;
     }
     validIds.push(s);
@@ -103,7 +103,7 @@ router.post('/bulk', [auth, admin], async (req, res) => {
     try {
       const lead = await Lead.findById(leadId);
       if (!lead) {
-        rejected.push({ leadId, reason: 'lead not found' });
+        rejected.push({ leadId, reason: 'Lead no longer exists.' });
         continue;
       }
 
@@ -111,7 +111,10 @@ router.post('/bulk', [auth, admin], async (req, res) => {
       // mutate inventory on a lead that someone already paid for.
       const hasBuyers = Array.isArray(lead.buyers) && lead.buyers.length > 0;
       if (hasBuyers || lead.status === 'Purchased') {
-        rejected.push({ leadId, reason: 'lead has buyers (purchased)' });
+        rejected.push({
+          leadId,
+          reason: 'Already purchased — inventory cannot be changed on a sold lead.',
+        });
         continue;
       }
 
@@ -142,7 +145,10 @@ router.post('/bulk', [auth, admin], async (req, res) => {
         // Block at endpoint level — UI can already validate this, but the
         // server check is the canonical guard.
         if (dp > lead.originalPrice) {
-          rejected.push({ leadId, reason: `dealPrice ($${dp}) > originalPrice ($${lead.originalPrice})` });
+          rejected.push({
+            leadId,
+            reason: `Deal price $${dp} is higher than this lead's current price $${lead.originalPrice}. Lower the deal price or deselect this lead.`,
+          });
           continue;
         }
         lead.buyNowPrice = dp;
