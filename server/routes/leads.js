@@ -69,6 +69,58 @@ router.get('/widget-analytics', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/leads/deals
+// @desc    Deal Room — discounted secondary inventory (V1)
+// @access  Private (mover) — admins get 200 with their normal view too;
+//          purchased-by-this-mover leads are intentionally NOT bypass-added
+//          here (My Leads is the canonical "leads I own" surface — Deal Room
+//          is browse-only).
+//
+// Gated by ENABLE_DEAL_ROOM env flag. When off → 404 (mover page renders an
+// empty state cleanly). When on → returns leads with inventoryChannel='deal_room'
+// that pass moverVisibilityFilter, status filter, and future-move-date filter.
+// Reuses the same quality/safety guards as the main feed; only the channel
+// differs.
+router.get('/deals', auth, async (req, res) => {
+  const { isEnabled } = require('../utils/dealRoomFeature');
+  if (!isEnabled()) {
+    return res.status(404).json({ msg: 'Deal Room is not enabled' });
+  }
+  try {
+    const query = {
+      inventoryChannel: 'deal_room',
+      status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
+      moveDate: { $gte: new Date() },
+      // Sale-mechanism gate intentionally omitted — Deal Room accepts both
+      // legacy 'auction'-stamped and current 'instant' leads. (Bidding is
+      // still blocked separately by bids.js for 'instant' leads; buy-now
+      // works for both.)
+      ...moverVisibilityFilter(),
+    };
+
+    let leads = await Lead.find(query)
+      .select('-customerName -customerPhone -customerEmail -specialInstructions -customerNotes -notifiedAt')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // Discount percent computed at display (not stored). Safe when
+    // originalPrice is missing — returns 0%, mover just sees the price.
+    leads = leads.map(l => {
+      const orig = Number(l.originalPrice) || 0;
+      const now = Number(l.buyNowPrice) || 0;
+      const discountPercent = (orig > 0 && now < orig)
+        ? Math.round((1 - now / orig) * 100)
+        : 0;
+      return { ...l, discountPercent };
+    });
+
+    res.json(leads);
+  } catch (err) {
+    console.error('[Deals Endpoint] error:', err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 // @route   GET /api/leads
 // @desc    Get all leads
 // @access  Private

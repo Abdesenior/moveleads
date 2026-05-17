@@ -145,6 +145,10 @@ app.use('/api/admin/partner-research', verifiedGate, require('./routes/admin/par
 // /leads/:id/action-timeline get first crack. Falls through to admin.js
 // for unmatched paths under /api/admin.
 app.use('/api/admin',          verifiedGate, require('./routes/adminAnalytics'));
+// Deal Room V1 — bulk inventory actions. Mounted BEFORE generic /api/admin
+// so /inventory/bulk wins over any path admin.js might define under
+// /api/admin/inventory. Feature is gated internally by ENABLE_DEAL_ROOM env.
+app.use('/api/admin/inventory', verifiedGate, require('./routes/adminInventory'));
 app.use('/api/admin',          verifiedGate, require('./routes/admin'));
 app.use('/api/disputes',       verifiedGate, require('./routes/disputes'));
 app.use('/api/admin/pricing',  verifiedGate, require('./routes/pricing'));
