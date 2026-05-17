@@ -41,6 +41,12 @@ async function settleOneLead(leadId) {
       // lead. Existing (pre-Phase-A) leads have no distributionModel field
       // and pass through ($ne matches missing).
       distributionModel: { $ne: 'instant' },
+      // Deal Room V1 — belt-and-suspenders. The move-to-deal-room admin
+      // action sets auctionStatus='expired' precisely so this query stops
+      // matching, but if any future code path forgot to do that, this
+      // clause keeps the cron from settling a deal/archived lead. $ne
+      // against the legacy default 'main' (or missing) matches.
+      inventoryChannel: { $nin: ['deal_room', 'archived'] },
     },
     { $set: { auctionStatus: 'settling' } },
     { new: true }
@@ -180,6 +186,8 @@ cron.schedule('*/2 * * * *', async () => {
       auctionEndsAt: { $lte: new Date() },
       // Phase B — see settleOneLead for rationale.
       distributionModel: { $ne: 'instant' },
+      // Deal Room V1 — same belt-and-suspenders as settleOneLead.
+      inventoryChannel: { $nin: ['deal_room', 'archived'] },
     }).select('_id');
 
     for (const lead of expired) {

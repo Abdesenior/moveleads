@@ -236,6 +236,42 @@ const LeadSchema = new mongoose.Schema({
     enum: ['auction', 'instant'],
     default: 'auction',
   },
+
+  // ── Deal Room V1 — inventory surface taxonomy ──────────────────────────
+  //
+  // "WHERE the lead is surfaced." Orthogonal to distributionModel (HOW it's
+  // sold). This pair of fields enables the secondary monetization surface
+  // (/dashboard/deals) without touching the main feed.
+  //
+  //   'main'      → eligible for /dashboard/leads (subject to the existing
+  //                 status/quality/distributionModel filters in routes/leads.js)
+  //   'deal_room' → discounted secondary inventory, surfaced ONLY at
+  //                 /dashboard/deals (admin-curated)
+  //   'archived'  → permanently hidden from BOTH mover surfaces. Admin-only
+  //                 view. No automatic promotion paths.
+  //
+  // Default 'main' so every existing lead behaves identically until admin
+  // moves it. `inventoryChannel` is indexed because both feed queries hit it.
+  inventoryChannel: {
+    type: String,
+    enum: ['main', 'deal_room', 'archived'],
+    default: 'main',
+    index: true,
+  },
+
+  // Snapshot of the pre-deal buyNowPrice, captured the first time admin moves
+  // the lead to 'deal_room'. Lets the "Restore" admin action put the price
+  // back exactly. Unset for leads that have never been in Deal Room. We
+  // deliberately do NOT store dealPrice or discountPercent separately:
+  //   - dealPrice    → it IS the post-move buyNowPrice (single source of
+  //                    truth keeps the buy-now / refund / Transaction paths
+  //                    unchanged)
+  //   - discountPercent → cheap to compute at display time as
+  //                       round((1 - buyNowPrice/originalPrice) * 100)
+  //
+  // Audit trail (who moved it, when, why) lives in the existing AdminAction
+  // collection — we don't duplicate it here.
+  originalPrice: { type: Number },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

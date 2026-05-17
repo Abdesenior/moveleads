@@ -104,6 +104,14 @@ router.get('/', auth, async (req, res) => {
         status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
         moveDate: { $gte: new Date() }, // Only future move dates
         distributionModel: 'instant',
+        // Deal Room V1 — main feed surfaces ONLY leads in the 'main' inventory
+        // channel. Excludes 'deal_room' (surfaced separately at /dashboard/deals)
+        // and 'archived' (admin-only). $nin against the missing field on legacy
+        // leads returns TRUE — they pass through (back-compat). The Phase D
+        // distributionModel: 'instant' clause above is what actually excludes
+        // pre-Phase-A and Phase-A 'auction' leads from the main feed; this
+        // new clause adds independent protection for the Deal Room surface.
+        inventoryChannel: { $nin: ['deal_room', 'archived'] },
         $or: [
           { sourceCompany: { $exists: false } }, // Public "platform" leads
           { sourceCompany: req.user.id }         // Leads from their own widget
