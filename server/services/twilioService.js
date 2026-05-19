@@ -360,6 +360,45 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       lead.status = 'READY_FOR_DISTRIBUTION';
     }
 
+    // Phase 1 — distributionDecision write with stickiness guard.
+    //
+    // scoringPipeline already wrote a decision based on the post-scoring lead.
+    // verifyLeadPhone runs LAST in the V5 chain and is the lifecycle gate's
+    // owner, so we re-derive after the status flip and write again — this
+    // catches the case where status moves to PENDING_MANUAL_REVIEW or
+    // REJECTED_FAKE (above) and the decision needs to follow.
+    //
+    // The { distributionDecision: { $in: SYSTEM_VALUES } } filter is the
+    // stickiness guard: if admin has already set admin_approved/admin_rejected,
+    // this no-ops. (Real-world rare; defensive.)
+    try {
+      const {
+        SYSTEM_VALUES: SYS,
+        deriveSystemDecision: derive,
+        describeSystemDecisionSource: describe,
+      } = require('../utils/distributionDecision');
+      const evidenceDoc = {
+        status: lead.status,
+        qualityGateCleared: lead.qualityGateCleared,
+        shadowTier: lead.shadowTier,
+        structuralBlockers: lead.structuralBlockers,
+        validation: lead.validation,
+        miles: lead.miles,
+      };
+      const decision = derive(evidenceDoc);
+      await Lead.updateOne(
+        { _id: lead._id, distributionDecision: { $in: SYS } },
+        { $set: {
+            distributionDecision: decision,
+            distributionDecisionBy:     'system',
+            distributionDecisionAt:     new Date(),
+            distributionDecisionReason: `verifyLeadPhone: ${describe(evidenceDoc)}`,
+        } }
+      );
+    } catch (err) {
+      console.warn(`[PhoneVerify] distributionDecision write failed for ${lead._id}:`, err.message);
+    }
+
     // Exclusive routing: widget-sourced lead goes straight to that company.
     // Skipped when qualification failed — we don't push a rejected lead to a
     // partner either; admin reviews first.

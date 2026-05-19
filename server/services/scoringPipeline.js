@@ -24,6 +24,11 @@ const ScoringSnapshot = require('../models/ScoringSnapshot');
 const leadScoringEngine = require('./leadScoringEngine');
 const leadTierRouter = require('./leadTierRouter');
 const { computeStructuralBlockers } = require('../utils/leadVisibility');
+const {
+  SYSTEM_VALUES,
+  deriveSystemDecision,
+  describeSystemDecisionSource,
+} = require('../utils/distributionDecision');
 
 function currentMode() {
   const m = (process.env.SCORING_MODE || 'shadow').toLowerCase();
@@ -113,6 +118,43 @@ async function runShadow(leadId) {
         );
       } catch (err) {
         console.warn(`[scoringPipeline] shadowTier/gate/blockers mirror failed for ${lead._id}:`, err.message);
+      }
+
+      // Phase 1 — distributionDecision write with stickiness guard.
+      //
+      // The filter `{ distributionDecision: { $in: SYSTEM_VALUES } }` is the
+      // load-bearing invariant: if admin has set admin_approved/admin_rejected
+      // on this lead, the update is a no-op. Rescore can no longer silently
+      // undo an admin approval.
+      //
+      // We re-read the lead AFTER the shadowTier/gate/blockers mirror so the
+      // derivation sees the fresh denormalized fields. Falls back to deriving
+      // from the local `lead` doc + just-computed tier/blockers if the
+      // re-read fails (still better than skipping the write entirely).
+      try {
+        let evidenceDoc = await Lead.findById(lead._id)
+          .select('status qualityGateCleared shadowTier structuralBlockers validation miles')
+          .lean();
+        if (!evidenceDoc) {
+          evidenceDoc = {
+            ...lead,
+            shadowTier: tier,
+            qualityGateCleared: tier !== 'rejected' && !hasSuspicionPattern,
+            structuralBlockers,
+          };
+        }
+        const decision = deriveSystemDecision(evidenceDoc);
+        await Lead.updateOne(
+          { _id: lead._id, distributionDecision: { $in: SYSTEM_VALUES } },
+          { $set: {
+              distributionDecision: decision,
+              distributionDecisionBy:     'system',
+              distributionDecisionAt:     new Date(),
+              distributionDecisionReason: `scoring: ${describeSystemDecisionSource(evidenceDoc)}`,
+          } }
+        );
+      } catch (err) {
+        console.warn(`[scoringPipeline] distributionDecision write failed for ${lead._id}:`, err.message);
       }
     }
 

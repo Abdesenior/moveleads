@@ -259,6 +259,15 @@ router.post('/', ingestLimiter, async (req, res) => {
       // status=READY_FOR_DISTRIBUTION + fires broadcasts before
       // scoring/validation has finished.
       qualityGateCleared: false,
+      // Phase 1 — unified distribution decision. Starts pending; the
+      // scoringPipeline / verifyLeadPhone writers will advance it to a
+      // concrete system_* verdict once evidence lands. Default at the
+      // schema level handles this too, but the explicit write keeps
+      // ingest readable and makes the value predictable for tests.
+      distributionDecision: 'system_pending',
+      distributionDecisionBy:     'system',
+      distributionDecisionAt:     new Date(),
+      distributionDecisionReason: 'ingest',
       // V6 may capture an exact moveDate via calendar; the urgencyBucket
       // can be derived from it server-side when the client only sends a
       // bucket OR only sends a date. Both fields end up on the doc so

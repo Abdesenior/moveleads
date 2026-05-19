@@ -281,6 +281,47 @@ const LeadSchema = new mongoose.Schema({
   // Audit trail (who moved it, when, why) lives in the existing AdminAction
   // collection — we don't duplicate it here.
   originalPrice: { type: Number },
+
+  // ── Phase 1: unified distribution decision layer ───────────────────────
+  //
+  // Single authoritative field for "is this lead distributable, by whose
+  // authority?". Separates SYSTEM evidence (validation/scoring) from
+  // ADMIN decisions. The mover feed will read this one field in Phase 3;
+  // in Phase 1 it is WRITE-ONLY (the legacy 8-clause filter is still
+  // authoritative for production reads).
+  //
+  // Values:
+  //   system_pending   — pipeline hasn't produced a verdict yet
+  //   system_approved  — pipeline cleared the lead
+  //   system_held      — pipeline says hold for human review
+  //   system_rejected  — pipeline says reject (shadowTier='rejected')
+  //   admin_approved   — admin override: distribute regardless of system
+  //   admin_rejected   — admin override: hide regardless of system
+  //
+  // Stickiness rule: any admin_* value is durable. Pipeline writers
+  // (scoringPipeline, verifyLeadPhone) MUST use a conditional updateOne
+  // filtered on { distributionDecision: { $in: SYSTEM_VALUES } } so a
+  // freshly-set admin_* value never gets clobbered by a later rescore
+  // or pipeline re-run. Only an admin action can move admin_* values.
+  distributionDecision: {
+    type: String,
+    enum: [
+      'system_pending',
+      'system_approved',
+      'system_held',
+      'system_rejected',
+      'admin_approved',
+      'admin_rejected',
+    ],
+    default: 'system_pending',
+    index: true,
+  },
+  // 'system' for pipeline writes, stringified userId for admin writes,
+  // 'migration' for backfill. Kept loose (String, not ObjectId) so the
+  // single field can hold either kind of actor.
+  distributionDecisionBy:     { type: String, default: 'system' },
+  distributionDecisionAt:     { type: Date },
+  distributionDecisionReason: { type: String, maxlength: 500 },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

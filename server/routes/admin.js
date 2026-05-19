@@ -22,6 +22,10 @@ const ValidationLog = require('../models/ValidationLog');
 const scoringPipeline = require('../services/scoringPipeline');
 const { computeDistributionStatus, computeDistributionLabel } = require('../utils/distributionStatus');
 const { isHiddenFromMovers, routingMode } = require('../utils/leadVisibility');
+const {
+  deriveSystemDecision,
+  describeSystemDecisionSource,
+} = require('../utils/distributionDecision');
 
 // ── Helpers for bulk import ───────────────────────────────────────────────────
 function milesFromZips(originZip, destinationZip) {
@@ -649,11 +653,19 @@ router.post('/leads/:id/approve', [auth, admin], async (req, res) => {
       lead.statusHistory = lead.statusHistory || [];
       lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
     }
+    // Phase 1 — unified distribution decision. Admin approval is sticky
+    // and authoritative: this write supersedes any system_* value. The
+    // scoringPipeline and verifyLeadPhone writers guard against clobbering
+    // admin_* values, so a later rescore cannot silently undo this.
+    lead.distributionDecision       = 'admin_approved';
+    lead.distributionDecisionBy     = String(req.user.id);
+    lead.distributionDecisionAt     = new Date();
+    lead.distributionDecisionReason = req.body?.reason || 'admin approved for distribution';
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.approve',
       targetType: 'lead', targetId: lead._id,
-      before, after: { adminTierOverride: lead.adminTierOverride },
+      before, after: { adminTierOverride: lead.adminTierOverride, distributionDecision: lead.distributionDecision },
       metadata: { reason: req.body?.reason, note: req.body?.note, requestedTier },
     });
     const payload = await buildSnapshotPayload(lead._id);
@@ -684,11 +696,16 @@ router.post('/leads/:id/reject', [auth, admin], async (req, res) => {
     // Phase 6.3 — explicit gate=false matches the rejected intent (belt-and-
     // suspenders alongside status=REJECTED_FAKE + adminTierOverride.tier=rejected).
     lead.qualityGateCleared = false;
+    // Phase 1 — unified distribution decision. Admin rejection is sticky.
+    lead.distributionDecision       = 'admin_rejected';
+    lead.distributionDecisionBy     = String(req.user.id);
+    lead.distributionDecisionAt     = new Date();
+    lead.distributionDecisionReason = req.body?.reason || 'admin marked as fake/rejected';
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.reject',
       targetType: 'lead', targetId: lead._id,
-      before, after: { status: lead.status, adminTierOverride: lead.adminTierOverride },
+      before, after: { status: lead.status, adminTierOverride: lead.adminTierOverride, distributionDecision: lead.distributionDecision },
       metadata: { reason: req.body?.reason, note: req.body?.note },
     });
     const payload = await buildSnapshotPayload(lead._id);
@@ -792,11 +809,20 @@ router.delete('/leads/:id/tier-override', [auth, admin], async (req, res) => {
     } catch (e) {
       console.warn('[Admin lead.tier-override.clear] snapshot lookup failed:', e.message);
     }
+    // Phase 1 — clearing an override is a symmetric undo: revert the
+    // distributionDecision to the system verdict derived from current
+    // evidence. Cleanly resolves the prior asymmetry where clear-override
+    // would leave a status upgrade in place and create contradictory state.
+    const systemDecision = deriveSystemDecision(lead);
+    lead.distributionDecision       = systemDecision;
+    lead.distributionDecisionBy     = 'system';
+    lead.distributionDecisionAt     = new Date();
+    lead.distributionDecisionReason = `cleared admin override → ${describeSystemDecisionSource(lead)}`;
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.tier_override.clear',
       targetType: 'lead', targetId: lead._id,
-      before, after: { adminTierOverride: null },
+      before, after: { adminTierOverride: null, distributionDecision: lead.distributionDecision },
       metadata: { reason: req.body?.reason || 'admin cleared override' },
     });
     const payload = await buildSnapshotPayload(lead._id);
