@@ -475,9 +475,12 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                 )}
               </div>
 
-              {/* ── Mark reviewed (with note) ───────────────────────── */}
+              {/* ── Review note (audit-only — does NOT affect distribution) ── */}
               <div style={{ marginTop: 14, padding: 12, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Mark reviewed</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Review note</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>audit only — does not affect distribution</div>
+                </div>
                 <textarea
                   placeholder="Optional note (e.g. 'spoke with customer — legit relocation')"
                   value={reviewNote}
@@ -486,12 +489,17 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                   style={{ width: '100%', padding: 8, border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
                 />
                 <div style={{ marginTop: 8 }}>
-                  <ActionButton
-                    label={busy === 'mark-reviewed' ? 'Saving…' : 'Stamp as reviewed'}
-                    icon={<CheckCircle size={14} />} color="#15803d" bg="#dcfce7"
+                  <button
+                    onClick={onMarkReviewed}
                     disabled={busy != null}
-                    onClick={onMarkReviewed} loading={busy === 'mark-reviewed'}
-                  />
+                    style={{
+                      padding: '6px 12px', fontSize: 12, color: '#64748b', background: 'transparent',
+                      border: '1px solid #cbd5e1', borderRadius: 6, cursor: busy ? 'wait' : 'pointer',
+                      opacity: busy ? 0.6 : 1,
+                    }}
+                  >
+                    {busy === 'mark-reviewed' ? 'Saving…' : 'Save review note'}
+                  </button>
                 </div>
               </div>
 

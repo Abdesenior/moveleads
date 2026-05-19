@@ -1,594 +1,186 @@
 /**
- * leadVisibility — Phase 6.1 smoke test.
+ * leadVisibility — Phase 3 smoke test.
  *
- * Runs as plain Node (no test runner required). Co-located in __tests__/
- * so it sits next to sanitize.test.js, but uses bare assert because Jest
- * is not installed in this project. Run with:
+ * After the Phase 3 cutover, this module is a thin delegation layer over
+ * the unified distributionDecision field. The 8-clause filter, the
+ * ENABLE_TIERED_ROUTING env modes, and the per-mode behavior branches
+ * have all been retired. What stays:
  *
- *   node server/__tests__/leadVisibility.test.js
+ *   - routingMode() still parses the env (audit/log metadata)
+ *   - moverVisibilityFilter() returns one clause: distributionDecision $in distributable
+ *   - isHiddenFromMovers(lead) delegates to !isDistributable(decision)
+ *   - hiddenReason(lead) names the current decision value
+ *   - computeStructuralBlockers + HIDE_WORTHY_STRUCTURAL_CODES preserved
+ *     for the writers (scoringPipeline + distributionDecision derivation)
+ *   - counters preserved as no-op-safe hooks
  *
- * Verifies the contract that:
- *   - 'true' / 'full' / '1' / unknown / undefined / '' → 'off' (safety fallback)
- *   - 'rejected_only' → 'rejected_only'
- *   - The startup warning fires exactly once when env requested full mode.
+ * Run with: `node server/__tests__/leadVisibility.test.js`
  */
 
 const assert = require('assert');
 
-// Disable the periodic reporter timer for all test loads — we verify the
-// startup announcement separately and don't want stray intervals leaking
-// across cases. Counters still increment; only the setInterval is skipped.
 process.env.LEAD_VISIBILITY_REPORT_INTERVAL_MS = '0';
 
-// Load fresh so the startup IIFE runs in a controlled env state.
 function loadFresh(envValue) {
   delete require.cache[require.resolve('../utils/leadVisibility')];
+  delete require.cache[require.resolve('../utils/distributionDecision')];
   if (envValue === undefined) delete process.env.ENABLE_TIERED_ROUTING;
   else process.env.ENABLE_TIERED_ROUTING = envValue;
   return require('../utils/leadVisibility');
 }
 
-// Helper: load a fresh module while capturing console output.
-function loadFreshCapturing(envValue) {
-  const warns = [];
-  const logs = [];
-  const origWarn = console.warn;
-  const origLog = console.log;
-  console.warn = (msg) => warns.push(String(msg));
-  console.log  = (msg) => logs.push(String(msg));
-  let mod;
-  try { mod = loadFresh(envValue); } finally {
-    console.warn = origWarn;
-    console.log  = origLog;
-  }
-  return { mod, warns, logs };
-}
-
-// ── routingMode() — explicit-argument form (no env needed) ─────────────────
+// ── routingMode() — preserved for audit metadata only ────────────────────
 {
   const { routingMode } = loadFresh(undefined);
-
-  // The four cases requested in the spec (Phase 6.1):
-  assert.strictEqual(routingMode('true'),          'off',           "routingMode('true') -> off");
-  assert.strictEqual(routingMode('full'),          'off',           "routingMode('full') -> off");
-  assert.strictEqual(routingMode('rejected_only'), 'rejected_only', "routingMode('rejected_only') -> rejected_only");
-  assert.strictEqual(routingMode(undefined),       'off',           'routingMode(undefined) -> off');
-
-  // Phase 6.4 — new mode
-  assert.strictEqual(routingMode('blocked_and_review'),  'blocked_and_review', "routingMode('blocked_and_review') -> blocked_and_review");
-  assert.strictEqual(routingMode('BLOCKED_AND_REVIEW'),  'blocked_and_review', 'uppercase ok');
-  assert.strictEqual(routingMode('  blocked_and_review  '), 'blocked_and_review', 'whitespace ok');
-
-  // Additional edge cases that should also fall back to off:
-  assert.strictEqual(routingMode('1'),       'off', "routingMode('1') -> off");
-  assert.strictEqual(routingMode(''),        'off', "routingMode('') -> off");
-  assert.strictEqual(routingMode('0'),       'off', "routingMode('0') -> off");
-  assert.strictEqual(routingMode('false'),   'off', "routingMode('false') -> off");
-  assert.strictEqual(routingMode('off'),     'off', "routingMode('off') -> off");
-  assert.strictEqual(routingMode('GARBAGE'), 'off', "routingMode('GARBAGE') -> off");
-  // Case-insensitive + whitespace tolerant:
-  assert.strictEqual(routingMode('  REJECTED_ONLY  '), 'rejected_only', 'whitespace + uppercase ok');
-
-  console.log('  ✓ routingMode() parsing matrix (incl. blocked_and_review)');
+  assert.strictEqual(routingMode('true'),               'off');
+  assert.strictEqual(routingMode('full'),               'off');
+  assert.strictEqual(routingMode('rejected_only'),      'rejected_only');
+  assert.strictEqual(routingMode('blocked_and_review'), 'blocked_and_review');
+  assert.strictEqual(routingMode('GARBAGE'),            'off');
+  assert.strictEqual(routingMode(undefined),            'off');
+  assert.strictEqual(routingMode(''),                   'off');
+  assert.strictEqual(routingMode('  REJECTED_ONLY  '),  'rejected_only', 'case+whitespace ok');
+  console.log('  ✓ routingMode() parsing (audit metadata only — no behavior branch)');
 }
 
-// ── Startup warning — fires exactly once when env requested full ───────────
+// ── moverVisibilityFilter — single clause, env-independent ───────────────
 {
-  const { warns } = loadFreshCapturing('full');
-  assert.strictEqual(warns.length, 1, 'one warning emitted for env=full');
-  assert.ok(
-    warns[0].includes('full routing mode requested but not implemented'),
-    'warning text mentions "not implemented"'
-  );
-  assert.ok(warns[0].includes('falling back to off'), 'warning text mentions fallback');
-  console.log('  ✓ startup warning emitted for env=full');
+  for (const env of [undefined, 'off', 'rejected_only', 'blocked_and_review', 'full', 'garbage']) {
+    const filter = loadFresh(env).moverVisibilityFilter();
+    assert.deepStrictEqual(
+      filter,
+      { distributionDecision: { $in: ['system_approved', 'admin_approved'] } },
+      `env=${env || '(unset)'} → single distributionDecision clause`
+    );
+  }
+  console.log('  ✓ moverVisibilityFilter() returns single distributionDecision clause regardless of env');
 }
 
+// ── isHiddenFromMovers — delegates to distributionDecision ───────────────
 {
-  const { warns } = loadFreshCapturing('rejected_only');
-  assert.strictEqual(warns.length, 0, 'no warning for env=rejected_only');
-  console.log('  ✓ no startup warning for env=rejected_only');
-}
-
-{
-  const { warns } = loadFreshCapturing(undefined);
-  assert.strictEqual(warns.length, 0, 'no warning when env unset');
-  console.log('  ✓ no startup warning when env unset');
-}
-
-// ── Startup mode announcement — Phase 6.2 ──────────────────────────────────
-{
-  const { logs } = loadFreshCapturing('rejected_only');
-  const announce = logs.find(l => l.includes('[leadVisibility] mode=rejected_only'));
-  assert.ok(announce, 'mode announcement logged for env=rejected_only');
-  console.log('  ✓ startup mode announcement for env=rejected_only');
-}
-
-{
-  const { logs } = loadFreshCapturing(undefined);
-  const announce = logs.find(l => l.includes('[leadVisibility] mode='));
-  assert.ok(!announce, 'no mode announcement when env unset (mode=off)');
-  console.log('  ✓ no mode announcement when env unset');
-}
-
-{
-  // env=full → falls back to off → should NOT announce a mode line
-  const { logs } = loadFreshCapturing('full');
-  const announce = logs.find(l => l.includes('[leadVisibility] mode='));
-  assert.ok(!announce, 'no mode announcement when env=full falls back to off');
-  console.log('  ✓ no mode announcement when env=full falls back to off');
-}
-
-// ── moverVisibilityFilter — pass-through unless rejected_only ──────────────
-{
-  const off  = loadFresh(undefined).moverVisibilityFilter();
-  assert.deepStrictEqual(off, {}, 'mode=off → filter is {}');
-
-  const full = loadFresh('full').moverVisibilityFilter();
-  assert.deepStrictEqual(full, {}, "mode=full (falls back to off) → filter is {}");
-
-  const rOnly = loadFresh('rejected_only').moverVisibilityFilter();
-  assert.ok(Array.isArray(rOnly.$and), 'rejected_only → $and array');
-  assert.strictEqual(rOnly.$and.length, 4, '4 clauses (including Phase 6.3 quality gate)');
-
-  // Verify the qualityGateCleared clause is present
-  const hasGateClause = rOnly.$and.some(c =>
-    c.qualityGateCleared && c.qualityGateCleared.$ne === false
-  );
-  assert.ok(hasGateClause, 'qualityGateCleared $ne false clause present');
-
-  console.log('  ✓ moverVisibilityFilter() shape per mode (incl. quality gate)');
-}
-
-// ── isHiddenFromMovers — only hides under rejected_only ────────────────────
-{
-  const offMod = loadFresh(undefined);
-  assert.strictEqual(offMod.isHiddenFromMovers({ status: 'REJECTED_FAKE' }), false, 'off: REJECTED_FAKE not hidden');
-  assert.strictEqual(offMod.isHiddenFromMovers({ shadowTier: 'rejected' }), false, 'off: shadowTier=rejected not hidden');
-  assert.strictEqual(offMod.isHiddenFromMovers({ qualityGateCleared: false }), false, 'off: gate=false not hidden');
-
-  const fullMod = loadFresh('full');
-  assert.strictEqual(fullMod.isHiddenFromMovers({ status: 'REJECTED_FAKE' }), false, 'full→off: REJECTED_FAKE not hidden');
-
-  const rOnly = loadFresh('rejected_only');
-  assert.strictEqual(rOnly.isHiddenFromMovers({ status: 'REJECTED_FAKE' }), true, 'rejected_only: REJECTED_FAKE hidden');
-  assert.strictEqual(rOnly.isHiddenFromMovers({ adminTierOverride: { tier: 'rejected' } }), true, 'rejected_only: admin override hidden');
-  assert.strictEqual(rOnly.isHiddenFromMovers({ shadowTier: 'rejected' }), true, 'rejected_only: shadowTier=rejected hidden');
-  assert.strictEqual(rOnly.isHiddenFromMovers({ shadowTier: 'review' }), false, 'rejected_only: review not hidden');
-  assert.strictEqual(rOnly.isHiddenFromMovers(null), false, 'null lead → not hidden (fail open)');
-  // Phase 6.3 — quality gate
-  assert.strictEqual(rOnly.isHiddenFromMovers({ qualityGateCleared: false }), true, 'rejected_only: gate=false hidden (V5 race fix)');
-  assert.strictEqual(rOnly.isHiddenFromMovers({ qualityGateCleared: true }), false, 'rejected_only: gate=true visible');
-  assert.strictEqual(rOnly.isHiddenFromMovers({}), false, 'rejected_only: missing gate (V4 / pre-fix) not hidden');
-
-  // Combined: scoring in flight (gate=false) on a V5 lead is hidden
-  assert.strictEqual(rOnly.isHiddenFromMovers({
-    status: 'READY_FOR_DISTRIBUTION', funnelVersion: 'v5', qualityGateCleared: false,
-  }), true, 'rejected_only: V5 lead pre-scoring race is hidden');
-
-  // hiddenReason reflects the gate
-  assert.strictEqual(rOnly.hiddenReason({ qualityGateCleared: false }), 'qualityGate=false', 'hiddenReason names the gate');
-
-  console.log('  ✓ isHiddenFromMovers() behavior per mode (incl. quality gate)');
-}
-
-// ── Phase 6.4 — blocked_and_review mode ────────────────────────────────────
-
-// computeStructuralBlockers — pure function matrix
-{
-  const { computeStructuralBlockers } = loadFresh(undefined);
-  const blockers = (lead) => computeStructuralBlockers(lead);
-
-  // Clean lead — no blockers
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: [] } } }),
-    [], 'clean lead → no structural blockers'
-  );
-
-  // route_unresolved
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: ['origin_zip_not_found'] } } }),
-    ['route_unresolved'], 'origin not found'
-  );
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: ['destination_zip_not_found'] } } }),
-    ['route_unresolved'], 'destination not found'
-  );
-
-  // distance_unknown
-  assert.deepStrictEqual(
-    blockers({ miles: 0, validation: { phone: { valid: true }, route: { suspicious: [] } } }),
-    ['distance_unknown'], 'miles=0'
-  );
-
-  // Combined route+distance (typical when Mapbox fails)
-  assert.deepStrictEqual(
-    blockers({ miles: 0, validation: { phone: { valid: true }, route: { suspicious: ['origin_zip_not_found', 'destination_zip_not_found'] } } }),
-    ['route_unresolved', 'distance_unknown'], 'route+distance'
-  );
-
-  // invalid_phone
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: false }, route: { suspicious: [] } } }),
-    ['invalid_phone'], 'invalid phone'
-  );
-
-  // suspicious_carrier
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true, providerSuspicion: 'high' }, route: { suspicious: [] } } }),
-    ['suspicious_carrier'], 'high provider suspicion'
-  );
-
-  // SOFT cases (NOT structural per user spec)
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true, isVoip: true }, route: { suspicious: [] } } }),
-    [], 'VoIP alone → not structural'
-  );
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment' }, route: { suspicious: [] } } }),
-    [], 'telecom_low_confidence alone → not structural'
-  );
-  // Phase 6.7 — suspicion_pattern alone is now structural (admin review)
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true, suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } } }),
-    ['suspicion_pattern'], 'suspicion_pattern alone → structural (Phase 6.7)'
-  );
-
-  // COMBO: telecom_low_confidence + suspicion_pattern → both codes emitted
-  // (combo code retained for back-compat with pre-Phase-6.7 denormalized arrays)
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment', suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } } }),
-    ['suspicion_pattern', 'low_confidence_plus_pattern'], 'low_conf + pattern → suspicion_pattern + combo (back-compat)'
-  );
-
-  // High fraud signals
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: [] }, fraud: { smsPumpingRisk: 'high' } } }),
-    ['high_sms_pumping'], 'high sms pumping'
-  );
-  assert.deepStrictEqual(
-    blockers({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: [] }, fingerprint: { bot: true } } }),
-    ['fingerprint_bot'], 'confirmed bot'
-  );
-
-  // Null/undefined input — fail open
-  assert.deepStrictEqual(blockers(null), [], 'null lead → no blockers');
-  assert.deepStrictEqual(blockers(undefined), [], 'undefined lead → no blockers');
-  assert.deepStrictEqual(blockers({}), ['distance_unknown'], 'empty lead → distance_unknown (miles missing)');
-
-  console.log('  ✓ computeStructuralBlockers() matrix');
-}
-
-// moverVisibilityFilter shape per mode (Phase 6.6)
-{
-  const off = loadFresh(undefined).moverVisibilityFilter();
-  assert.deepStrictEqual(off, {}, 'off → {}');
-
-  const r = loadFresh('rejected_only').moverVisibilityFilter();
-  assert.strictEqual(r.$and.length, 4, 'rejected_only → 4 clauses');
-
-  const b = loadFresh('blocked_and_review').moverVisibilityFilter();
-  // Phase 6.7: base 4 + denormalized $nin + 7 raw-field clauses = 12
-  assert.strictEqual(b.$and.length, 12, 'blocked_and_review → 12 clauses (base 4 + structural $nin + 7 raw fallback)');
-
-  const denormClause = b.$and[4];
-  assert.ok(denormClause.structuralBlockers && Array.isArray(denormClause.structuralBlockers.$nin),
-    'denormalized clause uses $nin against hide-worthy codes');
-  assert.ok(denormClause.structuralBlockers.$nin.includes('invalid_phone'), 'invalid_phone in $nin list');
-  assert.ok(denormClause.structuralBlockers.$nin.includes('suspicion_pattern'), 'suspicion_pattern in $nin list (Phase 6.7)');
-
-  // Phase 6.6/6.7 raw-validation fallback clauses
-  const allKeys = b.$and.map(c => Object.keys(c)[0]);
-  assert.ok(allKeys.includes('validation.phone.valid'), 'raw fallback: validation.phone.valid clause present');
-  assert.ok(allKeys.includes('validation.phone.providerSuspicion'), 'raw fallback: providerSuspicion clause present');
-  assert.ok(allKeys.includes('validation.phone.suspicionPattern'), 'raw fallback: suspicionPattern clause present (Phase 6.7)');
-  assert.ok(allKeys.includes('validation.route.suspicious'), 'raw fallback: route.suspicious clause present');
-  assert.ok(allKeys.includes('miles'), 'raw fallback: miles clause present');
-  assert.ok(allKeys.includes('validation.fraud.smsPumpingRisk'), 'raw fallback: sms pumping clause present');
-  assert.ok(allKeys.includes('validation.fingerprint.bot'), 'raw fallback: bot clause present');
-
-  console.log('  ✓ moverVisibilityFilter() shape per mode (Phase 6.6 raw fallback)');
-}
-
-// isHiddenFromMovers behavior in blocked_and_review — Phase 6.5: any tier
-{
-  const m = loadFresh('blocked_and_review');
+  const m = loadFresh(undefined);
   const h = (lead) => m.isHiddenFromMovers(lead);
 
-  // Tier=rejected paths still hidden
-  assert.strictEqual(h({ status: 'REJECTED_FAKE' }), true, 'REJECTED_FAKE hidden');
-  assert.strictEqual(h({ shadowTier: 'rejected' }), true, 'shadowTier=rejected hidden');
-  assert.strictEqual(h({ qualityGateCleared: false }), true, 'gate=false hidden');
+  // Distributable values → visible.
+  assert.strictEqual(h({ distributionDecision: 'system_approved' }), false, 'system_approved → visible');
+  assert.strictEqual(h({ distributionDecision: 'admin_approved' }),  false, 'admin_approved → visible');
 
-  // Tier=review without structural — VISIBLE (soft review)
+  // Non-distributable values → hidden.
+  assert.strictEqual(h({ distributionDecision: 'system_pending'  }), true, 'system_pending → hidden');
+  assert.strictEqual(h({ distributionDecision: 'system_held'     }), true, 'system_held → hidden');
+  assert.strictEqual(h({ distributionDecision: 'system_rejected' }), true, 'system_rejected → hidden');
+  assert.strictEqual(h({ distributionDecision: 'admin_rejected'  }), true, 'admin_rejected → hidden');
+
+  // Missing/undefined decision → hidden (fail closed — defensive).
+  assert.strictEqual(h({}), true, 'no decision field → hidden');
+  assert.strictEqual(h({ distributionDecision: undefined }), true, 'undefined decision → hidden');
+
+  // Null lead → fail open (caller will likely 404).
+  assert.strictEqual(h(null), false, 'null lead → fail open');
+
+  // Critical Phase 3 invariant: legacy raw signals NO LONGER hide a lead
+  // once distributionDecision says distribute. This is the silent-block fix.
   assert.strictEqual(h({
-    shadowTier: 'review', structuralBlockers: [],
-  }), false, 'review with empty blockers visible');
+    distributionDecision: 'admin_approved',
+    shadowTier: 'rejected',                              // would have hidden in legacy
+    qualityGateCleared: false,                           // would have hidden in legacy
+    structuralBlockers: ['invalid_phone'],               // would have hidden in legacy
+    validation: { phone: { suspicionPattern: 'alternating', valid: false } },
+    adminTierOverride: { tier: 'rejected' },
+  }), false, 'admin_approved overrides all legacy raw signals');
+
+  // The dual invariant: system_held stays hidden EVEN if all old gates
+  // would have passed (clean evidence). This codifies that the decision
+  // field is now authoritative — evidence on the doc is audit-only.
   assert.strictEqual(h({
-    shadowTier: 'review',
-    validation: { phone: { valid: true, isVoip: true }, route: { suspicious: [] } },
-    miles: 500,
-  }), false, 'VoIP-only review visible (VoIP not structural)');
-
-  // Phase 6.5 — ANY tier with structural blocker → hidden
-  assert.strictEqual(h({ shadowTier: 'review',  structuralBlockers: ['route_unresolved'] }), true, 'review+route_unresolved hidden');
-  assert.strictEqual(h({ shadowTier: 'review',  structuralBlockers: ['invalid_phone'] }), true, 'review+invalid_phone hidden');
-  assert.strictEqual(h({ shadowTier: 'review',  structuralBlockers: ['low_confidence_plus_pattern'] }), true, 'review+combo hidden');
-  assert.strictEqual(h({ shadowTier: 'standard',structuralBlockers: ['route_unresolved'] }), true, 'standard+route_unresolved hidden (Phase 6.5)');
-  assert.strictEqual(h({ shadowTier: 'premium', structuralBlockers: ['invalid_phone'] }), true, 'premium+invalid_phone hidden (Phase 6.5)');
-  assert.strictEqual(h({ shadowTier: 'hot',     structuralBlockers: ['distance_unknown'] }), true, 'hot+distance_unknown hidden (Phase 6.5)');
-
-  // Fallback: no denormalized field, compute inline from validation
-  assert.strictEqual(h({
-    shadowTier: 'review', miles: 0,
-    validation: { phone: { valid: true }, route: { suspicious: [] } },
-  }), true, 'computed-inline distance_unknown hidden');
-
-  console.log('  ✓ isHiddenFromMovers() in blocked_and_review (Phase 6.5: any-tier rule)');
-}
-
-// hiddenReason names the rule
-{
-  const m = loadFresh('blocked_and_review');
-  assert.strictEqual(
-    m.hiddenReason({ shadowTier: 'review', structuralBlockers: ['route_unresolved', 'distance_unknown'] }),
-    'structural:route_unresolved,distance_unknown',
-    'hiddenReason lists the structural codes'
-  );
-  console.log('  ✓ hiddenReason() names the structural rule');
-}
-
-// User's specific examples from the spec
-{
-  const m = loadFresh('blocked_and_review');
-  const cases = [
-    // [label, lead, expectedHidden]
-    ['VoIP only',                  { shadowTier: 'review', validation: { phone: { valid: true, isVoip: true }, route: { suspicious: [] } }, miles: 500 }, false],
-    ['Telecom unverified only',    { shadowTier: 'review', validation: { phone: { /* no checkedAt, no validityReason */ }, route: { suspicious: [] } }, miles: 500 }, false],
-    ['Telecom low confidence only',{ shadowTier: 'review', validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment' }, route: { suspicious: [] } }, miles: 500 }, false],
-    ['Suspicion pattern only',     { shadowTier: 'review', validation: { phone: { valid: true, suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } }, miles: 500 }, true],
-    ['Route unresolved',           { shadowTier: 'review', validation: { phone: { valid: true }, route: { suspicious: ['origin_zip_not_found'] } }, miles: 500 }, true],
-    ['Invalid phone',              { shadowTier: 'review', validation: { phone: { valid: false }, route: { suspicious: [] } }, miles: 500 }, true],
-    ['Pattern + low confidence',   { shadowTier: 'review', validation: { phone: { valid: true, validityReason: 'twilio_no_enrichment', suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } }, miles: 500 }, true],
-  ];
-  for (const [label, lead, expected] of cases) {
-    const got = m.isHiddenFromMovers(lead);
-    assert.strictEqual(got, expected, `user example: ${label} → hidden=${expected}`);
-  }
-  console.log('  ✓ user spec examples (VoIP/telecom-unverified visible; route/invalid/combo hidden)');
-}
-
-// rejected_only mode is UNCHANGED by Phase 6.4/6.5 (review leads still visible)
-{
-  const m = loadFresh('rejected_only');
-  assert.strictEqual(m.isHiddenFromMovers({ shadowTier: 'review', structuralBlockers: ['route_unresolved'] }), false,
-    'rejected_only: review with structural blockers STILL visible (no change to existing mode)');
-  assert.strictEqual(m.isHiddenFromMovers({ shadowTier: 'rejected' }), true,
-    'rejected_only: rejected still hidden');
-  console.log('  ✓ rejected_only mode unchanged by Phase 6.4/6.5');
-}
-
-// Phase 6.6 — stale-lead simulation: filter must catch leads via raw-field
-// fallback when the denormalized structuralBlockers field is missing.
-//
-// We simulate the Mongo filter logic in JS — for each "stale" lead doc,
-// every clause in the $and array must evaluate TRUE to keep the lead.
-// If ANY clause is FALSE, the lead is hidden.
-{
-  const { moverVisibilityFilter } = loadFresh('blocked_and_review');
-  const filter = moverVisibilityFilter();
-  const $and = filter.$and;
-
-  // Faithful Mongo-style evaluator for our specific clause shapes
-  function evalClause(clause, doc) {
-    const [path] = Object.keys(clause);
-    const op = clause[path];
-    // Resolve dotted path
-    const value = path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), doc);
-    // Mongo idiom: `{ field: null }` matches docs where the field is null OR
-    // missing. Used as a raw-fallback clause for nullable signals like
-    // validation.phone.suspicionPattern.
-    if (op === null) {
-      return value === null || value === undefined;
-    }
-    if (op.$ne !== undefined) {
-      // Mongo $ne against missing → TRUE (missing is "not equal")
-      return value !== op.$ne;
-    }
-    if (op.$nin !== undefined) {
-      // Mongo $nin against array → TRUE if no element of the array
-      //   matches a value in the $nin list. Against missing → TRUE.
-      //   Against scalar → TRUE if scalar not in list.
-      if (value === undefined) return true;
-      if (Array.isArray(value)) return value.every(v => !op.$nin.includes(v));
-      return !op.$nin.includes(value);
-    }
-    if (op.$in !== undefined) {
-      if (Array.isArray(value)) return value.some(v => op.$in.includes(v));
-      return op.$in.includes(value);
-    }
-    if (op.$gte !== undefined) return value !== undefined && value >= op.$gte;
-    if (op.$gt !== undefined) return value !== undefined && value > op.$gt;
-    if (op.$lte !== undefined) return value !== undefined && value <= op.$lte;
-    if (op.$exists !== undefined) {
-      const exists = path.split('.').reduce(
-        (o, k) => (o == null ? undefined : o[k]), doc) !== undefined;
-      return exists === op.$exists;
-    }
-    return true;
-  }
-  function isVisible(doc) {
-    return $and.every(clause => evalClause(clause, doc));
-  }
-
-  // The user's stale production lead: no structuralBlockers field,
-  // shadowTier=review, qualityGateCleared either undefined or true,
-  // BUT raw validation fields prove it's structural
-  const userLead = {
-    status: 'READY_FOR_DISTRIBUTION',
-    shadowTier: 'review',
-    qualityGateCleared: true, // set by old logic
-    // structuralBlockers: missing (pre-Phase-6.5 lead)
-    miles: 0,
-    validation: {
-      phone: { valid: false, suspicionPattern: 'low_distinct_3' },
-      route: { suspicious: ['destination_zip_not_found'] },
-    },
-  };
-  assert.strictEqual(isVisible(userLead), false,
-    'stale lead with raw fields proving structural is HIDDEN by raw fallback');
-
-  // Clean V5 lead — no validation issues, should be visible
-  const cleanLead = {
-    status: 'READY_FOR_DISTRIBUTION',
+    distributionDecision: 'system_held',
     shadowTier: 'standard',
     qualityGateCleared: true,
     structuralBlockers: [],
-    miles: 500,
-    validation: {
-      phone: { valid: true, lineType: 'mobile', providerSuspicion: 'low' },
-      route: { suspicious: [] },
-    },
-  };
-  assert.strictEqual(isVisible(cleanLead), true, 'clean V5 lead visible');
+    validation: { phone: { valid: true } },
+  }), true, 'system_held stays hidden even with clean evidence (decision is authoritative)');
 
-  // V4 legacy lead — no validation fields at all, no shadowTier, no gate
-  const v4Lead = {
-    status: 'READY_FOR_DISTRIBUTION',
-    miles: 500,
-    // no validation, shadowTier, qualityGateCleared, structuralBlockers
-  };
-  assert.strictEqual(isVisible(v4Lead), true, 'V4 legacy lead visible (back-compat)');
-
-  // Raw-field individual triggers
-  assert.strictEqual(isVisible({ ...cleanLead, validation: { phone: { valid: false } } }), false,
-    'raw: phone.valid=false hides');
-  assert.strictEqual(isVisible({ ...cleanLead, validation: { route: { suspicious: ['origin_zip_not_found'] } } }), false,
-    'raw: origin_zip_not_found hides');
-  assert.strictEqual(isVisible({ ...cleanLead, validation: { route: { suspicious: ['destination_zip_not_found'] } } }), false,
-    'raw: destination_zip_not_found hides');
-  assert.strictEqual(isVisible({ ...cleanLead, miles: 0 }), false, 'raw: miles=0 hides');
-  assert.strictEqual(isVisible({ ...cleanLead, validation: { phone: { providerSuspicion: 'high' } } }), false,
-    'raw: providerSuspicion=high hides');
-  assert.strictEqual(isVisible({ ...cleanLead, validation: { fraud: { smsPumpingRisk: 'high' } } }), false,
-    'raw: high sms pumping hides');
-  assert.strictEqual(isVisible({ ...cleanLead, validation: { fingerprint: { bot: true } } }), false,
-    'raw: confirmed bot hides');
-
-  // Phase 6.7 — suspicionPattern raw fallback
-  assert.strictEqual(
-    isVisible({ ...cleanLead, validation: { phone: { valid: true, suspicionPattern: 'alternating_pattern_5plus' }, route: { suspicious: [] } } }),
-    false,
-    'raw: suspicionPattern set hides (Phase 6.7)'
-  );
-  assert.strictEqual(
-    isVisible({ ...cleanLead, validation: { phone: { valid: true, suspicionPattern: null }, route: { suspicious: [] } } }),
-    true,
-    'raw: suspicionPattern=null keeps visible'
-  );
-
-  console.log('  ✓ Phase 6.6/6.7 raw-field fallback catches stale/legacy structural leads');
+  console.log('  ✓ isHiddenFromMovers() delegates to distributionDecision (env-independent)');
 }
 
-// Phase 6.5 — tier router hard-reject combos
+// ── hiddenReason — names the decision value ──────────────────────────────
 {
-  const engine = require('../services/leadScoringEngine');
-  const router = require('../services/leadTierRouter');
-
-  function tierOf(validation, miles) {
-    const lead = {
-      customerPhone: '+11234561234', homeSize: '3 Bedroom',
-      miles: miles ?? 500, moveDate: new Date(Date.now() + 5*86400000),
-      originZip: '00000', destinationZip: '00000',
-      intentConfirmed: true, funnelVersion: 'v5', validation,
-    };
-    const result = engine.score(lead);
-    return router.assign(result.scores, lead).tier;
-  }
-
-  // User's failing production lead → MUST be rejected now
-  assert.strictEqual(
-    tierOf({
-      phone: { valid: false, suspicionPattern: 'low_distinct_3', checkedAt: new Date() },
-      route: { suspicious: ['origin_zip_not_found', 'destination_zip_not_found'], checkedAt: new Date() },
-    }, 0),
-    'rejected',
-    'user prod lead (invalid+pattern+both ZIPs+distance) → rejected'
-  );
-
-  // Combo A: invalid + (route_unresolved OR distance_unknown)
-  assert.strictEqual(
-    tierOf({ phone: { valid: false, checkedAt: new Date() }, route: { suspicious: ['origin_zip_not_found'], checkedAt: new Date() } }, 500),
-    'rejected', 'Combo A: invalid + route_unresolved → rejected'
-  );
-  assert.strictEqual(
-    tierOf({ phone: { valid: false, checkedAt: new Date() }, route: { suspicious: [], checkedAt: new Date() } }, 0),
-    'rejected', 'Combo A: invalid + distance_unknown → rejected'
-  );
-
-  // Combo B: both ZIPs unresolved (regardless of phone)
-  assert.strictEqual(
-    tierOf({
-      phone: { valid: true, lineType: 'mobile', smsPumpingRisk: 'low', checkedAt: new Date() },
-      route: { suspicious: ['origin_zip_not_found', 'destination_zip_not_found'], checkedAt: new Date() },
-    }, 500),
-    'rejected', 'Combo B: both ZIPs unresolved → rejected (even with valid phone)'
-  );
-
-  // Combo C: invalid + suspicious_pattern
-  assert.strictEqual(
-    tierOf({
-      phone: { valid: false, suspicionPattern: 'low_distinct_3', checkedAt: new Date() },
-      route: { suspicious: [], checkedAt: new Date() },
-    }, 500),
-    'rejected', 'Combo C: invalid + suspicious_pattern → rejected'
-  );
-
-  // SOFT cases stay review (not hard-rejected)
-  assert.strictEqual(
-    tierOf({ phone: { valid: false, checkedAt: new Date() }, route: { suspicious: [], checkedAt: new Date() } }, 500),
-    'review', 'invalid phone alone → review (no hard reject)'
-  );
-  assert.strictEqual(
-    tierOf({
-      phone: { valid: true, lineType: 'mobile', smsPumpingRisk: 'low', checkedAt: new Date() },
-      route: { suspicious: ['origin_zip_not_found'], checkedAt: new Date() },
-    }, 0),
-    'review', 'valid phone + one ZIP missing + distance unknown → review (soft)'
-  );
-
-  console.log('  ✓ tier router hard-reject combos (Phase 6.5)');
+  const { hiddenReason } = loadFresh(undefined);
+  assert.strictEqual(hiddenReason({ distributionDecision: 'system_approved' }), null,
+    'distributable → null reason');
+  assert.strictEqual(hiddenReason({ distributionDecision: 'system_held' }),
+    'distributionDecision=system_held', 'reason names the decision');
+  assert.strictEqual(hiddenReason({ distributionDecision: 'admin_rejected' }),
+    'distributionDecision=admin_rejected', 'admin_rejected named');
+  assert.strictEqual(hiddenReason({}), 'distributionDecision=unset', 'missing decision named');
+  assert.strictEqual(hiddenReason(null), null, 'null lead → null reason');
+  console.log('  ✓ hiddenReason() names the decision value');
 }
 
-// ── Counters — Phase 6.2 ───────────────────────────────────────────────────
+// ── computeStructuralBlockers — preserved for writers ────────────────────
 {
-  const mod = loadFresh('rejected_only');
-  // Fresh module → all counters start at 0
-  assert.deepStrictEqual(mod.getCounters(), {
-    mode: 'rejected_only', feed_hidden: 0, broadcasts_suppressed: 0, claim_blocked: 0,
-  }, 'counters start at zero');
+  const { computeStructuralBlockers, HIDE_WORTHY_STRUCTURAL_CODES } = loadFresh(undefined);
+  const b = (lead) => computeStructuralBlockers(lead);
 
+  assert.deepStrictEqual(b({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: [] } } }), [], 'clean lead → no blockers');
+  assert.deepStrictEqual(b({ miles: 500, validation: { phone: { valid: false }, route: { suspicious: [] } } }), ['invalid_phone']);
+  assert.deepStrictEqual(b({ miles: 0,   validation: { phone: { valid: true },  route: { suspicious: [] } } }), ['distance_unknown']);
+  assert.deepStrictEqual(b({ miles: 500, validation: { phone: { valid: true },  route: { suspicious: ['origin_zip_not_found'] } } }), ['route_unresolved']);
+  assert.deepStrictEqual(b({ miles: 500, validation: { phone: { valid: true, suspicionPattern: 'alternating' }, route: { suspicious: [] } } }), ['suspicion_pattern']);
+  assert.deepStrictEqual(b({ miles: 500, validation: { phone: { valid: true, providerSuspicion: 'high' }, route: { suspicious: [] } } }), ['suspicious_carrier']);
+  assert.deepStrictEqual(b({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: [] }, fraud: { smsPumpingRisk: 'high' } } }), ['high_sms_pumping']);
+  assert.deepStrictEqual(b({ miles: 500, validation: { phone: { valid: true }, route: { suspicious: [] }, fingerprint: { bot: true } } }), ['fingerprint_bot']);
+  assert.deepStrictEqual(b(null),       [], 'null → no blockers');
+  assert.deepStrictEqual(b(undefined),  [], 'undefined → no blockers');
+
+  // HIDE_WORTHY_STRUCTURAL_CODES exposed for the writers.
+  assert.ok(Array.isArray(HIDE_WORTHY_STRUCTURAL_CODES));
+  assert.ok(HIDE_WORTHY_STRUCTURAL_CODES.includes('invalid_phone'));
+  assert.ok(HIDE_WORTHY_STRUCTURAL_CODES.includes('route_unresolved'));
+  assert.ok(HIDE_WORTHY_STRUCTURAL_CODES.includes('distance_unknown'));
+  assert.ok(HIDE_WORTHY_STRUCTURAL_CODES.includes('suspicion_pattern'));
+
+  console.log('  ✓ computeStructuralBlockers + HIDE_WORTHY_STRUCTURAL_CODES preserved for writers');
+}
+
+// ── Counters — preserved hooks (no-op-safe) ──────────────────────────────
+{
+  const mod = loadFresh(undefined);
+  assert.deepStrictEqual(mod.getCounters(), { mode: 'off', feed_hidden: 0, broadcasts_suppressed: 0, claim_blocked: 0 });
   mod.recordFeedHidden(5);
-  mod.recordFeedHidden(3);
-  mod.recordBroadcastSuppressed();
   mod.recordBroadcastSuppressed();
   mod.recordClaimBlocked();
-
-  assert.deepStrictEqual(mod.getCounters(), {
-    mode: 'rejected_only', feed_hidden: 8, broadcasts_suppressed: 2, claim_blocked: 1,
-  }, 'counters increment correctly');
-
-  // No-op cases
-  mod.recordFeedHidden(0);
-  mod.recordFeedHidden();
-  assert.strictEqual(mod.getCounters().feed_hidden, 8, 'recordFeedHidden(0) is a no-op');
-
-  // getCounters returns a copy — mutating it doesn't affect the live state
   const snap = mod.getCounters();
-  snap.feed_hidden = 999;
-  assert.strictEqual(mod.getCounters().feed_hidden, 8, 'getCounters returns a copy');
-
-  console.log('  ✓ counters increment + getCounters snapshot');
+  assert.strictEqual(snap.feed_hidden, 5);
+  assert.strictEqual(snap.broadcasts_suppressed, 1);
+  assert.strictEqual(snap.claim_blocked, 1);
+  console.log('  ✓ counters preserved as no-op-safe hooks');
 }
 
-console.log('\nAll leadVisibility smoke tests passed.');
+// ── isHiddenFromMoversById — async variant, single field fetch ───────────
+{
+  const { isHiddenFromMoversById } = loadFresh(undefined);
+  assert.strictEqual(typeof isHiddenFromMoversById, 'function', 'isHiddenFromMoversById exported');
+  console.log('  ✓ isHiddenFromMoversById exported');
+}
+
+// ── Sync invariant: leadVisibility's inline isDistributable matches the
+// canonical predicate exported by distributionDecision. The inline copy
+// exists to avoid the circular import (leadVisibility ↔ distributionDecision);
+// this test enforces they don't drift apart.
+{
+  delete require.cache[require.resolve('../utils/distributionDecision')];
+  const dd = require('../utils/distributionDecision');
+  const lvMod = loadFresh(undefined);
+  // Exercise the predicate indirectly via isHiddenFromMovers — true for
+  // distributable values, false otherwise.
+  for (const v of ['system_pending','system_approved','system_held','system_rejected','admin_approved','admin_rejected']) {
+    const canonical = dd.isDistributable(v);
+    const inline    = !lvMod.isHiddenFromMovers({ distributionDecision: v });
+    assert.strictEqual(inline, canonical,
+      `isDistributable(${v}): leadVisibility inline (${inline}) must match distributionDecision canonical (${canonical})`);
+  }
+  console.log('  ✓ leadVisibility inline predicate matches distributionDecision canonical');
+}
+
+console.log('\nAll Phase 3 leadVisibility smoke tests passed.');

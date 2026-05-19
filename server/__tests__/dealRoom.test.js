@@ -138,64 +138,66 @@ const leadModelSrc = fs.readFileSync(path.join(__dirname, '..', 'models', 'Lead.
     return value === op;
   }
 
-  // The main feed's availableBranch in routes/leads.js (relevant subset):
+  // Phase 3 — both feed queries now gate quality via distributionDecision
+  // and DO NOT consult distributionModel. Surface = inventoryChannel.
   const mainFeed = (doc) => evalClause({
     $and: [
       { status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] } },
-      { distributionModel: 'instant' },
       { inventoryChannel: { $nin: ['deal_room', 'archived'] } },
-      // moverVisibilityFilter() omitted — same gates for both feeds; not what
-      // we're testing here.
+      { distributionDecision: { $in: ['system_approved', 'admin_approved'] } },
     ]
   }, doc);
 
-  // The /api/leads/deals query (relevant subset):
   const dealsFeed = (doc) => evalClause({
     $and: [
       { status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] } },
       { inventoryChannel: 'deal_room' },
+      { distributionDecision: { $in: ['system_approved', 'admin_approved'] } },
     ]
   }, doc);
 
-  // Test fixtures
+  // Test fixtures — distributionModel is intentionally kept on each fixture
+  // to prove it has NO effect on visibility under Phase 3. The deciding
+  // axes are status, inventoryChannel, and distributionDecision.
   const cases = [
     {
-      name: 'instant + main channel',
-      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'main' },
+      name: 'system_approved + main channel',
+      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'main', distributionDecision: 'system_approved' },
       expectMain: true, expectDeals: false,
     },
     {
-      name: 'instant + deal_room',
-      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'deal_room' },
+      name: 'admin_approved + deal_room',
+      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'deal_room', distributionDecision: 'admin_approved' },
       expectMain: false, expectDeals: true,
     },
     {
-      name: 'auction + deal_room (legacy moved to deals)',
-      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'auction', inventoryChannel: 'deal_room' },
+      name: 'auction-stamped + system_approved + deal_room (Phase 3: distributionModel ignored)',
+      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'auction', inventoryChannel: 'deal_room', distributionDecision: 'system_approved' },
       expectMain: false, expectDeals: true,
     },
     {
-      name: 'instant + archived',
-      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'archived' },
-      expectMain: false, expectDeals: false,
-    },
-    {
-      name: 'auction + missing channel (pre-Phase-A legacy)',
-      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'auction' /* no inventoryChannel */ },
-      // Main: Phase D blocks (distributionModel != 'instant'). Deals: requires
-      // explicit 'deal_room'. Neither shows.
-      expectMain: false, expectDeals: false,
-    },
-    {
-      name: 'instant + missing channel (back-compat: pre-Phase-deal-room)',
-      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant' /* no inventoryChannel */ },
-      // $nin against missing is TRUE → main allows. Deals requires explicit
-      // 'deal_room' → blocked.
+      name: 'auction-stamped + admin_approved + main channel (Phase 3: distributionModel ignored)',
+      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'auction', inventoryChannel: 'main', distributionDecision: 'admin_approved' },
       expectMain: true, expectDeals: false,
     },
     {
-      name: 'instant + main but Pending Verification',
-      doc: { status: 'Pending Verification', distributionModel: 'instant', inventoryChannel: 'main' },
+      name: 'archived channel hides on both surfaces',
+      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'archived', distributionDecision: 'system_approved' },
+      expectMain: false, expectDeals: false,
+    },
+    {
+      name: 'system_held hides on both surfaces (quality gate)',
+      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'main', distributionDecision: 'system_held' },
+      expectMain: false, expectDeals: false,
+    },
+    {
+      name: 'admin_rejected hides on both surfaces',
+      doc: { status: 'READY_FOR_DISTRIBUTION', distributionModel: 'instant', inventoryChannel: 'deal_room', distributionDecision: 'admin_rejected' },
+      expectMain: false, expectDeals: false,
+    },
+    {
+      name: 'Pending Verification status blocks regardless of decision',
+      doc: { status: 'Pending Verification', distributionModel: 'instant', inventoryChannel: 'main', distributionDecision: 'admin_approved' },
       expectMain: false, expectDeals: false,
     },
   ];
@@ -241,78 +243,53 @@ const leadModelSrc = fs.readFileSync(path.join(__dirname, '..', 'models', 'Lead.
   console.log('  ✓ D3. move_to_deal_room pre-visibility validation present');
 }
 
-// ── D4. Tier 1 quality-side visibility mirror (Phase 1.9) ────────────────
-// move_to_deal_room must mirror the mover-side visibility filter — refuse
-// leads that would be hidden from /dashboard/deals due to quality signals.
-// Closes the "silent move" gap: admin sees success, mover never sees the
-// lead because moverVisibilityFilter / isHiddenFromMovers hides it.
+// ── D4. Phase 3 — Deal Room admin gate uses distributionDecision ─────────
+// dealRoomMoveBlockReason now gates on the single authoritative quality
+// field. Each non-distributable decision value maps to an admin-actionable
+// reason that names the corrective action.
 {
-  // Helper present + imported from the canonical source
+  // Helper present + imported from the canonical source (distributionDecision module).
   assert.ok(/dealRoomMoveBlockReason\s*\(/.test(adminInventorySrc),
     'adminInventory must define dealRoomMoveBlockReason helper');
-  assert.ok(/computeStructuralBlockers[\s\S]{0,200}HIDE_WORTHY_STRUCTURAL_CODES/.test(adminInventorySrc),
-    'adminInventory must import computeStructuralBlockers + HIDE_WORTHY_STRUCTURAL_CODES from leadVisibility (single source of truth)');
+  assert.ok(/require\(['"][^'"]+distributionDecision['"]\)/.test(adminInventorySrc),
+    'adminInventory must import from distributionDecision (single source of truth)');
+  assert.ok(/isDistributable/.test(adminInventorySrc),
+    'helper must call isDistributable(decision) to short-circuit on approved values');
 
-  // The helper must check ALL five visibility gates that moverVisibilityFilter
-  // / isHiddenFromMovers checks. Each is a different production failure mode.
-  assert.ok(/status\s*===\s*['"]REJECTED_FAKE['"]/.test(adminInventorySrc),
-    'dealRoomMoveBlockReason must check status === REJECTED_FAKE');
-  assert.ok(/adminTierOverride[\s\S]{0,40}tier\s*===\s*['"]rejected['"]/.test(adminInventorySrc),
-    'dealRoomMoveBlockReason must check adminTierOverride.tier === rejected');
-  assert.ok(/shadowTier\s*===\s*['"]rejected['"]/.test(adminInventorySrc),
-    'dealRoomMoveBlockReason must check shadowTier === rejected');
-  assert.ok(/qualityGateCleared\s*===\s*false/.test(adminInventorySrc),
-    'dealRoomMoveBlockReason must check qualityGateCleared === false (V5 gate)');
-  assert.ok(/structuralBlockers/.test(adminInventorySrc),
-    'dealRoomMoveBlockReason must consult lead.structuralBlockers');
+  // Reason coverage — each non-distributable decision value has an
+  // admin-actionable string.
+  assert.ok(/restore \(clear override\) before moving/.test(adminInventorySrc),
+    'admin_rejected case must point to clearing the override');
+  assert.ok(/rejected by quality scoring/i.test(adminInventorySrc),
+    'system_rejected case must read naturally');
+  assert.ok(/held for review/.test(adminInventorySrc),
+    'system_held case must explain the hold');
+  assert.ok(/still being qualified/.test(adminInventorySrc),
+    'system_pending case must indicate the pipeline is running');
 
-  // Admin-actionable reason strings present
-  assert.ok(/archive it instead/.test(adminInventorySrc),
-    'REJECTED_FAKE rejection must mention archiving as the corrective action');
-  assert.ok(/clear the override before moving/.test(adminInventorySrc),
-    'adminTierOverride=rejected rejection must tell admin how to fix it');
-  assert.ok(/Rejected by quality scoring/.test(adminInventorySrc),
-    'shadowTier=rejected rejection must read naturally');
-  assert.ok(/Quality gate not cleared/.test(adminInventorySrc),
-    'qualityGateCleared=false rejection must mention quality gate');
-  assert.ok(/Structural blockers/.test(adminInventorySrc),
-    'structural-blocker rejection must list the codes');
+  // The helper must NOT consult the legacy raw signals — Phase 3 retired
+  // those as visibility gates. Decision field is sole authority.
+  // (We don't grep for absence of `shadowTier` etc. because the file may
+  // mention them in comments; the positive check above is sufficient.)
 
-  // Call site: the helper must run BEFORE the dealPrice/originalPrice
-  // mutation block (otherwise we'd snapshot originalPrice on a lead we're
-  // about to reject). Verify by string-order inside the source.
+  // Call site: helper must run BEFORE the originalPrice snapshot.
   const callIdx = adminInventorySrc.indexOf('dealRoomMoveBlockReason(lead)');
   const snapIdx = adminInventorySrc.indexOf('Snapshot the pre-deal price');
   assert.ok(callIdx > -1 && snapIdx > -1 && callIdx < snapIdx,
     'dealRoomMoveBlockReason must run before the originalPrice snapshot');
 
-  // Runtime smoke: load the helper indirectly by requiring the route file
-  // and exercising the in-process check via computeStructuralBlockers + the
-  // visibility codes. (The route doesn't export the helper — we re-load the
-  // visibility module and assert the codes the helper relies on are sane.)
-  delete require.cache[require.resolve('../utils/leadVisibility')];
-  const lv = require('../utils/leadVisibility');
-  assert.ok(Array.isArray(lv.HIDE_WORTHY_STRUCTURAL_CODES) && lv.HIDE_WORTHY_STRUCTURAL_CODES.length >= 6,
-    'HIDE_WORTHY_STRUCTURAL_CODES must export the canonical list');
-  assert.ok(lv.HIDE_WORTHY_STRUCTURAL_CODES.includes('invalid_phone'), 'must hide invalid_phone');
-  assert.ok(lv.HIDE_WORTHY_STRUCTURAL_CODES.includes('route_unresolved'), 'must hide route_unresolved');
-  assert.ok(lv.HIDE_WORTHY_STRUCTURAL_CODES.includes('distance_unknown'), 'must hide distance_unknown');
+  // Runtime smoke: load adminInventory's helper transitively by requiring
+  // distributionDecision (the canonical source) and assert the predicate
+  // shape — isDistributable returns true ONLY for the two approved values.
+  delete require.cache[require.resolve('../utils/distributionDecision')];
+  const dd = require('../utils/distributionDecision');
+  assert.strictEqual(dd.isDistributable('system_approved'), true);
+  assert.strictEqual(dd.isDistributable('admin_approved'),  true);
+  for (const bad of ['system_pending','system_held','system_rejected','admin_rejected','garbage', undefined]) {
+    assert.strictEqual(dd.isDistributable(bad), false, `${bad} must NOT be distributable`);
+  }
 
-  // computeStructuralBlockers correctly classifies the raw-field fallbacks
-  // (admin write-time check uses this when the denormalized field is stale).
-  assert.deepStrictEqual(
-    lv.computeStructuralBlockers({ validation: { phone: { valid: false } } }).sort(),
-    ['distance_unknown', 'invalid_phone'].sort(),
-    'invalid phone → invalid_phone (distance_unknown also fires because miles=0 default)');
-  assert.deepStrictEqual(
-    lv.computeStructuralBlockers({ miles: 100, validation: { route: { suspicious: ['origin_zip_not_found'] } } }),
-    ['route_unresolved'],
-    'unresolved origin ZIP → route_unresolved');
-  assert.deepStrictEqual(
-    lv.computeStructuralBlockers({ miles: 0, validation: {} }),
-    ['distance_unknown'],
-    'miles=0 → distance_unknown');
-  console.log('  ✓ D4. Tier 1 quality-side visibility mirror at admin write time');
+  console.log('  ✓ D4. Phase 3 — Deal Room admin gate uses distributionDecision');
 }
 
 // ── D2. Bulk endpoint partial-success contract (Phase 1.6) ───────────────

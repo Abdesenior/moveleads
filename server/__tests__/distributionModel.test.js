@@ -221,31 +221,32 @@ const leadsSrc    = fs.readFileSync(path.join(__dirname, '..', 'routes', 'leads.
   console.log('  ✓ G. Buy-now atomic operations + revert paths intact');
 }
 
-// ── H. Phase D feed filter — main mover feed is instant-only ─────────────
+// ── H. Phase 3 — distributionModel RETIRED as main-feed visibility gate ──
 //
-// `GET /api/leads` mover-facing query must filter the available branch to
-// `distributionModel: 'instant'`. Three invariants:
-//   1. The clause exists inside the availableBranch object (not in the
-//      purchased branch, not in widget-analytics, not in moverVisibilityFilter)
-//   2. The widget-analytics route does NOT filter by distributionModel
-//      (mover's own widget capture history must remain unfiltered)
-//   3. moverVisibilityFilter() does NOT enforce distributionModel
-//      (quality gate vs surface taxonomy are kept orthogonal)
+// Phase D originally gated the mover feed on `distributionModel: 'instant'`
+// to keep legacy auction-stamped leads out. Phase 3's unified
+// distributionDecision layer made that gate redundant — an auction-stamped
+// lead that passes the new quality gate is welcome on the feed (the sale
+// mechanism is independent of visibility). distributionModel is still
+// authoritative inside bid + settle paths (Blocks D/E/G above remain).
+//
+// Three invariants for the feed:
+//   1. availableBranch must NOT filter on distributionModel
+//   2. widget-analytics must NOT filter on distributionModel (unchanged)
+//   3. moverVisibilityFilter() must NOT reference distributionModel
 {
-  // (1) Feed query availableBranch carries the filter
+  // (1) availableBranch in the main feed must NOT carry the clause anymore.
   const availableBranchStart = leadsSrc.indexOf('const availableBranch = {');
   const availableBranchEnd   = leadsSrc.indexOf('};', availableBranchStart);
   assert.ok(availableBranchStart > -1 && availableBranchEnd > availableBranchStart,
     'leads.js must define availableBranch object literal');
   const availableBranch = leadsSrc.slice(availableBranchStart, availableBranchEnd);
   assert.ok(
-    /distributionModel:\s*'instant'/.test(availableBranch),
-    "availableBranch must filter distributionModel: 'instant'"
+    !/distributionModel:\s*'instant'/.test(availableBranch),
+    "availableBranch must NOT filter distributionModel — retired in Phase 3"
   );
 
-  // (2) widget-analytics route uses moverVisibilityFilter() but must NOT
-  //     filter by distributionModel — that route shows the user their own
-  //     widget capture history (auction + instant alike).
+  // (2) widget-analytics — unchanged.
   const widgetStart = leadsSrc.indexOf("router.get('/widget-analytics'");
   const widgetEnd   = leadsSrc.indexOf('});', widgetStart);
   assert.ok(widgetStart > -1 && widgetEnd > widgetStart, 'must locate widget-analytics handler');
@@ -255,35 +256,17 @@ const leadsSrc    = fs.readFileSync(path.join(__dirname, '..', 'routes', 'leads.
     'widget-analytics must NOT filter by distributionModel (own widget history)'
   );
 
-  // (3) moverVisibilityFilter() implementation must not enforce distributionModel
+  // (3) moverVisibilityFilter() body must not reference distributionModel.
   const visibilitySrc = fs.readFileSync(path.join(__dirname, '..', 'utils', 'leadVisibility.js'), 'utf8');
-  // Find the moverVisibilityFilter function body
   const fnStart = visibilitySrc.indexOf('function moverVisibilityFilter()');
   assert.ok(fnStart > -1, 'must locate moverVisibilityFilter definition');
-  // The function ends at the next top-level function or end-of-file marker.
-  // For safety, slice a generous chunk and check.
   const fnSlice = visibilitySrc.slice(fnStart, fnStart + 4000);
   assert.ok(
     !/distributionModel/.test(fnSlice),
-    'moverVisibilityFilter() must NOT reference distributionModel — quality gate stays orthogonal to surface'
+    'moverVisibilityFilter() must NOT reference distributionModel — single distributionDecision clause only'
   );
 
-  // (4) Purchased branch (`buyers.company`) must NOT carry the filter —
-  //     buyers can always see leads they purchased, regardless of distribution
-  //     model (refunds, history, customer detail access).
-  const queryStart = leadsSrc.indexOf('query = {', availableBranchEnd);
-  const queryEnd   = leadsSrc.indexOf('};', queryStart);
-  assert.ok(queryStart > -1, 'must locate query assignment after availableBranch');
-  const querySrc = leadsSrc.slice(queryStart, queryEnd);
-  // The outer $or has two children: 'buyers.company' purchased branch and
-  // availableBranch. Confirm distributionModel does NOT appear here — only
-  // inside availableBranch above.
-  assert.ok(
-    !/distributionModel/.test(querySrc),
-    'outer query $or must not introduce distributionModel — purchased branch bypasses surface filter'
-  );
-
-  console.log('  ✓ H. Phase D feed filter present and scoped correctly');
+  console.log('  ✓ H. Phase 3 — distributionModel retired as main-feed visibility gate');
 }
 
 console.log('\nAll distributionModel Phase B+D smoke tests passed.');

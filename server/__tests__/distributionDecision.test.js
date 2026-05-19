@@ -365,4 +365,199 @@ const { classifyForBackfill } = require('../scripts/backfillDistributionDecision
   console.log('  ✓ F. schema check (enum, default, index, audit fields)');
 }
 
-console.log('\nAll Phase 1 distributionDecision smoke tests passed.');
+// ── G. Phase 3 behavioral cutover — admin actions end-to-end ────────────
+//
+// Models the mover feed query as a pure JS predicate and runs each admin
+// action's WRITE through it, asserting the lead becomes visible/hidden as
+// promised by the unified model. Each block names a specific user-visible
+// outcome the user asked us to prove.
+{
+  const SYSTEM_VALUES_ARRAY = ['system_pending','system_approved','system_held','system_rejected'];
+
+  // Phase 3 mover feed filter — pure JS port. Four orthogonal axes ANDed:
+  //   status ∈ {Available, READY_FOR_DISTRIBUTION}
+  //   moveDate ≥ now
+  //   inventoryChannel ∉ {deal_room, archived}
+  //   distributionDecision ∈ {system_approved, admin_approved}
+  function feedIncludes(lead) {
+    if (!['Available', 'READY_FOR_DISTRIBUTION'].includes(lead.status)) return false;
+    if (!lead.moveDate || new Date(lead.moveDate) < new Date()) return false;
+    if (['deal_room', 'archived'].includes(lead.inventoryChannel)) return false;
+    if (!['system_approved', 'admin_approved'].includes(lead.distributionDecision)) return false;
+    return true;
+  }
+
+  // Simulators for each admin action — mirror the server handler's write set.
+  function applyApprove(lead) {
+    return {
+      ...lead,
+      adminTierOverride: { tier: 'standard', at: new Date(), by: 'admin-1' },
+      qualityGateCleared: true,
+      status: lead.status === 'PENDING_MANUAL_REVIEW' ? 'READY_FOR_DISTRIBUTION' : lead.status,
+      distributionDecision: 'admin_approved',
+      distributionDecisionBy: 'admin-1',
+    };
+  }
+  function applyReject(lead) {
+    return {
+      ...lead,
+      status: 'REJECTED_FAKE',
+      adminTierOverride: { tier: 'rejected', at: new Date(), by: 'admin-1' },
+      qualityGateCleared: false,
+      distributionDecision: 'admin_rejected',
+      distributionDecisionBy: 'admin-1',
+    };
+  }
+  function applyTierOverride(lead, tier) {
+    // Phase 3: tier override is DECOUPLED from visibility. Sets
+    // adminTierOverride + (legacy) qualityGateCleared but does NOT touch
+    // distributionDecision.
+    return {
+      ...lead,
+      adminTierOverride: { tier, at: new Date(), by: 'admin-1' },
+      qualityGateCleared: tier !== 'rejected',
+    };
+  }
+  function applyClearOverride(lead) {
+    // Phase 3: re-derives from current evidence. We use deriveSystemDecision.
+    const next = { ...lead, adminTierOverride: undefined };
+    const derived = deriveSystemDecision(next);
+    return {
+      ...next,
+      qualityGateCleared: !(lead.shadowTier === 'rejected'),
+      distributionDecision: derived,
+      distributionDecisionBy: 'system',
+    };
+  }
+  function applyRescore(lead, newSystemDecision) {
+    // Phase 3 atomic guard: rescore only writes when current decision is
+    // system_*. Simulate the guard explicitly so the test reflects the
+    // real route behavior.
+    if (!SYSTEM_VALUES_ARRAY.includes(lead.distributionDecision)) {
+      return lead; // admin_* sticky — no change
+    }
+    return { ...lead, distributionDecision: newSystemDecision };
+  }
+
+  // Baseline V5 lead that was scored as 'review' with a raw suspicionPattern
+  // signal — the exact shape that motivated this whole refactor.
+  const heldLead = {
+    _id: 'L-held',
+    status: 'PENDING_MANUAL_REVIEW',
+    moveDate: new Date(Date.now() + 7 * 86400000),
+    inventoryChannel: 'main',
+    shadowTier: 'review',
+    qualityGateCleared: false,
+    structuralBlockers: ['suspicion_pattern'],
+    validation: { phone: { suspicionPattern: 'alternating' } },
+    miles: 500,
+    distributionDecision: 'system_held',
+  };
+
+  // G.1 — Approve makes the held lead visible.
+  assert.strictEqual(feedIncludes(heldLead), false, 'G.1 baseline: held lead hidden');
+  const approved = applyApprove(heldLead);
+  assert.strictEqual(approved.distributionDecision, 'admin_approved', 'G.1 approve writes admin_approved');
+  assert.strictEqual(approved.status, 'READY_FOR_DISTRIBUTION', 'G.1 approve upgrades PENDING_MANUAL_REVIEW status');
+  assert.strictEqual(feedIncludes(approved), true,
+    'G.1 approved lead appears in feed DESPITE lingering suspicionPattern + shadowTier=review (silent-block fixed)');
+
+  // G.2 — Reject hides the lead via three redundant gates.
+  const rejected = applyReject(approved);
+  assert.strictEqual(rejected.distributionDecision, 'admin_rejected', 'G.2 reject writes admin_rejected');
+  assert.strictEqual(rejected.status, 'REJECTED_FAKE', 'G.2 reject sets status=REJECTED_FAKE');
+  assert.strictEqual(feedIncludes(rejected), false, 'G.2 rejected lead hidden');
+
+  // G.3 — Rescore CANNOT undo an admin approval (the sticky guarantee).
+  //        Simulate a later rescore that would otherwise produce system_held.
+  const rescoredAfterApprove = applyRescore(approved, 'system_held');
+  assert.strictEqual(rescoredAfterApprove.distributionDecision, 'admin_approved',
+    'G.3 rescore on admin_approved leaves the decision untouched (atomic guard)');
+  assert.strictEqual(feedIncludes(rescoredAfterApprove), true,
+    'G.3 lead stays visible after rescore — no silent un-approve');
+
+  // G.4 — Rescore on a system-owned lead correctly updates the decision.
+  const heldAfterRescore = applyRescore(heldLead, 'system_approved');
+  assert.strictEqual(heldAfterRescore.distributionDecision, 'system_approved',
+    'G.4 rescore on system_held → system_approved when evidence cleans up');
+
+  // G.5 — Clear override on an approved lead reverts to system verdict.
+  //        On the heldLead's evidence (review + suspicionPattern) the system
+  //        verdict is system_held — lead returns to hidden.
+  const cleared = applyClearOverride(approved);
+  assert.strictEqual(cleared.distributionDecision, 'system_held',
+    'G.5 clear-override re-derives from evidence (review + suspicionPattern → system_held)');
+  assert.strictEqual(feedIncludes(cleared), false,
+    'G.5 cleared lead returns to hidden (symmetric undo)');
+  assert.strictEqual(cleared.adminTierOverride, undefined, 'G.5 override cleared');
+
+  // G.6 — Tier override is DECOUPLED from visibility.
+  //        Setting tier=standard on a held lead must NOT make it visible —
+  //        that's the responsibility of /approve, not /tier-override.
+  const tieredHeld = applyTierOverride(heldLead, 'standard');
+  assert.strictEqual(tieredHeld.distributionDecision, 'system_held',
+    'G.6 tier-override does NOT touch distributionDecision');
+  assert.strictEqual(feedIncludes(tieredHeld), false,
+    'G.6 tier-override alone cannot publish a held lead — must use /approve');
+
+  // G.7 — Tier override to 'review' no longer accidentally publishes leads.
+  //        Under the old model this set qualityGateCleared=true and made the
+  //        lead visible. Under Phase 3, distributionDecision is untouched.
+  const approvedThenReviewOverride = applyTierOverride(approved, 'review');
+  assert.strictEqual(approvedThenReviewOverride.distributionDecision, 'admin_approved',
+    'G.7 tier=review override does NOT alter distributionDecision');
+  // The lead remains visible because the admin had already approved it
+  // explicitly; tier=review is just a tag.
+
+  // G.8 — admin_rejected hides regardless of evidence.
+  const rejectedWithCleanEvidence = {
+    ...heldLead,
+    shadowTier: 'standard',
+    qualityGateCleared: true,
+    structuralBlockers: [],
+    validation: { phone: { valid: true } },
+    distributionDecision: 'admin_rejected',
+    status: 'READY_FOR_DISTRIBUTION',
+  };
+  assert.strictEqual(feedIncludes(rejectedWithCleanEvidence), false,
+    'G.8 admin_rejected stays hidden even with clean evidence (sticky)');
+
+  // G.9 — system_rejected stays hidden until admin action.
+  const systemRejected = {
+    ...heldLead,
+    distributionDecision: 'system_rejected',
+    status: 'READY_FOR_DISTRIBUTION',
+  };
+  assert.strictEqual(feedIncludes(systemRejected), false, 'G.9 system_rejected hidden');
+  const recoveredViaApprove = applyApprove(systemRejected);
+  assert.strictEqual(feedIncludes(recoveredViaApprove), true,
+    'G.9 admin can rescue a system_rejected lead via /approve');
+
+  // G.10 — Lifecycle stays separate. Expired status hides regardless of decision.
+  const expiredApproved = {
+    ...approved,
+    status: 'Expired',
+  };
+  assert.strictEqual(feedIncludes(expiredApproved), false,
+    'G.10 Expired status hides regardless of distributionDecision (lifecycle separate)');
+
+  // G.11 — Past moveDate hides regardless of decision.
+  const pastMoveDate = {
+    ...approved,
+    moveDate: new Date(Date.now() - 86400000),
+  };
+  assert.strictEqual(feedIncludes(pastMoveDate), false,
+    'G.11 past moveDate hides regardless of distributionDecision (time gate separate)');
+
+  // G.12 — Deal Room channel hides from main feed (surface gate separate).
+  const inDealRoom = {
+    ...approved,
+    inventoryChannel: 'deal_room',
+  };
+  assert.strictEqual(feedIncludes(inDealRoom), false,
+    'G.12 deal_room channel hides from main feed (surface gate separate)');
+
+  console.log('  ✓ G. Phase 3 admin-action behavioral cutover (12 assertions)');
+}
+
+console.log('\nAll Phase 1 + Phase 3 distributionDecision smoke tests passed.');

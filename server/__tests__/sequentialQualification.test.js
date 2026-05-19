@@ -103,61 +103,49 @@ const twilioSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'twilio
   console.log('  ✓ verifyLeadPhone status-gates on scoring outcome (Phase 6.8)');
 }
 
-// ── B. Visibility matrix across the V5 lifecycle ──────────────────────────
+// ── B. Visibility matrix across the V5 lifecycle (Phase 3 model) ──────────
+//
+// Under Phase 3, mover visibility is gated by the unified
+// distributionDecision field. Each pipeline stage writes a specific value;
+// the test fixtures carry that value alongside the legacy evidence fields
+// (which now serve as audit-only context).
+//
+// Semantic shift to note: under the old `blocked_and_review` mode, a
+// "soft review" lead (shadowTier=review, no structural blockers) was
+// visible to movers. Under Phase 3, any review tier produces
+// system_held → hidden until admin explicitly approves. This is the
+// intentional tightening per the new model — "review" means review.
 {
-  // Fresh load with mode set
   delete require.cache[require.resolve('../utils/leadVisibility')];
+  delete require.cache[require.resolve('../utils/distributionDecision')];
   const { isHiddenFromMovers, moverVisibilityFilter } = require('../utils/leadVisibility');
   const filter = moverVisibilityFilter();
-  assert.ok(filter.$and, 'blocked_and_review must produce $and clauses');
+  assert.deepStrictEqual(filter, { distributionDecision: { $in: ['system_approved', 'admin_approved'] } },
+    'Phase 3 filter is a single distributionDecision clause');
 
-  // Faithful evaluator (same as leadVisibility.test.js)
-  function evalClause(clause, doc) {
-    const [path] = Object.keys(clause);
-    const op = clause[path];
-    const value = path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), doc);
-    // Mongo idiom: `{ field: null }` matches docs where the field is null or
-    // missing. Used by the suspicionPattern raw-fallback clause.
-    if (op === null) return value === null || value === undefined;
-    if (op.$ne !== undefined) return value !== op.$ne;
-    if (op.$nin !== undefined) {
-      if (value === undefined) return true;
-      if (Array.isArray(value)) return value.every(v => !op.$nin.includes(v));
-      return !op.$nin.includes(value);
-    }
-    if (op.$in !== undefined) {
-      if (Array.isArray(value)) return value.some(v => op.$in.includes(v));
-      return op.$in.includes(value);
-    }
-    return true;
-  }
   function passesFilter(doc) {
-    return filter.$and.every(c => evalClause(c, doc));
+    return ['system_approved', 'admin_approved'].includes(doc.distributionDecision);
   }
 
   // STAGE 1 — Immediately after lead.save() in V5 ingest:
-  //   status=Pending Verification, qualityGateCleared=false, no validation yet.
-  //   Mover visibility MUST be blocked.
+  //   distributionDecision=system_pending (set by leadIngestV2 explicitly).
   const justSaved = {
     status: 'Pending Verification',
     qualityGateCleared: false,
     funnelVersion: 'v5',
+    distributionDecision: 'system_pending',
   };
   assert.strictEqual(isHiddenFromMovers(justSaved), true,
-    'STAGE 1 (just-saved V5 lead): hidden by qualityGateCleared=false');
-  // Status filter is separate from moverVisibilityFilter; the GET /api/leads
-  // handler additionally requires status IN [Available, READY]. We don't
-  // check that here because moverVisibilityFilter doesn't include it — but
-  // it's another layer of defense.
-  console.log('  ✓ STAGE 1: just-saved V5 lead is hidden (gate=false)');
+    'STAGE 1 (just-saved V5 lead): hidden — decision=system_pending');
+  console.log('  ✓ STAGE 1: just-saved V5 lead is hidden (system_pending)');
 
-  // STAGE 2 — Mid-pipeline: validation has written validation.phone but
-  //   scoring hasn't yet. shadowTier and structuralBlockers still missing,
-  //   qualityGateCleared still false. Lead must remain hidden.
+  // STAGE 2 — Mid-pipeline: validation written but scoring not yet.
+  //   distributionDecision still system_pending.
   const midPipeline = {
     status: 'Pending Verification',
     qualityGateCleared: false,
     funnelVersion: 'v5',
+    distributionDecision: 'system_pending',
     validation: {
       phone: { valid: false, validityReason: 'twilio_says_invalid', checkedAt: new Date() },
       route: { suspicious: ['destination_zip_not_found'], checkedAt: new Date() },
@@ -165,18 +153,18 @@ const twilioSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'twilio
     miles: 0,
   };
   assert.strictEqual(isHiddenFromMovers(midPipeline), true,
-    'STAGE 2 (mid-pipeline): hidden — gate still false');
-  console.log('  ✓ STAGE 2: mid-pipeline V5 lead is hidden (gate still false)');
+    'STAGE 2 (mid-pipeline): hidden — decision still system_pending');
+  console.log('  ✓ STAGE 2: mid-pipeline V5 lead is hidden (system_pending)');
 
-  // STAGE 3a — Post-qualification, REJECTED structural lead:
-  //   sequential pipeline finished. shadowTier=rejected, gate=false,
-  //   structuralBlockers populated. Must stay hidden permanently.
+  // STAGE 3a — Post-pipeline rejected:
+  //   scoringPipeline wrote shadowTier='rejected' AND distributionDecision='system_rejected'.
   const rejectedFinal = {
     status: 'READY_FOR_DISTRIBUTION',
     qualityGateCleared: false,
     shadowTier: 'rejected',
     structuralBlockers: ['invalid_phone', 'route_unresolved', 'distance_unknown'],
     funnelVersion: 'v5',
+    distributionDecision: 'system_rejected',
     validation: {
       phone: { valid: false, validityReason: 'twilio_says_invalid' },
       route: { suspicious: ['destination_zip_not_found'] },
@@ -184,19 +172,20 @@ const twilioSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'twilio
     miles: 0,
   };
   assert.strictEqual(isHiddenFromMovers(rejectedFinal), true,
-    'STAGE 3a (post-pipeline rejected): hidden by shadowTier=rejected + gate=false');
+    'STAGE 3a (post-pipeline rejected): hidden — decision=system_rejected');
   assert.strictEqual(passesFilter(rejectedFinal), false,
-    'STAGE 3a: Mongo filter also blocks the rejected lead');
-  console.log('  ✓ STAGE 3a: post-pipeline REJECTED lead permanently hidden');
+    'STAGE 3a: Mongo filter blocks the rejected lead');
+  console.log('  ✓ STAGE 3a: post-pipeline REJECTED lead permanently hidden (system_rejected)');
 
-  // STAGE 3b — Post-qualification, CLEAN lead (passes scoring with tier=standard):
-  //   shadowTier=standard, gate=true, structuralBlockers=[]. Visible.
+  // STAGE 3b — Post-pipeline clean (standard tier):
+  //   shadowTier='standard', distributionDecision='system_approved'.
   const cleanFinal = {
     status: 'READY_FOR_DISTRIBUTION',
     qualityGateCleared: true,
     shadowTier: 'standard',
     structuralBlockers: [],
     funnelVersion: 'v5',
+    distributionDecision: 'system_approved',
     validation: {
       phone: { valid: true, lineType: 'mobile', smsPumpingRisk: 'low', providerSuspicion: 'low' },
       route: { suspicious: [] },
@@ -204,50 +193,44 @@ const twilioSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'twilio
     miles: 500,
   };
   assert.strictEqual(isHiddenFromMovers(cleanFinal), false,
-    'STAGE 3b (post-pipeline clean): visible');
+    'STAGE 3b (post-pipeline clean): visible — decision=system_approved');
   assert.strictEqual(passesFilter(cleanFinal), true,
     'STAGE 3b: Mongo filter passes the clean lead');
-  console.log('  ✓ STAGE 3b: post-pipeline CLEAN lead is visible');
+  console.log('  ✓ STAGE 3b: post-pipeline CLEAN lead is visible (system_approved)');
 
-  // STAGE 3c — Post-qualification, SOFT REVIEW (VoIP only — not structural):
-  //   shadowTier=review, gate=true, structuralBlockers=[]. Still visible per
-  //   "do not hide soft review leads" rule.
-  const softReviewFinal = {
+  // STAGE 3c — Post-pipeline review (any flavor — soft or hard):
+  //   Phase 3 holds ALL review-tier leads until admin acts. shadowTier='review'
+  //   → distributionDecision='system_held' → hidden.
+  const reviewFinal = {
     status: 'READY_FOR_DISTRIBUTION',
     qualityGateCleared: true,
     shadowTier: 'review',
     structuralBlockers: [],
     funnelVersion: 'v5',
+    distributionDecision: 'system_held',
     validation: {
       phone: { valid: true, isVoip: true, lineType: 'voip', smsPumpingRisk: 'low' },
       route: { suspicious: [] },
     },
     miles: 500,
   };
-  assert.strictEqual(isHiddenFromMovers(softReviewFinal), false,
-    'STAGE 3c (post-pipeline soft review VoIP-only): visible');
-  console.log('  ✓ STAGE 3c: post-pipeline SOFT REVIEW (VoIP only) visible');
+  assert.strictEqual(isHiddenFromMovers(reviewFinal), true,
+    'STAGE 3c (post-pipeline review): hidden — decision=system_held (Phase 3 hold-for-review)');
+  console.log('  ✓ STAGE 3c: post-pipeline REVIEW held until admin acts (system_held)');
 
-  // STAGE 3d — Post-qualification, HARD REVIEW (structural blocker):
-  //   shadowTier=review, gate=true, structuralBlockers=['route_unresolved'].
-  //   Hidden by the structural rule in blocked_and_review.
-  const hardReviewFinal = {
-    status: 'READY_FOR_DISTRIBUTION',
-    qualityGateCleared: true,
-    shadowTier: 'review',
-    structuralBlockers: ['route_unresolved'],
-    funnelVersion: 'v5',
-    validation: {
-      phone: { valid: true, lineType: 'mobile' },
-      route: { suspicious: ['origin_zip_not_found'] },
-    },
-    miles: 500,
+  // STAGE 3d — After admin clicks "Approve to dashboard":
+  //   adminTierOverride.tier='standard', distributionDecision='admin_approved'.
+  //   The lead becomes visible regardless of any lingering raw signals.
+  const adminApprovedFinal = {
+    ...reviewFinal,
+    adminTierOverride: { tier: 'standard', reason: 'admin approved', at: new Date() },
+    distributionDecision: 'admin_approved',
   };
-  assert.strictEqual(isHiddenFromMovers(hardReviewFinal), true,
-    'STAGE 3d (post-pipeline review + structural): hidden in blocked_and_review');
-  assert.strictEqual(passesFilter(hardReviewFinal), false,
-    'STAGE 3d: Mongo filter blocks it too');
-  console.log('  ✓ STAGE 3d: post-pipeline REVIEW+structural hidden in blocked_and_review');
+  assert.strictEqual(isHiddenFromMovers(adminApprovedFinal), false,
+    'STAGE 3d (after admin approve): visible — decision=admin_approved overrides system_held');
+  assert.strictEqual(passesFilter(adminApprovedFinal), true,
+    'STAGE 3d: Mongo filter passes admin-approved lead');
+  console.log('  ✓ STAGE 3d: admin_approved makes the held lead visible (sticky)');
 }
 
 // ── B2. Status-gate works WITHOUT routing-mode env flag (Phase 6.8) ───────

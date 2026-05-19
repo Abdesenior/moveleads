@@ -38,66 +38,48 @@ const { auth, admin } = require('../middleware/auth');
 const Lead = require('../models/Lead');
 const { logAdminAction } = require('../utils/auditLog');
 const { isEnabled } = require('../utils/dealRoomFeature');
-const { computeStructuralBlockers, HIDE_WORTHY_STRUCTURAL_CODES } = require('../utils/leadVisibility');
+const { isDistributable, describeSystemDecisionSource } = require('../utils/distributionDecision');
 
 const ALLOWED_ACTIONS = new Set(['move_to_deal_room', 'archive', 'restore_to_main']);
 const MAX_BULK = 200; // soft cap to keep request payloads + audit volume sane
 
-// Human-readable label per structural blocker code — used to compose admin
-// rejection messages. Codes not listed fall back to the raw code.
-const STRUCTURAL_LABEL = {
-  invalid_phone: 'invalid phone',
-  route_unresolved: 'route unresolved',
-  distance_unknown: 'distance unknown',
-  suspicious_carrier: 'suspicious carrier',
-  suspicion_pattern: 'suspicious phone pattern',
-  low_confidence_plus_pattern: 'low-confidence telecom + pattern',
-  high_sms_pumping: 'high SMS-pumping risk',
-  fingerprint_bot: 'confirmed bot fingerprint',
-};
-
 /**
- * Tier-1 visibility mirror — runs at admin write time, before any mutation.
+ * Phase 3 — Deal Room admin write-time gate.
  *
- * Mirrors the strict (`blocked_and_review`-equivalent) semantics of
- * server/utils/leadVisibility.moverVisibilityFilter / isHiddenFromMovers,
- * but independent of ENABLE_TIERED_ROUTING. Why force strict semantics here
- * regardless of env: if admin discounts a lead now and the env later flips
- * to a stricter mode, the lead would silently vanish from mover Deal Room
- * (the production bug this guardrail closes). Apply the strictest filter
- * at write time so the move is durable.
+ * Mirrors the unified mover-visibility model: a lead can only be moved to
+ * the Deal Room surface if it would actually be visible there. Visibility
+ * is determined by the SAME single field that gates the mover feeds
+ * (distributionDecision). Each non-distributable value maps to an
+ * admin-actionable rejection reason that names the corrective action.
+ *
+ * Lifecycle/placement issues (past moveDate, expired/non-eligible status)
+ * are handled by the per-lead checks in the route handler — this helper
+ * only judges the quality decision.
  *
  * Returns null when the lead is OK to move, or a single admin-actionable
  * string explaining the block. Caller pushes the string into rejected[].
  */
 function dealRoomMoveBlockReason(lead) {
   if (!lead) return null;
-  if (lead.status === 'REJECTED_FAKE') {
-    return 'Lead is flagged as fake (status=REJECTED_FAKE) — archive it instead.';
+  if (isDistributable(lead.distributionDecision)) return null;
+
+  switch (lead.distributionDecision) {
+    case 'admin_rejected':
+      return 'Lead was rejected by admin — restore (clear override) before moving.';
+    case 'system_rejected':
+      return 'Lead was rejected by quality scoring — approve it via the Quality panel before moving.';
+    case 'system_held': {
+      const source = describeSystemDecisionSource(lead);
+      return `Lead is held for review (${source}) — approve via the Quality panel before moving.`;
+    }
+    case 'system_pending':
+      return 'Lead is still being qualified — wait for the pipeline to finish, then retry.';
+    default:
+      // distributionDecision missing or unrecognized value — safest to block
+      // and tell admin to revisit. Backfill should have populated this on
+      // every existing lead, so this branch should be unreachable in prod.
+      return `Lead has no distribution decision (value=${lead.distributionDecision || 'unset'}) — approve via the Quality panel before moving.`;
   }
-  if (lead.adminTierOverride && lead.adminTierOverride.tier === 'rejected') {
-    return 'Admin rejected this lead via tier override — clear the override before moving.';
-  }
-  if (lead.shadowTier === 'rejected') {
-    return 'Rejected by quality scoring — archive instead.';
-  }
-  if (lead.qualityGateCleared === false) {
-    return 'Quality gate not cleared — wait for qualification to finish, then retry.';
-  }
-  // Structural blockers — prefer the denormalized field, then fall back to
-  // computing them inline from raw validation. Either source can be
-  // authoritative: denormalized arrays can lag on very old leads, and
-  // computed-inline misses any code that was set by a past pipeline but
-  // whose underlying signal has since been cleared. Union catches both.
-  const denorm = Array.isArray(lead.structuralBlockers) ? lead.structuralBlockers : [];
-  const computed = computeStructuralBlockers(lead);
-  const all = Array.from(new Set([...denorm, ...computed]));
-  const hits = all.filter(c => HIDE_WORTHY_STRUCTURAL_CODES.includes(c));
-  if (hits.length > 0) {
-    const labels = hits.map(c => STRUCTURAL_LABEL[c] || c);
-    return `Structural blockers (${labels.join(', ')}) — lead cannot be shown in Deal Room.`;
-  }
-  return null;
 }
 
 router.post('/bulk', [auth, admin], async (req, res) => {
