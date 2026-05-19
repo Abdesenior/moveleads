@@ -241,6 +241,80 @@ const leadModelSrc = fs.readFileSync(path.join(__dirname, '..', 'models', 'Lead.
   console.log('  ✓ D3. move_to_deal_room pre-visibility validation present');
 }
 
+// ── D4. Tier 1 quality-side visibility mirror (Phase 1.9) ────────────────
+// move_to_deal_room must mirror the mover-side visibility filter — refuse
+// leads that would be hidden from /dashboard/deals due to quality signals.
+// Closes the "silent move" gap: admin sees success, mover never sees the
+// lead because moverVisibilityFilter / isHiddenFromMovers hides it.
+{
+  // Helper present + imported from the canonical source
+  assert.ok(/dealRoomMoveBlockReason\s*\(/.test(adminInventorySrc),
+    'adminInventory must define dealRoomMoveBlockReason helper');
+  assert.ok(/computeStructuralBlockers[\s\S]{0,200}HIDE_WORTHY_STRUCTURAL_CODES/.test(adminInventorySrc),
+    'adminInventory must import computeStructuralBlockers + HIDE_WORTHY_STRUCTURAL_CODES from leadVisibility (single source of truth)');
+
+  // The helper must check ALL five visibility gates that moverVisibilityFilter
+  // / isHiddenFromMovers checks. Each is a different production failure mode.
+  assert.ok(/status\s*===\s*['"]REJECTED_FAKE['"]/.test(adminInventorySrc),
+    'dealRoomMoveBlockReason must check status === REJECTED_FAKE');
+  assert.ok(/adminTierOverride[\s\S]{0,40}tier\s*===\s*['"]rejected['"]/.test(adminInventorySrc),
+    'dealRoomMoveBlockReason must check adminTierOverride.tier === rejected');
+  assert.ok(/shadowTier\s*===\s*['"]rejected['"]/.test(adminInventorySrc),
+    'dealRoomMoveBlockReason must check shadowTier === rejected');
+  assert.ok(/qualityGateCleared\s*===\s*false/.test(adminInventorySrc),
+    'dealRoomMoveBlockReason must check qualityGateCleared === false (V5 gate)');
+  assert.ok(/structuralBlockers/.test(adminInventorySrc),
+    'dealRoomMoveBlockReason must consult lead.structuralBlockers');
+
+  // Admin-actionable reason strings present
+  assert.ok(/archive it instead/.test(adminInventorySrc),
+    'REJECTED_FAKE rejection must mention archiving as the corrective action');
+  assert.ok(/clear the override before moving/.test(adminInventorySrc),
+    'adminTierOverride=rejected rejection must tell admin how to fix it');
+  assert.ok(/Rejected by quality scoring/.test(adminInventorySrc),
+    'shadowTier=rejected rejection must read naturally');
+  assert.ok(/Quality gate not cleared/.test(adminInventorySrc),
+    'qualityGateCleared=false rejection must mention quality gate');
+  assert.ok(/Structural blockers/.test(adminInventorySrc),
+    'structural-blocker rejection must list the codes');
+
+  // Call site: the helper must run BEFORE the dealPrice/originalPrice
+  // mutation block (otherwise we'd snapshot originalPrice on a lead we're
+  // about to reject). Verify by string-order inside the source.
+  const callIdx = adminInventorySrc.indexOf('dealRoomMoveBlockReason(lead)');
+  const snapIdx = adminInventorySrc.indexOf('Snapshot the pre-deal price');
+  assert.ok(callIdx > -1 && snapIdx > -1 && callIdx < snapIdx,
+    'dealRoomMoveBlockReason must run before the originalPrice snapshot');
+
+  // Runtime smoke: load the helper indirectly by requiring the route file
+  // and exercising the in-process check via computeStructuralBlockers + the
+  // visibility codes. (The route doesn't export the helper — we re-load the
+  // visibility module and assert the codes the helper relies on are sane.)
+  delete require.cache[require.resolve('../utils/leadVisibility')];
+  const lv = require('../utils/leadVisibility');
+  assert.ok(Array.isArray(lv.HIDE_WORTHY_STRUCTURAL_CODES) && lv.HIDE_WORTHY_STRUCTURAL_CODES.length >= 6,
+    'HIDE_WORTHY_STRUCTURAL_CODES must export the canonical list');
+  assert.ok(lv.HIDE_WORTHY_STRUCTURAL_CODES.includes('invalid_phone'), 'must hide invalid_phone');
+  assert.ok(lv.HIDE_WORTHY_STRUCTURAL_CODES.includes('route_unresolved'), 'must hide route_unresolved');
+  assert.ok(lv.HIDE_WORTHY_STRUCTURAL_CODES.includes('distance_unknown'), 'must hide distance_unknown');
+
+  // computeStructuralBlockers correctly classifies the raw-field fallbacks
+  // (admin write-time check uses this when the denormalized field is stale).
+  assert.deepStrictEqual(
+    lv.computeStructuralBlockers({ validation: { phone: { valid: false } } }).sort(),
+    ['distance_unknown', 'invalid_phone'].sort(),
+    'invalid phone → invalid_phone (distance_unknown also fires because miles=0 default)');
+  assert.deepStrictEqual(
+    lv.computeStructuralBlockers({ miles: 100, validation: { route: { suspicious: ['origin_zip_not_found'] } } }),
+    ['route_unresolved'],
+    'unresolved origin ZIP → route_unresolved');
+  assert.deepStrictEqual(
+    lv.computeStructuralBlockers({ miles: 0, validation: {} }),
+    ['distance_unknown'],
+    'miles=0 → distance_unknown');
+  console.log('  ✓ D4. Tier 1 quality-side visibility mirror at admin write time');
+}
+
 // ── D2. Bulk endpoint partial-success contract (Phase 1.6) ───────────────
 // Static check: the endpoint returns processed[] and rejected[] arrays, and
 // the rejection messages are admin-actionable (mention the actual reason)

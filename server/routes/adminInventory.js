@@ -38,9 +38,67 @@ const { auth, admin } = require('../middleware/auth');
 const Lead = require('../models/Lead');
 const { logAdminAction } = require('../utils/auditLog');
 const { isEnabled } = require('../utils/dealRoomFeature');
+const { computeStructuralBlockers, HIDE_WORTHY_STRUCTURAL_CODES } = require('../utils/leadVisibility');
 
 const ALLOWED_ACTIONS = new Set(['move_to_deal_room', 'archive', 'restore_to_main']);
 const MAX_BULK = 200; // soft cap to keep request payloads + audit volume sane
+
+// Human-readable label per structural blocker code — used to compose admin
+// rejection messages. Codes not listed fall back to the raw code.
+const STRUCTURAL_LABEL = {
+  invalid_phone: 'invalid phone',
+  route_unresolved: 'route unresolved',
+  distance_unknown: 'distance unknown',
+  suspicious_carrier: 'suspicious carrier',
+  suspicion_pattern: 'suspicious phone pattern',
+  low_confidence_plus_pattern: 'low-confidence telecom + pattern',
+  high_sms_pumping: 'high SMS-pumping risk',
+  fingerprint_bot: 'confirmed bot fingerprint',
+};
+
+/**
+ * Tier-1 visibility mirror — runs at admin write time, before any mutation.
+ *
+ * Mirrors the strict (`blocked_and_review`-equivalent) semantics of
+ * server/utils/leadVisibility.moverVisibilityFilter / isHiddenFromMovers,
+ * but independent of ENABLE_TIERED_ROUTING. Why force strict semantics here
+ * regardless of env: if admin discounts a lead now and the env later flips
+ * to a stricter mode, the lead would silently vanish from mover Deal Room
+ * (the production bug this guardrail closes). Apply the strictest filter
+ * at write time so the move is durable.
+ *
+ * Returns null when the lead is OK to move, or a single admin-actionable
+ * string explaining the block. Caller pushes the string into rejected[].
+ */
+function dealRoomMoveBlockReason(lead) {
+  if (!lead) return null;
+  if (lead.status === 'REJECTED_FAKE') {
+    return 'Lead is flagged as fake (status=REJECTED_FAKE) — archive it instead.';
+  }
+  if (lead.adminTierOverride && lead.adminTierOverride.tier === 'rejected') {
+    return 'Admin rejected this lead via tier override — clear the override before moving.';
+  }
+  if (lead.shadowTier === 'rejected') {
+    return 'Rejected by quality scoring — archive instead.';
+  }
+  if (lead.qualityGateCleared === false) {
+    return 'Quality gate not cleared — wait for qualification to finish, then retry.';
+  }
+  // Structural blockers — prefer the denormalized field, then fall back to
+  // computing them inline from raw validation. Either source can be
+  // authoritative: denormalized arrays can lag on very old leads, and
+  // computed-inline misses any code that was set by a past pipeline but
+  // whose underlying signal has since been cleared. Union catches both.
+  const denorm = Array.isArray(lead.structuralBlockers) ? lead.structuralBlockers : [];
+  const computed = computeStructuralBlockers(lead);
+  const all = Array.from(new Set([...denorm, ...computed]));
+  const hits = all.filter(c => HIDE_WORTHY_STRUCTURAL_CODES.includes(c));
+  if (hits.length > 0) {
+    const labels = hits.map(c => STRUCTURAL_LABEL[c] || c);
+    return `Structural blockers (${labels.join(', ')}) — lead cannot be shown in Deal Room.`;
+  }
+  return null;
+}
 
 router.post('/bulk', [auth, admin], async (req, res) => {
   if (!isEnabled()) {
@@ -147,6 +205,15 @@ router.post('/bulk', [auth, admin], async (req, res) => {
             leadId,
             reason: `Lead status "${lead.status}" is not eligible for Deal Room. Only Available / READY_FOR_DISTRIBUTION leads can be discounted.`,
           });
+          continue;
+        }
+        // Phase 1.9 — Tier 1 quality-side visibility mirror. Mirrors the
+        // mover Deal Room's moverVisibilityFilter() at admin write time, so
+        // a "moved" lead is guaranteed to actually be visible to movers.
+        // Independent of ENABLE_TIERED_ROUTING (see helper doc-comment).
+        const qualityBlockReason = dealRoomMoveBlockReason(lead);
+        if (qualityBlockReason) {
+          rejected.push({ leadId, reason: qualityBlockReason });
           continue;
         }
       }
