@@ -17,6 +17,7 @@ const { calculateAuctionPrice } = require('../utils/pricingEngine');
 const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
 const { moverVisibilityFilter, isHiddenFromMovers, hiddenReason, routingMode, recordClaimBlocked, recordFeedHidden } = require('../utils/leadVisibility');
+const decisionDrift = require('../utils/decisionDrift');
 
 // NOTE: The public `POST /api/leads/ingest` handler lives in routes/leadIngest.js
 // and is mounted directly in server.js BEFORE the verifiedGate-wrapped
@@ -102,6 +103,30 @@ router.get('/deals', auth, async (req, res) => {
       .select('-customerName -customerPhone -customerEmail -specialInstructions -customerNotes -notifiedAt')
       .sort({ updatedAt: -1 })
       .lean();
+
+    // Phase 2 — shadow-compare decision drift. No production behavior change.
+    // Behind ENABLE_DECISION_DRIFT_LOGGING; full-scan path opt-in. Fully
+    // wrapped in try/catch inside the helper so a logger fault cannot break
+    // the deals feed.
+    if (decisionDrift.isEnabled()) {
+      let candidates;
+      if (decisionDrift.fullScanEnabled()) {
+        try {
+          candidates = await Lead.find({
+            inventoryChannel: 'deal_room',
+            status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
+            moveDate: { $gte: new Date() },
+          }).select('status distributionModel inventoryChannel moveDate structuralBlockers adminTierOverride qualityGateCleared shadowTier validation miles distributionDecision distributionDecisionReason').lean();
+        } catch (err) {
+          console.warn('[decisionDrift] deals candidate fetch failed:', err.message);
+        }
+      }
+      decisionDrift.inspectAndLog({
+        endpoint: '/api/leads/deals',
+        included: leads,
+        candidates,
+      });
+    }
 
     // Discount percent computed at display (not stored). Safe when
     // originalPrice is missing — returns 0%, mover just sees the price.
@@ -240,6 +265,46 @@ router.get('/', auth, async (req, res) => {
     const leads = await Lead.find(query).sort({ createdAt: -1 }).lean();
 
     const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+
+    // Phase 2 — shadow-compare decision drift on the mover-facing main feed.
+    // Skipped for admin (admins bypass quality gates entirely, so drift is
+    // not meaningful for that role). Behind ENABLE_DECISION_DRIFT_LOGGING.
+    // Full-scan opt-in via DECISION_DRIFT_FULL_SCAN. Helper is exception-
+    // safe; a logger fault cannot break the feed.
+    //
+    // The legacy main-feed quality+placement filter combines moverVisibilityFilter
+    // (quality gates) with `distributionModel === 'instant'` (Phase D
+    // placement). The oldPredicate below encodes BOTH so new_only deltas
+    // include leads stuck behind the distributionModel gate (which Phase 3
+    // will retire per the open-question answers). The decision-drift log
+    // surfaces distributionModel on each row so the operator can attribute
+    // each delta to its source.
+    if (!isAdmin && decisionDrift.isEnabled()) {
+      let candidates;
+      if (decisionDrift.fullScanEnabled()) {
+        try {
+          candidates = await Lead.find({
+            status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
+            moveDate: { $gte: new Date() },
+            inventoryChannel: { $nin: ['deal_room', 'archived'] },
+            $or: [
+              { sourceCompany: { $exists: false } },
+              { sourceCompany: req.user.id },
+            ],
+          }).select('status distributionModel inventoryChannel moveDate structuralBlockers adminTierOverride qualityGateCleared shadowTier validation miles distributionDecision distributionDecisionReason').lean();
+        } catch (err) {
+          console.warn('[decisionDrift] main-feed candidate fetch failed:', err.message);
+        }
+      }
+      decisionDrift.inspectAndLog({
+        endpoint: '/api/leads',
+        included: leads,
+        candidates,
+        // Legacy main-feed quality+placement predicate combines quality
+        // gates with the Phase D distributionModel='instant' clause.
+        oldPredicate: (lead) => !isHiddenFromMovers(lead) && lead.distributionModel === 'instant',
+      });
+    }
 
     // V5 Phase 1 — annotate leads with their most-recent shadow scoring tier
     // for admin viewers only. Single aggregation lookup (one DB roundtrip) to

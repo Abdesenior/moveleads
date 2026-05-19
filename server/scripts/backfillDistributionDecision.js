@@ -130,12 +130,12 @@ async function main() {
   const apply = args.apply;
   const idFilter = args.id;
 
-  if (!process.env.MONGO_URI) {
+  if (!(process.env.MONGODB_URI || process.env.MONGO_URI)) {
     console.error('Missing MONGO_URI in env. Aborting.');
     process.exit(1);
   }
 
-  await mongoose.connect(process.env.MONGO_URI);
+  await mongoose.connect((process.env.MONGODB_URI || process.env.MONGO_URI));
   console.log(`[backfillDistributionDecision] connected (apply=${apply}, batch=${args.batch}${idFilter ? `, id=${idFilter}` : ''})`);
 
   const baseFilter = idFilter ? { _id: idFilter } : {};
