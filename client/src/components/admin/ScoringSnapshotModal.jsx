@@ -197,36 +197,42 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                 <DistributionDecisionCard lead={leadDetail} />
               )}
 
-              {/* ── Tier + reviewed badges ───────────────────────────── */}
-              <div style={{ display: 'flex', gap: 12, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* ── Evidence row — demoted below the Distribution Decision card.
+                     "Scoring Tier" is the engine's verdict (evidence), not the
+                     operational decision. The Distribution Decision card above
+                     is the canonical authority — operators should read THAT
+                     for "will the mover see this lead?". The badges below are
+                     diagnostic context only. */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap', fontSize: 11 }}>
+                <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                  Evidence:
+                </span>
                 <div style={{
-                  padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800, letterSpacing: 0.5,
-                  textTransform: 'uppercase',
-                  background: statusColor.bg, color: statusColor.fg, border: `1px solid ${statusColor.fg}33`,
-                }}>
+                  padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, letterSpacing: 0.3,
+                  background: statusColor.bg, color: statusColor.fg, border: `1px solid ${statusColor.fg}22`,
+                }} title="Quality status (legacy display label) — superseded by Distribution Decision above">
                   {distribution?.status || '—'}
                 </div>
                 {tier && (
                   <div style={{
-                    padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800, letterSpacing: 0.5,
-                    textTransform: 'uppercase',
+                    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
                     background: tierColor.bg, color: tierColor.fg, border: `1px solid ${tierColor.border}`,
-                  }}>
-                    Tier: {tier}
-                    {toMoverLabel(tier) && <span style={{ marginLeft: 6, opacity: 0.75, fontWeight: 600 }}>· {toMoverLabel(tier)}</span>}
-                    {snap?.scores?.compositeScore != null && <span style={{ marginLeft: 6, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>(score {snap.scores.compositeScore})</span>}
+                  }} title="Scoring engine verdict at scoring time — historical evidence, not a current operational decision">
+                    Scoring Tier: {tier}
+                    {toMoverLabel(tier) && <span style={{ marginLeft: 4, opacity: 0.7 }}>· {toMoverLabel(tier)}</span>}
+                    {snap?.scores?.compositeScore != null && <span style={{ marginLeft: 4, fontVariantNumeric: 'tabular-nums', opacity: 0.65 }}>(score {snap.scores.compositeScore})</span>}
                   </div>
                 )}
-                {/* Tier-override tag — analytics/priority only; visibility is
-                    governed by distributionDecision above, not this tag. */}
+                {/* Tier-override is a priority/analytics tag — visibility is
+                    governed by distributionDecision above, never by this. */}
                 {leadDetail?.adminTierOverride?.tier && (
-                  <div style={{ padding: '8px 12px', borderRadius: 10, fontSize: 11, background: '#f1f5f9', color: '#475569', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', border: '1px solid #cbd5e1' }} title="Tier-priority tag — does not approve visibility (see Distribution Decision)">
-                    Tier override → {leadDetail.adminTierOverride.tier}
+                  <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, background: '#f1f5f9', color: '#475569', fontWeight: 600, border: '1px solid #cbd5e1' }} title="Tier-priority tag — does not approve visibility (see Distribution Decision)">
+                    Tier tag: {leadDetail.adminTierOverride.tier}
                   </div>
                 )}
                 {leadDetail?.reviewedAt && (
-                  <div style={{ padding: '8px 12px', borderRadius: 10, fontSize: 11, background: '#dcfce7', color: '#15803d', fontWeight: 700 }}>
-                    ✓ Reviewed {new Date(leadDetail.reviewedAt).toLocaleString()}
+                  <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, background: '#dcfce7', color: '#15803d', fontWeight: 600 }}>
+                    ✓ Reviewed {new Date(leadDetail.reviewedAt).toLocaleDateString()}
                   </div>
                 )}
               </div>
@@ -659,10 +665,13 @@ function DistributionDecisionCard({ lead }) {
       {distributable && blockReasons.length > 0 && (
         <div style={{ marginTop: 8, padding: 12, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: '#9a3412', textTransform: 'uppercase', marginBottom: 4 }}>
-            ⚠ Approved quality-wise, but not visible to movers
+            ⚠ Approved quality-wise but hidden due to lifecycle expiration
           </div>
-          <div style={{ fontSize: 12, color: '#7c2d12' }}>
-            Quality decision is <strong>{decision}</strong>, but the lead is hidden because {blockReasons.join(', ')}. Fix the lifecycle / placement gate to make the lead visible.
+          <div style={{ fontSize: 12, color: '#7c2d12', lineHeight: 1.5 }}>
+            Quality decision is <strong>{decision}</strong>, but the mover feed is hiding this lead because {blockReasons.join(', ')}.
+            <span style={{ display: 'block', marginTop: 4, color: '#9a3412', fontStyle: 'italic' }}>
+              Lifecycle is an independent gate. To republish, the lead needs an explicit Reactivate / extend-moveDate action (not yet wired). Admin approval intentionally does NOT auto-revive expired leads.
+            </span>
           </div>
         </div>
       )}

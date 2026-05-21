@@ -711,16 +711,23 @@ const { classifyForBackfill } = require('../scripts/backfillDistributionDecision
   assert.ok(!/adminTierOverride/.test(cardBody),
     'J.2 card body must NOT read adminTierOverride (decoupled — that is a tier tag, not approval state)');
 
-  // J.3 — Lifecycle warning is rendered when distributable but lifecycle blocks.
-  assert.ok(/Approved quality-wise, but not visible to movers/.test(modalSrc),
-    'J.3 modal must surface lifecycle warning when admin_approved but feed-hidden');
+  // J.3 — Lifecycle expiration warning uses the precise authority-clarifying
+  // wording. The warning must (a) name the architectural split, (b) tell admin
+  // an explicit Reactivate action is required, (c) state that approval does
+  // NOT auto-revive expired leads.
+  assert.ok(/Approved quality-wise but hidden due to lifecycle expiration/.test(modalSrc),
+    'J.3 modal must surface the "Approved quality-wise but hidden due to lifecycle expiration" warning');
+  assert.ok(/Reactivate \/ extend-moveDate action/.test(modalSrc),
+    'J.3 warning must point at the explicit Reactivate action that admin needs');
+  assert.ok(/does NOT auto-revive/.test(modalSrc),
+    'J.3 warning must state that approval does not auto-revive expired leads');
 
-  // J.4 — The legacy "Admin Override" pill is gone. Replaced by a tier-tag
-  // labelled to clarify it does NOT govern visibility.
+  // J.4 — The legacy "Admin Override → tier" pill is gone (the one that read
+  // like a decision). Replaced by a quietly-labelled "Tier tag" pill.
   assert.ok(!/Admin Override → \{distribution\.override\}/.test(modalSrc),
-    'J.4 legacy "Admin Override" badge wired to distribution.override must be removed');
-  assert.ok(/Tier override →/.test(modalSrc),
-    'J.4 replacement tier-tag must read "Tier override →"');
+    'J.4 legacy "Admin Override → …" pill must be removed (read like a decision)');
+  assert.ok(/Tier tag:/.test(modalSrc),
+    'J.4 replacement pill must read "Tier tag:" to make priority-tag semantics explicit');
 
   // J.5 — LeadFeed.jsx no longer filters fetched results by auctionStatus.
   // Server is sole authority. The function `isDistributable` is gone.
@@ -736,6 +743,31 @@ const { classifyForBackfill } = require('../scripts/backfillDistributionDecision
     'J.6 LeadFeed.jsx must keep a name-distinct helper for NEW_LEAD_AVAILABLE defensive check');
   assert.ok(!/l\.auctionStatus\s*!==\s*['"]expired['"]/.test(feedSrc),
     'J.6 LeadFeed.jsx must drop the auctionStatus !== "expired" client filter');
+
+  // J.7 — Tier badges in admin UIs are relabeled as "Scoring" evidence
+  // (not "Tier" as if it were an operational gate). Three call sites:
+  // ScoringSnapshotModal, AdminLeads TierBadge component, AdminQuality row.
+  assert.ok(/Scoring Tier:/.test(modalSrc),
+    'J.7 ScoringSnapshotModal must label the engine-verdict pill "Scoring Tier:"');
+  const adminLeadsSrc   = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'admin', 'AdminLeads.jsx'), 'utf8');
+  const adminQualitySrc = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'admin', 'AdminQuality.jsx'), 'utf8');
+  assert.ok(/>Scoring:</.test(adminLeadsSrc),
+    'J.7 AdminLeads TierBadge must prefix the value with a quiet "Scoring:" label');
+  assert.ok(/>Scoring:</.test(adminQualitySrc),
+    'J.7 AdminQuality QualityRow must prefix the tier with "Scoring:"');
+  assert.ok(/Scoring Tier/.test(adminQualitySrc),
+    'J.7 AdminQuality table header must read "Scoring Tier" not "Tier"');
+
+  // J.8 — AdminQuality review queue filters out admin-acted leads from the
+  // actionable buckets, exposes them via a dedicated "Resolved" bucket.
+  assert.ok(/ADMIN_ACTED_DECISIONS\s*=\s*new Set\(\[['"]admin_approved['"]\s*,\s*['"]admin_rejected['"]\]\)/.test(adminQualitySrc),
+    'J.8 AdminQuality must define ADMIN_ACTED_DECISIONS = {admin_approved, admin_rejected}');
+  assert.ok(/key:\s*['"]resolved['"]/.test(adminQualitySrc),
+    'J.8 AdminQuality must add a "resolved" bucket for audit access to admin-acted leads');
+  assert.ok(/if \(b === ['"]resolved['"]\) return adminActed/.test(adminQualitySrc),
+    'J.8 resolved bucket must show ONLY admin-acted leads');
+  assert.ok(/if \(adminActed\) return false/.test(adminQualitySrc),
+    'J.8 every actionable bucket must exclude admin-acted leads');
 
   console.log('  ✓ J. Phase 3 integration cleanup — client + admin UI wiring');
 }

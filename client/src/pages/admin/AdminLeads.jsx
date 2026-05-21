@@ -231,24 +231,30 @@ function FallbackCityAutocomplete({ label, value, onChange, onZipFound, placehol
  * Cosmetic only — tier does NOT affect routing, pricing, or visibility yet.
  * ───────────────────────────────────────────────────────────────────────── */
 function TierBadge({ tier, composite }) {
+  // Phase 3 — this is the SCORING ENGINE's verdict (evidence). It is NOT
+  // the operational decision. Operational visibility is governed by
+  // lead.distributionDecision (system_approved / admin_approved), which
+  // is rendered by the Distribution Decision card in the lead modal.
+  // The badge stays muted and labeled "Scoring" so it can't be misread
+  // as an operational gate.
   const styles = {
-    hot:      { bg: '#fef2f2', fg: '#dc2626', border: '#fecaca' },
-    premium:  { bg: '#f5f3ff', fg: '#7c3aed', border: '#ddd6fe' },
-    standard: { bg: '#eff6ff', fg: '#2563eb', border: '#bfdbfe' },
-    review:   { bg: '#fef3c7', fg: '#d97706', border: '#fde68a' },
-    rejected: { bg: '#f1f5f9', fg: '#64748b', border: '#e2e8f0' },
+    hot:      { bg: '#fef2f2', fg: '#b91c1c', border: '#fecaca' },
+    premium:  { bg: '#f5f3ff', fg: '#6d28d9', border: '#ddd6fe' },
+    standard: { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe' },
+    review:   { bg: '#fef3c7', fg: '#92400e', border: '#fde68a' },
+    rejected: { bg: '#f1f5f9', fg: '#475569', border: '#e2e8f0' },
   };
   if (!tier) {
     return <span style={{ fontSize: 11, color: '#cbd5e1', fontStyle: 'italic' }}>—</span>;
   }
   const s = styles[tier] || styles.standard;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} title="Scoring engine verdict — evidence only. Operational visibility is governed by Distribution Decision (see lead modal).">
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: '#94a3b8', textTransform: 'uppercase' }}>Scoring:</span>
       <span
-        title={toMoverLabel(tier) ? `Mover sees: ${toMoverLabel(tier)}` : undefined}
         style={{
-          padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
-          letterSpacing: 0.5, textTransform: 'uppercase',
+          padding: '2px 8px', borderRadius: 100, fontSize: 10, fontWeight: 600,
+          letterSpacing: 0.3, textTransform: 'lowercase',
           background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
         }}>{tier}</span>
       {typeof composite === 'number' && (

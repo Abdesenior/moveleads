@@ -23,16 +23,26 @@ import { toMoverLabel } from '../../utils/tierLabels';
  * review-relevant subset and the layout emphasizes triage.
  */
 
+// Phase 3 cleanup — the review queue is an ACTIONABLE list. Once admin has
+// acted (approve/reject), the lead's distributionDecision is admin_* and
+// the lead drops out of the "needs attention" buckets, even though its
+// scoring evidence (shadowTier='review' etc.) is preserved on the doc.
+// The "Resolved" bucket surfaces admin-acted leads so the audit history
+// stays accessible — admin can still open the modal and see the original
+// scoring evidence + the decision that was taken.
 const FILTER_BUCKETS = [
-  { key: 'all',       label: 'All review-worthy', icon: AlertTriangle },
-  { key: 'review',    label: 'Tier: Review',      icon: AlertTriangle },
-  { key: 'rejected',  label: 'Tier: Rejected',    icon: XCircle },
-  { key: 'phone',     label: 'Phone invalid',     icon: XCircle },
-  { key: 'voip',      label: 'VoIP detected',     icon: AlertCircle },
-  { key: 'suspect',   label: 'Suspicious pattern', icon: AlertTriangle },
-  { key: 'route',     label: 'Route unresolved',  icon: AlertTriangle },
+  { key: 'all',        label: 'All review-worthy',  icon: AlertTriangle },
+  { key: 'review',     label: 'Tier: Review',       icon: AlertTriangle },
+  { key: 'rejected',   label: 'Tier: Rejected',     icon: XCircle },
+  { key: 'phone',      label: 'Phone invalid',      icon: XCircle },
+  { key: 'voip',       label: 'VoIP detected',      icon: AlertCircle },
+  { key: 'suspect',    label: 'Suspicious pattern', icon: AlertTriangle },
+  { key: 'route',      label: 'Route unresolved',   icon: AlertTriangle },
   { key: 'unverified', label: 'Telecom unverified', icon: AlertCircle },
+  { key: 'resolved',   label: 'Resolved (admin acted)', icon: CheckCircle },
 ];
+
+const ADMIN_ACTED_DECISIONS = new Set(['admin_approved', 'admin_rejected']);
 
 const STATUS_COLORS = {
   'Ready':           { bg: '#dcfce7', fg: '#15803d' },
@@ -79,18 +89,23 @@ export default function AdminQuality() {
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
   // Predicate: does this lead match a given bucket?
-  // The GET /api/leads endpoint annotates _shadowTier/_shadowComposite/_shadowEngineVersion
-  // for admin viewers. For the deeper signals (phone.valid, isVoip, etc.)
-  // we'd need to fetch the snapshot — at this list level we only have what
-  // /api/leads returns. So bucket predicates use only the available data
-  // (tier annotation) and we accept that some filters are tier-based only.
-  // The modal still fetches the full snapshot when admin clicks in.
+  //
+  // Phase 3 cleanup — actionable buckets (every bucket except 'resolved')
+  // hide leads where admin has already acted (distributionDecision is
+  // admin_approved or admin_rejected). The scoring evidence on those leads
+  // is unchanged; they just no longer need attention. The 'resolved' bucket
+  // is the inverse — only admin-acted leads, for audit access.
   function matchesBucket(lead, b) {
     const tier = lead._shadowTier;
+    const adminActed = ADMIN_ACTED_DECISIONS.has(lead.distributionDecision);
+
+    if (b === 'resolved') return adminActed;
+    if (adminActed) return false; // hide from all "needs action" buckets
+
     if (b === 'all') {
-      // Anything except 'hot' and 'standard' — i.e. leads worth reviewing
+      // Anything except 'hot' and 'standard' — i.e. leads worth reviewing.
+      // Includes premium because telecom-unverified soft-caps at premium.
       return tier === 'review' || tier === 'rejected' || tier === 'premium' || !tier;
-      // Note: includes premium because telecom-unverified soft-caps at premium
     }
     if (b === 'review')   return tier === 'review';
     if (b === 'rejected') return tier === 'rejected';
@@ -218,7 +233,7 @@ export default function AdminQuality() {
                   <th style={{ paddingLeft: 24 }}>Lead</th>
                   <th>Contact</th>
                   <th>Move</th>
-                  <th>Tier</th>
+                  <th title="Scoring engine verdict — evidence only. Operational decision is in the modal.">Scoring Tier</th>
                   <th>Status</th>
                   <th>Submitted</th>
                   <th style={{ textAlign: 'right', paddingRight: 24 }}>Action</th>
@@ -272,12 +287,12 @@ function QualityRow({ lead, alt, onOpen }) {
         </div>
       </td>
       <td>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} title="Scoring engine verdict — evidence only. Operational visibility is governed by Distribution Decision.">
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: '#94a3b8', textTransform: 'uppercase' }}>Scoring:</span>
           <span
-            title={toMoverLabel(lead._shadowTier) ? `Mover sees: ${toMoverLabel(lead._shadowTier)}` : undefined}
             style={{
-              padding: '4px 10px', borderRadius: 100, fontSize: 10, fontWeight: 700,
-              letterSpacing: 0.5, textTransform: 'uppercase', background: tc.bg, color: tc.fg,
+              padding: '2px 8px', borderRadius: 100, fontSize: 10, fontWeight: 600,
+              letterSpacing: 0.3, background: tc.bg, color: tc.fg,
             }}>{lead._shadowTier || '—'}</span>
           {typeof composite === 'number' && (
             <span style={{ fontSize: 11, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{composite}</span>
