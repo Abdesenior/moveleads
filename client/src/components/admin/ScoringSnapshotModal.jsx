@@ -192,7 +192,12 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                 </div>
               )}
 
-              {/* ── Distribution status + tier badge ─────────────────── */}
+              {/* ── Distribution Decision (sole quality authority) ──── */}
+              {leadDetail?.distributionDecision && (
+                <DistributionDecisionCard lead={leadDetail} />
+              )}
+
+              {/* ── Tier + reviewed badges ───────────────────────────── */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{
                   padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800, letterSpacing: 0.5,
@@ -212,9 +217,11 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                     {snap?.scores?.compositeScore != null && <span style={{ marginLeft: 6, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>(score {snap.scores.compositeScore})</span>}
                   </div>
                 )}
-                {distribution?.override && (
-                  <div style={{ padding: '8px 16px', borderRadius: 10, fontSize: 11, background: '#0f172a', color: '#fff', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-                    Admin Override → {distribution.override}
+                {/* Tier-override tag — analytics/priority only; visibility is
+                    governed by distributionDecision above, not this tag. */}
+                {leadDetail?.adminTierOverride?.tier && (
+                  <div style={{ padding: '8px 12px', borderRadius: 10, fontSize: 11, background: '#f1f5f9', color: '#475569', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', border: '1px solid #cbd5e1' }} title="Tier-priority tag — does not approve visibility (see Distribution Decision)">
+                    Tier override → {leadDetail.adminTierOverride.tier}
                   </div>
                 )}
                 {leadDetail?.reviewedAt && (
@@ -569,6 +576,96 @@ function TripletCard({ label, value, hint, tone }) {
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.fg, textTransform: 'uppercase' }}>{label}</div>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginTop: 4 }}>{value}</div>
       {hint && <div style={{ fontSize: 10, color: t.fg, marginTop: 2 }}>{hint}</div>}
+    </div>
+  );
+}
+
+/*
+ * DistributionDecisionCard — Phase 3 cutover badge.
+ *
+ * Sole-authority panel for the lead's quality/distribution decision. Reads
+ * directly from distributionDecision + audit fields. When the decision says
+ * "distributable" but a non-quality axis (lifecycle status, moveDate, or
+ * inventoryChannel) is hiding the lead anyway, renders a lifecycle-warning
+ * banner with the exact reason. Avoids the prior bug where admin saw
+ * "Admin approved" but movers couldn't see the lead.
+ */
+const DECISION_TONES = {
+  admin_approved:  { bg: '#dcfce7', fg: '#15803d', border: '#86efac', label: 'Admin approved' },
+  system_approved: { bg: '#ecfeff', fg: '#0e7490', border: '#a5f3fc', label: 'System approved' },
+  system_held:     { bg: '#fef3c7', fg: '#b45309', border: '#fde68a', label: 'System held — needs admin approval' },
+  system_pending:  { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1', label: 'System pending — qualification running' },
+  system_rejected: { bg: '#fef2f2', fg: '#b91c1c', border: '#fecaca', label: 'System rejected' },
+  admin_rejected:  { bg: '#fef2f2', fg: '#7f1d1d', border: '#fca5a5', label: 'Admin rejected' },
+};
+const DISTRIBUTABLE_DECISIONS = new Set(['admin_approved', 'system_approved']);
+
+function DistributionDecisionCard({ lead }) {
+  const decision = lead.distributionDecision;
+  const tone = DECISION_TONES[decision] || { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1', label: decision || 'unset' };
+
+  // Non-quality axes — read separately and surface a warning if they block
+  // a quality-approved lead.
+  const distributable    = DISTRIBUTABLE_DECISIONS.has(decision);
+  const lifecycleOk      = ['Available', 'READY_FOR_DISTRIBUTION'].includes(lead.status);
+  const moveDateOk       = lead.moveDate ? new Date(lead.moveDate) >= new Date() : true;
+  const placementOk      = !lead.inventoryChannel || lead.inventoryChannel === 'main';
+  const visibleOnFeed    = distributable && lifecycleOk && moveDateOk && placementOk;
+
+  const blockReasons = [];
+  if (distributable && !lifecycleOk)  blockReasons.push(`status is "${lead.status}"`);
+  if (distributable && !moveDateOk)   blockReasons.push('move date has passed');
+  if (distributable && !placementOk)  blockReasons.push(`inventoryChannel is "${lead.inventoryChannel}" (not "main")`);
+
+  const byLabel = lead.distributionDecisionByEmail
+    || lead.distributionDecisionByName
+    || (lead.distributionDecisionBy === 'system' ? 'system' :
+        lead.distributionDecisionBy === 'migration' ? 'migration backfill' :
+        lead.distributionDecisionBy || '—');
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{
+        padding: 14, background: tone.bg, border: `1px solid ${tone.border}`, borderRadius: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: tone.fg, textTransform: 'uppercase' }}>
+              Distribution Decision
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>
+              {tone.label} <span style={{ fontSize: 11, fontWeight: 600, color: tone.fg, fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>({decision})</span>
+            </div>
+          </div>
+          {visibleOnFeed && (
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', background: '#dcfce7', padding: '4px 10px', borderRadius: 8 }}>
+              ✓ Visible on mover feed
+            </div>
+          )}
+        </div>
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '90px 1fr', gap: 6, fontSize: 12, color: '#0f172a' }}>
+          <div style={{ color: tone.fg, fontWeight: 700 }}>By</div>
+          <div>{byLabel}</div>
+          {lead.distributionDecisionAt && (<>
+            <div style={{ color: tone.fg, fontWeight: 700 }}>At</div>
+            <div>{new Date(lead.distributionDecisionAt).toLocaleString()}</div>
+          </>)}
+          {lead.distributionDecisionReason && (<>
+            <div style={{ color: tone.fg, fontWeight: 700 }}>Reason</div>
+            <div>{lead.distributionDecisionReason}</div>
+          </>)}
+        </div>
+      </div>
+      {distributable && blockReasons.length > 0 && (
+        <div style={{ marginTop: 8, padding: 12, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: '#9a3412', textTransform: 'uppercase', marginBottom: 4 }}>
+            ⚠ Approved quality-wise, but not visible to movers
+          </div>
+          <div style={{ fontSize: 12, color: '#7c2d12' }}>
+            Quality decision is <strong>{decision}</strong>, but the lead is hidden because {blockReasons.join(', ')}. Fix the lifecycle / placement gate to make the lead visible.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

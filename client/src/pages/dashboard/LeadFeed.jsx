@@ -10,11 +10,19 @@ import { useNavigate } from 'react-router-dom';
 import './LeadFeed.css';
 import { playNewLeadSound } from '../../utils/sound';
 
-const FEED_STATUSES = new Set(['Available', 'READY_FOR_DISTRIBUTION']);
-const isDistributable = (l) =>
-  FEED_STATUSES.has(l.status) &&
-  l.auctionStatus !== 'sold' &&
-  l.auctionStatus !== 'expired';
+// Phase 3 cutover — the client no longer second-guesses the server. The
+// `/api/leads` response IS the authoritative mover feed; visibility is
+// gated server-side by distributionDecision + status + moveDate +
+// inventoryChannel. Sold-removal is handled via the `lead_sold` socket
+// event below, not by a status filter.
+//
+// One narrow guard remains: NEW_LEAD_AVAILABLE socket events must arrive
+// for leads that ARE currently distributable. The server's broadcast path
+// re-checks isHiddenFromMovers before emit, so we trust the socket and
+// just verify the status is one the feed actually surfaces (defensive
+// against stale events after server restart).
+const FEED_RENDERABLE_STATUSES = new Set(['Available', 'READY_FOR_DISTRIBUTION']);
+const isFeedRenderable = (l) => FEED_RENDERABLE_STATUSES.has(l && l.status);
 
 /* ─── DORMANT — Distribution-model predicates (Deal Room reuse) ─────────────
    Phase D removed the main feed's bid surface; these predicates no longer
@@ -353,7 +361,9 @@ export default function LeadFeed() {
     try {
       const res  = await fetch(`${API_URL}/leads`, { headers: { 'x-auth-token': token } });
       const data = await res.json();
-      if (Array.isArray(data)) setLeads(data.filter(isDistributable));
+      // Phase 3 — trust the server. /api/leads already gates on
+      // distributionDecision + status + moveDate + inventoryChannel.
+      if (Array.isArray(data)) setLeads(data);
     } catch (e) { console.error('[LeadFeed]', e); }
     finally { setLoading(false); }
   }, [API_URL, token]);
@@ -377,8 +387,10 @@ export default function LeadFeed() {
     socket.on('disconnect',    () => { setSocketStatus('reconnecting'); startPolling(); });
     socket.on('connect_error', () => { setSocketStatus('reconnecting'); startPolling(); });
     socket.on('NEW_LEAD_AVAILABLE', (lead) => {
-      console.log('[Sound] NEW_LEAD_AVAILABLE received, distributable:', isDistributable(lead));
-      if (!isDistributable(lead)) return;
+      // Defensive — drop stale events whose status doesn't render in the
+      // feed. Server already filters by distributionDecision before emit,
+      // so this is belt-and-suspenders for the lifecycle axis only.
+      if (!isFeedRenderable(lead)) return;
       playNewLeadSound();
       setLeads(prev => [lead, ...prev.filter(l => (l._id||l.id) !== (lead._id||lead.id))]);
     });

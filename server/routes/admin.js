@@ -477,9 +477,10 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
     // surface distribution-readiness, cap reasons, and recent validation
     // logs without separate round-trips.
     const lead = await Lead.findById(req.params.id)
-      .select('score grade scoreFactors customerName customerPhone customerEmail route homeSize moveDate miles status validation intentConfirmed urgencyBucket heavyItems funnelVersion adminTierOverride reviewedAt reviewedBy reviewNotes buyNowPrice priceShadowV2 pricingBreakdownShadowV2 priceShadowSimple pricingBreakdownSimple pricingEngineVersion')
+      .select('score grade scoreFactors customerName customerPhone customerEmail route homeSize moveDate miles status validation intentConfirmed urgencyBucket heavyItems funnelVersion adminTierOverride reviewedAt reviewedBy reviewNotes buyNowPrice priceShadowV2 pricingBreakdownShadowV2 priceShadowSimple pricingBreakdownSimple pricingEngineVersion distributionDecision distributionDecisionBy distributionDecisionAt distributionDecisionReason inventoryChannel')
       .lean();
     if (!lead) return res.status(404).json({ msg: 'Lead not found' });
+    const decisionByUser = await resolveDecisionByUser(lead.distributionDecisionBy);
 
     const snapshot = await ScoringSnapshot.findOne({ leadId: lead._id })
       .sort({ createdAt: -1 })
@@ -527,6 +528,18 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
         reviewedAt: lead.reviewedAt || null,
         reviewedBy: lead.reviewedBy || null,
         reviewNotes: lead.reviewNotes || null,
+        // Phase 3 cleanup — distributionDecision is the authoritative quality
+        // field. UI consumes these directly for the Distribution Decision
+        // badge + the lifecycle-warning banner.
+        inventoryChannel:           lead.inventoryChannel || 'main',
+        distributionDecision:       lead.distributionDecision || null,
+        distributionDecisionBy:     lead.distributionDecisionBy || null,
+        distributionDecisionByEmail: decisionByUser ? decisionByUser.email : null,
+        distributionDecisionByName:  decisionByUser
+          ? [decisionByUser.firstName, decisionByUser.lastName].filter(Boolean).join(' ') || null
+          : null,
+        distributionDecisionAt:     lead.distributionDecisionAt || null,
+        distributionDecisionReason: lead.distributionDecisionReason || null,
         legacy: {
           score: lead.score,
           grade: lead.grade,
@@ -577,6 +590,20 @@ router.get('/leads/:id/scoring-snapshot', [auth, admin], async (req, res) => {
 
 const TIER_VALUES = ['hot', 'premium', 'standard', 'review', 'rejected'];
 
+// Resolve a distributionDecisionBy value (userId | 'system' | 'migration') to
+// a populated { _id, firstName, lastName, email } record when applicable.
+// Returns null for non-user actors and on lookup failure (fail-open — the
+// badge falls back to the raw string).
+async function resolveDecisionByUser(decisionBy) {
+  if (!decisionBy || decisionBy === 'system' || decisionBy === 'migration') return null;
+  if (!mongoose.isValidObjectId(decisionBy)) return null;
+  try {
+    return await User.findById(decisionBy).select('firstName lastName email').lean();
+  } catch (_e) {
+    return null;
+  }
+}
+
 async function loadLeadOr404(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     res.status(400).json({ msg: 'Invalid lead id' });
@@ -608,6 +635,13 @@ async function buildSnapshotPayload(leadId) {
     routingMode:  routingMode(),
     isHidden:     hidden,
   };
+  // Phase 3 cleanup — augment lead with resolved decision actor so the UI
+  // can render the byEmail/byName without a second round-trip.
+  const decisionByUser = await resolveDecisionByUser(lead.distributionDecisionBy);
+  lead.distributionDecisionByEmail = decisionByUser ? decisionByUser.email : null;
+  lead.distributionDecisionByName  = decisionByUser
+    ? [decisionByUser.firstName, decisionByUser.lastName].filter(Boolean).join(' ') || null
+    : null;
   return { lead, snapshot, distribution, validationLogs, statusTriplet };
 }
 
@@ -643,12 +677,26 @@ router.post('/leads/:id/approve', [auth, admin], async (req, res) => {
     // lead that was rejected by scoring (qualityGateCleared=false) would stay
     // hidden from movers even after admin manually approves the override.
     lead.qualityGateCleared = true;
-    // Phase 6.8 — when verifyLeadPhone held a rejected lead at
-    // PENDING_MANUAL_REVIEW (status-gate fix), admin approval needs to
-    // upgrade the status to READY_FOR_DISTRIBUTION so the lead becomes
-    // visible to movers. The status filter is the lifecycle-level gate;
-    // override alone isn't enough.
-    if (lead.status === 'PENDING_MANUAL_REVIEW') {
+    // Approve also upgrades the lifecycle status to READY_FOR_DISTRIBUTION
+    // when the lead is parked at a non-publishable interim status that
+    // admin explicitly judged safe by approving.
+    //
+    // Safe to upgrade (admin is taking responsibility):
+    //   - PENDING_MANUAL_REVIEW : Phase 6.8 status-gate held it for review
+    //   - Pending Verification  : verifyLeadPhone never completed; admin
+    //                             confirmed the lead is real
+    //
+    // Deliberately NOT auto-upgraded — they require a separate explicit
+    // admin action ("Reactivate" / "Restore"):
+    //   - Expired       : the move date has passed; reviving without
+    //                     extending the date would put a stale lead on the feed
+    //   - REJECTED_FAKE : admin previously rejected this; clearing the
+    //                     decision should be deliberate, not a side-effect
+    //   - Purchased     : already sold; can't re-publish
+    //
+    // {Available, READY_FOR_DISTRIBUTION} stay as-is (no upgrade needed).
+    const UPGRADABLE_STATUSES = new Set(['PENDING_MANUAL_REVIEW', 'Pending Verification']);
+    if (UPGRADABLE_STATUSES.has(lead.status)) {
       lead.status = 'READY_FOR_DISTRIBUTION';
       lead.statusHistory = lead.statusHistory || [];
       lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });

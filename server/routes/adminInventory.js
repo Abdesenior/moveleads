@@ -65,20 +65,20 @@ function dealRoomMoveBlockReason(lead) {
 
   switch (lead.distributionDecision) {
     case 'admin_rejected':
-      return 'Lead was rejected by admin — restore (clear override) before moving.';
+      return 'Quality: lead was rejected by admin — restore (clear override) before moving.';
     case 'system_rejected':
-      return 'Lead was rejected by quality scoring — approve it via the Quality panel before moving.';
+      return 'Quality: lead was rejected by quality scoring — approve it via the Quality panel before moving.';
     case 'system_held': {
       const source = describeSystemDecisionSource(lead);
-      return `Lead is held for review (${source}) — approve via the Quality panel before moving.`;
+      return `Quality: lead is held for review (${source}) — approve via the Quality panel before moving.`;
     }
     case 'system_pending':
-      return 'Lead is still being qualified — wait for the pipeline to finish, then retry.';
+      return 'Quality: lead is still being qualified — wait for the pipeline to finish, then retry.';
     default:
       // distributionDecision missing or unrecognized value — safest to block
       // and tell admin to revisit. Backfill should have populated this on
       // every existing lead, so this branch should be unreachable in prod.
-      return `Lead has no distribution decision (value=${lead.distributionDecision || 'unset'}) — approve via the Quality panel before moving.`;
+      return `Quality: lead has no distribution decision (value=${lead.distributionDecision || 'unset'}) — approve via the Quality panel before moving.`;
   }
 }
 
@@ -153,17 +153,14 @@ router.post('/bulk', [auth, admin], async (req, res) => {
       if (hasBuyers || lead.status === 'Purchased') {
         rejected.push({
           leadId,
-          reason: 'Already purchased — inventory cannot be changed on a sold lead.',
+          reason: 'Lifecycle: already purchased — inventory cannot be changed on a sold lead.',
         });
         continue;
       }
 
-      // Phase 1.7 — move_to_deal_room must fail leads that would silently
-      // disappear on the mover side. The /api/leads/deals query requires:
-      //   status IN ['Available', 'READY_FOR_DISTRIBUTION']
-      //   moveDate >= now
-      // Without these pre-checks, admin sees "moved" but the mover Deal
-      // Room shows nothing. Reject early with admin-actionable messages.
+      // Per-lead gates for move_to_deal_room — each one names the axis
+      // (Lifecycle / Quality) that's blocking so the operator knows whether
+      // to fix the move date, change the status, or approve the lead.
       // Archive and restore_to_main are unaffected — those don't depend on
       // mover visibility.
       if (action === 'move_to_deal_room') {
@@ -171,28 +168,27 @@ router.post('/bulk', [auth, admin], async (req, res) => {
         if (lead.moveDate && new Date(lead.moveDate) < now) {
           rejected.push({
             leadId,
-            reason: "Move date has already passed. Movers can't fulfill past moves — archive this lead instead.",
+            reason: "Lifecycle: move date has already passed. Movers can't fulfill past moves — archive this lead instead.",
           });
           continue;
         }
         if (lead.status === 'Expired') {
           rejected.push({
             leadId,
-            reason: "Lead is expired and won't be visible in Deal Room. Archive it, or restore an active status before moving.",
+            reason: "Lifecycle: lead is expired and won't be visible in Deal Room. Archive it, or restore an active status before moving.",
           });
           continue;
         }
         if (!['Available', 'READY_FOR_DISTRIBUTION'].includes(lead.status)) {
           rejected.push({
             leadId,
-            reason: `Lead status "${lead.status}" is not eligible for Deal Room. Only Available / READY_FOR_DISTRIBUTION leads can be discounted.`,
+            reason: `Lifecycle: lead status "${lead.status}" is not eligible for Deal Room. Only Available / READY_FOR_DISTRIBUTION leads can be discounted.`,
           });
           continue;
         }
-        // Phase 1.9 — Tier 1 quality-side visibility mirror. Mirrors the
-        // mover Deal Room's moverVisibilityFilter() at admin write time, so
-        // a "moved" lead is guaranteed to actually be visible to movers.
-        // Independent of ENABLE_TIERED_ROUTING (see helper doc-comment).
+        // Quality-side check: distributionDecision must be distributable.
+        // dealRoomMoveBlockReason returns a "Quality: …" string for each
+        // non-distributable value (or null if OK to move).
         const qualityBlockReason = dealRoomMoveBlockReason(lead);
         if (qualityBlockReason) {
           rejected.push({ leadId, reason: qualityBlockReason });

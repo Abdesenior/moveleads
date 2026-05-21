@@ -219,28 +219,15 @@ const leadModelSrc = fs.readFileSync(path.join(__dirname, '..', 'models', 'Lead.
 // mover side (past moveDate, Expired status). Catches the production bug
 // where admin saw "moved" but the mover Deal Room stayed empty.
 {
-  assert.ok(/Move date has already passed/.test(adminInventorySrc),
-    'move_to_deal_room must reject past-moveDate leads with a clear reason');
-  assert.ok(/Lead is expired and won't be visible in Deal Room/.test(adminInventorySrc),
-    'move_to_deal_room must reject Expired-status leads');
-  assert.ok(/Lead status[\s\S]{0,30}is not eligible for Deal Room/.test(adminInventorySrc),
-    'move_to_deal_room must reject leads with statuses outside [Available, READY_FOR_DISTRIBUTION]');
-  // The same checks must NOT block archive or restore_to_main — those don't
-  // depend on mover visibility, so an admin can archive an expired lead.
-  const moveBlock = adminInventorySrc.match(/if \(action === 'move_to_deal_room'\) \{([\s\S]*?)\n\s*\}\s*else if \(action === 'archive'\)/);
-  assert.ok(moveBlock, 'move_to_deal_room code block locatable');
-  // The pre-visibility validation must run BEFORE the originalPrice/dealPrice
-  // logic — otherwise we'd snapshot originalPrice on a lead we're about to
-  // reject. Looking for the structural order: status checks come before the
-  // "Snapshot the pre-deal price" comment.
-  const presentationOrderOk = adminInventorySrc.indexOf("won't be visible in Deal Room")
-                            < adminInventorySrc.indexOf('Snapshot the pre-deal price');
-  // ... actually this check is fragile because the pre-visibility runs inside
-  // the per-lead loop, BEFORE entering the action branch. Let's just check
-  // that pre-visibility happens inside the `if (action === 'move_to_deal_room')`
-  // before the originalPrice snapshot.
-  void presentationOrderOk;
-  console.log('  ✓ D3. move_to_deal_room pre-visibility validation present');
+  // Phase 3 integration cleanup — lifecycle reasons are prefixed
+  // "Lifecycle: …" so the admin UI can attribute the block axis.
+  assert.ok(/Lifecycle: move date has already passed/.test(adminInventorySrc),
+    'move_to_deal_room must reject past-moveDate leads with "Lifecycle:" prefix');
+  assert.ok(/Lifecycle: lead is expired and won't be visible in Deal Room/.test(adminInventorySrc),
+    'move_to_deal_room must reject Expired-status leads with "Lifecycle:" prefix');
+  assert.ok(/Lifecycle: lead status[\s\S]{0,30}is not eligible for Deal Room/.test(adminInventorySrc),
+    'move_to_deal_room must reject ineligible statuses with "Lifecycle:" prefix');
+  console.log('  ✓ D3. move_to_deal_room pre-visibility validation present (Lifecycle-prefixed)');
 }
 
 // ── D4. Phase 3 — Deal Room admin gate uses distributionDecision ─────────
@@ -257,15 +244,16 @@ const leadModelSrc = fs.readFileSync(path.join(__dirname, '..', 'models', 'Lead.
     'helper must call isDistributable(decision) to short-circuit on approved values');
 
   // Reason coverage — each non-distributable decision value has an
-  // admin-actionable string.
-  assert.ok(/restore \(clear override\) before moving/.test(adminInventorySrc),
-    'admin_rejected case must point to clearing the override');
-  assert.ok(/rejected by quality scoring/i.test(adminInventorySrc),
-    'system_rejected case must read naturally');
-  assert.ok(/held for review/.test(adminInventorySrc),
-    'system_held case must explain the hold');
-  assert.ok(/still being qualified/.test(adminInventorySrc),
-    'system_pending case must indicate the pipeline is running');
+  // admin-actionable string prefixed with the "Quality:" axis tag (Phase 3
+  // integration cleanup).
+  assert.ok(/Quality: lead was rejected by admin[\s\S]{0,80}restore \(clear override\) before moving/.test(adminInventorySrc),
+    'admin_rejected case must read "Quality: …" and point to clearing the override');
+  assert.ok(/Quality: lead was rejected by quality scoring/.test(adminInventorySrc),
+    'system_rejected case prefixed with "Quality:"');
+  assert.ok(/Quality: lead is held for review/.test(adminInventorySrc),
+    'system_held case prefixed with "Quality:"');
+  assert.ok(/Quality: lead is still being qualified/.test(adminInventorySrc),
+    'system_pending case prefixed with "Quality:"');
 
   // The helper must NOT consult the legacy raw signals — Phase 3 retired
   // those as visibility gates. Decision field is sole authority.
@@ -305,9 +293,10 @@ const leadModelSrc = fs.readFileSync(path.join(__dirname, '..', 'models', 'Lead.
   assert.ok(/processed,\s*\n\s*rejected,/.test(adminInventorySrc),
     'bulk endpoint must return processed[] and rejected[] arrays in response');
 
-  // Admin-actionable rejection messages
-  assert.ok(/Already purchased — inventory cannot be changed/.test(adminInventorySrc),
-    'rejection: purchased-lead message must explain the constraint, not just say "has buyers"');
+  // Admin-actionable rejection messages (Phase 3 integration cleanup
+  // added "Lifecycle:" axis prefix to lifecycle-axis blocks).
+  assert.ok(/Lifecycle: already purchased — inventory cannot be changed/.test(adminInventorySrc),
+    'rejection: purchased-lead message prefixed with "Lifecycle:" and explains the constraint');
   assert.ok(/Lower the deal price or deselect this lead/.test(adminInventorySrc),
     'rejection: dealPrice>originalPrice message must tell admin how to fix it');
   assert.ok(/Lead no longer exists/.test(adminInventorySrc),

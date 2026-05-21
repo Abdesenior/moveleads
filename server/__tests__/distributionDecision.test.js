@@ -560,4 +560,184 @@ const { classifyForBackfill } = require('../scripts/backfillDistributionDecision
   console.log('  ✓ G. Phase 3 admin-action behavioral cutover (12 assertions)');
 }
 
-console.log('\nAll Phase 1 + Phase 3 distributionDecision smoke tests passed.');
+// ── H. Phase 3 integration cleanup — server-side behavioral assertions ──
+//
+// Proves the post-cleanup contract:
+//   - approve upgrades PENDING_MANUAL_REVIEW AND Pending Verification
+//     to READY_FOR_DISTRIBUTION (both are safe-to-publish on admin auth)
+//   - approve does NOT upgrade Expired (separate Reactivate action required)
+//   - approve writes admin_approved and the lead becomes visible iff
+//     lifecycle/time/placement gates are also clear
+//   - dealRoomMoveBlockReason messages are axis-prefixed (Quality:/Lifecycle:)
+//   - admin snapshot payload returns distributionDecision fields
+{
+  const adminSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'routes', 'admin.js'), 'utf8');
+  const adminInventorySrc2 = require('fs').readFileSync(require('path').join(__dirname, '..', 'routes', 'adminInventory.js'), 'utf8');
+
+  // H.1 — approve upgrades both PENDING_MANUAL_REVIEW + Pending Verification
+  assert.ok(/UPGRADABLE_STATUSES\s*=\s*new Set\(\[['"]PENDING_MANUAL_REVIEW['"]\s*,\s*['"]Pending Verification['"]\]\)/.test(adminSrc),
+    'H.1 approve handler must expose UPGRADABLE_STATUSES = {PENDING_MANUAL_REVIEW, Pending Verification}');
+  assert.ok(/UPGRADABLE_STATUSES\.has\(lead\.status\)/.test(adminSrc),
+    'H.1 approve handler must check status against UPGRADABLE_STATUSES');
+
+  // H.2 — Expired is NOT in the upgrade set. We grep negatively: no place in
+  // admin.js auto-upgrades 'Expired' → 'READY_FOR_DISTRIBUTION'.
+  assert.ok(!/['"]Expired['"][\s\S]{0,200}['"]READY_FOR_DISTRIBUTION['"]/.test(adminSrc),
+    'H.2 approve must NOT auto-upgrade Expired (separate Reactivate action required)');
+
+  // H.3 — admin snapshot endpoint returns distributionDecision fields and
+  // includes inventoryChannel in the .select() projection.
+  assert.ok(/distributionDecision distributionDecisionBy distributionDecisionAt distributionDecisionReason inventoryChannel/.test(adminSrc),
+    'H.3 GET /scoring-snapshot must select distributionDecision* + inventoryChannel');
+  assert.ok(/distributionDecisionByEmail:[\s\S]{0,200}decisionByUser\s*\?[\s\S]{0,40}email/.test(adminSrc),
+    'H.3 payload must include resolved distributionDecisionByEmail');
+
+  // H.4 — buildSnapshotPayload also resolves the actor for action responses.
+  assert.ok(/lead\.distributionDecisionByEmail\s*=\s*decisionByUser/.test(adminSrc),
+    'H.4 buildSnapshotPayload must augment lead with distributionDecisionByEmail');
+
+  // H.5 — dealRoomMoveBlockReason messages prefixed with Quality:
+  assert.ok(/['"]Quality: lead was rejected by admin/.test(adminInventorySrc2),
+    'H.5 admin_rejected reason prefixed with "Quality:"');
+  assert.ok(/['"]Quality: lead was rejected by quality scoring/.test(adminInventorySrc2),
+    'H.5 system_rejected reason prefixed with "Quality:"');
+  assert.ok(/Quality: lead is held for review/.test(adminInventorySrc2),
+    'H.5 system_held reason prefixed with "Quality:"');
+
+  // H.6 — Lifecycle reasons in the per-lead loop are prefixed with Lifecycle:
+  assert.ok(/['"]Lifecycle: move date has already passed/.test(adminInventorySrc2),
+    'H.6 past-moveDate reason prefixed with "Lifecycle:"');
+  assert.ok(/['"]Lifecycle: lead is expired/.test(adminInventorySrc2),
+    'H.6 Expired-status reason prefixed with "Lifecycle:"');
+  assert.ok(/Lifecycle: lead status[\s\S]{0,40}is not eligible/.test(adminInventorySrc2),
+    'H.6 ineligible-status reason prefixed with "Lifecycle:"');
+  assert.ok(/['"]Lifecycle: already purchased/.test(adminInventorySrc2),
+    'H.6 purchased-lead reason prefixed with "Lifecycle:"');
+
+  console.log('  ✓ H. Phase 3 integration cleanup — server-side behavioral assertions');
+}
+
+// ── I. Phase 3 integration cleanup — admin-action lifecycle behaviors ──
+{
+  // Pure JS simulator: mirror the approve handler's status-upgrade logic.
+  const UPGRADABLE = new Set(['PENDING_MANUAL_REVIEW', 'Pending Verification']);
+  function approveStatusUpgrade(status) {
+    return UPGRADABLE.has(status) ? 'READY_FOR_DISTRIBUTION' : status;
+  }
+
+  // I.1 — PENDING_MANUAL_REVIEW upgrades.
+  assert.strictEqual(approveStatusUpgrade('PENDING_MANUAL_REVIEW'), 'READY_FOR_DISTRIBUTION',
+    'I.1 PENDING_MANUAL_REVIEW upgrades on approve');
+
+  // I.2 — Pending Verification upgrades (the new behavior).
+  assert.strictEqual(approveStatusUpgrade('Pending Verification'), 'READY_FOR_DISTRIBUTION',
+    'I.2 Pending Verification upgrades on approve (new in this cleanup)');
+
+  // I.3 — Expired does NOT upgrade.
+  assert.strictEqual(approveStatusUpgrade('Expired'), 'Expired',
+    'I.3 Expired stays Expired (separate Reactivate action required)');
+
+  // I.4 — REJECTED_FAKE does NOT upgrade.
+  assert.strictEqual(approveStatusUpgrade('REJECTED_FAKE'), 'REJECTED_FAKE',
+    'I.4 REJECTED_FAKE stays — explicit restore required');
+
+  // I.5 — Purchased does NOT upgrade.
+  assert.strictEqual(approveStatusUpgrade('Purchased'), 'Purchased',
+    'I.5 Purchased stays — lead is already sold');
+
+  // I.6 — Available / READY stay as-is (no upgrade needed).
+  assert.strictEqual(approveStatusUpgrade('Available'), 'Available');
+  assert.strictEqual(approveStatusUpgrade('READY_FOR_DISTRIBUTION'), 'READY_FOR_DISTRIBUTION');
+
+  // I.7 — Behavioral: approve on an Expired lead writes admin_approved BUT
+  //       the feed filter still hides it via the lifecycle clause. The admin
+  //       UI must surface a clear warning.
+  function feedIncludes(lead) {
+    if (!['Available', 'READY_FOR_DISTRIBUTION'].includes(lead.status)) return false;
+    if (!lead.moveDate || new Date(lead.moveDate) < new Date()) return false;
+    if (['deal_room', 'archived'].includes(lead.inventoryChannel)) return false;
+    if (!['system_approved', 'admin_approved'].includes(lead.distributionDecision)) return false;
+    return true;
+  }
+
+  const expiredLead = {
+    status: 'Expired',                            // not upgraded by approve
+    moveDate: new Date(Date.now() - 86400000),    // past
+    inventoryChannel: 'main',
+    distributionDecision: 'admin_approved',       // approve DID write this
+  };
+  assert.strictEqual(feedIncludes(expiredLead), false,
+    'I.7 admin_approved + Expired status: feed STILL hides — lifecycle gate independent');
+
+  // I.8 — Pending Verification + approve → upgrades status to READY,
+  //        writes admin_approved → feed includes (if other gates OK).
+  const pvLead = {
+    status: approveStatusUpgrade('Pending Verification'),
+    moveDate: new Date(Date.now() + 7 * 86400000),
+    inventoryChannel: 'main',
+    distributionDecision: 'admin_approved',
+  };
+  assert.strictEqual(feedIncludes(pvLead), true,
+    'I.8 Pending Verification + approve → status upgrades → feed includes');
+
+  console.log('  ✓ I. Phase 3 integration cleanup — admin-action lifecycle behaviors');
+}
+
+// ── J. Phase 3 integration cleanup — client + admin UI wiring ───────────
+{
+  const fs = require('fs');
+  const path = require('path');
+  const modalSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'components', 'admin', 'ScoringSnapshotModal.jsx'), 'utf8');
+  const feedSrc  = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'dashboard', 'LeadFeed.jsx'), 'utf8');
+
+  // J.1 — ScoringSnapshotModal renders a Distribution Decision card.
+  assert.ok(/DistributionDecisionCard/.test(modalSrc),
+    'J.1 ScoringSnapshotModal must render DistributionDecisionCard');
+  assert.ok(/leadDetail\?\.distributionDecision/.test(modalSrc),
+    'J.1 card render guarded on leadDetail.distributionDecision');
+
+  // J.2 — DistributionDecisionCard reads distributionDecision* fields, not adminTierOverride.
+  const cardMatch = modalSrc.match(/function DistributionDecisionCard\([\s\S]*?\n\}\n/);
+  assert.ok(cardMatch, 'J.2 DistributionDecisionCard function locatable');
+  const cardBody = cardMatch[0];
+  assert.ok(/lead\.distributionDecision\b/.test(cardBody),
+    'J.2 card reads lead.distributionDecision');
+  assert.ok(/lead\.distributionDecisionByEmail/.test(cardBody) || /lead\.distributionDecisionByName/.test(cardBody) || /lead\.distributionDecisionBy\b/.test(cardBody),
+    'J.2 card displays decisionBy');
+  assert.ok(/lead\.distributionDecisionAt/.test(cardBody),
+    'J.2 card displays decisionAt');
+  assert.ok(/lead\.distributionDecisionReason/.test(cardBody),
+    'J.2 card displays decisionReason');
+  assert.ok(!/adminTierOverride/.test(cardBody),
+    'J.2 card body must NOT read adminTierOverride (decoupled — that is a tier tag, not approval state)');
+
+  // J.3 — Lifecycle warning is rendered when distributable but lifecycle blocks.
+  assert.ok(/Approved quality-wise, but not visible to movers/.test(modalSrc),
+    'J.3 modal must surface lifecycle warning when admin_approved but feed-hidden');
+
+  // J.4 — The legacy "Admin Override" pill is gone. Replaced by a tier-tag
+  // labelled to clarify it does NOT govern visibility.
+  assert.ok(!/Admin Override → \{distribution\.override\}/.test(modalSrc),
+    'J.4 legacy "Admin Override" badge wired to distribution.override must be removed');
+  assert.ok(/Tier override →/.test(modalSrc),
+    'J.4 replacement tier-tag must read "Tier override →"');
+
+  // J.5 — LeadFeed.jsx no longer filters fetched results by auctionStatus.
+  // Server is sole authority. The function `isDistributable` is gone.
+  assert.ok(!/const isDistributable\s*=/.test(feedSrc),
+    'J.5 LeadFeed.jsx must drop the legacy isDistributable helper (name conflict + auctionStatus filter)');
+  assert.ok(!/data\.filter\(isDistributable\)/.test(feedSrc),
+    'J.5 LeadFeed.jsx must not filter the fetched array client-side');
+  assert.ok(/setLeads\(data\);/.test(feedSrc),
+    'J.5 LeadFeed.jsx must setLeads(data) directly — trust the server');
+
+  // J.6 — Defensive socket-side renderable check exists (name-distinct).
+  assert.ok(/isFeedRenderable/.test(feedSrc),
+    'J.6 LeadFeed.jsx must keep a name-distinct helper for NEW_LEAD_AVAILABLE defensive check');
+  assert.ok(!/l\.auctionStatus\s*!==\s*['"]expired['"]/.test(feedSrc),
+    'J.6 LeadFeed.jsx must drop the auctionStatus !== "expired" client filter');
+
+  console.log('  ✓ J. Phase 3 integration cleanup — client + admin UI wiring');
+}
+
+console.log('\nAll Phase 1 + Phase 3 + integration-cleanup distributionDecision smoke tests passed.');
