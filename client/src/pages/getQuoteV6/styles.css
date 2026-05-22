@@ -1,0 +1,131 @@
+/*
+ * client/src/pages/getQuoteV6/styles.css
+ *
+ * Design tokens and animation source for the V6 funnel reskin.
+ * All non-:root, non-@keyframes selectors are scoped under the
+ * `.glq-v6` wrapper to prevent global style leakage.
+ *
+ * Font stack uses the current production font (Manrope / DM Sans),
+ * NOT Plus Jakarta Sans, per locked decision 2026-05-22 #5.
+ */
+
+:root {
+  /* ── Fonts ──────────────────────────────────────────── */
+  --font-heading: Manrope, "DM Sans", -apple-system, system-ui, sans-serif;
+  --font-body:    Manrope, "DM Sans", -apple-system, system-ui, sans-serif;
+  /* Back-compat alias used by older components */
+  --font: var(--font-body);
+
+  /* ── Core brand ─────────────────────────────────────── */
+  --primary:        #0a192f;   /* deep navy — dark hero / left rail */
+  --primary-light:  #0d2240;
+  --primary-darker: #020c1b;
+
+  --accent:         #f97316;   /* brand orange — primary CTA fill, focus, key accents */
+  --accent-hover:   #ea6c0a;
+  --accent-soft:    rgba(249, 115, 22, 0.10);  /* tinted backgrounds */
+  --accent-tint:    rgba(249, 115, 22, 0.18);
+
+  /* ── Text ──────────────────────────────────────────── */
+  --text-primary:    #0f172a;
+  --text-secondary:  #64748b;
+  --text-muted:      #94a3b8;
+  --text-light-muted: rgba(255,255,255,0.72);
+
+  /* ── Surfaces ──────────────────────────────────────── */
+  --bg-white:       #ffffff;
+  --bg-light:       #f8fafc;
+  --bg-soft:        #f1f5f9;
+  --border:         #e2e8f0;
+  --border-strong:  #cbd5e1;
+
+  /* ── Status ────────────────────────────────────────── */
+  --success: #22c55e;
+  --info:    #3b82f6;
+  --warning: #eab308;
+  --danger:  #ef4444;
+
+  /* ── Back-compat tokens used by existing components ── */
+  --ink:           var(--text-primary);
+  --ink-2:         #334155;
+  --ink-3:         var(--text-secondary);
+  --ink-4:         var(--text-muted);
+  --line:          var(--border);
+  --line-2:        var(--bg-soft);
+  --line-strong:   var(--border-strong);
+  --surface:       var(--bg-white);
+  --canvas:        var(--bg-light);
+  --canvas-2:      var(--bg-soft);
+  --good:          var(--success);
+  --good-soft:     #dcfce7;
+
+  --r-input: 12px;
+  --r-card:  16px;
+  --r-hero:  20px;
+
+  --shadow-sm:  0 1px 2px rgba(15,23,42,0.04), 0 1px 1px rgba(15,23,42,0.03);
+  --shadow-md:  0 4px 14px rgba(15,23,42,0.05), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-lg:  0 18px 38px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04);
+  --shadow-xl:  0 36px 80px -20px rgba(15,23,42,0.18), 0 2px 6px rgba(15,23,42,0.05);
+}
+
+/* Wrapper root — everything inside the funnel inherits these. */
+.glq-v6 {
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+
+.glq-v6 h1,
+.glq-v6 h2,
+.glq-v6 h3,
+.glq-v6 h4,
+.glq-v6 h5,
+.glq-v6 h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+}
+
+.glq-v6 .scroll::-webkit-scrollbar { display: none; }
+.glq-v6 .scroll { scrollbar-width: none; }
+
+.glq-v6 .focusring:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.glq-v6 .screen-enter { animation: screenIn 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.glq-v6 .pop-in       { animation: popIn    320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+.glq-v6 .stagger > * { animation: screenIn 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.glq-v6 .stagger > *:nth-child(1) { animation-delay: 30ms; }
+.glq-v6 .stagger > *:nth-child(2) { animation-delay: 80ms; }
+.glq-v6 .stagger > *:nth-child(3) { animation-delay: 130ms; }
+.glq-v6 .stagger > *:nth-child(4) { animation-delay: 180ms; }
+.glq-v6 .stagger > *:nth-child(5) { animation-delay: 230ms; }
+.glq-v6 .stagger > *:nth-child(6) { animation-delay: 280ms; }
+.glq-v6 .stagger > *:nth-child(7) { animation-delay: 330ms; }
+.glq-v6 .stagger > *:nth-child(8) { animation-delay: 380ms; }
+
+.glq-v6 .nostroke { -webkit-tap-highlight-color: transparent; }
+.glq-v6 .number-blur::placeholder { color: var(--text-muted); }
+
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes drawArc {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
