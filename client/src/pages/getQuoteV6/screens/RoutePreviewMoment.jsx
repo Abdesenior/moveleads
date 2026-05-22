@@ -6,7 +6,7 @@ import Eyebrow from '../components/Eyebrow';
 import CityBlock from '../components/CityBlock';
 import ArrowDivider from '../components/ArrowDivider';
 import StatCell from '../components/StatCell';
-import RouteArc from '../components/RouteArc';
+import RouteMap from '../components/RouteMap';
 import PrimaryButton from '../components/PrimaryButton';
 import TrustStrip from '../components/TrustStrip';
 import { transitDaysLabel, cardinal, milesBetween } from '../route';
@@ -72,7 +72,7 @@ export default function RoutePreviewMoment({ answers, onContinue, desktop = fals
         </div>
       )}
 
-      <RouteArc route={route} desktop={desktop} />
+      <RouteMap route={route} desktop={desktop} />
 
       <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
