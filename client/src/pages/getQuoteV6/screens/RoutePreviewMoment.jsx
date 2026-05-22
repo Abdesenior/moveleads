@@ -97,6 +97,15 @@ export default function RoutePreviewMoment({ answers, onContinue, desktop = fals
           <StatCell label="Est. transit" value={days} suffix={days === '1' ? 'day' : 'days'} border={!desktop} title="Estimate based on typical long-haul transit. Your mover will confirm the final timeline." />
           {desktop && <StatCell label="Direction" value={cardinal(route)} />}
         </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center', padding: '0 16px' }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', letterSpacing: '-0.005em' }}>
+            Licensed movers serve this route.
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', letterSpacing: '-0.005em', lineHeight: 1.5 }}>
+            Typical response within a few hours — no obligation.
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
