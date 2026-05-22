@@ -165,7 +165,7 @@ function RouteScreenDesktop({
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
       {/* Two columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '45fr 55fr', minHeight: 760 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', minHeight: 760 }}>
         {/* Left — photo hero (Logo overlays top-left) */}
         <div style={{
           position: 'relative',
@@ -173,7 +173,7 @@ function RouteScreenDesktop({
           backgroundSize: 'cover',
           backgroundPosition: '58% 38%',
           color: 'white',
-          padding: '88px 60px 44px',
+          padding: '88px 36px 44px',
           display: 'flex', flexDirection: 'column',
           gap: 0,
           overflow: 'hidden',
@@ -202,7 +202,7 @@ function RouteScreenDesktop({
 
           {/* Warm radial focal */}
           <div style={{
-            position: 'absolute', top: '42%', left: '60%', width: 540, height: 540,
+            position: 'absolute', top: '42%', left: '60%', width: 380, height: 380,
             pointerEvents: 'none', transform: 'translate(-50%, -50%)',
             background: 'radial-gradient(circle, rgba(255,210,160,0.22) 0%, rgba(255,210,160,0) 60%)',
             mixBlendMode: 'screen',
@@ -210,13 +210,13 @@ function RouteScreenDesktop({
 
           {/* Warm corner glow */}
           <div style={{
-            position: 'absolute', top: -120, right: -120, width: 360, height: 360, pointerEvents: 'none',
+            position: 'absolute', top: -90, right: -90, width: 260, height: 260, pointerEvents: 'none',
             background: 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
           }} />
 
           {/* Headline + trust cards */}
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
-            <div style={{ maxWidth: 420 }}>
+            <div style={{ maxWidth: 320 }}>
               <h2 style={{
                 margin: 0, fontSize: 40, fontWeight: 800,
                 letterSpacing: '-0.03em', lineHeight: 1.04,
@@ -230,7 +230,7 @@ function RouteScreenDesktop({
               </h2>
               <p style={{
                 margin: '14px 0 0', fontSize: 15.5, lineHeight: 1.55,
-                color: 'rgba(255,255,255,0.92)', maxWidth: 360, textWrap: 'pretty',
+                color: 'rgba(255,255,255,0.92)', maxWidth: 300, textWrap: 'pretty',
                 textShadow: '0 1px 10px rgba(2,8,20,0.4)',
               }}>
                 Tell us about your move once — matched movers reach out with quotes. No spam. No pressure.
@@ -238,7 +238,7 @@ function RouteScreenDesktop({
             </div>
 
             {/* Trust cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 320 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 280 }}>
               {[
                 { icon: 'shield', title: 'Vetted & licensed movers', sub: 'We work only with trusted pros.' },
                 { icon: 'lock', title: 'Your info is never sold', sub: 'No spam or endless calls.' },
@@ -277,7 +277,7 @@ function RouteScreenDesktop({
               letterSpacing: '0.14em', textTransform: 'uppercase',
               color: 'rgba(255,255,255,0.55)',
             }}>Trusted by movers nationwide</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 22, color: 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: 500 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 16px', color: 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: 500 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="lock" size={13} color="var(--accent)" stroke={2} />
                 Secure submission
@@ -297,7 +297,7 @@ function RouteScreenDesktop({
         {/* Right — form */}
         <div style={{
           position: 'relative',
-          padding: '72px 88px 64px 80px',
+          padding: '72px 96px 64px 96px',
           background: 'var(--bg-white)',
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
         }}>
