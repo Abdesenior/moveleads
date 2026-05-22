@@ -8,7 +8,7 @@ export default function TimingPivotScreen({ answers, patch, onContinue, onBack, 
   const pick = (val) => {
     if (val) patch({ knowsDate: true, urgencyBucket: '' });
     else     patch({ knowsDate: false, moveDate: '' });
-    setTimeout(onContinue, 240);
+    setTimeout(() => onContinue(val), 240);
   };
   return (
     <>
