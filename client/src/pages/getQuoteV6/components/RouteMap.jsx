@@ -75,6 +75,22 @@ export default function RouteMap({ route, desktop }) {
           if (cancelled || !mapInstance) return;
 
           mapInstance.addSource('route', { type: 'geojson', data: arc });
+
+          // Glow underlay — wide, low opacity, drawn first
+          mapInstance.addLayer({
+            id: 'route-glow',
+            type: 'line',
+            source: 'route',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+              'line-color': '#f97316',
+              'line-width': 14,
+              'line-opacity': 0.18,
+              'line-blur': 6,
+            },
+          });
+
+          // Main route line — thicker than before
           mapInstance.addLayer({
             id: 'route-line',
             type: 'line',
@@ -82,30 +98,60 @@ export default function RouteMap({ route, desktop }) {
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
               'line-color': '#f97316',
-              'line-width': 3,
-              'line-opacity': 0.9,
+              'line-width': 4,
+              'line-opacity': 0.95,
             },
           });
 
-          // Origin marker — white-filled with orange ring.
+          // Inject the pulse keyframes once (idempotent).
+          if (!document.getElementById('glq-v6-map-pulse')) {
+            const style = document.createElement('style');
+            style.id = 'glq-v6-map-pulse';
+            style.textContent = `
+              @keyframes glq-v6-marker-pulse {
+                0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55); }
+                70%  { box-shadow: 0 0 0 14px rgba(249, 115, 22, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+              }
+            `;
+            document.head.appendChild(style);
+          }
+
+          // Origin marker — white-filled with orange ring (static).
           const fromEl = document.createElement('div');
           fromEl.style.cssText = 'width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #f97316;box-shadow:0 2px 8px rgba(249,115,22,0.4);';
           new mapboxgl.Marker(fromEl)
             .setLngLat([fromLng, fromLat])
             .addTo(mapInstance);
 
-          // Destination marker — filled orange.
+          // Destination marker — filled orange with pulse.
           const toEl = document.createElement('div');
-          toEl.style.cssText = 'width:18px;height:18px;border-radius:50%;background:#f97316;border:3px solid #fff;box-shadow:0 2px 8px rgba(249,115,22,0.4);';
+          toEl.style.cssText = 'width:18px;height:18px;border-radius:50%;background:#f97316;border:3px solid #fff;box-shadow:0 2px 8px rgba(249,115,22,0.4);animation:glq-v6-marker-pulse 2.4s ease-out infinite;';
           new mapboxgl.Marker(toEl)
             .setLngLat([toLng, toLat])
+            .addTo(mapInstance);
+
+          // Origin label
+          const fromLabelEl = document.createElement('div');
+          fromLabelEl.style.cssText = 'background:rgba(255,255,255,0.96);color:#0f172a;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,0.12);border:1px solid rgba(15,23,42,0.06);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
+          fromLabelEl.textContent = route.from.city;
+          new mapboxgl.Marker({ element: fromLabelEl, anchor: 'bottom' })
+            .setLngLat([route.from.lng, route.from.lat])
+            .addTo(mapInstance);
+
+          // Destination label
+          const toLabelEl = document.createElement('div');
+          toLabelEl.style.cssText = 'background:#0f172a;color:#fff;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(15,23,42,0.25);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
+          toLabelEl.textContent = route.to.city;
+          new mapboxgl.Marker({ element: toLabelEl, anchor: 'bottom' })
+            .setLngLat([route.to.lng, route.to.lat])
             .addTo(mapInstance);
 
           const bounds = new mapboxgl.LngLatBounds()
             .extend([fromLng, fromLat])
             .extend([toLng, toLat]);
           mapInstance.fitBounds(bounds, {
-            padding: { top: 50, bottom: 50, left: 80, right: 80 },
+            padding: { top: 60, bottom: 50, left: 80, right: 80 },
             duration: 0,
             maxZoom: 7,
           });
@@ -154,7 +200,7 @@ export default function RouteMap({ route, desktop }) {
         borderRadius: 'var(--r-card)',
         overflow: 'hidden',
         border: '1px solid var(--line)',
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: '0 6px 24px -8px rgba(15,23,42,0.16), 0 1px 2px rgba(15,23,42,0.04)',
         aspectRatio: desktop ? '600/280' : '600/220',
         background: '#f8fafc',
       }}
