@@ -41,7 +41,7 @@ function stepToSection(step) {
   return null;
 }
 
-function DesktopHero() {
+export function DesktopHero() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 24 }}>
       <h2 style={{
@@ -90,7 +90,7 @@ function SummaryItem({ label, value }) {
   );
 }
 
-function DesktopRouteContext({ answers, submitted = false }) {
+export function DesktopRouteContext({ answers, submitted = false }) {
   const fromCity = answers.originCity || answers.pickupZip || '—';
   const fromSt   = answers.originState || '';
   const toCity   = answers.destinationCity || answers.destinationZip || '—';
@@ -190,13 +190,14 @@ function DesktopTopBar({ step }) {
   );
 }
 
-export default function DesktopShell({ step, answers, children }) {
-  const showRoutePersistent = !['route', 'preview'].includes(step);
-  const submitted = step === 'success';
-
-  // The route step renders its own full-bleed hero — bypass the two-column shell.
-  if (step === 'route') return children;
-
+// Reusable navy two-column chrome. Exported so RouteScreen can wrap the
+// preview moment in the same shell layout that funnel steps use, restoring
+// the left rail on desktop without going through the orchestrator.
+//
+// leftContent — JSX rendered in the upper-left navy rail (e.g. DesktopHero
+//               or DesktopRouteContext)
+// children    — JSX rendered in the right white column
+export function DesktopShellLayout({ leftContent, children }) {
   return (
     <div style={{
       background: 'var(--canvas)',
@@ -204,6 +205,7 @@ export default function DesktopShell({ step, answers, children }) {
       display: 'grid',
       gridTemplateColumns: '340px 1fr',
     }}>
+      {/* Left navy rail */}
       <div style={{
         background: 'linear-gradient(180deg, var(--primary-darker) 0%, var(--primary) 65%, #0d2440 100%)',
         color: 'white',
@@ -230,7 +232,7 @@ export default function DesktopShell({ step, answers, children }) {
         <Logo size={26} light />
 
         <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {showRoutePersistent ? <DesktopRouteContext answers={answers} submitted={submitted} /> : <DesktopHero />}
+          {leftContent}
         </div>
 
         <div style={{
@@ -257,6 +259,7 @@ export default function DesktopShell({ step, answers, children }) {
         </div>
       </div>
 
+      {/* Right column */}
       <div style={{
         padding: '72px 88px 72px 96px',
         display: 'flex', flexDirection: 'column',
@@ -264,10 +267,29 @@ export default function DesktopShell({ step, answers, children }) {
         background: '#ffffff',
       }}>
         <div style={{ width: '100%', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {step !== 'route' && step !== 'preview' && step !== 'success' && <DesktopTopBar step={step} />}
           {children}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DesktopShell({ step, answers, children }) {
+  // The route step renders its own layout — RouteScreen handles the form
+  // (full-bleed hero) and the preview moment (wraps in DesktopShellLayout
+  // itself with DesktopRouteContext on the left rail).
+  if (step === 'route') return children;
+
+  const submitted = step === 'success';
+  const showRoutePersistent = !['route', 'preview'].includes(step);
+  const leftContent = showRoutePersistent
+    ? <DesktopRouteContext answers={answers} submitted={submitted} />
+    : <DesktopHero />;
+
+  return (
+    <DesktopShellLayout leftContent={leftContent}>
+      {step !== 'route' && step !== 'preview' && step !== 'success' && <DesktopTopBar step={step} />}
+      {children}
+    </DesktopShellLayout>
   );
 }
