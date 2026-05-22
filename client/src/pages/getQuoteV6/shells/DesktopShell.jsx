@@ -43,7 +43,7 @@ function stepToSection(step) {
 
 function DesktopHero() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 24 }}>
       <h2 style={{
         margin: 0, fontSize: 30, fontWeight: 700,
         letterSpacing: '-0.028em', lineHeight: 1.1,
@@ -98,7 +98,7 @@ function DesktopRouteContext({ answers, submitted = false }) {
   const miles    = deriveMiles(answers);
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 6,
+      display: 'flex', flexDirection: 'column', gap: 22, paddingTop: 12,
       opacity: submitted ? 0.7 : 1,
       transition: 'opacity 360ms cubic-bezier(0.2, 0.8, 0.2, 1)',
     }}>
@@ -202,10 +202,10 @@ export default function DesktopShell({ step, answers, children }) {
       background: 'var(--canvas)',
       minHeight: 760,
       display: 'grid',
-      gridTemplateColumns: '380px 1fr',
+      gridTemplateColumns: '340px 1fr',
     }}>
       <div style={{
-        background: 'linear-gradient(180deg, var(--primary-darker) 0%, var(--primary) 100%)',
+        background: 'linear-gradient(180deg, var(--primary-darker) 0%, var(--primary) 65%, #0d2440 100%)',
         color: 'white',
         padding: '28px 28px 32px',
         display: 'flex', flexDirection: 'column', gap: 32,
@@ -258,10 +258,10 @@ export default function DesktopShell({ step, answers, children }) {
       </div>
 
       <div style={{
-        padding: '56px 64px 56px',
+        padding: '72px 88px 72px 96px',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center',
-        background: 'var(--canvas)',
+        background: '#ffffff',
       }}>
         <div style={{ width: '100%', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 24 }}>
           {step !== 'route' && step !== 'preview' && step !== 'success' && <DesktopTopBar step={step} />}
