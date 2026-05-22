@@ -33,7 +33,7 @@ function routeFromAnswers(answers) {
   return { from, to, miles };
 }
 
-export default function RoutePreviewMoment({ answers, onContinue, desktop = false }) {
+export default function RoutePreviewMoment({ answers, onContinue, desktop = false, embedded = false }) {
   const route = routeFromAnswers(answers);
 
   const [animMiles, setAnimMiles] = useState(0);
@@ -57,16 +57,21 @@ export default function RoutePreviewMoment({ answers, onContinue, desktop = fals
 
   return (
     <div className="screen-enter" style={{
-      padding: desktop ? '56px 32px 56px' : '56px 22px 32px',
+      // When embedded inside DesktopShellLayout, the shell's right column
+      // already provides 72/88/72/96 padding, a 560px maxWidth inner
+      // constraint, and a white background. Drop our own padding and
+      // canvas background to avoid doubling up.
+      padding: embedded ? 0 : (desktop ? '56px 32px 56px' : '56px 22px 32px'),
       display: 'flex', flexDirection: 'column',
       alignItems: 'center',
       gap: desktop ? 20 : 32,
       minHeight: desktop ? 'auto' : '100%',
-      background: 'var(--canvas)',
+      background: embedded ? 'transparent' : 'var(--canvas)',
     }}>
       <div style={{
         width: '100%',
-        maxWidth: desktop ? 680 : '100%',
+        // embedded: parent shell already caps at 560px, don't double-constrain.
+        maxWidth: embedded ? '100%' : (desktop ? 680 : '100%'),
         display: 'flex', flexDirection: 'column',
         gap: desktop ? 18 : 32,
       }}>

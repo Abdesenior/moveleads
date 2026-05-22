@@ -7,6 +7,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
 import RoutePreviewMoment from './RoutePreviewMoment';
 import useMedia from '../useMedia';
+import { DesktopShellLayout, DesktopRouteContext } from '../shells/DesktopShell';
 
 const HERO_IMAGE = '/hero-family-truck.webp';
 
@@ -482,7 +483,18 @@ export default function RouteScreen({ answers, patch, onContinue }) {
   };
 
   if (previewShown) {
-    return <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={desktop} />;
+    // Desktop: wrap in the shared DesktopShellLayout so the left navy rail
+    // (with DesktopRouteContext now that ZIPs are filled) persists into
+    // the preview moment, matching the chrome the rest of the funnel uses.
+    // Mobile preview keeps its full-bleed immersive layout.
+    if (desktop) {
+      return (
+        <DesktopShellLayout leftContent={<DesktopRouteContext answers={answers} />}>
+          <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={true} embedded={true} />
+        </DesktopShellLayout>
+      );
+    }
+    return <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={false} />;
   }
 
   const layoutProps = {
