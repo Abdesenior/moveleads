@@ -7,7 +7,6 @@ import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
 import useMedia from '../useMedia';
 
-const SUPPORT_PHONE = '(855) 398-6683';
 const HERO_IMAGE = '/hero-family-truck.webp';
 
 const HOW_IT_WORKS = [
@@ -23,21 +22,8 @@ function RouteScreenMobile({
 }) {
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)', minHeight: '100%' }}>
-      {/* Top bar */}
-      <div style={{
-        padding: '52px 22px 10px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--bg-white)',
-      }}>
-        <Logo size={19} />
-        <span style={{
-          fontSize: 10.5, fontWeight: 700, color: 'var(--text-secondary)',
-          letterSpacing: '0.1em', textTransform: 'uppercase',
-        }}>Free quote</span>
-      </div>
-
-      {/* Hero photo */}
-      <div style={{ padding: '4px 16px 0' }}>
+      {/* Hero photo (Logo overlays top-left) */}
+      <div style={{ padding: '52px 16px 0' }}>
         <div style={{
           position: 'relative',
           height: 156,
@@ -51,6 +37,11 @@ function RouteScreenMobile({
             position: 'absolute', inset: 0,
             background: 'linear-gradient(180deg, rgba(2,8,20,0) 50%, rgba(2,8,20,0.55) 100%)',
           }} />
+          <div style={{
+            position: 'absolute', top: 14, left: 14, zIndex: 2,
+          }}>
+            <Logo size={19} light />
+          </div>
           <div style={{
             position: 'absolute', left: 14, bottom: 12,
             display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -171,50 +162,27 @@ function RouteScreenDesktop({
 }) {
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
-      {/* Top bar */}
-      <div style={{
-        padding: '20px 28px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid var(--bg-soft)',
-      }}>
-        <Logo size={24} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
-          <span style={{
-            fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)',
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-          }}>Free quote</span>
-          <a href={`tel:${SUPPORT_PHONE.replace(/\D/g, '')}`} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            fontSize: 14.5, fontWeight: 700, color: 'var(--primary)',
-            textDecoration: 'none',
-          }}>
-            <span style={{
-              width: 28, height: 28, borderRadius: '50%',
-              background: 'var(--bg-soft)', color: 'var(--primary)',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon name="phone" size={13} stroke={2.2} />
-            </span>
-            {SUPPORT_PHONE}
-          </a>
-        </div>
-      </div>
-
       {/* Two columns */}
       <div style={{ display: 'grid', gridTemplateColumns: '45fr 55fr', minHeight: 760 }}>
-        {/* Left — photo hero */}
+        {/* Left — photo hero (Logo overlays top-left) */}
         <div style={{
           position: 'relative',
           backgroundImage: `url(${HERO_IMAGE})`,
           backgroundSize: 'cover',
           backgroundPosition: '58% 38%',
           color: 'white',
-          padding: '40px 60px 44px',
+          padding: '88px 60px 44px',
           display: 'flex', flexDirection: 'column',
           gap: 0,
           overflow: 'hidden',
           minHeight: 760,
         }}>
+          {/* Logo overlay */}
+          <div style={{
+            position: 'absolute', top: 32, left: 36, zIndex: 3,
+          }}>
+            <Logo size={24} light />
+          </div>
           {/* Overlay */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
