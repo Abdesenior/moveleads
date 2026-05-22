@@ -1,13 +1,14 @@
 // client/src/pages/getQuoteV6/screens/RouteScreen.jsx
 import { useCallback, useState } from 'react';
+import zipcodes from 'zipcodes';
 import Logo from '../components/Logo';
 import Icon from '../components/Icon';
 import FieldInput from '../components/FieldInput';
 import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
-import RoutePreviewMoment from './RoutePreviewMoment';
+import RouteMap from '../components/RouteMap';
 import useMedia from '../useMedia';
-import { DesktopShellLayout, DesktopRouteContext } from '../shells/DesktopShell';
+import { milesBetween } from '../route';
 
 const HERO_IMAGE = '/hero-family-truck.webp';
 
@@ -16,6 +17,28 @@ const HOW_IT_WORKS = [
   { n: '2', t: 'We match you with vetted movers', s: 'Based on your route and move type.', icon: 'users' },
   { n: '3', t: 'Compare quotes confidently', s: 'No obligation.', icon: 'phone' },
 ];
+
+// Build a route object with lat/lng for the inline mini-preview map.
+// Mirrors the helper formerly inside RoutePreviewMoment, which is no longer
+// rendered in this flow but kept on disk for potential future use.
+function routeFromAnswers(answers) {
+  const fromLatLng = zipcodes.lookup(answers.pickupZip) || {};
+  const toLatLng = zipcodes.lookup(answers.destinationZip) || {};
+  const from = {
+    city: answers.originCity || fromLatLng.city || '',
+    st: answers.originState || fromLatLng.state || '',
+    lat: fromLatLng.latitude ?? null,
+    lng: fromLatLng.longitude ?? null,
+  };
+  const to = {
+    city: answers.destinationCity || toLatLng.city || '',
+    st: answers.destinationState || toLatLng.state || '',
+    lat: toLatLng.latitude ?? null,
+    lng: toLatLng.longitude ?? null,
+  };
+  const miles = answers.miles || milesBetween(from, to);
+  return { from, to, miles };
+}
 
 // ── Mobile landing ──────────────────────────────────────────
 function RouteScreenMobile({
@@ -125,22 +148,14 @@ function RouteScreenMobile({
         </PrimaryButton>
       </div>
 
-      {/* Reassurance row */}
+      {/* Reassurance line */}
       <div style={{
-        padding: '4px 24px 0',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
-        fontSize: 11.5, color: 'var(--text-secondary)', fontWeight: 500,
-        flexWrap: 'wrap',
+        padding: '8px 24px 0',
+        textAlign: 'center',
+        fontSize: 11.5, color: 'var(--ink-3)',
+        letterSpacing: '-0.005em',
       }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <Icon name="check" size={12} color="var(--accent)" stroke={2.4} />
-          No spam calls
-        </span>
-        <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--border-strong)' }} />
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <Icon name="shield" size={12} color="var(--accent)" stroke={2} />
-          Licensed only
-        </span>
+        Secure & private · Takes less than 60 seconds
       </div>
 
       {/* How it works */}
@@ -162,6 +177,8 @@ function RouteScreenDesktop({
   answers, handlePickup, handleDest, canSubmit, onContinue,
   pickupErr, destErr, sameZip, enrichmentFailed,
 }) {
+  const route = routeFromAnswers(answers);
+  const routeHasCoords = route.from.lat != null && route.to.lat != null;
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
       {/* Two columns */}
@@ -322,7 +339,7 @@ function RouteScreenDesktop({
             border: '1px solid rgba(15,23,42,0.06)',
             borderRadius: 20,
             boxShadow: '0 18px 48px -12px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,255,255,0.6) inset',
-            padding: '40px 44px 36px',
+            padding: '40px 44px 32px',
           }}>
             <div style={{
               fontSize: 12, fontWeight: 700, color: 'var(--accent)',
@@ -337,14 +354,16 @@ function RouteScreenDesktop({
               margin: '10px 0 0', fontSize: 14.5, lineHeight: 1.55,
               color: 'var(--text-secondary)', maxWidth: 480, textWrap: 'pretty',
             }}>
-              Two ZIPs to start — matched movers reach out with quotes. <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Compare before booking, no obligation.</span>
+              Two ZIPs to start — matched movers reach out with quotes.<br />
+              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Compare before booking, no obligation.</span>
             </p>
 
+            {/* ZIP row with circular route connector */}
             <div style={{
               marginTop: 24,
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 14,
+              gridTemplateColumns: '1fr auto 1fr',
+              gap: 10,
               alignItems: 'end',
             }}>
               <div style={{ minWidth: 0 }}>
@@ -356,6 +375,17 @@ function RouteScreenDesktop({
                   maxLength={5} autoFocus
                   error={pickupErr}
                 />
+              </div>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'var(--accent-soft)',
+                color: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1px solid rgba(249,115,22,0.18)',
+                marginBottom: 8,
+                flexShrink: 0,
+              }}>
+                <Icon name="arrow" size={14} stroke={2.4} />
               </div>
               <div style={{ minWidth: 0 }}>
                 <FieldInput
@@ -380,49 +410,103 @@ function RouteScreenDesktop({
               </div>
             )}
 
-            <div style={{ marginTop: 14 }}>
+            {/* Inline mini route preview — appears once both ZIPs resolve to coords */}
+            {routeHasCoords && (
+              <div style={{
+                marginTop: 18,
+                padding: 14,
+                background: 'var(--bg-light)',
+                border: '1px solid var(--line)',
+                borderRadius: 14,
+                boxShadow: '0 2px 8px -2px rgba(15,23,42,0.04) inset',
+              }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'center', marginBottom: 10,
+                }}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '4px 12px',
+                    background: 'var(--accent)', color: 'white',
+                    borderRadius: 999,
+                    fontSize: 11.5, fontWeight: 700, letterSpacing: '0.02em',
+                    boxShadow: '0 4px 12px -4px rgba(249,115,22,0.45)',
+                  }}>
+                    {route.miles.toLocaleString()} miles
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <RouteMap route={route} desktop={false} />
+                </div>
+
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  fontSize: 12, color: 'var(--ink-2)', fontWeight: 600,
+                  padding: '0 6px',
+                }}>
+                  <span>{route.from.city}, {route.from.st}</span>
+                  <span style={{ color: 'var(--accent)', fontWeight: 700 }}>→</span>
+                  <span>{route.to.city}, {route.to.st}</span>
+                </div>
+              </div>
+            )}
+
+            {/* CTA */}
+            <div style={{ marginTop: 18 }}>
               <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
-                Continue
+                Continue — tell us about the move
               </PrimaryButton>
             </div>
 
-            {/* Reassurance pills */}
+            {/* Reassurance line */}
             <div style={{
-              marginTop: 16,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, flexWrap: 'wrap',
+              marginTop: 10,
+              textAlign: 'center',
+              fontSize: 11.5, color: 'var(--ink-3)',
+              letterSpacing: '-0.005em',
             }}>
-              {['Free estimate', 'No obligation', 'Licensed movers', 'Compare before booking'].map((label) => (
-                <span key={label} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '5px 11px',
-                  background: 'var(--bg-soft)',
-                  border: '1px solid var(--line)',
-                  borderRadius: 999,
-                  fontSize: 11.5, fontWeight: 600,
-                  color: 'var(--ink-2)',
-                  letterSpacing: '-0.005em',
-                }}>
-                  <Icon name="check" size={11} color="var(--accent)" stroke={2.6} />
-                  {label}
-                </span>
-              ))}
+              Secure & private · Takes less than 60 seconds
             </div>
 
             {/* Subtle divider */}
             <div style={{
-              marginTop: 32, marginBottom: 24,
+              marginTop: 28, marginBottom: 22,
               height: 1, background: 'linear-gradient(90deg, transparent 0%, var(--line) 50%, transparent 100%)',
             }} />
 
-            {/* How it works */}
+            {/* How it works — horizontal 3-step layout */}
             <div>
               <div style={{
                 fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)',
-                letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12,
+                letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, textAlign: 'center',
               }}>How it works</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {HOW_IT_WORKS.map((h) => <HowCard key={h.n} h={h} />)}
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 10,
+              }}>
+                {HOW_IT_WORKS.map((h) => (
+                  <div key={h.n} style={{
+                    padding: '14px 12px',
+                    background: 'var(--bg-light)',
+                    border: '1px solid',
+                    borderColor: h.emphasis ? 'var(--accent-soft)' : 'var(--line)',
+                    borderRadius: 12,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                    textAlign: 'center',
+                  }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      background: h.emphasis ? 'var(--accent)' : 'var(--bg-soft)',
+                      color: h.emphasis ? 'white' : 'var(--ink-2)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 800,
+                    }}>{h.n}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{h.t}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.35 }}>{h.s}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -438,10 +522,6 @@ export default function RouteScreen({ answers, patch, onContinue }) {
   const [destErr, setDestErr] = useState('');
   const [enriching, setEnriching] = useState(false);
   const [enrichmentFailed, setEnrichmentFailed] = useState(false);
-  // Internal-state preview: clicking Continue on the ZIP form enters the
-  // preview moment without leaving the ROUTE orchestrator node. Amendment A:
-  // RoutePreviewMoment receives `answers` only, never writes to them.
-  const [previewShown, setPreviewShown] = useState(false);
 
   // Lazy ZIP-to-city/state via free zippopotam.us (no auth, generous limits).
   // Mirrors the existing GetQuoteV6.jsx enrich logic (lines 454-481).
@@ -506,24 +586,10 @@ export default function RouteScreen({ answers, patch, onContinue }) {
       setDestErr("Pickup and drop-off ZIPs can't be the same.");
       return;
     }
-    // Enter preview moment first — orchestrator stays on ROUTE node.
-    setPreviewShown(true);
+    // Inline preview lives inside the form card now — Continue advances
+    // directly to the next orchestrator node (TIMING_PIVOT).
+    onContinue();
   };
-
-  if (previewShown) {
-    // Desktop: wrap in the shared DesktopShellLayout so the left navy rail
-    // (with DesktopRouteContext now that ZIPs are filled) persists into
-    // the preview moment, matching the chrome the rest of the funnel uses.
-    // Mobile preview keeps its full-bleed immersive layout.
-    if (desktop) {
-      return (
-        <DesktopShellLayout leftContent={<DesktopRouteContext answers={answers} />}>
-          <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={true} embedded={true} />
-        </DesktopShellLayout>
-      );
-    }
-    return <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={false} />;
-  }
 
   const layoutProps = {
     answers,
