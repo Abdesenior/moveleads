@@ -76,6 +76,45 @@ export default function RouteMap({ route, desktop }) {
         mapInstance.on('load', () => {
           if (cancelled || !mapInstance) return;
 
+          // Soften the underlying map so the orange route remains the hero
+          // element. Apply paint-property overrides to layers that exist in
+          // light-v11. Wrapped in try/catch because layer IDs / supported
+          // paint properties can drift across mapbox-gl versions — we'd
+          // rather render a slightly louder basemap than blow up the map.
+          // The outer try absorbs failures from any individual setPaintProperty
+          // call as well; forEach continues for subsequent layers.
+          const setPaint = (id, prop, value) => {
+            try {
+              mapInstance.setPaintProperty(id, prop, value);
+            } catch {
+              // Property not supported on this layer in this mapbox-gl version.
+            }
+          };
+          try {
+            const style = mapInstance.getStyle();
+            if (style && Array.isArray(style.layers)) {
+              style.layers.forEach(layer => {
+                if (!layer || !layer.id) return;
+                const id = layer.id;
+                // Dim road network (skip our own route layers)
+                if (layer.type === 'line' && /road|bridge|tunnel/i.test(id) && !/route/i.test(id)) {
+                  setPaint(id, 'line-opacity', 0.35);
+                }
+                // Dim symbol labels (place names, POIs) so route labels read clean
+                if (layer.type === 'symbol' && /label|poi|place/i.test(id)) {
+                  setPaint(id, 'text-opacity', 0.45);
+                  setPaint(id, 'icon-opacity', 0.35);
+                }
+                // Slight saturation reduction on water (more neutral)
+                if (layer.type === 'fill' && /water/i.test(id)) {
+                  setPaint(id, 'fill-opacity', 0.6);
+                }
+              });
+            }
+          } catch {
+            // Style introspection can fail across mapbox-gl versions — skip
+          }
+
           mapInstance.addSource('route', { type: 'geojson', data: arc });
 
           // Glow underlay — wide, low opacity, drawn first
