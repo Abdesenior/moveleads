@@ -188,8 +188,8 @@ function RouteScreenDesktop({
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: [
-              'linear-gradient(96deg, rgba(2,8,20,0.78) 0%, rgba(2,8,20,0.55) 32%, rgba(2,8,20,0.22) 62%, rgba(2,8,20,0.06) 100%)',
-              'linear-gradient(180deg, rgba(2,8,20,0.05) 0%, rgba(2,8,20,0.18) 30%, rgba(2,8,20,0.18) 70%, rgba(2,8,20,0.6) 100%)',
+              'linear-gradient(96deg, rgba(2,8,20,0.85) 0%, rgba(2,8,20,0.65) 32%, rgba(2,8,20,0.35) 62%, rgba(2,8,20,0.18) 100%)',
+              'linear-gradient(180deg, rgba(2,8,20,0.12) 0%, rgba(2,8,20,0.25) 30%, rgba(2,8,20,0.25) 70%, rgba(2,8,20,0.7) 100%)',
             ].join(', '),
           }} />
 
@@ -210,7 +210,7 @@ function RouteScreenDesktop({
           {/* Warm corner glow */}
           <div style={{
             position: 'absolute', top: -120, right: -120, width: 360, height: 360, pointerEvents: 'none',
-            background: 'radial-gradient(circle, rgba(249,115,22,0.28) 0%, rgba(249,115,22,0) 70%)',
+            background: 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
           }} />
 
           {/* Headline + trust cards */}
@@ -296,7 +296,7 @@ function RouteScreenDesktop({
         {/* Right — form */}
         <div style={{
           position: 'relative',
-          padding: '60px 64px 56px',
+          padding: '72px 88px 64px 80px',
           background: 'var(--bg-white)',
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
         }}>
@@ -322,7 +322,7 @@ function RouteScreenDesktop({
             </p>
 
             <div style={{
-              marginTop: 22,
+              marginTop: 32,
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: 14,
@@ -387,7 +387,7 @@ function RouteScreenDesktop({
             </div>
 
             {/* How it works */}
-            <div style={{ marginTop: 40 }}>
+            <div style={{ marginTop: 56 }}>
               <div style={{
                 fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)',
                 letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14,
