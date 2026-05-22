@@ -8,10 +8,15 @@ import { useEffect, useRef, useState } from 'react';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-export default function RouteMap({ route, desktop }) {
+export default function RouteMap({ route, desktop, height }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const [failed, setFailed] = useState(false);
+
+  // An explicit `height` prop wins; otherwise fall back to the legacy
+  // desktop default (280) or the mobile aspect-ratio path. Used by the
+  // inline route preview to render a taller (320px) cinematic map.
+  const containerHeight = height ?? (desktop ? 280 : undefined);
 
   // Hooks come first (rules-of-hooks); endpoint validity guards the effect
   // body and the final render so a missing coord short-circuits to null.
@@ -172,21 +177,24 @@ export default function RouteMap({ route, desktop }) {
             .setLngLat([toLng, toLat])
             .addTo(mapInstance);
 
-          // Origin label
-          const fromLabelEl = document.createElement('div');
-          fromLabelEl.style.cssText = 'background:rgba(255,255,255,0.96);color:#0f172a;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,0.12);border:1px solid rgba(15,23,42,0.06);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
-          fromLabelEl.textContent = fromCity;
-          new mapboxgl.Marker({ element: fromLabelEl, anchor: 'bottom' })
-            .setLngLat([fromLng, fromLat])
-            .addTo(mapInstance);
+          // In-map city labels are intentionally dormant: the inline route
+          // preview now overlays origin/destination cards on the map wrapper
+          // (see RouteScreen.jsx), so rendering Mapbox markers for the same
+          // city names would duplicate. Kept here (commented) so the labeled
+          // variant can be revived without rewriting the styles.
+          // const fromLabelEl = document.createElement('div');
+          // fromLabelEl.style.cssText = 'background:rgba(255,255,255,0.96);color:#0f172a;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,0.12);border:1px solid rgba(15,23,42,0.06);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
+          // fromLabelEl.textContent = fromCity;
+          // new mapboxgl.Marker({ element: fromLabelEl, anchor: 'bottom' })
+          //   .setLngLat([fromLng, fromLat])
+          //   .addTo(mapInstance);
 
-          // Destination label
-          const toLabelEl = document.createElement('div');
-          toLabelEl.style.cssText = 'background:#0f172a;color:#fff;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(15,23,42,0.25);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
-          toLabelEl.textContent = toCity;
-          new mapboxgl.Marker({ element: toLabelEl, anchor: 'bottom' })
-            .setLngLat([toLng, toLat])
-            .addTo(mapInstance);
+          // const toLabelEl = document.createElement('div');
+          // toLabelEl.style.cssText = 'background:#0f172a;color:#fff;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(15,23,42,0.25);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
+          // toLabelEl.textContent = toCity;
+          // new mapboxgl.Marker({ element: toLabelEl, anchor: 'bottom' })
+          //   .setLngLat([toLng, toLat])
+          //   .addTo(mapInstance);
 
           const bounds = new mapboxgl.LngLatBounds()
             .extend([fromLng, fromLat])
@@ -224,8 +232,8 @@ export default function RouteMap({ route, desktop }) {
         background: 'linear-gradient(160deg, #f8fafc 0%, #eef2f7 100%)',
         border: '1px solid var(--line)',
         boxShadow: 'var(--shadow-sm)',
-        height: desktop ? 280 : undefined,
-        aspectRatio: desktop ? undefined : '600/220',
+        height: containerHeight,
+        aspectRatio: containerHeight ? undefined : '600/220',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: 'var(--ink-3)', fontSize: 12.5,
       }}>
@@ -243,8 +251,8 @@ export default function RouteMap({ route, desktop }) {
         overflow: 'hidden',
         border: '1px solid var(--line)',
         boxShadow: '0 6px 24px -8px rgba(15,23,42,0.16), 0 1px 2px rgba(15,23,42,0.04)',
-        height: desktop ? 280 : undefined,
-        aspectRatio: desktop ? undefined : '600/220',
+        height: containerHeight,
+        aspectRatio: containerHeight ? undefined : '600/220',
         background: '#f8fafc',
       }}
     />
