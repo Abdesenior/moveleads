@@ -206,8 +206,8 @@ function RouteScreenDesktop({
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: [
-              'linear-gradient(96deg, rgba(2,8,20,0.85) 0%, rgba(2,8,20,0.65) 32%, rgba(2,8,20,0.35) 62%, rgba(2,8,20,0.18) 100%)',
-              'linear-gradient(180deg, rgba(2,8,20,0.12) 0%, rgba(2,8,20,0.25) 30%, rgba(2,8,20,0.25) 70%, rgba(2,8,20,0.7) 100%)',
+              'linear-gradient(96deg, rgba(2,8,20,0.62) 0%, rgba(2,8,20,0.42) 32%, rgba(2,8,20,0.20) 62%, rgba(2,8,20,0.08) 100%)',
+              'linear-gradient(180deg, rgba(2,8,20,0.06) 0%, rgba(2,8,20,0.16) 30%, rgba(2,8,20,0.18) 70%, rgba(2,8,20,0.55) 100%)',
             ].join(', '),
           }} />
 
@@ -221,14 +221,14 @@ function RouteScreenDesktop({
           <div style={{
             position: 'absolute', top: '42%', left: '60%', width: 380, height: 380,
             pointerEvents: 'none', transform: 'translate(-50%, -50%)',
-            background: 'radial-gradient(circle, rgba(255,210,160,0.22) 0%, rgba(255,210,160,0) 60%)',
+            background: 'radial-gradient(circle, rgba(255,210,160,0.32) 0%, rgba(255,210,160,0) 60%)',
             mixBlendMode: 'screen',
           }} />
 
           {/* Warm corner glow */}
           <div style={{
             position: 'absolute', top: -90, right: -90, width: 260, height: 260, pointerEvents: 'none',
-            background: 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
+            background: 'radial-gradient(circle, rgba(249,115,22,0.28) 0%, rgba(249,115,22,0) 70%)',
           }} />
 
           {/* Headline + trust cards */}
@@ -314,7 +314,7 @@ function RouteScreenDesktop({
         {/* Right — form */}
         <div style={{
           position: 'relative',
-          padding: '56px 72px 64px',
+          padding: '64px 40px 72px',
           background: 'linear-gradient(180deg, #fcfaf8 0%, #f7f9fc 100%)',
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
           overflow: 'hidden',
@@ -334,27 +334,27 @@ function RouteScreenDesktop({
           <div style={{
             position: 'relative',
             width: '100%',
-            maxWidth: 680,
+            maxWidth: 760,
             background: '#ffffff',
             border: '1px solid rgba(15,23,42,0.06)',
             borderRadius: 20,
             boxShadow: '0 18px 48px -12px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,255,255,0.6) inset',
-            padding: '40px 44px 32px',
+            padding: '52px 60px 44px',
           }}>
             <div style={{
-              fontSize: 12, fontWeight: 700, color: 'var(--accent)',
-              letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10,
+              fontSize: 11.5, fontWeight: 700, color: 'var(--accent)',
+              letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14,
             }}>Free quote · 60 seconds</div>
             <h1 style={{
-              margin: 0, fontSize: 30, fontWeight: 700,
-              letterSpacing: '-0.025em', lineHeight: 1.12,
+              margin: 0, fontSize: 36, fontWeight: 700,
+              letterSpacing: '-0.028em', lineHeight: 1.08,
               color: 'var(--primary)',
             }}>Where are you moving?</h1>
             <p style={{
-              margin: '10px 0 0', fontSize: 14.5, lineHeight: 1.55,
-              color: 'var(--text-secondary)', maxWidth: 480, textWrap: 'pretty',
+              margin: '10px 0 0', fontSize: 15.5, lineHeight: 1.55,
+              color: 'var(--text-secondary)', maxWidth: 520, textWrap: 'pretty',
             }}>
-              Two ZIPs to start — matched movers reach out with quotes.<br />
+              Two ZIPs to start — matched movers reach out with quotes.{' '}
               <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Compare before booking, no obligation.</span>
             </p>
 
@@ -363,7 +363,7 @@ function RouteScreenDesktop({
               marginTop: 24,
               display: 'grid',
               gridTemplateColumns: '1fr auto 1fr',
-              gap: 10,
+              gap: 12,
               alignItems: 'end',
             }}>
               <div style={{ minWidth: 0 }}>
@@ -377,12 +377,12 @@ function RouteScreenDesktop({
                 />
               </div>
               <div style={{
-                width: 36, height: 36, borderRadius: '50%',
+                width: 32, height: 32, borderRadius: '50%',
                 background: 'var(--accent-soft)',
                 color: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: '1px solid rgba(249,115,22,0.18)',
-                marginBottom: 8,
+                marginBottom: 10,
                 flexShrink: 0,
               }}>
                 <Icon name="arrow" size={14} stroke={2.4} />
@@ -410,49 +410,93 @@ function RouteScreenDesktop({
               </div>
             )}
 
-            {/* Inline mini route preview — appears once both ZIPs resolve to coords */}
+            {/* Inline cinematic route preview — appears once both ZIPs resolve to coords.
+                Map fills the wrapper edge-to-edge; mileage pill and city labels
+                float over the map as glassy overlays for a more cinematic feel. */}
             {routeHasCoords && (
               <div style={{
-                marginTop: 18,
-                padding: 14,
-                background: 'var(--bg-light)',
+                marginTop: 24,
+                position: 'relative',
+                borderRadius: 18,
+                overflow: 'hidden',
                 border: '1px solid var(--line)',
-                borderRadius: 14,
-                boxShadow: '0 2px 8px -2px rgba(15,23,42,0.04) inset',
+                boxShadow: '0 12px 36px -10px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.04)',
               }}>
+                {/* Map fills the wrapper */}
+                <RouteMap route={route} desktop={true} height={320} />
+
+                {/* Mileage pill — absolute top-center */}
                 <div style={{
-                  display: 'flex', justifyContent: 'center', marginBottom: 10,
+                  position: 'absolute',
+                  top: 14, left: '50%', transform: 'translateX(-50%)',
+                  zIndex: 2,
                 }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '4px 12px',
-                    background: 'var(--accent)', color: 'white',
+                    padding: '6px 14px',
+                    background: 'rgba(15,23,42,0.92)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    color: 'white',
                     borderRadius: 999,
-                    fontSize: 11.5, fontWeight: 700, letterSpacing: '0.02em',
-                    boxShadow: '0 4px 12px -4px rgba(249,115,22,0.45)',
+                    fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
+                    boxShadow: '0 6px 18px -4px rgba(15,23,42,0.45)',
                   }}>
+                    <Icon name="truck" size={12} stroke={2.4} color="var(--accent)" />
                     {route.miles.toLocaleString()} miles
                   </span>
                 </div>
 
-                <div style={{ marginBottom: 10 }}>
-                  <RouteMap route={route} desktop={false} />
+                {/* Origin label — absolute bottom-left */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: 14, left: 14,
+                  zIndex: 2,
+                  padding: '6px 10px',
+                  background: 'rgba(255,255,255,0.95)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderRadius: 8,
+                  border: '1px solid rgba(15,23,42,0.06)',
+                  boxShadow: '0 4px 12px -4px rgba(15,23,42,0.15)',
+                }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>From</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.005em', marginTop: 1 }}>
+                    {route.from.city}, {route.from.st}
+                  </div>
                 </div>
 
+                {/* Destination label — absolute bottom-right, accent treatment */}
                 <div style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  fontSize: 12, color: 'var(--ink-2)', fontWeight: 600,
-                  padding: '0 6px',
+                  position: 'absolute',
+                  bottom: 14, right: 14,
+                  zIndex: 2,
+                  padding: '6px 10px',
+                  background: 'rgba(15,23,42,0.94)',
+                  color: 'white',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 12px -4px rgba(15,23,42,0.35)',
+                  textAlign: 'right',
                 }}>
-                  <span>{route.from.city}, {route.from.st}</span>
-                  <span style={{ color: 'var(--accent)', fontWeight: 700 }}>→</span>
-                  <span>{route.to.city}, {route.to.st}</span>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>To</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.005em', marginTop: 1 }}>
+                    {route.to.city}, {route.to.st}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* CTA */}
-            <div style={{ marginTop: 18 }}>
+            {/* CTA — wrapped with a soft orange glow zone underneath for dominance */}
+            <div style={{ marginTop: 28, marginBottom: 4, position: 'relative' }}>
+              <div style={{
+                position: 'absolute',
+                top: '20%', left: '10%', right: '10%', bottom: 0,
+                background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
+                pointerEvents: 'none',
+                filter: 'blur(8px)',
+              }} />
               <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
                 Continue — tell us about the move
               </PrimaryButton>
@@ -468,43 +512,63 @@ function RouteScreenDesktop({
               Secure & private · Takes less than 60 seconds
             </div>
 
-            {/* Subtle divider */}
+            {/* Gradient divider */}
             <div style={{
-              marginTop: 28, marginBottom: 22,
+              marginTop: 36, marginBottom: 28,
               height: 1, background: 'linear-gradient(90deg, transparent 0%, var(--line) 50%, transparent 100%)',
             }} />
 
-            {/* How it works — horizontal 3-step layout */}
+            {/* How it works — Stripe/Linear-style horizontal timeline.
+                Numbered circles connected by a dashed line, no card chrome. */}
             <div>
               <div style={{
-                fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)',
-                letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, textAlign: 'center',
+                fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)',
+                letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 22, textAlign: 'center',
               }}>How it works</div>
 
               <div style={{
+                position: 'relative',
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 10,
+                gap: 8,
               }}>
+                {/* Connecting dashed line — absolute, behind circles */}
+                <div style={{
+                  position: 'absolute',
+                  top: 15,
+                  left: '16.67%',
+                  right: '16.67%',
+                  height: 0,
+                  borderTop: '1.5px dashed var(--line-strong)',
+                  zIndex: 0,
+                  opacity: 0.7,
+                }} />
+
                 {HOW_IT_WORKS.map((h) => (
                   <div key={h.n} style={{
-                    padding: '14px 12px',
-                    background: 'var(--bg-light)',
-                    border: '1px solid',
-                    borderColor: h.emphasis ? 'var(--accent-soft)' : 'var(--line)',
-                    borderRadius: 12,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                    textAlign: 'center',
+                    position: 'relative', zIndex: 1,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                    padding: '0 8px',
                   }}>
                     <div style={{
-                      width: 28, height: 28, borderRadius: '50%',
-                      background: h.emphasis ? 'var(--accent)' : 'var(--bg-soft)',
+                      width: 30, height: 30, borderRadius: '50%',
+                      background: h.emphasis ? 'var(--accent)' : '#ffffff',
                       color: h.emphasis ? 'white' : 'var(--ink-2)',
+                      border: h.emphasis ? '2px solid var(--accent)' : '1.5px solid var(--line-strong)',
+                      boxShadow: h.emphasis ? '0 4px 12px -2px rgba(249,115,22,0.35)' : '0 1px 2px rgba(15,23,42,0.04)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 12, fontWeight: 800,
                     }}>{h.n}</div>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{h.t}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.35 }}>{h.s}</div>
+                    <div style={{
+                      fontSize: 13, fontWeight: 700, color: 'var(--ink)',
+                      textAlign: 'center', letterSpacing: '-0.008em', lineHeight: 1.3,
+                      marginTop: 2,
+                    }}>{h.t}</div>
+                    <div style={{
+                      fontSize: 11.5, color: 'var(--ink-3)',
+                      textAlign: 'center', lineHeight: 1.4,
+                      letterSpacing: '-0.003em',
+                    }}>{h.s}</div>
                   </div>
                 ))}
               </div>
