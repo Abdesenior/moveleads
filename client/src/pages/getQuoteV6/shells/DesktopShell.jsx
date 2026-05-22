@@ -45,14 +45,14 @@ function DesktopHero() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 16 }}>
       <h2 style={{
-        margin: 0, fontSize: 36, fontWeight: 700,
+        margin: 0, fontSize: 30, fontWeight: 700,
         letterSpacing: '-0.028em', lineHeight: 1.1,
         color: 'white', textWrap: 'balance',
       }}>
         Get matched with licensed movers in your area.
       </h2>
       <p style={{
-        margin: 0, fontSize: 15, lineHeight: 1.55,
+        margin: 0, fontSize: 14, lineHeight: 1.55,
         color: 'rgba(255,255,255,0.72)', textWrap: 'pretty', maxWidth: 320,
       }}>
         Tell us about your move once. Up to 3 vetted movers will reach out directly — calm, no spam, no obligation.
@@ -121,7 +121,7 @@ function DesktopRouteContext({ answers, submitted = false }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.022em', lineHeight: 1.15, color: 'white' }}>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.022em', lineHeight: 1.15, color: 'white' }}>
           {fromCity}{fromSt && <span style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>, {fromSt}</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fb923c', fontSize: 12, fontWeight: 500 }}>
@@ -129,7 +129,7 @@ function DesktopRouteContext({ answers, submitted = false }) {
           {miles ? `${miles.toLocaleString()} miles` : ''}
           <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />
         </div>
-        <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.022em', lineHeight: 1.15, color: 'white' }}>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.022em', lineHeight: 1.15, color: 'white' }}>
           {toCity}{toSt && <span style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>, {toSt}</span>}
         </div>
       </div>
@@ -202,12 +202,12 @@ export default function DesktopShell({ step, answers, children }) {
       background: 'var(--canvas)',
       minHeight: 760,
       display: 'grid',
-      gridTemplateColumns: '420px 1fr',
+      gridTemplateColumns: '380px 1fr',
     }}>
       <div style={{
         background: 'linear-gradient(180deg, var(--primary-darker) 0%, var(--primary) 100%)',
         color: 'white',
-        padding: '32px 36px 36px',
+        padding: '28px 28px 32px',
         display: 'flex', flexDirection: 'column', gap: 32,
         position: 'relative', overflow: 'hidden',
       }}>
