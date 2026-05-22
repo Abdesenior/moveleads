@@ -297,15 +297,33 @@ function RouteScreenDesktop({
         {/* Right — form */}
         <div style={{
           position: 'relative',
-          padding: '72px 96px 64px 96px',
-          background: 'var(--bg-white)',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '56px 72px 64px',
+          background: 'linear-gradient(180deg, #fcfaf8 0%, #f7f9fc 100%)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+          overflow: 'hidden',
+          minHeight: 760,
         }}>
+          {/* Background depth — multi-radial */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: 'radial-gradient(120% 80% at 100% 0%, rgba(249,115,22,0.04) 0%, rgba(255,255,255,0) 55%)',
+            background: [
+              'radial-gradient(55% 40% at 88% 12%, rgba(249,115,22,0.06) 0%, rgba(249,115,22,0) 60%)',
+              'radial-gradient(50% 35% at 8% 92%, rgba(186,202,255,0.08) 0%, rgba(186,202,255,0) 60%)',
+              'radial-gradient(80% 60% at 50% 100%, rgba(15,23,42,0.02) 0%, rgba(15,23,42,0) 70%)',
+            ].join(', '),
           }} />
-          <div style={{ position: 'relative', maxWidth: 440 }}>
+
+          {/* Premium card */}
+          <div style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 680,
+            background: '#ffffff',
+            border: '1px solid rgba(15,23,42,0.06)',
+            borderRadius: 20,
+            boxShadow: '0 18px 48px -12px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,255,255,0.6) inset',
+            padding: '40px 44px 36px',
+          }}>
             <div style={{
               fontSize: 12, fontWeight: 700, color: 'var(--accent)',
               letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10,
@@ -317,13 +335,13 @@ function RouteScreenDesktop({
             }}>Where are you moving?</h1>
             <p style={{
               margin: '10px 0 0', fontSize: 14.5, lineHeight: 1.55,
-              color: 'var(--text-secondary)', maxWidth: 400, textWrap: 'pretty',
+              color: 'var(--text-secondary)', maxWidth: 480, textWrap: 'pretty',
             }}>
               Two ZIPs to start — matched movers reach out with quotes. <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Compare before booking, no obligation.</span>
             </p>
 
             <div style={{
-              marginTop: 32,
+              marginTop: 24,
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: 14,
@@ -368,30 +386,40 @@ function RouteScreenDesktop({
               </PrimaryButton>
             </div>
 
-            {/* Reassurance row */}
+            {/* Reassurance pills */}
             <div style={{
-              marginTop: 14,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-              fontSize: 12.5, color: 'var(--text-secondary)', fontWeight: 500,
-              flexWrap: 'wrap',
+              marginTop: 16,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 8, flexWrap: 'wrap',
             }}>
-              {[
-                { i: 'check', t: 'No spam calls' },
-                { i: 'lock', t: 'Compare before booking' },
-                { i: 'shield', t: 'Movers contact you' },
-              ].map((r) => (
-                <span key={r.t} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icon name={r.i} size={13} color="var(--accent)" stroke={2.2} />
-                  {r.t}
+              {['Free estimate', 'No obligation', 'Licensed movers', 'Compare before booking'].map((label) => (
+                <span key={label} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '5px 11px',
+                  background: 'var(--bg-soft)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 999,
+                  fontSize: 11.5, fontWeight: 600,
+                  color: 'var(--ink-2)',
+                  letterSpacing: '-0.005em',
+                }}>
+                  <Icon name="check" size={11} color="var(--accent)" stroke={2.6} />
+                  {label}
                 </span>
               ))}
             </div>
 
+            {/* Subtle divider */}
+            <div style={{
+              marginTop: 32, marginBottom: 24,
+              height: 1, background: 'linear-gradient(90deg, transparent 0%, var(--line) 50%, transparent 100%)',
+            }} />
+
             {/* How it works */}
-            <div style={{ marginTop: 56 }}>
+            <div>
               <div style={{
                 fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)',
-                letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14,
+                letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12,
               }}>How it works</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {HOW_IT_WORKS.map((h) => <HowCard key={h.n} h={h} />)}
