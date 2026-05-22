@@ -21,6 +21,8 @@ export default function RouteMap({ route, desktop }) {
   const fromLng = hasCoords ? route.from.lng : null;
   const toLat = hasCoords ? route.to.lat : null;
   const toLng = hasCoords ? route.to.lng : null;
+  const fromCity = hasCoords ? route.from.city : '';
+  const toCity = hasCoords ? route.to.city : '';
 
   useEffect(() => {
     if (!hasCoords) return undefined;
@@ -134,17 +136,17 @@ export default function RouteMap({ route, desktop }) {
           // Origin label
           const fromLabelEl = document.createElement('div');
           fromLabelEl.style.cssText = 'background:rgba(255,255,255,0.96);color:#0f172a;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 6px rgba(15,23,42,0.12);border:1px solid rgba(15,23,42,0.06);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
-          fromLabelEl.textContent = route.from.city;
+          fromLabelEl.textContent = fromCity;
           new mapboxgl.Marker({ element: fromLabelEl, anchor: 'bottom' })
-            .setLngLat([route.from.lng, route.from.lat])
+            .setLngLat([fromLng, fromLat])
             .addTo(mapInstance);
 
           // Destination label
           const toLabelEl = document.createElement('div');
           toLabelEl.style.cssText = 'background:#0f172a;color:#fff;font-size:11px;font-weight:600;letter-spacing:-0.005em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(15,23,42,0.25);white-space:nowrap;pointer-events:none;transform:translateY(-22px);';
-          toLabelEl.textContent = route.to.city;
+          toLabelEl.textContent = toCity;
           new mapboxgl.Marker({ element: toLabelEl, anchor: 'bottom' })
-            .setLngLat([route.to.lng, route.to.lat])
+            .setLngLat([toLng, toLat])
             .addTo(mapInstance);
 
           const bounds = new mapboxgl.LngLatBounds()
@@ -169,7 +171,7 @@ export default function RouteMap({ route, desktop }) {
       cancelled = true;
       if (mapInstance) mapInstance.remove();
     };
-  }, [hasCoords, fromLat, fromLng, toLat, toLng]);
+  }, [hasCoords, fromLat, fromLng, toLat, toLng, fromCity, toCity]);
 
   // Bail to null if endpoints lack coords — parity with RouteArc.
   if (!hasCoords) return null;
