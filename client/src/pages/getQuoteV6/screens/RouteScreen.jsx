@@ -36,7 +36,7 @@ function RouteScreenMobile({
         }}>
           <div style={{
             position: 'absolute', inset: 0,
-            background: 'linear-gradient(180deg, rgba(2,8,20,0) 50%, rgba(2,8,20,0.55) 100%)',
+            background: 'linear-gradient(180deg, rgba(2,8,20,0) 35%, rgba(2,8,20,0.45) 75%, rgba(2,8,20,0.72) 100%)',
           }} />
           <div style={{
             position: 'absolute', top: 14, left: 14, zIndex: 2,
@@ -66,7 +66,7 @@ function RouteScreenMobile({
       </div>
 
       {/* Form block */}
-      <div style={{ padding: '18px 24px 6px' }}>
+      <div style={{ padding: '14px 24px 6px' }}>
         <div style={{
           fontSize: 11, fontWeight: 700,
           color: 'var(--accent)',
@@ -118,7 +118,7 @@ function RouteScreenMobile({
       </div>
 
       {/* CTA */}
-      <div style={{ padding: '14px 24px 8px' }}>
+      <div style={{ padding: '10px 24px 6px' }}>
         <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
           Continue
         </PrimaryButton>
