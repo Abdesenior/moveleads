@@ -51,7 +51,7 @@ export default function DatePickerScreen({ answers, patch, onContinue, onBack, o
   return (
     <>
       {!desktop && <FunnelHeader section={section} total={total} label="Move date" onBack={onBack} onClose={onClose} safeTop={safeTop} />}
-      <ScreenWrap pad={desktop ? '0' : '20px 22px 28px'}>
+      <ScreenWrap pad={desktop ? '0' : '20px 22px 28px'} gap={12}>
         <Question
           eyebrow={desktop ? 'Step 1 · Timing' : 'Move date'}
           title="When are you planning to move?"
