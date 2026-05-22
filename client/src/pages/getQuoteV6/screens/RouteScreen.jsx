@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import FieldInput from '../components/FieldInput';
 import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
+import RoutePreviewMoment from './RoutePreviewMoment';
 import useMedia from '../useMedia';
 
 const HERO_IMAGE = '/hero-family-truck.webp';
@@ -408,6 +409,10 @@ export default function RouteScreen({ answers, patch, onContinue }) {
   const [destErr, setDestErr] = useState('');
   const [enriching, setEnriching] = useState(false);
   const [enrichmentFailed, setEnrichmentFailed] = useState(false);
+  // Internal-state preview: clicking Continue on the ZIP form enters the
+  // preview moment without leaving the ROUTE orchestrator node. Amendment A:
+  // RoutePreviewMoment receives `answers` only, never writes to them.
+  const [previewShown, setPreviewShown] = useState(false);
 
   // Lazy ZIP-to-city/state via free zippopotam.us (no auth, generous limits).
   // Mirrors the existing GetQuoteV6.jsx enrich logic (lines 454-481).
@@ -472,8 +477,13 @@ export default function RouteScreen({ answers, patch, onContinue }) {
       setDestErr("Pickup and drop-off ZIPs can't be the same.");
       return;
     }
-    onContinue();
+    // Enter preview moment first — orchestrator stays on ROUTE node.
+    setPreviewShown(true);
   };
+
+  if (previewShown) {
+    return <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={desktop} />;
+  }
 
   const layoutProps = {
     answers,
