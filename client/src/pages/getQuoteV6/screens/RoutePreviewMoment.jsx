@@ -57,60 +57,69 @@ export default function RoutePreviewMoment({ answers, onContinue, desktop = fals
 
   return (
     <div className="screen-enter" style={{
-      padding: desktop ? 0 : '56px 22px 32px',
+      padding: desktop ? '56px 32px 56px' : '56px 22px 32px',
       display: 'flex', flexDirection: 'column',
-      gap: desktop ? 28 : 32,
+      alignItems: 'center',
+      gap: desktop ? 20 : 32,
       minHeight: desktop ? 'auto' : '100%',
+      background: 'var(--canvas)',
     }}>
-      {!desktop && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Logo size={22} />
+      <div style={{
+        width: '100%',
+        maxWidth: desktop ? 680 : '100%',
+        display: 'flex', flexDirection: 'column',
+        gap: desktop ? 18 : 32,
+      }}>
+        {!desktop && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Logo size={22} />
+            <div style={{
+              fontSize: 11, fontWeight: 600, color: 'var(--ink-3)',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+            }}>Route confirmed</div>
+          </div>
+        )}
+
+        <RouteMap route={route} desktop={desktop} />
+
+        <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <Eyebrow>Your move</Eyebrow>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+              <CityBlock city={route.from.city} st={route.from.st} role="From" desktop={desktop} />
+              <ArrowDivider desktop={desktop} />
+              <CityBlock city={route.to.city} st={route.to.st} role="To" desktop={desktop} />
+            </div>
+          </div>
+
           <div style={{
-            fontSize: 11, fontWeight: 600, color: 'var(--ink-3)',
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-          }}>Route confirmed</div>
-        </div>
-      )}
+            display: 'grid',
+            gridTemplateColumns: desktop ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+            gap: 0,
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--r-card)',
+            overflow: 'hidden',
+          }}>
+            <StatCell label="Distance" value={distanceLabel} suffix="miles" />
+            <StatCell label="Est. transit" value={days} suffix={days === '1' ? 'day' : 'days'} border={!desktop} title="Estimate based on typical long-haul transit. Your mover will confirm the final timeline." />
+            {desktop && <StatCell label="Direction" value={cardinal(route)} />}
+          </div>
 
-      <RouteMap route={route} desktop={desktop} />
-
-      <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div>
-          <Eyebrow>Your move</Eyebrow>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-            <CityBlock city={route.from.city} st={route.from.st} role="From" desktop={desktop} />
-            <ArrowDivider desktop={desktop} />
-            <CityBlock city={route.to.city} st={route.to.st} role="To" desktop={desktop} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center', padding: '0 16px' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', letterSpacing: '-0.005em' }}>
+              Licensed movers serve this route.
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', letterSpacing: '-0.005em', lineHeight: 1.5 }}>
+              Typical response within a few hours — no obligation.
+            </div>
           </div>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: desktop ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
-          gap: 0,
-          background: 'var(--surface)',
-          border: '1px solid var(--line)',
-          borderRadius: 'var(--r-card)',
-          overflow: 'hidden',
-        }}>
-          <StatCell label="Distance" value={distanceLabel} suffix="miles" />
-          <StatCell label="Est. transit" value={days} suffix={days === '1' ? 'day' : 'days'} border={!desktop} title="Estimate based on typical long-haul transit. Your mover will confirm the final timeline." />
-          {desktop && <StatCell label="Direction" value={cardinal(route)} />}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <PrimaryButton onClick={onContinue}>Continue — tell us about the move</PrimaryButton>
+          <TrustStrip />
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center', padding: '0 16px' }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', letterSpacing: '-0.005em' }}>
-            Licensed movers serve this route.
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--ink-3)', letterSpacing: '-0.005em', lineHeight: 1.5 }}>
-            Typical response within a few hours — no obligation.
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <PrimaryButton onClick={onContinue}>Continue — tell us about the move</PrimaryButton>
-        <TrustStrip />
       </div>
     </div>
   );

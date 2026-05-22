@@ -185,7 +185,8 @@ export default function RouteMap({ route, desktop }) {
         background: 'linear-gradient(160deg, #f8fafc 0%, #eef2f7 100%)',
         border: '1px solid var(--line)',
         boxShadow: 'var(--shadow-sm)',
-        aspectRatio: desktop ? '600/280' : '600/220',
+        height: desktop ? 280 : undefined,
+        aspectRatio: desktop ? undefined : '600/220',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: 'var(--ink-3)', fontSize: 12.5,
       }}>
@@ -203,7 +204,8 @@ export default function RouteMap({ route, desktop }) {
         overflow: 'hidden',
         border: '1px solid var(--line)',
         boxShadow: '0 6px 24px -8px rgba(15,23,42,0.16), 0 1px 2px rgba(15,23,42,0.04)',
-        aspectRatio: desktop ? '600/280' : '600/220',
+        height: desktop ? 280 : undefined,
+        aspectRatio: desktop ? undefined : '600/220',
         background: '#f8fafc',
       }}
     />
