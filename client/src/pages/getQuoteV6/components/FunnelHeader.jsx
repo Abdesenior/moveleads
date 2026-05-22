@@ -9,7 +9,7 @@ const iconBtnStyle = {
 };
 
 export default function FunnelHeader({ section, total, label, onBack, onClose, safeTop = 16 }) {
-  const pct = (section / total) * 100;
+  const pct = total > 0 ? (section / total) * 100 : 0;
   return (
     <div style={{
       padding: `${safeTop}px 18px 14px`,

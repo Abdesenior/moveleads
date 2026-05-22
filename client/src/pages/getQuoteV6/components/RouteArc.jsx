@@ -1,4 +1,9 @@
 export default function RouteArc({ route, desktop }) {
+  // Bail early if either endpoint lacks coords — caller renders nothing.
+  if (route?.from?.lat == null || route?.from?.lng == null
+      || route?.to?.lat == null || route?.to?.lng == null) {
+    return null;
+  }
   // We use lat/lng but normalize to a US-ish viewport
   const W = 600, H = desktop ? 280 : 220;
   // US bbox roughly: lng -125..-66, lat 25..49
@@ -10,11 +15,12 @@ export default function RouteArc({ route, desktop }) {
   const [x1, y1] = project(route.from.lat, route.from.lng);
   const [x2, y2] = project(route.to.lat, route.to.lng);
 
-  // Curved arc — control point offset perpendicular
+  // Curved arc — control point offset perpendicular. `dist || 1` guards
+  // against same-point routes producing NaN in the perpendicular vector.
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
   const dx = x2 - x1, dy = y2 - y1;
-  const dist = Math.sqrt(dx*dx + dy*dy);
+  const dist = Math.sqrt(dx*dx + dy*dy) || 1;
   const nx = -dy / dist, ny = dx / dist;
   const offset = -Math.min(80, dist * 0.18);
   const cx = mx + nx * offset, cy = my + ny * offset;
