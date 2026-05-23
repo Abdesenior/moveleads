@@ -113,6 +113,7 @@ function RouteScreenMobile({
           onChange={handlePickup}
           maxLength={5} autoFocus
           error={pickupErr}
+          isValid={answers.pickupZip.length === 5 && !!answers.originCity}
         />
         <FieldInput
           icon="pin" label="To"
@@ -121,6 +122,7 @@ function RouteScreenMobile({
           onChange={handleDest}
           maxLength={5}
           error={destErr}
+          isValid={answers.destinationZip.length === 5 && !!answers.destinationCity && !sameZip}
         />
 
         {sameZip && (
@@ -418,6 +420,7 @@ function RouteScreenDesktop({
                   onChange={handlePickup}
                   maxLength={5} autoFocus
                   error={pickupErr}
+                  isValid={answers.pickupZip.length === 5 && !!answers.originCity}
                 />
               </div>
               <div style={{
@@ -440,6 +443,7 @@ function RouteScreenDesktop({
                   onChange={handleDest}
                   maxLength={5}
                   error={destErr}
+                  isValid={answers.destinationZip.length === 5 && !!answers.destinationCity && !sameZip}
                 />
               </div>
             </div>

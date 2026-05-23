@@ -5,9 +5,14 @@ export default function PrimaryButton({ children, onClick, disabled, full = true
   const h = size === 'lg' ? 54 : 46;
   const baseGradient = 'linear-gradient(180deg, #fb923c 0%, #f97316 50%, #ea6c0a 100%)';
   const hoverGradient = 'linear-gradient(180deg, #fca15a 0%, #fb8c2a 50%, #d65d05 100%)';
+  const inert = !!(disabled || loading);
   return (
     <button
-      onClick={disabled || loading ? undefined : onClick}
+      type="button"
+      onClick={inert ? undefined : onClick}
+      disabled={inert}
+      aria-disabled={inert || undefined}
+      aria-busy={loading || undefined}
       className="nostroke ml-cta"
       style={{
         width: full ? '100%' : 'auto',

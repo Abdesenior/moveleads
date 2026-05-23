@@ -2,9 +2,13 @@ import { forwardRef } from 'react';
 import Icon from './Icon';
 
 const FieldInput = forwardRef(function FieldInput(
-  { icon, label, value, onChange, placeholder, type = 'text', uppercase = false, maxLength, suffix, autoFocus, inputMode, autoComplete, ariaInvalid },
+  { icon, label, value, onChange, placeholder, type = 'text', uppercase = false, maxLength, suffix, autoFocus, inputMode, autoComplete, ariaInvalid, isValid },
   ref
 ) {
+  // Check renders only when the field is actually validated. If isValid is
+  // not provided by the caller, fall back to the legacy "has any value"
+  // heuristic so existing contact-screen call-sites remain unchanged.
+  const showCheck = isValid !== undefined ? !!isValid : !!(value && value.length > 0);
   return (
     <label style={{ display: 'block', width: '100%' }}>
       {label && (
@@ -46,7 +50,7 @@ const FieldInput = forwardRef(function FieldInput(
           }}
         />
         {suffix && <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{suffix}</span>}
-        {value && value.length > 0 && !suffix && (
+        {showCheck && !suffix && (
           <div style={{
             width: 22, height: 22, borderRadius: '50%',
             background: 'var(--good-soft)', color: 'var(--good)',

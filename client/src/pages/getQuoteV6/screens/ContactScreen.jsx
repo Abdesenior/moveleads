@@ -78,7 +78,7 @@ export default function ContactScreen({ answers, patch, submit, submitting, subm
           </div>
         )}
 
-        <PrimaryButton onClick={onPrimary} disabled={submitting} loading={submitting}>
+        <PrimaryButton onClick={onPrimary} disabled={!canSubmit} loading={submitting}>
           {submitting ? 'Sending…' : 'See my movers'}
         </PrimaryButton>
         <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textAlign: 'center', lineHeight: 1.5, padding: '0 8px' }}>
