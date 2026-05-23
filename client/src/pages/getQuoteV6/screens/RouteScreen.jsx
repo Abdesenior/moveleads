@@ -1,5 +1,5 @@
 // client/src/pages/getQuoteV6/screens/RouteScreen.jsx
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Logo, { LogoMark } from '../components/Logo';
 import Icon from '../components/Icon';
 import FieldInput from '../components/FieldInput';
@@ -635,18 +635,55 @@ export default function RouteScreen({ answers, patch, onContinue }) {
     }
   }, [patch]);
 
+  // Track which exact ZIP values we've already dispatched an enrichment
+  // for, on each side. Prevents duplicate fetches when a ZIP arrives via
+  // both a user keystroke AND the auto-enrich effect (URL prefill,
+  // localStorage resume into ROUTE), and stops the auto-enrich effect
+  // from looping on a ZIP that zippopotam can't resolve.
+  const attemptedRef = useRef({ pickup: '', dest: '' });
+
   const handlePickup = (v) => {
     const cleaned = v.replace(/\D/g, '').slice(0, 5);
     patch({ pickupZip: cleaned });
     setPickupErr('');
-    if (cleaned.length === 5) enrich(cleaned, 'pickup');
+    if (cleaned.length === 5) {
+      attemptedRef.current.pickup = cleaned;
+      enrich(cleaned, 'pickup');
+    }
   };
   const handleDest = (v) => {
     const cleaned = v.replace(/\D/g, '').slice(0, 5);
     patch({ destinationZip: cleaned });
     setDestErr('');
-    if (cleaned.length === 5) enrich(cleaned, 'dest');
+    if (cleaned.length === 5) {
+      attemptedRef.current.dest = cleaned;
+      enrich(cleaned, 'dest');
+    }
   };
+
+  // Auto-enrich any ZIP that arrives without a matching city — covers
+  // ?from= / ?to= URL prefill and the localStorage-resume-into-ROUTE
+  // case. attemptedRef gates retries so a ZIP zippopotam can't resolve
+  // is tried exactly once.
+  useEffect(() => {
+    if (enriching) return;
+    if (
+      answers.pickupZip.length === 5
+      && !answers.originCity
+      && attemptedRef.current.pickup !== answers.pickupZip
+    ) {
+      attemptedRef.current.pickup = answers.pickupZip;
+      enrich(answers.pickupZip, 'pickup');
+    }
+    if (
+      answers.destinationZip.length === 5
+      && !answers.destinationCity
+      && attemptedRef.current.dest !== answers.destinationZip
+    ) {
+      attemptedRef.current.dest = answers.destinationZip;
+      enrich(answers.destinationZip, 'dest');
+    }
+  }, [answers.pickupZip, answers.destinationZip, answers.originCity, answers.destinationCity, enriching, enrich]);
 
   const sameZip = answers.pickupZip.length === 5
     && answers.destinationZip.length === 5

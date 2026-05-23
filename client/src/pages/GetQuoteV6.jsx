@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import './getQuoteV6/styles.css';
+import useCanonical from '../utils/useCanonical';
 import useMedia from './getQuoteV6/useMedia';
 import RouteScreen from './getQuoteV6/screens/RouteScreen';
 import TimingPivotScreen from './getQuoteV6/screens/TimingPivotScreen';
@@ -162,26 +163,49 @@ export default function GetQuoteV6() {
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState('');
 
+  // SEO canonical for the route this funnel is mounted at. Both /get-quote
+  // and /get-quote-v6 render this component; /get-quote is canonical.
+  useCanonical('/get-quote');
+
   // Computed once and threaded down so every screen and the desktop shell
   // agree on the viewport class (avoids each screen re-reading the media
   // query — single source of truth).
   const desktop = useMedia('(min-width: 1100px)');
 
-  // Resume from localStorage on mount.
+  // Resume from localStorage on mount. If no saved session exists, apply
+  // V1-compatibility ZIP prefill from ?from= / ?to= query params. Saved
+  // session always wins over URL prefill — a user mid-funnel shouldn't
+  // have their progress wiped by a stale campaign link.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (saved && saved.funnelVersion === 'v6' && saved.node && saved.answers) {
-        // Don't resume into the success node — that would skip the actual submit.
-        if (saved.node !== NODE.SUCCESS) {
-          setNode(saved.node);
-          setAnswers({ ...EMPTY_ANSWERS, ...saved.answers });
-          setHistory(Array.isArray(saved.history) ? saved.history : []);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && saved.funnelVersion === 'v6' && saved.node && saved.answers) {
+          // Don't resume into the success node — that would skip the actual submit.
+          if (saved.node !== NODE.SUCCESS) {
+            setNode(saved.node);
+            setAnswers({ ...EMPTY_ANSWERS, ...saved.answers });
+            setHistory(Array.isArray(saved.history) ? saved.history : []);
+            return;
+          }
         }
       }
-    } catch (_e) { /* corrupt storage — start fresh */ }
+    } catch (_e) { /* corrupt storage — fall through to URL prefill */ }
+
+    // No usable saved state — check for V1-style ?from= / ?to= ZIP prefill.
+    try {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const from = (params.get('from') || '').replace(/\D/g, '').slice(0, 5);
+      const to = (params.get('to') || '').replace(/\D/g, '').slice(0, 5);
+      const prefill = {};
+      if (from.length === 5) prefill.pickupZip = from;
+      if (to.length === 5) prefill.destinationZip = to;
+      if (Object.keys(prefill).length > 0) {
+        setAnswers(a => ({ ...a, ...prefill }));
+      }
+    } catch { /* malformed URL — ignore */ }
   }, []);
 
   // Persist on every state change.

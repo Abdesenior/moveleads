@@ -86,7 +86,11 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
-              <Route path="/get-quote" element={<GetQuote />} />
+              {/* /get-quote renders the v6 design (canonical). /get-quote-v6
+                  stays aliased for QA / direct-link testing. V1-V5 remain
+                  dormant for rollback / referral safety. /move/:from/:to
+                  intentionally still reuses V1 (see MoveRoute import). */}
+              <Route path="/get-quote" element={<GetQuoteV6 />} />
               <Route path="/get-quote-v2" element={<GetQuoteV2 />} />
               <Route path="/get-quote-v3" element={<GetQuoteV3 />} />
               <Route path="/get-quote-v4" element={<GetQuoteV4 />} />
