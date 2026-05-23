@@ -417,10 +417,10 @@ function RouteScreenDesktop({
               gap: 18,
             }}>
               {[
-                { icon: 'receipt', title: 'Free estimate',   sub: "It's 100% free" },
-                { icon: 'heart',   title: 'No obligation',   sub: 'You decide' },
-                { icon: 'lock',    title: 'Licensed movers', sub: 'Vetted & insured' },
-                { icon: 'tag',     title: 'Compare quotes',  sub: 'Save time & money' },
+                { icon: 'receipt', title: 'Free estimate',         sub: "It's 100% free" },
+                { icon: 'heart',   title: 'No pressure',            sub: "Decide when you're ready" },
+                { icon: 'lock',    title: 'Licensed movers',        sub: 'Vetted & insured' },
+                { icon: 'tag',     title: 'Compare before booking', sub: 'At your own pace' },
               ].map(f => (
                 <div key={f.title} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                   <div style={{
