@@ -161,6 +161,7 @@ function RouteScreenDesktop({
   answers, handlePickup, handleDest, canSubmit, onContinue,
   pickupErr, destErr, sameZip, enrichmentFailed,
 }) {
+  const isWideDesktop = useMedia('(min-width: 1240px)');
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
       {/* Two columns */}
@@ -465,9 +466,11 @@ function RouteScreenDesktop({
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--primary)', letterSpacing: '-0.005em', lineHeight: 1.2 }}>
                       {f.title}
                     </div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.3, marginTop: 1 }}>
-                      {f.sub}
-                    </div>
+                    {isWideDesktop && (
+                      <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.3, marginTop: 1 }}>
+                        {f.sub}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
