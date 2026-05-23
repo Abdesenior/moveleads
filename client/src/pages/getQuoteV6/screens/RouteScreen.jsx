@@ -306,10 +306,10 @@ function RouteScreenDesktop({
             position: 'relative',
             width: '100%',
             maxWidth: 760,
-            background: '#ffffff',
-            border: '1px solid rgba(15,23,42,0.06)',
+            background: 'linear-gradient(180deg, #ffffff 0%, #fffdf9 100%)',
+            border: '1px solid rgba(15,23,42,0.05)',
             borderRadius: 20,
-            boxShadow: '0 18px 48px -12px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,255,255,0.6) inset',
+            boxShadow: '0 30px 80px rgba(15,23,42,0.08), 0 10px 30px rgba(15,23,42,0.04), 0 0 0 1px rgba(255,255,255,0.6) inset',
             padding: '44px 48px 40px',
           }}>
             {/* Eyebrow — sans, operational kicker */}
@@ -330,7 +330,7 @@ function RouteScreenDesktop({
               Where are you moving?
             </h1>
             <p style={{
-              margin: '12px 0 0', fontSize: 15.5, lineHeight: 1.55,
+              margin: '14px 0 0', fontSize: 15.5, lineHeight: 1.55,
               color: 'var(--text-secondary)', maxWidth: 520,
             }}>
               Two ZIPs to start — matched movers reach out with quotes.
@@ -342,7 +342,7 @@ function RouteScreenDesktop({
 
             {/* ZIP row with 44px circular route connector */}
             <div style={{
-              marginTop: 28,
+              marginTop: 30,
               display: 'grid',
               gridTemplateColumns: '1fr auto 1fr',
               gap: 16,
@@ -359,15 +359,16 @@ function RouteScreenDesktop({
                 />
               </div>
               <div style={{
-                width: 44, height: 44, borderRadius: '50%',
+                width: 40, height: 40, borderRadius: '50%',
                 background: 'var(--accent-soft-bg)',
                 color: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: '1px solid rgba(249,115,22,0.15)',
-                marginBottom: 8,
+                boxShadow: '0 4px 12px -4px rgba(249,115,22,0.25), 0 1px 2px rgba(15,23,42,0.04)',
+                marginBottom: 10,
                 flexShrink: 0,
               }}>
-                <Icon name="arrow" size={18} stroke={2.4} />
+                <Icon name="arrow" size={16} stroke={2.4} />
               </div>
               <div style={{ minWidth: 0 }}>
                 <FieldInput
@@ -394,7 +395,7 @@ function RouteScreenDesktop({
 
             {/* Feature pills strip — 4 items inside a single bordered container */}
             <div style={{
-              marginTop: 18,
+              marginTop: 20,
               padding: '14px 16px',
               background: 'var(--bg-white)',
               border: '1px solid var(--line)',
@@ -433,7 +434,7 @@ function RouteScreenDesktop({
             </div>
 
             {/* CTA — soft orange glow underneath for dominance */}
-            <div style={{ marginTop: 24, position: 'relative' }}>
+            <div style={{ marginTop: 22, position: 'relative' }}>
               <div style={{
                 position: 'absolute',
                 top: '20%', left: '10%', right: '10%', bottom: 0,
@@ -448,7 +449,7 @@ function RouteScreenDesktop({
 
             {/* Reassurance line with lock icon */}
             <div style={{
-              marginTop: 12, textAlign: 'center',
+              marginTop: 10, textAlign: 'center',
               fontSize: 13,
               color: 'var(--text-secondary)',
               letterSpacing: '0',
@@ -460,7 +461,7 @@ function RouteScreenDesktop({
 
             {/* Section header — small caps flanked by thin rules */}
             <div style={{
-              marginTop: 36,
+              marginTop: 32,
               display: 'flex', alignItems: 'center', gap: 14,
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
@@ -514,8 +515,8 @@ function RouteScreenDesktop({
                       letterSpacing: '-0.005em', lineHeight: 1.3,
                     }}>{h.t}</div>
                     <div style={{
-                      fontSize: 11.5, color: 'var(--text-secondary)',
-                      marginTop: 3, lineHeight: 1.4,
+                      fontSize: 12, color: 'var(--text-secondary)',
+                      marginTop: 3, lineHeight: 1.45,
                     }}>{h.s}</div>
                   </div>
                 </div>
