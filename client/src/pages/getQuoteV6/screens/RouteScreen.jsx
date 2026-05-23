@@ -39,10 +39,10 @@ function RouteScreenMobile({
           borderRadius: 16, overflow: 'hidden',
           backgroundImage: `url(${HERO_IMAGE})`,
           backgroundSize: 'cover',
-          backgroundPosition: '55% 32%',
+          backgroundPosition: '68% 32%',
           boxShadow: 'var(--shadow-sm)',
         }}>
-          {/* Overlay — kept at current depth (user direction: don't darken more) */}
+          {/* Global overlay — kept at current depth (user direction: don't darken more) */}
           <div style={{
             position: 'absolute', inset: 0,
             background: [
@@ -51,25 +51,32 @@ function RouteScreenMobile({
             ].join(', '),
           }} />
 
+          {/* Localized text-area readability gradient — only behind logo+headline, soft */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, width: '72%', height: '88%',
+            pointerEvents: 'none',
+            background: 'radial-gradient(ellipse 80% 95% at 0% 35%, rgba(2,8,20,0.22) 0%, rgba(2,8,20,0) 72%)',
+          }} />
+
           {/* Single editorial block — logo + headline tight against one left axis (24px) */}
           <div style={{
-            position: 'absolute', top: 20, left: 24, right: 24, zIndex: 2,
+            position: 'absolute', top: 28, left: 24, right: 24, zIndex: 2,
             display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start',
           }}>
-            <LogoMark size={50} />
+            <LogoMark size={46} />
             <h2 style={{
               margin: 0,
               fontFamily: 'var(--font-heading)',
               fontSize: 26, fontWeight: 800,
-              letterSpacing: '-0.028em', lineHeight: 1.1,
+              letterSpacing: '-0.028em', lineHeight: 1.18,
               color: 'white',
               textShadow: '0 2px 14px rgba(2,8,20,0.6)',
             }}>
               Find trusted<br />
               movers without<br />
               <span style={{
-                color: 'var(--accent)',
-                textShadow: '0 2px 12px rgba(249,115,22,0.45)',
+                color: '#E16D17',
+                textShadow: '0 2px 12px rgba(225,109,23,0.42)',
               }}>overpaying.</span>
             </h2>
           </div>
