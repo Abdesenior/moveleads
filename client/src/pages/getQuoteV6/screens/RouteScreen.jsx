@@ -226,16 +226,16 @@ function RouteScreenDesktop({
                 color: 'rgba(255,255,255,0.78)', maxWidth: 300, textWrap: 'pretty',
                 textShadow: '0 1px 10px rgba(2,8,20,0.4)',
               }}>
-                Tell us about your move once — matched movers reach out with quotes. No spam. No pressure.
+                Skip the endless calls. We'll help you plan your move and compare trusted movers — at your own pace.
               </p>
             </div>
 
             {/* Trust cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 320 }}>
               {[
-                { icon: 'shield', title: 'Vetted & licensed movers', sub: 'We work only with trusted pros.' },
-                { icon: 'lock', title: 'Your info is never sold', sub: 'No spam or endless calls.' },
-                { icon: 'phone', title: 'Movers matched to your route', sub: 'Real local crews, real quotes.' },
+                { icon: 'shield', title: 'Trusted movers near your route', sub: 'Vetted, licensed, and local.' },
+                { icon: 'lock', title: 'Less calling, less stress', sub: 'We help narrow the search.' },
+                { icon: 'phone', title: 'Compare before you book', sub: 'At your own pace, no pressure.' },
               ].map((t) => (
                 <div key={t.title} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
