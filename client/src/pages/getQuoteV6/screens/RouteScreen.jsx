@@ -1,6 +1,6 @@
 // client/src/pages/getQuoteV6/screens/RouteScreen.jsx
 import { useCallback, useState } from 'react';
-import Logo from '../components/Logo';
+import Logo, { LogoMark } from '../components/Logo';
 import Icon from '../components/Icon';
 import FieldInput from '../components/FieldInput';
 import PrimaryButton from '../components/PrimaryButton';
@@ -31,18 +31,18 @@ function RouteScreenMobile({
       backgroundRepeat: 'no-repeat',
       minHeight: '100%',
     }}>
-      {/* Hero photo — logo top-left + large left-aligned headline below */}
+      {/* Hero photo — single left-axis editorial block (logo + 3-line headline) */}
       <div style={{ padding: '52px 16px 0' }}>
         <div style={{
           position: 'relative',
-          height: 260,
+          height: 240,
           borderRadius: 16, overflow: 'hidden',
           backgroundImage: `url(${HERO_IMAGE})`,
           backgroundSize: 'cover',
           backgroundPosition: '55% 32%',
           boxShadow: 'var(--shadow-sm)',
         }}>
-          {/* Overlay — darker left side so the large headline reads cleanly */}
+          {/* Overlay — kept at current depth (user direction: don't darken more) */}
           <div style={{
             position: 'absolute', inset: 0,
             background: [
@@ -50,23 +50,24 @@ function RouteScreenMobile({
               'linear-gradient(180deg, rgba(2,8,20,0) 40%, rgba(2,8,20,0.45) 80%, rgba(2,8,20,0.72) 100%)',
             ].join(', '),
           }} />
+
+          {/* Single editorial block — logo + headline tight against one left axis (24px) */}
           <div style={{
-            position: 'absolute', top: 18, left: 20, zIndex: 2,
+            position: 'absolute', top: 20, left: 24, right: 24, zIndex: 2,
+            display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start',
           }}>
-            <Logo size={22} />
-          </div>
-          <div style={{
-            position: 'absolute', bottom: 22, left: 20, right: 24, zIndex: 2,
-          }}>
+            <LogoMark size={50} />
             <h2 style={{
               margin: 0,
               fontFamily: 'var(--font-heading)',
-              fontSize: 28, fontWeight: 800,
-              letterSpacing: '-0.028em', lineHeight: 1.08,
+              fontSize: 26, fontWeight: 800,
+              letterSpacing: '-0.028em', lineHeight: 1.1,
               color: 'white',
               textShadow: '0 2px 14px rgba(2,8,20,0.6)',
             }}>
-              Find trusted movers without <span style={{
+              Find trusted<br />
+              movers without<br />
+              <span style={{
                 color: 'var(--accent)',
                 textShadow: '0 2px 12px rgba(249,115,22,0.45)',
               }}>overpaying.</span>
