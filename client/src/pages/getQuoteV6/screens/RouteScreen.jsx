@@ -206,8 +206,8 @@ function RouteScreenDesktop({
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: [
-              'linear-gradient(96deg, rgba(2,8,20,0.62) 0%, rgba(2,8,20,0.42) 32%, rgba(2,8,20,0.20) 62%, rgba(2,8,20,0.08) 100%)',
-              'linear-gradient(180deg, rgba(2,8,20,0.06) 0%, rgba(2,8,20,0.16) 30%, rgba(2,8,20,0.18) 70%, rgba(2,8,20,0.55) 100%)',
+              'linear-gradient(96deg, rgba(2,8,20,0.78) 0%, rgba(2,8,20,0.55) 32%, rgba(2,8,20,0.30) 62%, rgba(2,8,20,0.15) 100%)',
+              'linear-gradient(180deg, rgba(2,8,20,0.10) 0%, rgba(2,8,20,0.22) 30%, rgba(2,8,20,0.22) 70%, rgba(2,8,20,0.65) 100%)',
             ].join(', '),
           }} />
 
@@ -315,19 +315,15 @@ function RouteScreenDesktop({
         <div style={{
           position: 'relative',
           padding: '64px 40px 72px',
-          background: 'linear-gradient(180deg, #fcfaf8 0%, #f7f9fc 100%)',
+          background: 'var(--canvas)',
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
           overflow: 'hidden',
           minHeight: 760,
         }}>
-          {/* Background depth — multi-radial */}
+          {/* Background depth — single warm radial top-right */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: [
-              'radial-gradient(55% 40% at 88% 12%, rgba(249,115,22,0.06) 0%, rgba(249,115,22,0) 60%)',
-              'radial-gradient(50% 35% at 8% 92%, rgba(186,202,255,0.08) 0%, rgba(186,202,255,0) 60%)',
-              'radial-gradient(80% 60% at 50% 100%, rgba(15,23,42,0.02) 0%, rgba(15,23,42,0) 70%)',
-            ].join(', '),
+            background: 'radial-gradient(50% 35% at 92% 8%, rgba(249,115,22,0.10) 0%, rgba(249,115,22,0) 60%)',
           }} />
 
           {/* Premium card */}
@@ -339,46 +335,42 @@ function RouteScreenDesktop({
             border: '1px solid rgba(15,23,42,0.06)',
             borderRadius: 20,
             boxShadow: '0 18px 48px -12px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,255,255,0.6) inset',
-            padding: '52px 60px 44px',
+            padding: '44px 48px 40px',
           }}>
             {/* Eyebrow — sans, operational kicker */}
             <div style={{
-              fontSize: 11, fontWeight: 700,
+              fontSize: 13, fontWeight: 700,
               color: 'var(--accent)',
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              marginBottom: 16,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              marginBottom: 18,
             }}>Free quote · 60 seconds</div>
-            {/* Hero headline — sans bold operational, with ONE serif italic
-                accent word ("moving") for character without going editorial. */}
+            {/* Hero headline — pure sans bold, no serif accent */}
             <h1 style={{
               margin: 0,
-              fontSize: 40,
-              fontWeight: 700,
-              letterSpacing: '-0.025em', lineHeight: 1.1,
+              fontSize: 42,
+              fontWeight: 800,
+              letterSpacing: '-0.025em', lineHeight: 1.08,
               color: 'var(--primary)',
             }}>
-              Where are you <span style={{
-                fontFamily: 'var(--font-display)',
-                fontStyle: 'italic',
-                fontWeight: 500,
-                fontVariationSettings: '"opsz" 144, "ital" 1',
-                color: 'var(--accent)',
-              }}>moving</span>?
+              Where are you moving?
             </h1>
             <p style={{
-              margin: '10px 0 0', fontSize: 15.5, lineHeight: 1.55,
-              color: 'var(--text-secondary)', maxWidth: 520, textWrap: 'pretty',
+              margin: '12px 0 0', fontSize: 15.5, lineHeight: 1.55,
+              color: 'var(--text-secondary)', maxWidth: 520,
             }}>
-              Two ZIPs to start — matched movers reach out with quotes.{' '}
-              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Compare before booking, no obligation.</span>
+              Two ZIPs to start — matched movers reach out with quotes.
+              <br />
+              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>
+                Compare before booking, no obligation.
+              </span>
             </p>
 
-            {/* ZIP row with circular route connector */}
+            {/* ZIP row with 44px circular route connector */}
             <div style={{
-              marginTop: 24,
+              marginTop: 28,
               display: 'grid',
               gridTemplateColumns: '1fr auto 1fr',
-              gap: 12,
+              gap: 16,
               alignItems: 'end',
             }}>
               <div style={{ minWidth: 0 }}>
@@ -392,15 +384,15 @@ function RouteScreenDesktop({
                 />
               </div>
               <div style={{
-                width: 32, height: 32, borderRadius: '50%',
-                background: 'var(--accent-soft)',
+                width: 44, height: 44, borderRadius: '50%',
+                background: 'var(--accent-soft-bg)',
                 color: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1px solid rgba(249,115,22,0.18)',
-                marginBottom: 10,
+                border: '1px solid rgba(249,115,22,0.15)',
+                marginBottom: 8,
                 flexShrink: 0,
               }}>
-                <Icon name="arrow" size={14} stroke={2.4} />
+                <Icon name="arrow" size={18} stroke={2.4} />
               </div>
               <div style={{ minWidth: 0 }}>
                 <FieldInput
@@ -425,96 +417,121 @@ function RouteScreenDesktop({
               </div>
             )}
 
-            {/* Inline route preview — operational composition.
-                Glassy mileage pill ("X miles" with truck icon) and clean
-                FROM/TO data labels float over the basemap. */}
+            {/* Feature pills strip — 4 items inside a single bordered container */}
+            <div style={{
+              marginTop: 18,
+              padding: '14px 16px',
+              background: 'var(--bg-white)',
+              border: '1px solid var(--line)',
+              borderRadius: 14,
+              boxShadow: 'var(--shadow-sm)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 14,
+            }}>
+              {[
+                { icon: 'receipt', title: 'Free estimate',   sub: "It's 100% free" },
+                { icon: 'heart',   title: 'No obligation',   sub: 'You decide' },
+                { icon: 'lock',    title: 'Licensed movers', sub: 'Vetted & insured' },
+                { icon: 'tag',     title: 'Compare quotes',  sub: 'Save time & money' },
+              ].map(f => (
+                <div key={f.title} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    background: 'var(--accent-soft-bg)',
+                    color: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <Icon name={f.icon} size={15} stroke={2} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--primary)', letterSpacing: '-0.005em', lineHeight: 1.2 }}>
+                      {f.title}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.3, marginTop: 1 }}>
+                      {f.sub}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Compact 170px route preview — white mileage pill, side-anchored labels with dot markers */}
             {routeHasCoords && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{
+                marginTop: 18,
+                position: 'relative',
+                borderRadius: 16,
+                overflow: 'hidden',
+                border: '1px solid var(--line)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 8px 24px -10px rgba(15,23,42,0.08)',
+                background: 'var(--bg-light)',
+              }}>
+                <RouteMap route={route} desktop={true} height={170} />
+
+                {/* Mileage pill — WHITE with orange border, top-center */}
                 <div style={{
-                  position: 'relative',
-                  borderRadius: 18,
-                  overflow: 'hidden',
-                  border: '1px solid var(--line)',
-                  boxShadow: '0 12px 36px -10px rgba(26,22,20,0.12), 0 1px 2px rgba(26,22,20,0.04)',
+                  position: 'absolute',
+                  top: 14, left: '50%', transform: 'translateX(-50%)',
+                  zIndex: 2,
                 }}>
-                  {/* Map fills the wrapper */}
-                  <RouteMap route={route} desktop={true} height={320} />
-
-                  {/* Mileage pill — clean operational */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 14, left: '50%', transform: 'translateX(-50%)',
-                    zIndex: 2,
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '6px 14px',
+                    background: '#FFFFFF',
+                    color: 'var(--accent)',
+                    border: '1px solid rgba(249,115,22,0.25)',
+                    borderRadius: 999,
+                    fontSize: 12.5, fontWeight: 700, letterSpacing: '-0.005em',
+                    boxShadow: '0 4px 12px -4px rgba(15,23,42,0.08)',
                   }}>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '7px 14px',
-                      background: 'rgba(26,22,20,0.92)',
-                      backdropFilter: 'blur(16px)',
-                      WebkitBackdropFilter: 'blur(16px)',
-                      color: '#fefdfb',
-                      borderRadius: 999,
-                      fontSize: 12, fontWeight: 700, letterSpacing: '0.01em',
-                      boxShadow: '0 6px 18px -4px rgba(26,22,20,0.45)',
-                    }}>
-                      <Icon name="truck" size={12} stroke={2.4} color="var(--accent)" />
-                      {route.miles.toLocaleString()} miles
-                    </span>
-                  </div>
+                    ~{route.miles.toLocaleString()} miles
+                  </span>
+                </div>
 
-                  {/* Origin label — bottom-left */}
+                {/* Origin label — left side, vertically centered, with orange dot */}
+                <div style={{
+                  position: 'absolute',
+                  left: 18,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 2,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
                   <div style={{
-                    position: 'absolute',
-                    bottom: 14, left: 14,
-                    zIndex: 2,
-                    padding: '8px 12px',
-                    background: 'rgba(254,253,251,0.95)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    borderRadius: 8,
-                    border: '1px solid rgba(26,22,20,0.06)',
-                    boxShadow: '0 4px 12px -4px rgba(26,22,20,0.15)',
+                    fontSize: 13, fontWeight: 700,
+                    color: 'var(--primary)', letterSpacing: '-0.005em',
+                    whiteSpace: 'nowrap',
                   }}>
-                    <div style={{
-                      fontSize: 9.5, fontWeight: 700, color: 'var(--ink-3)',
-                      letterSpacing: '0.10em', textTransform: 'uppercase',
-                    }}>From</div>
-                    <div style={{
-                      fontSize: 13.5, fontWeight: 700,
-                      color: 'var(--ink)', letterSpacing: '-0.005em', marginTop: 2,
-                    }}>{route.from.city}, {route.from.st}</div>
+                    {route.from.city}, {route.from.st}
                   </div>
+                </div>
 
-                  {/* Destination label — bottom-right, accent ink treatment */}
+                {/* Destination label — right side, vertically centered, with orange dot */}
+                <div style={{
+                  position: 'absolute',
+                  right: 18,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 2,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
                   <div style={{
-                    position: 'absolute',
-                    bottom: 14, right: 14,
-                    zIndex: 2,
-                    padding: '8px 12px',
-                    background: 'rgba(26,22,20,0.94)',
-                    color: '#fefdfb',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    borderRadius: 8,
-                    boxShadow: '0 4px 12px -4px rgba(26,22,20,0.35)',
-                    textAlign: 'right',
+                    fontSize: 13, fontWeight: 700,
+                    color: 'var(--primary)', letterSpacing: '-0.005em',
+                    whiteSpace: 'nowrap',
                   }}>
-                    <div style={{
-                      fontSize: 9.5, fontWeight: 700,
-                      color: 'rgba(254,253,251,0.55)',
-                      letterSpacing: '0.10em', textTransform: 'uppercase',
-                    }}>To</div>
-                    <div style={{
-                      fontSize: 13.5, fontWeight: 700,
-                      letterSpacing: '-0.005em', marginTop: 2,
-                    }}>{route.to.city}, {route.to.st}</div>
+                    {route.to.city}, {route.to.st}
                   </div>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
                 </div>
               </div>
             )}
 
-            {/* CTA — wrapped with a soft orange glow zone underneath for dominance */}
-            <div style={{ marginTop: 28, marginBottom: 4, position: 'relative' }}>
+            {/* CTA — soft orange glow underneath for dominance */}
+            <div style={{ marginTop: 24, position: 'relative' }}>
               <div style={{
                 position: 'absolute',
                 top: '20%', left: '10%', right: '10%', bottom: 0,
@@ -523,66 +540,82 @@ function RouteScreenDesktop({
                 filter: 'blur(8px)',
               }} />
               <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
-                Continue — tell us about the move
+                Continue — see your move details
               </PrimaryButton>
             </div>
 
-            {/* Reassurance line — sans regular, clean */}
+            {/* Reassurance line with lock icon */}
             <div style={{
               marginTop: 12, textAlign: 'center',
-              fontSize: 12, fontWeight: 500,
-              color: 'var(--ink-3)',
+              fontSize: 13,
+              color: 'var(--text-secondary)',
               letterSpacing: '0',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
+              <Icon name="lock" size={12} color="var(--text-secondary)" stroke={2} />
               Secure &amp; private · Takes less than 60 seconds
             </div>
 
-            {/* Editorial section header — small caps flanked by thin rules.
-                Replaces the previous gradient divider + uppercase eyebrow. */}
+            {/* Section header — small caps flanked by thin rules */}
             <div style={{
               marginTop: 36,
               display: 'flex', alignItems: 'center', gap: 14,
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
               <div style={{
-                fontSize: 10.5, fontWeight: 700,
-                color: 'var(--ink-3)',
-                letterSpacing: '0.18em', textTransform: 'uppercase',
+                fontSize: 11.5, fontWeight: 700,
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.14em', textTransform: 'uppercase',
               }}>How it works</div>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
             </div>
 
-            {/* 3-step layout — confident operational typography,
-                no card chrome, no timeline connector. Big sans bold
-                numerals (01 / 02 / 03) anchor each step. */}
+            {/* 3 steps with icon chips + number badges */}
             <div style={{
-              marginTop: 28,
+              marginTop: 24,
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 32,
+              gap: 20,
             }}>
               {HOW_IT_WORKS.map((h) => (
                 <div key={h.n} style={{
-                  display: 'flex', flexDirection: 'column', gap: 10,
+                  display: 'flex', alignItems: 'flex-start', gap: 12,
+                  padding: 0,
                 }}>
-                  <div style={{
-                    fontSize: 30, fontWeight: 700,
-                    color: 'var(--accent)',
-                    letterSpacing: '-0.02em',
-                    lineHeight: 1,
-                  }}>0{h.n}</div>
-                  <div style={{
-                    fontSize: 13.5, fontWeight: 600,
-                    color: 'var(--ink)',
-                    letterSpacing: '-0.005em',
-                    lineHeight: 1.35,
-                  }}>{h.t}</div>
-                  <div style={{
-                    fontSize: 12, fontWeight: 400,
-                    color: 'var(--ink-3)',
-                    lineHeight: 1.5,
-                    letterSpacing: '-0.002em',
-                  }}>{h.s}</div>
+                  {/* Icon chip with number badge */}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 10,
+                      background: h.emphasis ? 'var(--accent-soft-bg)' : 'var(--bg-soft)',
+                      color: h.emphasis ? 'var(--accent)' : 'var(--text-secondary)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Icon name={h.icon} size={18} stroke={1.8} />
+                    </div>
+                    <div style={{
+                      position: 'absolute',
+                      top: -4, right: -4,
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: h.emphasis ? 'var(--accent)' : 'var(--text-secondary)',
+                      color: 'white',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 800,
+                      border: '2px solid var(--bg-white)',
+                    }}>{h.n}</div>
+                  </div>
+
+                  {/* Text */}
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
+                    <div style={{
+                      fontSize: 13.5, fontWeight: 700,
+                      color: 'var(--primary)',
+                      letterSpacing: '-0.005em', lineHeight: 1.3,
+                    }}>{h.t}</div>
+                    <div style={{
+                      fontSize: 11.5, color: 'var(--text-secondary)',
+                      marginTop: 3, lineHeight: 1.4,
+                    }}>{h.s}</div>
+                  </div>
                 </div>
               ))}
             </div>
