@@ -285,49 +285,14 @@ function RouteScreenDesktop({
           position: 'relative',
           padding: '64px 40px 72px',
           background: 'var(--canvas)',
+          backgroundImage: "url('/quote-bg-route-soft.webp')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
           overflow: 'hidden',
           minHeight: 760,
         }}>
-          {/* Subtle warm radial glow */}
-          <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: [
-              'radial-gradient(55% 35% at 88% 12%, rgba(249,115,22,0.13) 0%, rgba(249,115,22,0) 55%)',
-              'radial-gradient(45% 30% at 12% 92%, rgba(15,23,42,0.04) 0%, rgba(15,23,42,0) 60%)',
-            ].join(', '),
-          }} />
-
-          {/* Dotted pattern — top-right corner, very subtle */}
-          <svg width="280" height="280" viewBox="0 0 280 280" style={{
-            position: 'absolute', top: 0, right: 0, pointerEvents: 'none', opacity: 0.5,
-          }}>
-            <defs>
-              <pattern id="glq-dots" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-                <circle cx="2" cy="2" r="1.2" fill="rgba(249,115,22,0.25)" />
-              </pattern>
-              <radialGradient id="glq-dots-fade" cx="100%" cy="0%" r="100%">
-                <stop offset="0%" stopColor="white" stopOpacity="1" />
-                <stop offset="60%" stopColor="white" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="white" stopOpacity="0" />
-              </radialGradient>
-              <mask id="glq-dots-mask">
-                <rect width="280" height="280" fill="url(#glq-dots-fade)" />
-              </mask>
-            </defs>
-            <rect width="280" height="280" fill="url(#glq-dots)" mask="url(#glq-dots-mask)" />
-          </svg>
-
-          {/* Decorative dotted route — far right edge, very faint */}
-          <svg width="120" height="600" viewBox="0 0 120 600" style={{
-            position: 'absolute', top: '20%', right: -40, pointerEvents: 'none', opacity: 0.4,
-          }}>
-            <path d="M 100 0 Q 30 200, 90 400 T 60 600"
-              stroke="rgba(249,115,22,0.35)"
-              strokeWidth="1.5"
-              strokeDasharray="3 6"
-              fill="none" />
-          </svg>
 
           {/* Premium card */}
           <div style={{
