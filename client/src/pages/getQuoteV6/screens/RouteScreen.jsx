@@ -51,25 +51,6 @@ function RouteScreenMobile({
           }}>
             <Logo size={19} light />
           </div>
-          <div style={{
-            position: 'absolute', left: 14, bottom: 12,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '4px 9px 4px 6px',
-            background: 'rgba(255,255,255,0.16)',
-            backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255,255,255,0.18)',
-            borderRadius: 999,
-            fontSize: 10.5, fontWeight: 600, color: 'white', letterSpacing: '0.02em',
-          }}>
-            <span style={{
-              width: 14, height: 14, borderRadius: '50%',
-              background: 'var(--accent)', color: 'white',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon name="shield" size={8} stroke={2.6} />
-            </span>
-            Licensed movers only
-          </div>
         </div>
       </div>
 
