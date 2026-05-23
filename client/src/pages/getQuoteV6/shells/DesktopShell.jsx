@@ -231,7 +231,7 @@ export function DesktopShellLayout({ leftContent, children }) {
 
         <Logo size={26} light />
 
-        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24 }}>
           {leftContent}
         </div>
       </div>
