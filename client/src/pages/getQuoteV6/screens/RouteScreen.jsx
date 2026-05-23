@@ -5,7 +5,6 @@ import Icon from '../components/Icon';
 import FieldInput from '../components/FieldInput';
 import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
-import Footer from '../components/Footer';
 import useMedia from '../useMedia';
 import RoutePreviewMoment from './RoutePreviewMoment';
 import { DesktopShellLayout, DesktopRouteContext } from '../shells/DesktopShell';
@@ -172,8 +171,6 @@ function RouteScreenMobile({
           {HOW_IT_WORKS.map((h) => <HowCard key={h.n} h={h} compact />)}
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }
@@ -560,7 +557,6 @@ function RouteScreenDesktop({
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 }

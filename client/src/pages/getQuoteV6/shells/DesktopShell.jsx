@@ -287,8 +287,10 @@ export function DesktopShellLayout({ leftContent, children }) {
 export default function DesktopShell({ step, answers, children }) {
   // The route step renders its own layout — RouteScreen handles the form
   // (full-bleed hero) and the preview moment (wraps in DesktopShellLayout
-  // itself with DesktopRouteContext on the left rail).
-  if (step === 'route') return children;
+  // itself with DesktopRouteContext on the left rail). We append Footer
+  // here so the route-step form mode also gets the page footer; the
+  // preview-mode path renders DesktopShellLayout, which has its own Footer.
+  if (step === 'route') return <>{children}<Footer /></>;
 
   const submitted = step === 'success';
   const showRoutePersistent = !['route', 'preview'].includes(step);
