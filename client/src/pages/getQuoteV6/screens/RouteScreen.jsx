@@ -1,14 +1,13 @@
 // client/src/pages/getQuoteV6/screens/RouteScreen.jsx
 import { useCallback, useState } from 'react';
-import zipcodes from 'zipcodes';
 import Logo from '../components/Logo';
 import Icon from '../components/Icon';
 import FieldInput from '../components/FieldInput';
 import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
-import RouteMap from '../components/RouteMap';
 import useMedia from '../useMedia';
-import { milesBetween } from '../route';
+import RoutePreviewMoment from './RoutePreviewMoment';
+import { DesktopShellLayout, DesktopRouteContext } from '../shells/DesktopShell';
 
 const HERO_IMAGE = '/hero-family-truck.webp';
 
@@ -17,28 +16,6 @@ const HOW_IT_WORKS = [
   { n: '2', t: 'We match you with vetted movers', s: 'Based on your route and move type.', icon: 'users' },
   { n: '3', t: 'Compare quotes confidently', s: 'No obligation.', icon: 'phone' },
 ];
-
-// Build a route object with lat/lng for the inline mini-preview map.
-// Mirrors the helper formerly inside RoutePreviewMoment, which is no longer
-// rendered in this flow but kept on disk for potential future use.
-function routeFromAnswers(answers) {
-  const fromLatLng = zipcodes.lookup(answers.pickupZip) || {};
-  const toLatLng = zipcodes.lookup(answers.destinationZip) || {};
-  const from = {
-    city: answers.originCity || fromLatLng.city || '',
-    st: answers.originState || fromLatLng.state || '',
-    lat: fromLatLng.latitude ?? null,
-    lng: fromLatLng.longitude ?? null,
-  };
-  const to = {
-    city: answers.destinationCity || toLatLng.city || '',
-    st: answers.destinationState || toLatLng.state || '',
-    lat: toLatLng.latitude ?? null,
-    lng: toLatLng.longitude ?? null,
-  };
-  const miles = answers.miles || milesBetween(from, to);
-  return { from, to, miles };
-}
 
 // ── Mobile landing ──────────────────────────────────────────
 function RouteScreenMobile({
@@ -177,8 +154,6 @@ function RouteScreenDesktop({
   answers, handlePickup, handleDest, canSubmit, onContinue,
   pickupErr, destErr, sameZip, enrichmentFailed,
 }) {
-  const route = routeFromAnswers(answers);
-  const routeHasCoords = route.from.lat != null && route.to.lat != null;
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
       {/* Two columns */}
@@ -485,112 +460,6 @@ function RouteScreenDesktop({
               ))}
             </div>
 
-            {/* Route preview slot — ALWAYS rendered to prevent layout shift */}
-            <div style={{
-              marginTop: 18,
-              position: 'relative',
-              height: 170,
-              borderRadius: 16,
-              overflow: 'hidden',
-              border: '1px solid var(--line)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 8px 24px -10px rgba(15,23,42,0.08)',
-              background: 'var(--bg-light)',
-            }}>
-              {routeHasCoords ? (
-                <>
-                  {/* Real map */}
-                  <div style={{
-                    opacity: 1,
-                    transition: 'opacity 320ms ease',
-                  }}>
-                    <RouteMap route={route} desktop={true} height={170} />
-                  </div>
-
-                  {/* Mileage pill — WHITE with orange border, top-center */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 14, left: '50%', transform: 'translateX(-50%)',
-                    zIndex: 2,
-                  }}>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      padding: '6px 14px',
-                      background: '#FFFFFF',
-                      color: 'var(--accent)',
-                      border: '1px solid rgba(249,115,22,0.25)',
-                      borderRadius: 999,
-                      fontSize: 12.5, fontWeight: 700, letterSpacing: '-0.005em',
-                      boxShadow: '0 4px 12px -4px rgba(15,23,42,0.08)',
-                    }}>
-                      ~{route.miles.toLocaleString()} miles
-                    </span>
-                  </div>
-
-                  {/* Origin label — left side, vertically centered, with orange dot */}
-                  <div style={{
-                    position: 'absolute',
-                    left: 18,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 2,
-                    display: 'flex', alignItems: 'center', gap: 8,
-                  }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
-                    <div style={{
-                      fontSize: 13, fontWeight: 700,
-                      color: 'var(--primary)', letterSpacing: '-0.005em',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {route.from.city}, {route.from.st}
-                    </div>
-                  </div>
-
-                  {/* Destination label — right side, vertically centered, with orange dot */}
-                  <div style={{
-                    position: 'absolute',
-                    right: 18,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 2,
-                    display: 'flex', alignItems: 'center', gap: 8,
-                  }}>
-                    <div style={{
-                      fontSize: 13, fontWeight: 700,
-                      color: 'var(--primary)', letterSpacing: '-0.005em',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {route.to.city}, {route.to.st}
-                    </div>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
-                  </div>
-                </>
-              ) : (
-                // Empty state — subtle hint
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: 8,
-                  color: 'var(--text-muted)',
-                }}>
-                  {/* Subtle decorative dotted arc background */}
-                  <svg width="240" height="60" viewBox="0 0 240 60" style={{ position: 'absolute', opacity: 0.18 }}>
-                    <path d="M 20 40 Q 120 5, 220 40" stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="3 5" fill="none" />
-                    <circle cx="20" cy="40" r="4" fill="var(--accent)" opacity="0.5" />
-                    <circle cx="220" cy="40" r="4" fill="var(--accent)" opacity="0.5" />
-                  </svg>
-                  <div style={{
-                    position: 'relative',
-                    fontSize: 12.5, fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    letterSpacing: '-0.005em',
-                    marginTop: 36,
-                  }}>
-                    Enter both ZIPs to preview your route
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* CTA — soft orange glow underneath for dominance */}
             <div style={{ marginTop: 24, position: 'relative' }}>
               <div style={{
@@ -693,6 +562,11 @@ export default function RouteScreen({ answers, patch, onContinue }) {
   const [destErr, setDestErr] = useState('');
   const [enriching, setEnriching] = useState(false);
   const [enrichmentFailed, setEnrichmentFailed] = useState(false);
+  // Internal state — controls whether the form (ZIP entry) or the dedicated
+  // route preview screen is rendered. Defaults to form. Form Continue flips
+  // this to true; preview Continue calls onContinue() to advance to the
+  // next orchestrator node (TIMING_PIVOT).
+  const [previewShown, setPreviewShown] = useState(false);
 
   // Lazy ZIP-to-city/state via free zippopotam.us (no auth, generous limits).
   // Mirrors the existing GetQuoteV6.jsx enrich logic (lines 454-481).
@@ -744,7 +618,7 @@ export default function RouteScreen({ answers, patch, onContinue }) {
     && !sameZip
     && !enriching;
 
-  const handleContinue = () => {
+  const handleFormContinue = () => {
     if (answers.pickupZip.length !== 5) {
       setPickupErr("We couldn't find that ZIP. Please check it and try again.");
       return;
@@ -757,17 +631,28 @@ export default function RouteScreen({ answers, patch, onContinue }) {
       setDestErr("Pickup and drop-off ZIPs can't be the same.");
       return;
     }
-    // Inline preview lives inside the form card now — Continue advances
-    // directly to the next orchestrator node (TIMING_PIVOT).
-    onContinue();
+    if (!canContinue) return;
+    // Reveal the dedicated route preview screen. Stays on NODE.ROUTE —
+    // only the preview's own Continue advances the orchestrator.
+    setPreviewShown(true);
   };
+
+  if (previewShown) {
+    return desktop ? (
+      <DesktopShellLayout leftContent={<DesktopRouteContext answers={answers} />}>
+        <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={true} embedded />
+      </DesktopShellLayout>
+    ) : (
+      <RoutePreviewMoment answers={answers} onContinue={onContinue} desktop={false} />
+    );
+  }
 
   const layoutProps = {
     answers,
     handlePickup,
     handleDest,
     canSubmit: canContinue,
-    onContinue: handleContinue,
+    onContinue: handleFormContinue,
     pickupErr,
     destErr,
     sameZip,
