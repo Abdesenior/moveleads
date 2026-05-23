@@ -101,7 +101,7 @@ function RouteScreenMobile({
         )}
         {enrichmentFailed && !sameZip && answers.pickupZip.length === 5 && answers.destinationZip.length === 5 && (
           <div style={{ fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 500, padding: '0 2px' }}>
-            We couldn't calculate the route right now, but you can still continue.
+            We couldn't verify one of these ZIPs. Double-check and try again.
           </div>
         )}
       </div>
@@ -422,7 +422,7 @@ function RouteScreenDesktop({
             )}
             {enrichmentFailed && !sameZip && answers.pickupZip.length === 5 && answers.destinationZip.length === 5 && (
               <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 500 }}>
-                We couldn't calculate the route right now, but you can still continue.
+                We couldn't verify one of these ZIPs. Double-check and try again.
               </div>
             )}
 
@@ -619,10 +619,15 @@ export default function RouteScreen({ answers, patch, onContinue }) {
     && answers.destinationZip.length === 5
     && answers.pickupZip === answers.destinationZip;
 
+  // Strict: also require successful enrichment (real US ZIPs).
+  // A 5-digit number that doesn't exist as a US ZIP fails zippopotam lookup,
+  // originCity/destinationCity stay empty, and the CTA stays disabled.
   const canContinue = answers.pickupZip.length === 5
     && answers.destinationZip.length === 5
     && !sameZip
-    && !enriching;
+    && !enriching
+    && !!answers.originCity
+    && !!answers.destinationCity;
 
   const handleFormContinue = () => {
     if (answers.pickupZip.length !== 5) {
