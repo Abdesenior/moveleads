@@ -33,10 +33,10 @@
   --primary-light:  #2a1f1a;
   --primary-darker: #0d0a08;
 
-  --accent:         #cf5a2e;   /* burnt sienna, was #f97316 safety orange */
-  --accent-hover:   #b04a24;
-  --accent-soft:    rgba(207, 90, 46, 0.10);
-  --accent-tint:    rgba(207, 90, 46, 0.18);
+  --accent:         #f97316;   /* confident operational orange, restored from #cf5a2e burnt sienna */
+  --accent-hover:   #ea580c;
+  --accent-soft:    rgba(249, 115, 22, 0.10);
+  --accent-tint:    rgba(249, 115, 22, 0.18);
 
   /* ── Text — slightly warmer ink ────────────────────── */
   --text-primary:    #1a1614;
