@@ -512,66 +512,60 @@ function RouteScreenDesktop({
               Secure & private · Takes less than 60 seconds
             </div>
 
-            {/* Gradient divider */}
+            {/* Editorial section header — small caps flanked by thin rules.
+                Replaces the previous gradient divider + uppercase eyebrow. */}
             <div style={{
-              marginTop: 36, marginBottom: 28,
-              height: 1, background: 'linear-gradient(90deg, transparent 0%, var(--line) 50%, transparent 100%)',
-            }} />
-
-            {/* How it works — Stripe/Linear-style horizontal timeline.
-                Numbered circles connected by a dashed line, no card chrome. */}
-            <div>
+              marginTop: 36,
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
               <div style={{
-                fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)',
-                letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 22, textAlign: 'center',
+                fontFamily: 'var(--font-body)',
+                fontSize: 10.5, fontWeight: 600,
+                color: 'var(--ink-3)',
+                letterSpacing: '0.18em', textTransform: 'uppercase',
               }}>How it works</div>
+              <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+            </div>
 
-              <div style={{
-                position: 'relative',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 8,
-              }}>
-                {/* Connecting dashed line — absolute, behind circles */}
-                <div style={{
-                  position: 'absolute',
-                  top: 15,
-                  left: '16.67%',
-                  right: '16.67%',
-                  height: 0,
-                  borderTop: '1.5px dashed var(--line-strong)',
-                  zIndex: 0,
-                  opacity: 0.7,
-                }} />
-
-                {HOW_IT_WORKS.map((h) => (
-                  <div key={h.n} style={{
-                    position: 'relative', zIndex: 1,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-                    padding: '0 8px',
-                  }}>
-                    <div style={{
-                      width: 30, height: 30, borderRadius: '50%',
-                      background: h.emphasis ? 'var(--accent)' : '#ffffff',
-                      color: h.emphasis ? 'white' : 'var(--ink-2)',
-                      border: h.emphasis ? '2px solid var(--accent)' : '1.5px solid var(--line-strong)',
-                      boxShadow: h.emphasis ? '0 4px 12px -2px rgba(249,115,22,0.35)' : '0 1px 2px rgba(15,23,42,0.04)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12, fontWeight: 800,
-                    }}>{h.n}</div>
-                    <div style={{
-                      fontSize: 13, fontWeight: 700, color: 'var(--ink)',
-                      textAlign: 'center', letterSpacing: '-0.008em', lineHeight: 1.3,
-                      marginTop: 2,
-                    }}>{h.t}</div>
-                    <div style={{
-                      fontSize: 11.5, color: 'var(--ink-3)',
-                      textAlign: 'center', lineHeight: 1.4,
-                      letterSpacing: '-0.003em',
-                    }}>{h.s}</div>
-                  </div>
-                ))}
-              </div>
+            {/* Editorial 3-step layout — magazine table-of-contents feel,
+                no card chrome, no timeline connector. Big italic Fraunces
+                numerals (01 / 02 / 03) anchor each step. */}
+            <div style={{
+              marginTop: 28,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 32,
+            }}>
+              {HOW_IT_WORKS.map((h) => (
+                <div key={h.n} style={{
+                  display: 'flex', flexDirection: 'column', gap: 10,
+                }}>
+                  <div style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 28, fontWeight: 500,
+                    fontVariationSettings: '"opsz" 120, "ital" 1',
+                    fontStyle: 'italic',
+                    color: 'var(--accent)',
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1,
+                  }}>0{h.n}</div>
+                  <div style={{
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 13.5, fontWeight: 600,
+                    color: 'var(--ink)',
+                    letterSpacing: '-0.005em',
+                    lineHeight: 1.35,
+                  }}>{h.t}</div>
+                  <div style={{
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 12, fontWeight: 400,
+                    color: 'var(--ink-3)',
+                    lineHeight: 1.5,
+                    letterSpacing: '-0.002em',
+                  }}>{h.s}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
