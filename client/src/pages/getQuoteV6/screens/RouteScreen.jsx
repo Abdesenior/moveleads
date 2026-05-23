@@ -14,7 +14,7 @@ const HERO_IMAGE = '/sidebar-bg-cinematic.webp';
 const HOW_IT_WORKS = [
   { n: '1', t: 'Share your route', icon: 'doc', emphasis: true },
   { n: '2', t: 'Tell us about your move', icon: 'users' },
-  { n: '3', t: 'Compare trusted movers', icon: 'phone' },
+  { n: '3', t: 'Get your move started', icon: 'phone' },
 ];
 
 // ── Mobile landing ──────────────────────────────────────────
