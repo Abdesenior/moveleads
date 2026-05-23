@@ -404,9 +404,37 @@ function RouteScreenDesktop({
               </div>
             )}
 
+            {/* CTA — soft orange glow underneath when active */}
+            <div style={{ marginTop: 24, position: 'relative' }}>
+              {canSubmit && (
+                <div style={{
+                  position: 'absolute',
+                  top: '20%', left: '10%', right: '10%', bottom: 0,
+                  background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
+                  pointerEvents: 'none',
+                  filter: 'blur(8px)',
+                }} />
+              )}
+              <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
+                {canSubmit ? 'Continue — see your move details' : 'Enter your route to continue'}
+              </PrimaryButton>
+            </div>
+
+            {/* Reassurance line with lock icon */}
+            <div style={{
+              marginTop: 8, textAlign: 'center',
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              letterSpacing: '0',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <Icon name="lock" size={12} color="var(--text-secondary)" stroke={2} />
+              Secure &amp; private · Takes less than 60 seconds
+            </div>
+
             {/* Feature pills strip — 4 items inside a single bordered container */}
             <div style={{
-              marginTop: 20,
+              marginTop: 24,
               padding: '16px 18px',
               background: 'var(--bg-white)',
               border: '1px solid var(--line)',
@@ -442,34 +470,6 @@ function RouteScreenDesktop({
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* CTA — soft orange glow underneath when active */}
-            <div style={{ marginTop: 24, position: 'relative' }}>
-              {canSubmit && (
-                <div style={{
-                  position: 'absolute',
-                  top: '20%', left: '10%', right: '10%', bottom: 0,
-                  background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
-                  pointerEvents: 'none',
-                  filter: 'blur(8px)',
-                }} />
-              )}
-              <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
-                {canSubmit ? 'Continue — see your move details' : 'Enter your route to continue'}
-              </PrimaryButton>
-            </div>
-
-            {/* Reassurance line with lock icon */}
-            <div style={{
-              marginTop: 8, textAlign: 'center',
-              fontSize: 13,
-              color: 'var(--text-secondary)',
-              letterSpacing: '0',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}>
-              <Icon name="lock" size={12} color="var(--text-secondary)" stroke={2} />
-              Secure &amp; private · Takes less than 60 seconds
             </div>
 
             {/* Section header — small caps flanked by thin rules */}
