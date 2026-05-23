@@ -170,7 +170,7 @@ function RouteScreenDesktop({
           position: 'relative',
           backgroundImage: `url(${HERO_IMAGE})`,
           backgroundSize: 'cover',
-          backgroundPosition: '60% 50%',
+          backgroundPosition: '72% 55%',
           color: 'white',
           padding: '72px 44px 72px',
           display: 'flex', flexDirection: 'column',
