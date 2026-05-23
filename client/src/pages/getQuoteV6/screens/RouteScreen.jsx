@@ -196,12 +196,6 @@ function RouteScreenDesktop({
           overflow: 'hidden',
           minHeight: 760,
         }}>
-          {/* Logo overlay */}
-          <div style={{
-            position: 'absolute', top: 32, left: 36, zIndex: 3,
-          }}>
-            <Logo size={24} light />
-          </div>
           {/* Overlay */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
