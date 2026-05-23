@@ -8,7 +8,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
 import RouteMap from '../components/RouteMap';
 import useMedia from '../useMedia';
-import { milesBetween } from '../route';
+import { milesBetween, cardinal } from '../route';
 
 const HERO_IMAGE = '/hero-family-truck.webp';
 
@@ -341,15 +341,31 @@ function RouteScreenDesktop({
             boxShadow: '0 18px 48px -12px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,255,255,0.6) inset',
             padding: '52px 60px 44px',
           }}>
+            {/* Eyebrow — mono dateline kicker, magazine article feel */}
             <div style={{
-              fontSize: 11.5, fontWeight: 700, color: 'var(--accent)',
-              letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10.5, fontWeight: 700,
+              color: 'var(--accent)',
+              letterSpacing: '0.16em', textTransform: 'uppercase',
+              marginBottom: 18,
             }}>Free quote · 60 seconds</div>
+            {/* Hero headline — Fraunces at display optical size with italic
+                axis flourish on "moving" in sienna accent. */}
             <h1 style={{
-              margin: 0, fontSize: 36, fontWeight: 700,
-              letterSpacing: '-0.028em', lineHeight: 1.08,
+              margin: 0,
+              fontFamily: 'var(--font-display)',
+              fontSize: 44,
+              fontWeight: 500,
+              fontVariationSettings: '"opsz" 144',
+              letterSpacing: '-0.025em', lineHeight: 1.05,
               color: 'var(--primary)',
-            }}>Where are you moving?</h1>
+            }}>
+              Where are you <span style={{
+                fontStyle: 'italic',
+                fontVariationSettings: '"opsz" 144, "ital" 1',
+                color: 'var(--accent)',
+              }}>moving</span>?
+            </h1>
             <p style={{
               margin: '10px 0 0', fontSize: 15.5, lineHeight: 1.55,
               color: 'var(--text-secondary)', maxWidth: 520, textWrap: 'pretty',
@@ -410,79 +426,136 @@ function RouteScreenDesktop({
               </div>
             )}
 
-            {/* Inline cinematic route preview — appears once both ZIPs resolve to coords.
-                Map fills the wrapper edge-to-edge; mileage pill and city labels
-                float over the map as glassy overlays for a more cinematic feel. */}
+            {/* Inline route preview — editorial "field note" treatment.
+                Italic Fraunces caption + mono cardinal direction sit above the
+                map, then a glassy mileage pill (italic-serif "approx." + mono
+                number + italic-serif "mi") and editorial city cards (mono
+                small caps label + Fraunces city) float over the basemap. */}
             {routeHasCoords && (
-              <div style={{
-                marginTop: 24,
-                position: 'relative',
-                borderRadius: 18,
-                overflow: 'hidden',
-                border: '1px solid var(--line)',
-                boxShadow: '0 12px 36px -10px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.04)',
-              }}>
-                {/* Map fills the wrapper */}
-                <RouteMap route={route} desktop={true} height={320} />
-
-                {/* Mileage pill — absolute top-center */}
+              <div style={{ marginTop: 24 }}>
+                {/* Field-note caption — italic Fraunces left, mono cardinal right */}
                 <div style={{
-                  position: 'absolute',
-                  top: 14, left: '50%', transform: 'translateX(-50%)',
-                  zIndex: 2,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: 12,
                 }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '6px 14px',
-                    background: 'rgba(15,23,42,0.92)',
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                    color: 'white',
-                    borderRadius: 999,
-                    fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
-                    boxShadow: '0 6px 18px -4px rgba(15,23,42,0.45)',
+                  <div style={{
+                    fontFamily: 'var(--font-display)',
+                    fontStyle: 'italic',
+                    fontVariationSettings: '"opsz" 14, "ital" 1',
+                    fontSize: 14, fontWeight: 500,
+                    color: 'var(--ink-2)',
+                    letterSpacing: '-0.005em',
+                  }}>Your move, mapped</div>
+                  <div style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10.5, fontWeight: 500,
+                    color: 'var(--ink-3)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                  }}>{cardinal(route) || '—'}</div>
+                </div>
+
+                <div style={{
+                  position: 'relative',
+                  borderRadius: 18,
+                  overflow: 'hidden',
+                  border: '1px solid var(--line)',
+                  boxShadow: '0 12px 36px -10px rgba(26,22,20,0.12), 0 1px 2px rgba(26,22,20,0.04)',
+                }}>
+                  {/* Map fills the wrapper */}
+                  <RouteMap route={route} desktop={true} height={320} />
+
+                  {/* Mileage pill — editorial composite: italic serif + mono + italic serif */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 14, left: '50%', transform: 'translateX(-50%)',
+                    zIndex: 2,
                   }}>
-                    <Icon name="truck" size={12} stroke={2.4} color="var(--accent)" />
-                    {route.miles.toLocaleString()} miles
-                  </span>
-                </div>
-
-                {/* Origin label — absolute bottom-left */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: 14, left: 14,
-                  zIndex: 2,
-                  padding: '6px 10px',
-                  background: 'rgba(255,255,255,0.95)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  borderRadius: 8,
-                  border: '1px solid rgba(15,23,42,0.06)',
-                  boxShadow: '0 4px 12px -4px rgba(15,23,42,0.15)',
-                }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>From</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.005em', marginTop: 1 }}>
-                    {route.from.city}, {route.from.st}
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'baseline', gap: 5,
+                      padding: '8px 16px',
+                      background: 'rgba(26,22,20,0.92)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      color: '#fefdfb',
+                      borderRadius: 999,
+                      boxShadow: '0 6px 18px -4px rgba(26,22,20,0.45)',
+                    }}>
+                      <span style={{
+                        fontFamily: 'var(--font-display)',
+                        fontStyle: 'italic',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: 'rgba(254,253,251,0.7)',
+                      }}>approx.</span>
+                      <span style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        letterSpacing: '-0.01em',
+                      }}>{route.miles.toLocaleString()}</span>
+                      <span style={{
+                        fontFamily: 'var(--font-display)',
+                        fontStyle: 'italic',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: 'rgba(254,253,251,0.7)',
+                      }}>mi</span>
+                    </span>
                   </div>
-                </div>
 
-                {/* Destination label — absolute bottom-right, accent treatment */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: 14, right: 14,
-                  zIndex: 2,
-                  padding: '6px 10px',
-                  background: 'rgba(15,23,42,0.94)',
-                  color: 'white',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  borderRadius: 8,
-                  boxShadow: '0 4px 12px -4px rgba(15,23,42,0.35)',
-                  textAlign: 'right',
-                }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>To</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.005em', marginTop: 1 }}>
-                    {route.to.city}, {route.to.st}
+                  {/* Origin label — bottom-left, editorial small caps */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 14, left: 14,
+                    zIndex: 2,
+                    padding: '8px 12px',
+                    background: 'rgba(254,253,251,0.95)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderRadius: 8,
+                    border: '1px solid rgba(26,22,20,0.06)',
+                    boxShadow: '0 4px 12px -4px rgba(26,22,20,0.15)',
+                  }}>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 9, fontWeight: 700, color: 'var(--ink-3)',
+                      letterSpacing: '0.12em', textTransform: 'uppercase',
+                    }}>From</div>
+                    <div style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 14, fontWeight: 500,
+                      fontVariationSettings: '"opsz" 14',
+                      color: 'var(--ink)', letterSpacing: '-0.01em', marginTop: 2,
+                    }}>{route.from.city}, {route.from.st}</div>
+                  </div>
+
+                  {/* Destination label — bottom-right, accent ink treatment */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 14, right: 14,
+                    zIndex: 2,
+                    padding: '8px 12px',
+                    background: 'rgba(26,22,20,0.94)',
+                    color: '#fefdfb',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 12px -4px rgba(26,22,20,0.35)',
+                    textAlign: 'right',
+                  }}>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 9, fontWeight: 700,
+                      color: 'rgba(254,253,251,0.55)',
+                      letterSpacing: '0.12em', textTransform: 'uppercase',
+                    }}>To</div>
+                    <div style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 14, fontWeight: 500,
+                      fontVariationSettings: '"opsz" 14',
+                      letterSpacing: '-0.01em', marginTop: 2,
+                    }}>{route.to.city}, {route.to.st}</div>
                   </div>
                 </div>
               </div>
@@ -502,14 +575,17 @@ function RouteScreenDesktop({
               </PrimaryButton>
             </div>
 
-            {/* Reassurance line */}
+            {/* Reassurance line — italic Fraunces, concierge whisper */}
             <div style={{
-              marginTop: 10,
-              textAlign: 'center',
-              fontSize: 11.5, color: 'var(--ink-3)',
+              marginTop: 12, textAlign: 'center',
+              fontFamily: 'var(--font-display)',
+              fontStyle: 'italic',
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: 'var(--ink-3)',
               letterSpacing: '-0.005em',
             }}>
-              Secure & private · Takes less than 60 seconds
+              Secure &amp; private · Takes less than 60 seconds
             </div>
 
             {/* Editorial section header — small caps flanked by thin rules.
