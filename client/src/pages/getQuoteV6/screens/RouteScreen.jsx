@@ -128,7 +128,7 @@ function RouteScreenMobile({
       {/* CTA */}
       <div style={{ padding: '10px 24px 6px' }}>
         <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
-          Continue
+          {canSubmit ? 'Continue' : 'Enter your route to continue'}
         </PrimaryButton>
       </div>
 
@@ -444,17 +444,19 @@ function RouteScreenDesktop({
               ))}
             </div>
 
-            {/* CTA — soft orange glow underneath for dominance */}
+            {/* CTA — soft orange glow underneath when active */}
             <div style={{ marginTop: 24, position: 'relative' }}>
-              <div style={{
-                position: 'absolute',
-                top: '20%', left: '10%', right: '10%', bottom: 0,
-                background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
-                pointerEvents: 'none',
-                filter: 'blur(8px)',
-              }} />
+              {canSubmit && (
+                <div style={{
+                  position: 'absolute',
+                  top: '20%', left: '10%', right: '10%', bottom: 0,
+                  background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
+                  pointerEvents: 'none',
+                  filter: 'blur(8px)',
+                }} />
+              )}
               <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
-                Continue — see your move details
+                {canSubmit ? 'Continue — see your move details' : 'Enter your route to continue'}
               </PrimaryButton>
             </div>
 

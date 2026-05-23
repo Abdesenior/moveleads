@@ -15,15 +15,15 @@ export default function PrimaryButton({ children, onClick, disabled, full = true
         padding: full ? 0 : '0 22px',
         borderRadius: 14,
         background: disabled
-          ? 'linear-gradient(180deg, #fff1e2 0%, #fcdcc0 100%)'
+          ? 'var(--bg-soft)'
           : baseGradient,
-        color: disabled ? '#a8826b' : 'white',
+        color: disabled ? 'var(--text-muted)' : 'white',
         fontWeight: 700,
         fontSize: size === 'lg' ? 16 : 15,
         letterSpacing: '-0.01em',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         boxShadow: disabled
-          ? '0 8px 20px rgba(249,115,22,0.08), 0 1px 2px rgba(15,23,42,0.04), 0 0 0 1px rgba(255,255,255,0.6) inset, 0 1px 0 rgba(255,255,255,0.5) inset'
+          ? '0 0 0 1px var(--border) inset, 0 1px 2px rgba(15,23,42,0.03)'
           : '0 14px 32px -10px rgba(249,115,22,0.55), 0 4px 12px -2px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(180,60,0,0.18)',
         transition: 'transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 200ms ease, background 200ms ease',
         cursor: disabled || loading ? 'not-allowed' : 'pointer',
