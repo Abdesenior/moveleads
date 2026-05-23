@@ -8,7 +8,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import HowCard from '../components/HowCard';
 import RouteMap from '../components/RouteMap';
 import useMedia from '../useMedia';
-import { milesBetween, cardinal } from '../route';
+import { milesBetween } from '../route';
 
 const HERO_IMAGE = '/hero-family-truck.webp';
 
@@ -341,27 +341,26 @@ function RouteScreenDesktop({
             boxShadow: '0 18px 48px -12px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,255,255,0.6) inset',
             padding: '52px 60px 44px',
           }}>
-            {/* Eyebrow — mono dateline kicker, magazine article feel */}
+            {/* Eyebrow — sans, operational kicker */}
             <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10.5, fontWeight: 700,
+              fontSize: 11, fontWeight: 700,
               color: 'var(--accent)',
-              letterSpacing: '0.16em', textTransform: 'uppercase',
-              marginBottom: 18,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              marginBottom: 16,
             }}>Free quote · 60 seconds</div>
-            {/* Hero headline — Fraunces at display optical size with italic
-                axis flourish on "moving" in sienna accent. */}
+            {/* Hero headline — sans bold operational, with ONE serif italic
+                accent word ("moving") for character without going editorial. */}
             <h1 style={{
               margin: 0,
-              fontFamily: 'var(--font-display)',
-              fontSize: 44,
-              fontWeight: 500,
-              fontVariationSettings: '"opsz" 144',
-              letterSpacing: '-0.025em', lineHeight: 1.05,
+              fontSize: 40,
+              fontWeight: 700,
+              letterSpacing: '-0.025em', lineHeight: 1.1,
               color: 'var(--primary)',
             }}>
               Where are you <span style={{
+                fontFamily: 'var(--font-display)',
                 fontStyle: 'italic',
+                fontWeight: 500,
                 fontVariationSettings: '"opsz" 144, "ital" 1',
                 color: 'var(--accent)',
               }}>moving</span>?
@@ -426,35 +425,11 @@ function RouteScreenDesktop({
               </div>
             )}
 
-            {/* Inline route preview — editorial "field note" treatment.
-                Italic Fraunces caption + mono cardinal direction sit above the
-                map, then a glassy mileage pill (italic-serif "approx." + mono
-                number + italic-serif "mi") and editorial city cards (mono
-                small caps label + Fraunces city) float over the basemap. */}
+            {/* Inline route preview — operational composition.
+                Glassy mileage pill ("X miles" with truck icon) and clean
+                FROM/TO data labels float over the basemap. */}
             {routeHasCoords && (
               <div style={{ marginTop: 24 }}>
-                {/* Field-note caption — italic Fraunces left, mono cardinal right */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  marginBottom: 12,
-                }}>
-                  <div style={{
-                    fontFamily: 'var(--font-display)',
-                    fontStyle: 'italic',
-                    fontVariationSettings: '"opsz" 14, "ital" 1',
-                    fontSize: 14, fontWeight: 500,
-                    color: 'var(--ink-2)',
-                    letterSpacing: '-0.005em',
-                  }}>Your move, mapped</div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10.5, fontWeight: 500,
-                    color: 'var(--ink-3)',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                  }}>{cardinal(route) || '—'}</div>
-                </div>
-
                 <div style={{
                   position: 'relative',
                   borderRadius: 18,
@@ -465,46 +440,29 @@ function RouteScreenDesktop({
                   {/* Map fills the wrapper */}
                   <RouteMap route={route} desktop={true} height={320} />
 
-                  {/* Mileage pill — editorial composite: italic serif + mono + italic serif */}
+                  {/* Mileage pill — clean operational */}
                   <div style={{
                     position: 'absolute',
                     top: 14, left: '50%', transform: 'translateX(-50%)',
                     zIndex: 2,
                   }}>
                     <span style={{
-                      display: 'inline-flex', alignItems: 'baseline', gap: 5,
-                      padding: '8px 16px',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '7px 14px',
                       background: 'rgba(26,22,20,0.92)',
                       backdropFilter: 'blur(16px)',
                       WebkitBackdropFilter: 'blur(16px)',
                       color: '#fefdfb',
                       borderRadius: 999,
+                      fontSize: 12, fontWeight: 700, letterSpacing: '0.01em',
                       boxShadow: '0 6px 18px -4px rgba(26,22,20,0.45)',
                     }}>
-                      <span style={{
-                        fontFamily: 'var(--font-display)',
-                        fontStyle: 'italic',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: 'rgba(254,253,251,0.7)',
-                      }}>approx.</span>
-                      <span style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        letterSpacing: '-0.01em',
-                      }}>{route.miles.toLocaleString()}</span>
-                      <span style={{
-                        fontFamily: 'var(--font-display)',
-                        fontStyle: 'italic',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: 'rgba(254,253,251,0.7)',
-                      }}>mi</span>
+                      <Icon name="truck" size={12} stroke={2.4} color="var(--accent)" />
+                      {route.miles.toLocaleString()} miles
                     </span>
                   </div>
 
-                  {/* Origin label — bottom-left, editorial small caps */}
+                  {/* Origin label — bottom-left */}
                   <div style={{
                     position: 'absolute',
                     bottom: 14, left: 14,
@@ -518,15 +476,12 @@ function RouteScreenDesktop({
                     boxShadow: '0 4px 12px -4px rgba(26,22,20,0.15)',
                   }}>
                     <div style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 9, fontWeight: 700, color: 'var(--ink-3)',
-                      letterSpacing: '0.12em', textTransform: 'uppercase',
+                      fontSize: 9.5, fontWeight: 700, color: 'var(--ink-3)',
+                      letterSpacing: '0.10em', textTransform: 'uppercase',
                     }}>From</div>
                     <div style={{
-                      fontFamily: 'var(--font-display)',
-                      fontSize: 14, fontWeight: 500,
-                      fontVariationSettings: '"opsz" 14',
-                      color: 'var(--ink)', letterSpacing: '-0.01em', marginTop: 2,
+                      fontSize: 13.5, fontWeight: 700,
+                      color: 'var(--ink)', letterSpacing: '-0.005em', marginTop: 2,
                     }}>{route.from.city}, {route.from.st}</div>
                   </div>
 
@@ -545,16 +500,13 @@ function RouteScreenDesktop({
                     textAlign: 'right',
                   }}>
                     <div style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 9, fontWeight: 700,
+                      fontSize: 9.5, fontWeight: 700,
                       color: 'rgba(254,253,251,0.55)',
-                      letterSpacing: '0.12em', textTransform: 'uppercase',
+                      letterSpacing: '0.10em', textTransform: 'uppercase',
                     }}>To</div>
                     <div style={{
-                      fontFamily: 'var(--font-display)',
-                      fontSize: 14, fontWeight: 500,
-                      fontVariationSettings: '"opsz" 14',
-                      letterSpacing: '-0.01em', marginTop: 2,
+                      fontSize: 13.5, fontWeight: 700,
+                      letterSpacing: '-0.005em', marginTop: 2,
                     }}>{route.to.city}, {route.to.st}</div>
                   </div>
                 </div>
@@ -575,15 +527,12 @@ function RouteScreenDesktop({
               </PrimaryButton>
             </div>
 
-            {/* Reassurance line — italic Fraunces, concierge whisper */}
+            {/* Reassurance line — sans regular, clean */}
             <div style={{
               marginTop: 12, textAlign: 'center',
-              fontFamily: 'var(--font-display)',
-              fontStyle: 'italic',
-              fontSize: 12.5,
-              fontWeight: 500,
+              fontSize: 12, fontWeight: 500,
               color: 'var(--ink-3)',
-              letterSpacing: '-0.005em',
+              letterSpacing: '0',
             }}>
               Secure &amp; private · Takes less than 60 seconds
             </div>
@@ -596,16 +545,15 @@ function RouteScreenDesktop({
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
               <div style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 10.5, fontWeight: 600,
+                fontSize: 10.5, fontWeight: 700,
                 color: 'var(--ink-3)',
                 letterSpacing: '0.18em', textTransform: 'uppercase',
               }}>How it works</div>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
             </div>
 
-            {/* Editorial 3-step layout — magazine table-of-contents feel,
-                no card chrome, no timeline connector. Big italic Fraunces
+            {/* 3-step layout — confident operational typography,
+                no card chrome, no timeline connector. Big sans bold
                 numerals (01 / 02 / 03) anchor each step. */}
             <div style={{
               marginTop: 28,
@@ -618,23 +566,18 @@ function RouteScreenDesktop({
                   display: 'flex', flexDirection: 'column', gap: 10,
                 }}>
                   <div style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: 28, fontWeight: 500,
-                    fontVariationSettings: '"opsz" 120, "ital" 1',
-                    fontStyle: 'italic',
+                    fontSize: 30, fontWeight: 700,
                     color: 'var(--accent)',
                     letterSpacing: '-0.02em',
                     lineHeight: 1,
                   }}>0{h.n}</div>
                   <div style={{
-                    fontFamily: 'var(--font-body)',
                     fontSize: 13.5, fontWeight: 600,
                     color: 'var(--ink)',
                     letterSpacing: '-0.005em',
                     lineHeight: 1.35,
                   }}>{h.t}</div>
                   <div style={{
-                    fontFamily: 'var(--font-body)',
                     fontSize: 12, fontWeight: 400,
                     color: 'var(--ink-3)',
                     lineHeight: 1.5,
