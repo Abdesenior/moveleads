@@ -1,3 +1,6 @@
+/* Editorial concierge typography — load via @import to keep client/index.html untouched */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
 /*
  * client/src/pages/getQuoteV6/styles.css
  *
@@ -5,49 +8,58 @@
  * All non-:root, non-@keyframes selectors are scoped under the
  * `.glq-v6` wrapper to prevent global style leakage.
  *
- * Font stack uses the current production font (Manrope / DM Sans),
- * NOT Plus Jakarta Sans, per locked decision 2026-05-22 #5.
+ * Typography is editorial-concierge: Fraunces (display serif with
+ * optical-size + italic axes), Geist (body sans), JetBrains Mono
+ * (data / eyebrows). Only the hero headline, mileage pill, and
+ * editorial step numbers explicitly opt into the serif via
+ * `var(--font-display)` — `--font-heading` continues to resolve to
+ * the body sans so we don't accidentally serif-ize every h1.
  */
 
 :root {
   /* ── Fonts ──────────────────────────────────────────── */
-  --font-heading: Manrope, "DM Sans", -apple-system, system-ui, sans-serif;
-  --font-body:    Manrope, "DM Sans", -apple-system, system-ui, sans-serif;
-  /* Back-compat alias used by older components */
-  --font: var(--font-body);
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body:    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
 
-  /* ── Core brand ─────────────────────────────────────── */
-  --primary:        #0a192f;   /* deep navy — dark hero / left rail */
-  --primary-light:  #0d2240;
-  --primary-darker: #020c1b;
+  /* Back-compat aliases — existing components reference these.
+     Keep h1-h6 in sans by default; only specific places opt into the
+     serif via var(--font-display). */
+  --font-heading: var(--font-body);
+  --font:         var(--font-body);
 
-  --accent:         #f97316;   /* brand orange — primary CTA fill, focus, key accents */
-  --accent-hover:   #ea6c0a;
-  --accent-soft:    rgba(249, 115, 22, 0.10);  /* tinted backgrounds */
-  --accent-tint:    rgba(249, 115, 22, 0.18);
+  /* ── Core brand — WARMER ────────────────────────────── */
+  --primary:        #1a1614;   /* warm ink, was #0a192f cold navy */
+  --primary-light:  #2a1f1a;
+  --primary-darker: #0d0a08;
 
-  /* ── Text ──────────────────────────────────────────── */
-  --text-primary:    #0f172a;
-  --text-secondary:  #64748b;
-  --text-muted:      #94a3b8;
-  --text-light-muted: rgba(255,255,255,0.72);
+  --accent:         #cf5a2e;   /* burnt sienna, was #f97316 safety orange */
+  --accent-hover:   #b04a24;
+  --accent-soft:    rgba(207, 90, 46, 0.10);
+  --accent-tint:    rgba(207, 90, 46, 0.18);
 
-  /* ── Surfaces ──────────────────────────────────────── */
-  --bg-white:       #ffffff;
-  --bg-light:       #f8fafc;
-  --bg-soft:        #f1f5f9;
-  --border:         #e2e8f0;
-  --border-strong:  #cbd5e1;
+  /* ── Text — slightly warmer ink ────────────────────── */
+  --text-primary:    #1a1614;
+  --text-secondary:  #6e6258;
+  --text-muted:      #9b8f80;
+  --text-light-muted: rgba(255, 255, 245, 0.72);
 
-  /* ── Status ────────────────────────────────────────── */
-  --success: #22c55e;
+  /* ── Surfaces — WARMER ─────────────────────────────── */
+  --bg-white:       #fefdfb;   /* off-white, was #ffffff */
+  --bg-light:       #faf6f0;   /* warm cream, was #f8fafc */
+  --bg-soft:        #f3eee5;   /* warm sand, was #f1f5f9 */
+  --border:         #e8e0d4;   /* warm line, was #e2e8f0 */
+  --border-strong:  #d4c9b8;
+
+  /* ── Status — keep functional colors mostly intact ── */
+  --success: #5a8f4e;          /* slightly muted from #22c55e */
   --info:    #3b82f6;
-  --warning: #eab308;
-  --danger:  #ef4444;
+  --warning: #d4a93a;          /* muted gold from #eab308 */
+  --danger:  #c45c4e;          /* warmer red from #ef4444 */
 
   /* ── Back-compat tokens used by existing components ── */
   --ink:           var(--text-primary);
-  --ink-2:         #334155;
+  --ink-2:         #2e2823;
   --ink-3:         var(--text-secondary);
   --ink-4:         var(--text-muted);
   --line:          var(--border);
@@ -57,22 +69,23 @@
   --canvas:        var(--bg-light);
   --canvas-2:      var(--bg-soft);
   --good:          var(--success);
-  --good-soft:     #dcfce7;
+  --good-soft:     #e0ead7;
 
   --r-input: 12px;
   --r-card:  16px;
   --r-hero:  20px;
 
-  --shadow-sm:  0 1px 2px rgba(15,23,42,0.04), 0 1px 1px rgba(15,23,42,0.03);
-  --shadow-md:  0 4px 14px rgba(15,23,42,0.05), 0 1px 2px rgba(15,23,42,0.04);
-  --shadow-lg:  0 18px 38px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04);
-  --shadow-xl:  0 36px 80px -20px rgba(15,23,42,0.18), 0 2px 6px rgba(15,23,42,0.05);
+  --shadow-sm:  0 1px 2px rgba(26,22,20,0.04), 0 1px 1px rgba(26,22,20,0.03);
+  --shadow-md:  0 4px 14px rgba(26,22,20,0.05), 0 1px 2px rgba(26,22,20,0.04);
+  --shadow-lg:  0 18px 38px rgba(26,22,20,0.08), 0 2px 6px rgba(26,22,20,0.04);
+  --shadow-xl:  0 36px 80px -20px rgba(26,22,20,0.18), 0 2px 6px rgba(26,22,20,0.05);
 }
 
 /* Wrapper root — everything inside the funnel inherits these. */
 .glq-v6 {
   font-family: var(--font-body);
   color: var(--text-primary);
+  font-feature-settings: 'ss01' on, 'cv01' on;  /* Geist stylistic alternates if available */
 }
 
 .glq-v6 h1,
