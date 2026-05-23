@@ -240,6 +240,29 @@ export function DesktopShellLayout({ leftContent, children }) {
             {leftContent}
           </div>
         </div>
+
+        {/* Minimal trust anchor — sits at bottom of navy rail */}
+        <div style={{
+          position: 'relative', zIndex: 1,
+          display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+          gap: 14,
+          fontSize: 11, fontWeight: 600,
+          color: 'rgba(255,255,255,0.55)',
+          letterSpacing: '0.02em',
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="lock" size={12} color="rgba(255,255,255,0.55)" stroke={2} />
+            Secure
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="shield" size={12} color="rgba(255,255,255,0.55)" stroke={2} />
+            Licensed
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="check" size={12} color="rgba(255,255,255,0.55)" stroke={2.4} />
+            No pressure
+          </span>
+        </div>
       </div>
 
       {/* Right column — content centered vertically so no empty bottom gap */}
