@@ -21,6 +21,7 @@ const FieldInput = forwardRef(function FieldInput(
         background: 'var(--surface)',
         border: '1.5px solid var(--line-strong)',
         borderRadius: 'var(--r-input)',
+        boxShadow: '0 1px 2px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,235,210,0.4) inset',
         transition: 'border-color 160ms ease, box-shadow 160ms ease',
         boxSizing: 'border-box',
       }}>
