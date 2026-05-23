@@ -1,0 +1,165 @@
+/* Editorial concierge typography — load via @import to keep client/index.html untouched */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+/*
+ * client/src/pages/getQuoteV6/styles.css
+ *
+ * Design tokens and animation source for the V6 funnel reskin.
+ * All non-:root, non-@keyframes selectors are scoped under the
+ * `.glq-v6` wrapper to prevent global style leakage.
+ *
+ * Typography is editorial-concierge: Fraunces (display serif with
+ * optical-size + italic axes), Geist (body sans), JetBrains Mono
+ * (data / eyebrows). Only the hero headline, mileage pill, and
+ * editorial step numbers explicitly opt into the serif via
+ * `var(--font-display)` — `--font-heading` continues to resolve to
+ * the body sans so we don't accidentally serif-ize every h1.
+ */
+
+:root {
+  /* ── Fonts ──────────────────────────────────────────── */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body:    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+
+  /* Heading token uses the site's global headline font (Plus Jakarta Sans),
+     loaded via client/index.html. Reserved for the hero/marketing
+     headline moments; body copy stays on Geist via --font-body. */
+  --font-heading: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font:         var(--font-body);
+
+  /* ── Core brand — COOL SLATE/NAVY, mockup-matched ──── */
+  --primary:        #0A192F;   /* deep navy, was warm ink #1a1614 */
+  --primary-light:  #0d2240;
+  --primary-darker: #020c1b;
+
+  --accent:         #F97316;   /* confident operational orange */
+  --accent-hover:   #ea580c;
+  --accent-soft:    rgba(249, 115, 22, 0.10);
+  --accent-tint:    rgba(249, 115, 22, 0.18);
+  --accent-soft-bg: #FFF3EA;   /* solid soft-orange for icon chips and connector */
+
+  /* ── Text — slate ink ───────────────────────────── */
+  --text-primary:    #0A192F;
+  --text-secondary:  #64748B;
+  --text-muted:      #94A3B8;
+  --text-light-muted: rgba(255, 255, 255, 0.72);
+
+  /* ── Surfaces — COOL SLATE, mockup-matched ─────── */
+  --bg-white:       #FFFFFF;   /* clinical white */
+  --bg-light:       #F8FAFC;   /* slate-50 */
+  --bg-soft:        #F1F5F9;   /* slate-100 */
+  --border:         #E2E8F0;   /* slate-200 */
+  --border-strong:  #CBD5E1;   /* slate-300 */
+
+  /* ── Status — standard ──────────────────────────── */
+  --success: #22C55E;
+  --info:    #3B82F6;
+  --warning: #EAB308;
+  --danger:  #EF4444;
+
+  /* ── Back-compat tokens used by existing components ── */
+  --ink:           var(--text-primary);
+  --ink-2:         #334155;
+  --ink-3:         var(--text-secondary);
+  --ink-4:         var(--text-muted);
+  --line:          var(--border);
+  --line-2:        var(--bg-soft);
+  --line-strong:   var(--border-strong);
+  --surface:       var(--bg-white);
+  --canvas:        var(--bg-light);
+  --canvas-2:      var(--bg-soft);
+  --good:          var(--success);
+  --good-soft:     #DCFCE7;
+
+  --r-input: 12px;
+  --r-card:  16px;
+  --r-hero:  20px;
+
+  --shadow-sm:  0 1px 2px rgba(15,23,42,0.04), 0 1px 1px rgba(15,23,42,0.03);
+  --shadow-md:  0 4px 14px rgba(15,23,42,0.05), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-lg:  0 18px 38px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04);
+  --shadow-xl:  0 36px 80px -20px rgba(15,23,42,0.18), 0 2px 6px rgba(15,23,42,0.05);
+}
+
+/* Wrapper root — everything inside the funnel inherits these. */
+.glq-v6 {
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  font-feature-settings: 'ss01' on, 'cv01' on;  /* Geist stylistic alternates if available */
+}
+
+.glq-v6 h1,
+.glq-v6 h2,
+.glq-v6 h3,
+.glq-v6 h4,
+.glq-v6 h5,
+.glq-v6 h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+}
+
+.glq-v6 .scroll::-webkit-scrollbar { display: none; }
+.glq-v6 .scroll { scrollbar-width: none; }
+
+.glq-v6 .focusring:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.glq-v6 .screen-enter { animation: screenIn 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.glq-v6 .pop-in       { animation: popIn    320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+.glq-v6 .stagger > * { animation: screenIn 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.glq-v6 .stagger > *:nth-child(1) { animation-delay: 30ms; }
+.glq-v6 .stagger > *:nth-child(2) { animation-delay: 80ms; }
+.glq-v6 .stagger > *:nth-child(3) { animation-delay: 130ms; }
+.glq-v6 .stagger > *:nth-child(4) { animation-delay: 180ms; }
+.glq-v6 .stagger > *:nth-child(5) { animation-delay: 230ms; }
+.glq-v6 .stagger > *:nth-child(6) { animation-delay: 280ms; }
+.glq-v6 .stagger > *:nth-child(7) { animation-delay: 330ms; }
+.glq-v6 .stagger > *:nth-child(8) { animation-delay: 380ms; }
+
+.glq-v6 .nostroke { -webkit-tap-highlight-color: transparent; }
+.glq-v6 .number-blur::placeholder { color: var(--text-muted); }
+
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes drawArc {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Paper grain overlay — breaks "AI-generated UI" cleanness, adds organic texture.
+   Fixed-position pseudo-element renders a fractal-noise SVG tiled across the
+   viewport at 3.5% opacity with multiply blend. Invisible until you look,
+   but kills the "perfect AI render" feel. Scoped under .glq-v6 so it never
+   leaks outside the funnel. */
+.glq-v6 {
+  position: relative;
+}
+
+.glq-v6::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
