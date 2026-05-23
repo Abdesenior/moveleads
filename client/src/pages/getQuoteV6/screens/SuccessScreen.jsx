@@ -53,7 +53,7 @@ export default function SuccessScreen({ answers, onRestart, desktop }) {
           You're all set{answers.firstName ? `, ${answers.firstName.split(' ')[0]}` : ''}.
         </h1>
         <p style={{ margin: '10px auto 0', maxWidth: 380, fontSize: 15, lineHeight: 1.5, color: 'var(--ink-3)', textWrap: 'pretty' }}>
-          We've sent your details to up to 3 vetted movers in your area. Expect a call within minutes.
+          We're preparing your move request now. You'll hear back shortly — we'll guide you from here.
         </p>
       </div>
 
@@ -65,9 +65,9 @@ export default function SuccessScreen({ answers, onRestart, desktop }) {
       }}>
         <Eyebrow>What happens next</Eyebrow>
         {[
-          { i: '1', t: 'Up to 3 movers receive your request', s: 'Local, licensed, insured.' },
-          { i: '2', t: 'They call you directly', s: `On the number ending ${(answers.customerPhone || '').slice(-4) || '••••'}` },
-          { i: '3', t: 'You compare and pick', s: 'Talk to whoever feels right. No pressure.' },
+          { i: '1', t: 'We review your move details', s: 'Your route and home details are checked for accuracy.' },
+          { i: '2', t: 'We connect you with trusted movers', s: 'Trusted moving professionals near your route are notified.' },
+          { i: '3', t: 'You hear back shortly', s: 'A short, calm follow-up — no pressure, no spam.' },
         ].map(s => (
           <div key={s.i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <div style={{
@@ -83,6 +83,15 @@ export default function SuccessScreen({ answers, onRestart, desktop }) {
             </div>
           </div>
         ))}
+        <div style={{
+          paddingTop: 12,
+          borderTop: '1px solid var(--line-2)',
+          fontSize: 12.5,
+          lineHeight: 1.5,
+          color: 'var(--ink-3)',
+        }}>
+          We'll reach you on the number ending {(answers.customerPhone || '').slice(-4) || '••••'}. Your details stay private.
+        </div>
       </div>
 
       {!desktop && (
