@@ -199,8 +199,11 @@ export default function RouteMap({ route, desktop, height }) {
           const bounds = new mapboxgl.LngLatBounds()
             .extend([fromLng, fromLat])
             .extend([toLng, toLat]);
+          // Vertical padding compressed (60/50 → 36/36) to suit the compact
+          // 170px route preview — the original values left only ~60px for the
+          // arc at that height, causing visible clipping on long routes.
           mapInstance.fitBounds(bounds, {
-            padding: { top: 60, bottom: 50, left: 80, right: 80 },
+            padding: { top: 36, bottom: 36, left: 80, right: 80 },
             duration: 0,
             maxZoom: 7,
           });
