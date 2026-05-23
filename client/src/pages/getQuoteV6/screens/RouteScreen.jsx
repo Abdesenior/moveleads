@@ -128,7 +128,7 @@ function RouteScreenMobile({
       {/* CTA */}
       <div style={{ padding: '10px 24px 6px' }}>
         <PrimaryButton onClick={onContinue} disabled={!canSubmit}>
-          {canSubmit ? 'Continue' : 'Enter your route to continue'}
+          {canSubmit ? 'Continue — see your move details' : 'Enter your route to continue'}
         </PrimaryButton>
       </div>
 
