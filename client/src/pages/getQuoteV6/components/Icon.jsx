@@ -34,6 +34,9 @@ export default function Icon({ name, size = 18, color = 'currentColor', stroke =
     star: <path d="m12 3 2.7 5.7 6.3.9-4.5 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.6l6.3-.9L12 3Z" fill="currentColor" stroke="none" />,
     doc: <><path d="M7 3h9l4 4v14H7z" /><path d="M16 3v5h4M10 12h7M10 16h7M10 8h3" /></>,
     users: <><circle cx="9" cy="9" r="3.5" /><path d="M3 20c0-3.6 2.7-6.5 6-6.5s6 2.9 6 6.5" /><circle cx="17" cy="11" r="2.8" /><path d="M14 20c0-2.4 1.8-4.5 4-4.5s3 1.7 3 3.5" /></>,
+    receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 7h6M9 11h6M9 15h4" /></>,
+    heart: <path d="M12 21s-7-4.5-9.5-9.5C0.5 7 3 3 7 4c2 .5 3.5 2 5 4 1.5-2 3-3.5 5-4 4-1 6.5 3 4.5 7.5C19 16.5 12 21 12 21Z" />,
+    tag: <><path d="M21 13.6V5a2 2 0 0 0-2-2H10.4a2 2 0 0 0-1.4.6L3.6 8.6a2 2 0 0 0 0 2.8l8 8a2 2 0 0 0 2.8 0l5.4-5.4a2 2 0 0 0 .6-1.4Z" /><circle cx="14" cy="10" r="1.5" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
