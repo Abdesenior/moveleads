@@ -172,7 +172,7 @@ function RouteScreenDesktop({
           backgroundSize: 'cover',
           backgroundPosition: '72% 55%',
           color: 'white',
-          padding: '72px 44px 72px',
+          padding: '104px 44px 72px',
           display: 'flex', flexDirection: 'column',
           gap: 0,
           overflow: 'hidden',
@@ -183,7 +183,7 @@ function RouteScreenDesktop({
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: [
               'linear-gradient(96deg, rgba(2,8,20,0.72) 0%, rgba(2,8,20,0.52) 35%, rgba(2,8,20,0.28) 65%, rgba(2,8,20,0.12) 100%)',
-              'linear-gradient(180deg, rgba(2,8,20,0.10) 0%, rgba(2,8,20,0.20) 30%, rgba(2,8,20,0.22) 70%, rgba(2,8,20,0.48) 100%)',
+              'linear-gradient(180deg, rgba(2,8,20,0.10) 0%, rgba(2,8,20,0.18) 30%, rgba(2,8,20,0.20) 70%, rgba(2,8,20,0.42) 100%)',
             ].join(', '),
           }} />
 
@@ -208,11 +208,11 @@ function RouteScreenDesktop({
           }} />
 
           {/* Headline + trust cards */}
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 44 }}>
-            <div style={{ maxWidth: 320 }}>
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 52 }}>
+            <div style={{ maxWidth: 300 }}>
               <h2 style={{
                 margin: 0, fontSize: 36, fontWeight: 700,
-                letterSpacing: '-0.025em', lineHeight: 1.10,
+                letterSpacing: '-0.025em', lineHeight: 1.08,
                 color: 'white', textWrap: 'balance',
                 textShadow: '0 2px 22px rgba(2,8,20,0.55)',
               }}>
@@ -222,8 +222,8 @@ function RouteScreenDesktop({
                 }}>overpaying.</span>
               </h2>
               <p style={{
-                margin: '22px 0 0', fontSize: 14.5, lineHeight: 1.65,
-                color: 'rgba(255,255,255,0.78)', maxWidth: 320, textWrap: 'pretty',
+                margin: '26px 0 0', fontSize: 14, lineHeight: 1.6,
+                color: 'rgba(255,255,255,0.78)', maxWidth: 300, textWrap: 'pretty',
                 textShadow: '0 1px 10px rgba(2,8,20,0.4)',
               }}>
                 Tell us about your move once — matched movers reach out with quotes. No spam. No pressure.
@@ -231,28 +231,28 @@ function RouteScreenDesktop({
             </div>
 
             {/* Trust cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 320 }}>
               {[
                 { icon: 'shield', title: 'Vetted & licensed movers', sub: 'We work only with trusted pros.' },
                 { icon: 'lock', title: 'Your info is never sold', sub: 'No spam or endless calls.' },
                 { icon: 'phone', title: 'Movers matched to your route', sub: 'Real local crews, real quotes.' },
               ].map((t) => (
                 <div key={t.title} style={{
-                  display: 'flex', alignItems: 'center', gap: 13,
-                  padding: '18px 20px',
-                  background: 'rgba(255,245,235,0.07)',
-                  backdropFilter: 'blur(22px) saturate(160%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(160%)',
-                  border: '1px solid rgba(255,255,255,0.09)',
-                  borderRadius: 14,
-                  boxShadow: '0 1px 0 rgba(255,235,210,0.07) inset, 0 8px 24px -8px rgba(2,8,20,0.28), 0 2px 6px rgba(2,8,20,0.08)',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '15px 18px',
+                  background: 'rgba(255,245,235,0.05)',
+                  backdropFilter: 'blur(24px) saturate(165%)',
+                  WebkitBackdropFilter: 'blur(24px) saturate(165%)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 13,
+                  boxShadow: '0 1px 0 rgba(255,235,210,0.06) inset, 0 10px 28px -10px rgba(2,8,20,0.30), 0 2px 4px rgba(2,8,20,0.06)',
                 }}>
                   <div style={{
-                    width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                    width: 30, height: 30, borderRadius: 9, flexShrink: 0,
                     background: 'rgba(249,115,22,0.18)', color: 'var(--accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Icon name={t.icon} size={14} stroke={2} />
+                    <Icon name={t.icon} size={13} stroke={2} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600, color: 'white', letterSpacing: '-0.005em', lineHeight: 1.3 }}>{t.title}</div>
