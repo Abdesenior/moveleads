@@ -1,6 +1,7 @@
 // client/src/pages/getQuoteV6/shells/DesktopShell.jsx
 import Logo from '../components/Logo';
 import Icon from '../components/Icon';
+import Footer from '../components/Footer';
 import { homeTypeLabel, stairsLabel, bucketLabel, homeSizeLabelFromBackend } from '../enums';
 import { milesBetween } from '../route';
 import zipcodes from 'zipcodes';
@@ -203,6 +204,7 @@ function DesktopTopBar({ step }) {
 // children    — JSX rendered in the right white column
 export function DesktopShellLayout({ leftContent, children }) {
   return (
+    <>
     <div style={{
       background: 'var(--canvas)',
       minHeight: 760,
@@ -277,6 +279,8 @@ export function DesktopShellLayout({ leftContent, children }) {
         </div>
       </div>
     </div>
+    <Footer />
+    </>
   );
 }
 
