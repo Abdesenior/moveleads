@@ -9,7 +9,7 @@ import useMedia from '../useMedia';
 import RoutePreviewMoment from './RoutePreviewMoment';
 import { DesktopShellLayout, DesktopRouteContext } from '../shells/DesktopShell';
 
-const HERO_IMAGE = '/hero-family-truck.webp';
+const HERO_IMAGE = '/sidebar-bg-cinematic.webp';
 
 const HOW_IT_WORKS = [
   { n: '1', t: 'Tell us about your move', s: 'Takes about 60 seconds.', icon: 'doc', emphasis: true },
@@ -170,7 +170,7 @@ function RouteScreenDesktop({
           position: 'relative',
           backgroundImage: `url(${HERO_IMAGE})`,
           backgroundSize: 'cover',
-          backgroundPosition: '58% 38%',
+          backgroundPosition: '60% 50%',
           color: 'white',
           padding: '72px 44px 72px',
           display: 'flex', flexDirection: 'column',
@@ -182,7 +182,7 @@ function RouteScreenDesktop({
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: [
-              'linear-gradient(96deg, rgba(2,8,20,0.84) 0%, rgba(2,8,20,0.62) 35%, rgba(2,8,20,0.32) 65%, rgba(2,8,20,0.15) 100%)',
+              'linear-gradient(96deg, rgba(2,8,20,0.72) 0%, rgba(2,8,20,0.52) 35%, rgba(2,8,20,0.28) 65%, rgba(2,8,20,0.12) 100%)',
               'linear-gradient(180deg, rgba(2,8,20,0.10) 0%, rgba(2,8,20,0.22) 30%, rgba(2,8,20,0.22) 70%, rgba(2,8,20,0.65) 100%)',
             ].join(', '),
           }} />
@@ -197,14 +197,14 @@ function RouteScreenDesktop({
           <div style={{
             position: 'absolute', top: '42%', left: '60%', width: 380, height: 380,
             pointerEvents: 'none', transform: 'translate(-50%, -50%)',
-            background: 'radial-gradient(circle, rgba(255,210,160,0.32) 0%, rgba(255,210,160,0) 60%)',
+            background: 'radial-gradient(circle, rgba(255,210,160,0.12) 0%, rgba(255,210,160,0) 65%)',
             mixBlendMode: 'screen',
           }} />
 
           {/* Warm corner glow */}
           <div style={{
             position: 'absolute', top: -90, right: -90, width: 260, height: 260, pointerEvents: 'none',
-            background: 'radial-gradient(circle, rgba(249,115,22,0.28) 0%, rgba(249,115,22,0) 70%)',
+            background: 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
           }} />
 
           {/* Headline + trust cards */}
@@ -240,12 +240,12 @@ function RouteScreenDesktop({
                 <div key={t.title} style={{
                   display: 'flex', alignItems: 'center', gap: 14,
                   padding: '16px 18px',
-                  background: 'rgba(255,255,255,0.06)',
-                  backdropFilter: 'blur(18px) saturate(150%)',
-                  WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-                  border: '1px solid rgba(255,255,255,0.09)',
+                  background: 'rgba(255,245,235,0.07)',
+                  backdropFilter: 'blur(20px) saturate(160%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                  border: '1px solid rgba(255,255,255,0.10)',
                   borderRadius: 14,
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 16px -4px rgba(2,8,20,0.2)',
+                  boxShadow: '0 1px 0 rgba(255,235,210,0.06) inset, 0 6px 20px -6px rgba(2,8,20,0.25)',
                 }}>
                   <div style={{
                     width: 34, height: 34, borderRadius: 9, flexShrink: 0,
