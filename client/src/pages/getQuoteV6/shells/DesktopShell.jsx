@@ -234,29 +234,6 @@ export function DesktopShellLayout({ leftContent, children }) {
         <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
           {leftContent}
         </div>
-
-        <div style={{
-          position: 'relative', zIndex: 1,
-          display: 'flex', flexDirection: 'column', gap: 10,
-          paddingTop: 20,
-          borderTop: '1px solid rgba(255,255,255,0.12)',
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)' }}>
-            Trusted by movers nationwide
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
-            {[
-              { i: 'lock',   t: 'Secure submission · TLS encrypted' },
-              { i: 'shield', t: 'Licensed & insured movers only' },
-              { i: 'check',  t: 'No obligation, no spam' },
-            ].map(it => (
-              <div key={it.t} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name={it.i} size={14} color="#fdba74" stroke={2} />
-                {it.t}
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Right column */}

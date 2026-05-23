@@ -263,28 +263,6 @@ function RouteScreenDesktop({
             </div>
           </div>
 
-          {/* Trust strip bottom */}
-          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{
-              fontSize: 10.5, fontWeight: 700,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.5)',
-            }}>Trusted by movers nationwide</div>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px 18px', color: 'rgba(255,255,255,0.78)', fontSize: 12.5, fontWeight: 500 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Icon name="lock" size={13} color="var(--accent)" stroke={2} />
-                Secure submission
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Icon name="shield" size={13} color="var(--accent)" stroke={2} />
-                Licensed only
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Icon name="check" size={13} color="var(--accent)" stroke={2.4} />
-                No obligation
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Right — form */}
