@@ -172,7 +172,7 @@ function RouteScreenDesktop({
           backgroundSize: 'cover',
           backgroundPosition: '72% 55%',
           color: 'white',
-          padding: '104px 44px 72px',
+          padding: '72px 44px 72px',
           display: 'flex', flexDirection: 'column',
           gap: 0,
           overflow: 'hidden',
@@ -208,7 +208,7 @@ function RouteScreenDesktop({
           }} />
 
           {/* Headline + trust cards */}
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 52 }}>
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 58 }}>
             <div style={{ maxWidth: 300 }}>
               <h2 style={{
                 margin: 0, fontSize: 36, fontWeight: 700,

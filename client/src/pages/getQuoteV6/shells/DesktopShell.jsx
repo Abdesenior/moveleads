@@ -209,7 +209,7 @@ export function DesktopShellLayout({ leftContent, children }) {
       <div style={{
         background: 'linear-gradient(180deg, var(--primary-darker) 0%, var(--primary) 65%, #0d2440 100%)',
         color: 'white',
-        padding: '28px 28px 32px',
+        padding: '48px 28px 48px',
         display: 'flex', flexDirection: 'column', gap: 32,
         position: 'relative', overflow: 'hidden',
       }}>
