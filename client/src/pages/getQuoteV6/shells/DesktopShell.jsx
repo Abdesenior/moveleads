@@ -134,20 +134,24 @@ export function DesktopRouteContext({ answers, submitted = false }) {
         </div>
       </div>
 
-      <div style={{
-        padding: '14px 16px',
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 14,
-        display: 'flex', flexDirection: 'column', gap: 10,
-      }}>
-        <SummaryItem label="When" value={whenLabel(answers)} />
-        {answers.homeType && <SummaryItem label="From" value={`${homeTypeLabel(answers.homeType)}${answers.homeSize ? ' · ' + homeSizeLabelFromBackend(answers.homeSize) : ''}`} />}
-        {answers.stairs && <SummaryItem label="Access" value={stairsLabel(answers.stairs)} />}
-        {answers.heavyItems?.length > 0 && (
-          <SummaryItem label="Specialty" value={`${answers.heavyItems.length} item${answers.heavyItems.length === 1 ? '' : 's'}`} />
-        )}
-      </div>
+      {(answers.moveDate || answers.urgencyBucket || answers.homeType || answers.stairs || answers.heavyItems?.length > 0) && (
+        <div style={{
+          padding: '14px 16px',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 14,
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
+          {(answers.moveDate || answers.urgencyBucket) && (
+            <SummaryItem label="When" value={whenLabel(answers)} />
+          )}
+          {answers.homeType && <SummaryItem label="From" value={`${homeTypeLabel(answers.homeType)}${answers.homeSize ? ' · ' + homeSizeLabelFromBackend(answers.homeSize) : ''}`} />}
+          {answers.stairs && <SummaryItem label="Access" value={stairsLabel(answers.stairs)} />}
+          {answers.heavyItems?.length > 0 && (
+            <SummaryItem label="Specialty" value={`${answers.heavyItems.length} item${answers.heavyItems.length === 1 ? '' : 's'}`} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -229,18 +233,20 @@ export function DesktopShellLayout({ leftContent, children }) {
             strokeDasharray="3 6" fill="none" opacity="0.5" />
         </svg>
 
-        <Logo size={26} light />
-
-        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24 }}>
-          {leftContent}
+        {/* Logo + leftContent grouped in one centered flex so the whole composition sits balanced, not top-loaded */}
+        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
+          <Logo size={26} light />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {leftContent}
+          </div>
         </div>
       </div>
 
-      {/* Right column */}
+      {/* Right column — content centered vertically so no empty bottom gap */}
       <div style={{
         padding: '72px 88px 72px 96px',
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center',
+        alignItems: 'center', justifyContent: 'center',
         background: '#ffffff',
       }}>
         <div style={{ width: '100%', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 24 }}>
