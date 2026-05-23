@@ -451,78 +451,111 @@ function RouteScreenDesktop({
               ))}
             </div>
 
-            {/* Compact 170px route preview — white mileage pill, side-anchored labels with dot markers */}
-            {routeHasCoords && (
-              <div style={{
-                marginTop: 18,
-                position: 'relative',
-                borderRadius: 16,
-                overflow: 'hidden',
-                border: '1px solid var(--line)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 8px 24px -10px rgba(15,23,42,0.08)',
-                background: 'var(--bg-light)',
-              }}>
-                <RouteMap route={route} desktop={true} height={170} />
-
-                {/* Mileage pill — WHITE with orange border, top-center */}
-                <div style={{
-                  position: 'absolute',
-                  top: 14, left: '50%', transform: 'translateX(-50%)',
-                  zIndex: 2,
-                }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '6px 14px',
-                    background: '#FFFFFF',
-                    color: 'var(--accent)',
-                    border: '1px solid rgba(249,115,22,0.25)',
-                    borderRadius: 999,
-                    fontSize: 12.5, fontWeight: 700, letterSpacing: '-0.005em',
-                    boxShadow: '0 4px 12px -4px rgba(15,23,42,0.08)',
-                  }}>
-                    ~{route.miles.toLocaleString()} miles
-                  </span>
-                </div>
-
-                {/* Origin label — left side, vertically centered, with orange dot */}
-                <div style={{
-                  position: 'absolute',
-                  left: 18,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 2,
-                  display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
+            {/* Route preview slot — ALWAYS rendered to prevent layout shift */}
+            <div style={{
+              marginTop: 18,
+              position: 'relative',
+              height: 170,
+              borderRadius: 16,
+              overflow: 'hidden',
+              border: '1px solid var(--line)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 8px 24px -10px rgba(15,23,42,0.08)',
+              background: 'var(--bg-light)',
+            }}>
+              {routeHasCoords ? (
+                <>
+                  {/* Real map */}
                   <div style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: 'var(--primary)', letterSpacing: '-0.005em',
-                    whiteSpace: 'nowrap',
+                    opacity: 1,
+                    transition: 'opacity 320ms ease',
                   }}>
-                    {route.from.city}, {route.from.st}
+                    <RouteMap route={route} desktop={true} height={170} />
+                  </div>
+
+                  {/* Mileage pill — WHITE with orange border, top-center */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 14, left: '50%', transform: 'translateX(-50%)',
+                    zIndex: 2,
+                  }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      padding: '6px 14px',
+                      background: '#FFFFFF',
+                      color: 'var(--accent)',
+                      border: '1px solid rgba(249,115,22,0.25)',
+                      borderRadius: 999,
+                      fontSize: 12.5, fontWeight: 700, letterSpacing: '-0.005em',
+                      boxShadow: '0 4px 12px -4px rgba(15,23,42,0.08)',
+                    }}>
+                      ~{route.miles.toLocaleString()} miles
+                    </span>
+                  </div>
+
+                  {/* Origin label — left side, vertically centered, with orange dot */}
+                  <div style={{
+                    position: 'absolute',
+                    left: 18,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 2,
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
+                    <div style={{
+                      fontSize: 13, fontWeight: 700,
+                      color: 'var(--primary)', letterSpacing: '-0.005em',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {route.from.city}, {route.from.st}
+                    </div>
+                  </div>
+
+                  {/* Destination label — right side, vertically centered, with orange dot */}
+                  <div style={{
+                    position: 'absolute',
+                    right: 18,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 2,
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: 700,
+                      color: 'var(--primary)', letterSpacing: '-0.005em',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {route.to.city}, {route.to.st}
+                    </div>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
+                  </div>
+                </>
+              ) : (
+                // Empty state — subtle hint
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: 8,
+                  color: 'var(--text-muted)',
+                }}>
+                  {/* Subtle decorative dotted arc background */}
+                  <svg width="240" height="60" viewBox="0 0 240 60" style={{ position: 'absolute', opacity: 0.18 }}>
+                    <path d="M 20 40 Q 120 5, 220 40" stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="3 5" fill="none" />
+                    <circle cx="20" cy="40" r="4" fill="var(--accent)" opacity="0.5" />
+                    <circle cx="220" cy="40" r="4" fill="var(--accent)" opacity="0.5" />
+                  </svg>
+                  <div style={{
+                    position: 'relative',
+                    fontSize: 12.5, fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    letterSpacing: '-0.005em',
+                    marginTop: 36,
+                  }}>
+                    Enter both ZIPs to preview your route
                   </div>
                 </div>
-
-                {/* Destination label — right side, vertically centered, with orange dot */}
-                <div style={{
-                  position: 'absolute',
-                  right: 18,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 2,
-                  display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: 'var(--primary)', letterSpacing: '-0.005em',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {route.to.city}, {route.to.st}
-                  </div>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 2px 6px rgba(249,115,22,0.4)' }} />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* CTA — soft orange glow underneath for dominance */}
             <div style={{ marginTop: 24, position: 'relative' }}>
