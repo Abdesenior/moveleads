@@ -15,11 +15,11 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+// V1 (`./pages/GetQuote`) is retained only because `MoveRoute`
+// re-exports from it to back the `/move/:from/:to` SEO landing pages.
+// V2-V5 were retired (PR-A) — see git history for the dormant
+// implementations if a rollback is ever needed.
 const GetQuote   = lazy(() => import('./pages/GetQuote'));
-const GetQuoteV2 = lazy(() => import('./pages/GetQuoteV2'));
-const GetQuoteV3 = lazy(() => import('./pages/GetQuoteV3'));
-const GetQuoteV4 = lazy(() => import('./pages/GetQuoteV4'));
-const GetQuoteV5 = lazy(() => import('./pages/GetQuoteV5'));
 const GetQuoteV6 = lazy(() => import('./pages/GetQuoteV6'));
 const Partners = lazy(() => import('./pages/Partners'));
 const ThankYou = lazy(() => import('./pages/ThankYou'));
@@ -87,14 +87,10 @@ function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               {/* /get-quote renders the v6 design (canonical). /get-quote-v6
-                  stays aliased for QA / direct-link testing. V1-V5 remain
-                  dormant for rollback / referral safety. /move/:from/:to
-                  intentionally still reuses V1 (see MoveRoute import). */}
+                  stays aliased for QA / direct-link testing. /move/:from/:to
+                  intentionally still reuses V1 via MoveRoute — that
+                  migration is a separate PR. */}
               <Route path="/get-quote" element={<GetQuoteV6 />} />
-              <Route path="/get-quote-v2" element={<GetQuoteV2 />} />
-              <Route path="/get-quote-v3" element={<GetQuoteV3 />} />
-              <Route path="/get-quote-v4" element={<GetQuoteV4 />} />
-              <Route path="/get-quote-v5" element={<GetQuoteV5 />} />
               <Route path="/get-quote-v6" element={<GetQuoteV6 />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/move/:originCity/:destCity" element={<MoveRoute />} />
