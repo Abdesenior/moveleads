@@ -301,6 +301,17 @@ function RouteScreenDesktop({
           minHeight: 760,
         }}>
 
+          {/* Subtle warm halo behind the main card */}
+          <div style={{
+            position: 'absolute',
+            top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: '80%', height: '70%',
+            pointerEvents: 'none',
+            background: 'radial-gradient(ellipse at center, rgba(255,237,213,0.4) 0%, rgba(255,237,213,0) 70%)',
+            filter: 'blur(40px)',
+            zIndex: 0,
+          }} />
+
           {/* Premium card */}
           <div style={{
             position: 'relative',
@@ -309,7 +320,7 @@ function RouteScreenDesktop({
             background: 'linear-gradient(180deg, #ffffff 0%, #fffdf9 100%)',
             border: '1px solid rgba(15,23,42,0.05)',
             borderRadius: 20,
-            boxShadow: '0 30px 80px rgba(15,23,42,0.08), 0 10px 30px rgba(15,23,42,0.04), 0 0 0 1px rgba(255,255,255,0.6) inset',
+            boxShadow: '0 30px 80px rgba(15,23,42,0.08), 0 10px 30px rgba(15,23,42,0.04), 0 0 0 1px rgba(255,255,255,0.6) inset, inset 0 1px 0 rgba(255,255,255,0.72)',
             padding: '44px 48px 40px',
           }}>
             {/* Eyebrow — sans, operational kicker */}
@@ -317,7 +328,7 @@ function RouteScreenDesktop({
               fontSize: 13, fontWeight: 700,
               color: 'var(--accent)',
               letterSpacing: '0.12em', textTransform: 'uppercase',
-              marginBottom: 18,
+              marginBottom: 16,
             }}>Free quote · 60 seconds</div>
             {/* Hero headline — pure sans bold, no serif accent */}
             <h1 style={{
@@ -330,7 +341,7 @@ function RouteScreenDesktop({
               Where are you moving?
             </h1>
             <p style={{
-              margin: '14px 0 0', fontSize: 15.5, lineHeight: 1.55,
+              margin: '16px 0 0', fontSize: 15, lineHeight: 1.55,
               color: 'var(--text-secondary)', maxWidth: 520,
             }}>
               Two ZIPs to start — matched movers reach out with quotes.
@@ -342,7 +353,7 @@ function RouteScreenDesktop({
 
             {/* ZIP row with 44px circular route connector */}
             <div style={{
-              marginTop: 30,
+              marginTop: 32,
               display: 'grid',
               gridTemplateColumns: '1fr auto 1fr',
               gap: 16,
@@ -434,7 +445,7 @@ function RouteScreenDesktop({
             </div>
 
             {/* CTA — soft orange glow underneath for dominance */}
-            <div style={{ marginTop: 22, position: 'relative' }}>
+            <div style={{ marginTop: 24, position: 'relative' }}>
               <div style={{
                 position: 'absolute',
                 top: '20%', left: '10%', right: '10%', bottom: 0,
@@ -449,7 +460,7 @@ function RouteScreenDesktop({
 
             {/* Reassurance line with lock icon */}
             <div style={{
-              marginTop: 10, textAlign: 'center',
+              marginTop: 8, textAlign: 'center',
               fontSize: 13,
               color: 'var(--text-secondary)',
               letterSpacing: '0',
@@ -461,7 +472,7 @@ function RouteScreenDesktop({
 
             {/* Section header — small caps flanked by thin rules */}
             <div style={{
-              marginTop: 32,
+              marginTop: 28,
               display: 'flex', alignItems: 'center', gap: 14,
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
@@ -516,7 +527,7 @@ function RouteScreenDesktop({
                     }}>{h.t}</div>
                     <div style={{
                       fontSize: 12, color: 'var(--text-secondary)',
-                      marginTop: 3, lineHeight: 1.45,
+                      marginTop: 3, lineHeight: 1.5,
                     }}>{h.s}</div>
                   </div>
                 </div>

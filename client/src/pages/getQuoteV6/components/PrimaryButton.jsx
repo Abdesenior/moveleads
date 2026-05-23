@@ -2,7 +2,7 @@ import Icon from './Icon';
 import Spinner from './Spinner';
 
 export default function PrimaryButton({ children, onClick, disabled, full = true, icon = 'arrow', loading = false, size = 'lg' }) {
-  const h = size === 'lg' ? 56 : 48;
+  const h = size === 'lg' ? 54 : 46;
   const baseGradient = 'linear-gradient(180deg, #fb923c 0%, #f97316 50%, #ea6c0a 100%)';
   const hoverGradient = 'linear-gradient(180deg, #fca15a 0%, #fb8c2a 50%, #d65d05 100%)';
   return (
@@ -23,7 +23,7 @@ export default function PrimaryButton({ children, onClick, disabled, full = true
         letterSpacing: '-0.01em',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         boxShadow: disabled
-          ? '0 1px 2px rgba(15,23,42,0.04), 0 0 0 1px rgba(255,255,255,0.6) inset, 0 1px 0 rgba(255,255,255,0.5) inset'
+          ? '0 8px 20px rgba(249,115,22,0.08), 0 1px 2px rgba(15,23,42,0.04), 0 0 0 1px rgba(255,255,255,0.6) inset, 0 1px 0 rgba(255,255,255,0.5) inset'
           : '0 14px 32px -10px rgba(249,115,22,0.55), 0 4px 12px -2px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(180,60,0,0.18)',
         transition: 'transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 200ms ease, background 200ms ease',
         cursor: disabled || loading ? 'not-allowed' : 'pointer',
