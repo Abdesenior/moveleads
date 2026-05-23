@@ -19,9 +19,9 @@ const FieldInput = forwardRef(function FieldInput(
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '0 16px',
         background: 'var(--surface)',
-        border: '1.5px solid var(--line-strong)',
+        border: '1px solid var(--border)',
         borderRadius: 'var(--r-input)',
-        boxShadow: '0 1px 2px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,235,210,0.4) inset',
+        boxShadow: '0 2px 6px rgba(15,23,42,0.03), 0 0 0 1px rgba(255,235,210,0.5) inset',
         transition: 'border-color 160ms ease, box-shadow 160ms ease',
         boxSizing: 'border-box',
       }}>

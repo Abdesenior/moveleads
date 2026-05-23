@@ -359,16 +359,16 @@ function RouteScreenDesktop({
                 />
               </div>
               <div style={{
-                width: 40, height: 40, borderRadius: '50%',
+                width: 38, height: 38, borderRadius: '50%',
                 background: 'var(--accent-soft-bg)',
                 color: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: '1px solid rgba(249,115,22,0.15)',
-                boxShadow: '0 4px 12px -4px rgba(249,115,22,0.25), 0 1px 2px rgba(15,23,42,0.04)',
-                marginBottom: 10,
+                boxShadow: '0 6px 16px -6px rgba(249,115,22,0.28), 0 1px 2px rgba(15,23,42,0.05)',
+                marginBottom: 11,
                 flexShrink: 0,
               }}>
-                <Icon name="arrow" size={16} stroke={2.4} />
+                <Icon name="arrow" size={15} stroke={2.4} />
               </div>
               <div style={{ minWidth: 0 }}>
                 <FieldInput
@@ -396,14 +396,14 @@ function RouteScreenDesktop({
             {/* Feature pills strip — 4 items inside a single bordered container */}
             <div style={{
               marginTop: 20,
-              padding: '14px 16px',
+              padding: '16px 18px',
               background: 'var(--bg-white)',
               border: '1px solid var(--line)',
               borderRadius: 14,
               boxShadow: 'var(--shadow-sm)',
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 14,
+              gap: 18,
             }}>
               {[
                 { icon: 'receipt', title: 'Free estimate',   sub: "It's 100% free" },
@@ -413,13 +413,13 @@ function RouteScreenDesktop({
               ].map(f => (
                 <div key={f.title} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                   <div style={{
-                    width: 32, height: 32, borderRadius: 10,
+                    width: 30, height: 30, borderRadius: 10,
                     background: 'var(--accent-soft-bg)',
                     color: 'var(--accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                   }}>
-                    <Icon name={f.icon} size={15} stroke={2} />
+                    <Icon name={f.icon} size={14} stroke={2} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--primary)', letterSpacing: '-0.005em', lineHeight: 1.2 }}>
