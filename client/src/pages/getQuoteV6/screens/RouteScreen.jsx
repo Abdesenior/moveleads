@@ -227,9 +227,10 @@ function RouteScreenDesktop({
             background: 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
           }} />
 
-          {/* Headline + trust cards */}
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 58 }}>
-            <div style={{ maxWidth: 300 }}>
+          {/* Logo + Headline + trust cards (centered as one group) */}
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
+            <Logo size={26} />
+            <div style={{ maxWidth: 300, display: 'flex', flexDirection: 'column', gap: 26 }}>
               <h2 style={{
                 margin: 0, fontSize: 36, fontWeight: 700,
                 letterSpacing: '-0.025em', lineHeight: 1.08,
@@ -242,7 +243,7 @@ function RouteScreenDesktop({
                 }}>overpaying.</span>
               </h2>
               <p style={{
-                margin: '26px 0 0', fontSize: 14, lineHeight: 1.6,
+                margin: 0, fontSize: 14, lineHeight: 1.6,
                 color: 'rgba(255,255,255,0.78)', maxWidth: 300, textWrap: 'pretty',
                 textShadow: '0 1px 10px rgba(2,8,20,0.4)',
               }}>
