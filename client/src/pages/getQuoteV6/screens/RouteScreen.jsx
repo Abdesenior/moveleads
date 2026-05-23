@@ -24,83 +24,34 @@ function RouteScreenMobile({
 }) {
   return (
     <div className="screen-enter" style={{
-      background: 'var(--bg-white)',
-      backgroundImage: "url('/quote-bg-route-soft.webp')",
-      backgroundSize: 'cover',
-      backgroundPosition: 'center top',
-      backgroundRepeat: 'no-repeat',
+      background: '#ffffff',
       minHeight: '100%',
     }}>
-      {/* Hero photo — single left-axis editorial block (logo + 3-line headline) */}
-      <div style={{ padding: '52px 16px 0' }}>
+      {/* Editorial block — logo, eyebrow, headline, paragraph. All on clean white. */}
+      <div style={{ padding: '44px 24px 14px' }}>
+        <LogoMark size={42} />
         <div style={{
-          position: 'relative',
-          height: 240,
-          borderRadius: 16, overflow: 'hidden',
-          backgroundImage: `url(${HERO_IMAGE})`,
-          backgroundSize: 'cover',
-          backgroundPosition: '68% 32%',
-          boxShadow: 'var(--shadow-sm)',
-        }}>
-          {/* Global overlay — kept at current depth (user direction: don't darken more) */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: [
-              'linear-gradient(105deg, rgba(2,8,20,0.78) 0%, rgba(2,8,20,0.45) 50%, rgba(2,8,20,0.15) 100%)',
-              'linear-gradient(180deg, rgba(2,8,20,0) 40%, rgba(2,8,20,0.45) 80%, rgba(2,8,20,0.72) 100%)',
-            ].join(', '),
-          }} />
-
-          {/* Localized text-area readability gradient — only behind logo+headline, soft */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, width: '72%', height: '88%',
-            pointerEvents: 'none',
-            background: 'radial-gradient(ellipse 80% 95% at 0% 35%, rgba(2,8,20,0.22) 0%, rgba(2,8,20,0) 72%)',
-          }} />
-
-          {/* Single editorial block — logo + headline tight against one left axis (24px) */}
-          <div style={{
-            position: 'absolute', top: 28, left: 24, right: 24, zIndex: 2,
-            display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start',
-          }}>
-            <LogoMark size={46} />
-            <h2 style={{
-              margin: 0,
-              fontFamily: 'var(--font-heading)',
-              fontSize: 26, fontWeight: 800,
-              letterSpacing: '-0.028em', lineHeight: 1.18,
-              color: 'white',
-              textShadow: '0 2px 14px rgba(2,8,20,0.6)',
-            }}>
-              Find trusted<br />
-              movers without<br />
-              <span style={{
-                color: '#E16D17',
-                textShadow: '0 2px 12px rgba(225,109,23,0.42)',
-              }}>overpaying.</span>
-            </h2>
-          </div>
-        </div>
-      </div>
-
-      {/* Form block */}
-      <div style={{ padding: '14px 24px 6px' }}>
-        <div style={{
+          marginTop: 22,
           fontSize: 11, fontWeight: 700,
           color: 'var(--accent)',
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-          marginBottom: 7,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          marginBottom: 16,
         }}>Moving made simple</div>
         <h1 style={{
-          margin: 0, fontSize: 22, fontWeight: 700,
-          letterSpacing: '-0.025em', lineHeight: 1.18,
+          margin: 0,
+          fontSize: 30, fontWeight: 800,
+          letterSpacing: '-0.025em', lineHeight: 1.14,
           color: 'var(--primary)',
-        }}>Plan your move in minutes.</h1>
-        <p style={{
-          margin: '6px 0 0', fontSize: 13.5, lineHeight: 1.5,
-          color: 'var(--text-secondary)', textWrap: 'pretty',
         }}>
-          Tell us where you're moving. <span style={{ color: 'var(--primary)', fontWeight: 600 }}>We'll help you take the next step.</span>
+          Find trusted movers —<br />
+          without <span style={{ color: 'var(--accent)' }}>overpaying.</span>
+        </h1>
+        <p style={{
+          margin: '18px 0 0', fontSize: 15, lineHeight: 1.55,
+          color: 'var(--text-secondary)', textWrap: 'pretty',
+          maxWidth: 340,
+        }}>
+          Tell us where you're moving. We'll help you take the next step.
         </p>
       </div>
 
