@@ -164,7 +164,7 @@ function RouteScreenDesktop({
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
       {/* Two columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', minHeight: 760 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', minHeight: 760 }}>
         {/* Left — photo hero (Logo overlays top-left) */}
         <div style={{
           position: 'relative',
@@ -172,7 +172,7 @@ function RouteScreenDesktop({
           backgroundSize: 'cover',
           backgroundPosition: '58% 38%',
           color: 'white',
-          padding: '88px 36px 44px',
+          padding: '72px 44px 72px',
           display: 'flex', flexDirection: 'column',
           gap: 0,
           overflow: 'hidden',
@@ -182,7 +182,7 @@ function RouteScreenDesktop({
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: [
-              'linear-gradient(96deg, rgba(2,8,20,0.78) 0%, rgba(2,8,20,0.55) 32%, rgba(2,8,20,0.30) 62%, rgba(2,8,20,0.15) 100%)',
+              'linear-gradient(96deg, rgba(2,8,20,0.84) 0%, rgba(2,8,20,0.62) 35%, rgba(2,8,20,0.32) 65%, rgba(2,8,20,0.15) 100%)',
               'linear-gradient(180deg, rgba(2,8,20,0.10) 0%, rgba(2,8,20,0.22) 30%, rgba(2,8,20,0.22) 70%, rgba(2,8,20,0.65) 100%)',
             ].join(', '),
           }} />
@@ -208,11 +208,11 @@ function RouteScreenDesktop({
           }} />
 
           {/* Headline + trust cards */}
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
-            <div style={{ maxWidth: 320 }}>
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 36 }}>
+            <div style={{ maxWidth: 340 }}>
               <h2 style={{
-                margin: 0, fontSize: 40, fontWeight: 800,
-                letterSpacing: '-0.03em', lineHeight: 1.04,
+                margin: 0, fontSize: 36, fontWeight: 700,
+                letterSpacing: '-0.025em', lineHeight: 1.12,
                 color: 'white', textWrap: 'balance',
                 textShadow: '0 2px 22px rgba(2,8,20,0.55)',
               }}>
@@ -222,8 +222,8 @@ function RouteScreenDesktop({
                 }}>overpaying.</span>
               </h2>
               <p style={{
-                margin: '14px 0 0', fontSize: 15.5, lineHeight: 1.55,
-                color: 'rgba(255,255,255,0.92)', maxWidth: 300, textWrap: 'pretty',
+                margin: '18px 0 0', fontSize: 14.5, lineHeight: 1.65,
+                color: 'rgba(255,255,255,0.78)', maxWidth: 340, textWrap: 'pretty',
                 textShadow: '0 1px 10px rgba(2,8,20,0.4)',
               }}>
                 Tell us about your move once — matched movers reach out with quotes. No spam. No pressure.
@@ -231,32 +231,32 @@ function RouteScreenDesktop({
             </div>
 
             {/* Trust cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 280 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 320 }}>
               {[
                 { icon: 'shield', title: 'Vetted & licensed movers', sub: 'We work only with trusted pros.' },
                 { icon: 'lock', title: 'Your info is never sold', sub: 'No spam or endless calls.' },
                 { icon: 'phone', title: 'Movers matched to your route', sub: 'Real local crews, real quotes.' },
               ].map((t) => (
                 <div key={t.title} style={{
-                  display: 'flex', alignItems: 'center', gap: 11,
-                  padding: '10px 13px',
-                  background: 'rgba(255,255,255,0.045)',
-                  backdropFilter: 'blur(14px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 11,
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '16px 18px',
+                  background: 'rgba(255,255,255,0.06)',
+                  backdropFilter: 'blur(18px) saturate(150%)',
+                  WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  borderRadius: 14,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 16px -4px rgba(2,8,20,0.2)',
                 }}>
                   <div style={{
-                    width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-                    background: 'rgba(249,115,22,0.16)', color: 'var(--accent)',
+                    width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                    background: 'rgba(249,115,22,0.18)', color: 'var(--accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Icon name={t.icon} size={12} stroke={2} />
+                    <Icon name={t.icon} size={15} stroke={2} />
                   </div>
-                  <div>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'white', letterSpacing: '-0.005em' }}>{t.title}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 1, lineHeight: 1.35 }}>{t.sub}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'white', letterSpacing: '-0.005em', lineHeight: 1.3 }}>{t.title}</div>
+                    <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.4 }}>{t.sub}</div>
                   </div>
                 </div>
               ))}
@@ -268,9 +268,9 @@ function RouteScreenDesktop({
             <div style={{
               fontSize: 10.5, fontWeight: 700,
               letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.55)',
+              color: 'rgba(255,255,255,0.5)',
             }}>Trusted by movers nationwide</div>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 16px', color: 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: 500 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px 18px', color: 'rgba(255,255,255,0.78)', fontSize: 12.5, fontWeight: 500 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="lock" size={13} color="var(--accent)" stroke={2} />
                 Secure submission
