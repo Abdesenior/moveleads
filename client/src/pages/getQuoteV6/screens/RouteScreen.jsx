@@ -142,6 +142,44 @@ function RouteScreenMobile({
         Secure & private · Takes less than 60 seconds
       </div>
 
+      {/* Feature pills strip — compact 2x2 grid for mobile */}
+      <div style={{
+        padding: '14px 24px 0',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 8,
+      }}>
+        {[
+          { icon: 'receipt', title: 'Free estimate' },
+          { icon: 'heart',   title: 'No pressure' },
+          { icon: 'lock',    title: 'Licensed movers' },
+          { icon: 'tag',     title: 'Compare before booking' },
+        ].map(f => (
+          <div key={f.title} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '10px 12px',
+            background: 'var(--bg-white)',
+            border: '1px solid var(--line)',
+            borderRadius: 12,
+            boxShadow: 'var(--shadow-sm)',
+            minWidth: 0,
+          }}>
+            <div style={{
+              width: 24, height: 24, borderRadius: 7,
+              background: 'var(--accent-soft-bg)',
+              color: 'var(--accent)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <Icon name={f.icon} size={12} stroke={2} />
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--primary)', letterSpacing: '-0.005em', lineHeight: 1.25, minWidth: 0 }}>
+              {f.title}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* How it works */}
       <div style={{ padding: '22px 24px 32px' }}>
         <div style={{
