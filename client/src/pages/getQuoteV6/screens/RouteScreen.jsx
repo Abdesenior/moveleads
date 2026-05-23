@@ -31,25 +31,46 @@ function RouteScreenMobile({
       backgroundRepeat: 'no-repeat',
       minHeight: '100%',
     }}>
-      {/* Hero photo (Logo overlays top-left) */}
+      {/* Hero photo (Logo overlays top-left, headline below) */}
       <div style={{ padding: '52px 16px 0' }}>
         <div style={{
           position: 'relative',
-          height: 156,
+          height: 200,
           borderRadius: 16, overflow: 'hidden',
           backgroundImage: `url(${HERO_IMAGE})`,
           backgroundSize: 'cover',
           backgroundPosition: '55% 32%',
           boxShadow: 'var(--shadow-sm)',
         }}>
+          {/* Overlay — slightly darker top-left for headline readability */}
           <div style={{
             position: 'absolute', inset: 0,
-            background: 'linear-gradient(180deg, rgba(2,8,20,0) 35%, rgba(2,8,20,0.45) 75%, rgba(2,8,20,0.72) 100%)',
+            background: [
+              'linear-gradient(120deg, rgba(2,8,20,0.55) 0%, rgba(2,8,20,0.28) 45%, rgba(2,8,20,0.12) 100%)',
+              'linear-gradient(180deg, rgba(2,8,20,0) 35%, rgba(2,8,20,0.45) 75%, rgba(2,8,20,0.72) 100%)',
+            ].join(', '),
           }} />
           <div style={{
             position: 'absolute', top: 14, left: 14, zIndex: 2,
           }}>
             <Logo size={19} light />
+          </div>
+          <div style={{
+            position: 'absolute', top: 58, left: 14, right: 16, zIndex: 2,
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: 19, fontWeight: 700,
+              letterSpacing: '-0.022em', lineHeight: 1.18,
+              color: 'white',
+              textWrap: 'balance',
+              textShadow: '0 2px 12px rgba(2,8,20,0.6)',
+            }}>
+              Find trusted movers without <span style={{
+                color: 'var(--accent)',
+                textShadow: '0 2px 10px rgba(249,115,22,0.45)',
+              }}>overpaying.</span>
+            </h2>
           </div>
         </div>
       </div>
