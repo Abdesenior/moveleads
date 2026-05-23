@@ -80,17 +80,17 @@ function RouteScreenMobile({
           color: 'var(--accent)',
           letterSpacing: '0.08em', textTransform: 'uppercase',
           marginBottom: 7,
-        }}>Free quote · 60 seconds</div>
+        }}>Moving made simple</div>
         <h1 style={{
           margin: 0, fontSize: 22, fontWeight: 700,
           letterSpacing: '-0.025em', lineHeight: 1.18,
           color: 'var(--primary)',
-        }}>Where are you moving?</h1>
+        }}>Plan your move in minutes.</h1>
         <p style={{
           margin: '6px 0 0', fontSize: 13.5, lineHeight: 1.5,
           color: 'var(--text-secondary)', textWrap: 'pretty',
         }}>
-          Two ZIPs to start. <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Compare before booking.</span>
+          Tell us where you're moving. <span style={{ color: 'var(--primary)', fontWeight: 600 }}>We'll help you take the next step.</span>
         </p>
       </div>
 
@@ -329,7 +329,7 @@ function RouteScreenDesktop({
               color: 'var(--accent)',
               letterSpacing: '0.12em', textTransform: 'uppercase',
               marginBottom: 16,
-            }}>Free quote · 60 seconds</div>
+            }}>Moving made simple</div>
             {/* Hero headline — pure sans bold, no serif accent */}
             <h1 style={{
               margin: 0,
@@ -338,16 +338,16 @@ function RouteScreenDesktop({
               letterSpacing: '-0.025em', lineHeight: 1.08,
               color: 'var(--primary)',
             }}>
-              Where are you moving?
+              Plan your move in minutes.
             </h1>
             <p style={{
               margin: '16px 0 0', fontSize: 15, lineHeight: 1.55,
               color: 'var(--text-secondary)', maxWidth: 520,
             }}>
-              Two ZIPs to start — matched movers reach out with quotes.
+              Tell us where you're moving. We'll help you take the next step
               <br />
               <span style={{ color: 'var(--primary)', fontWeight: 700 }}>
-                Compare before booking, no obligation.
+                — no calling around, no pressure.
               </span>
             </p>
 
