@@ -22,10 +22,10 @@
   --font-body:    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
 
-  /* Back-compat aliases — existing components reference these.
-     Keep h1-h6 in sans by default; only specific places opt into the
-     serif via var(--font-display). */
-  --font-heading: var(--font-body);
+  /* Heading token uses the site's global headline font (Plus Jakarta Sans),
+     loaded via client/index.html. Reserved for the hero/marketing
+     headline moments; body copy stays on Geist via --font-body. */
+  --font-heading: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   --font:         var(--font-body);
 
   /* ── Core brand — COOL SLATE/NAVY, mockup-matched ──── */

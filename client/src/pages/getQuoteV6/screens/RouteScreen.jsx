@@ -31,44 +31,44 @@ function RouteScreenMobile({
       backgroundRepeat: 'no-repeat',
       minHeight: '100%',
     }}>
-      {/* Hero photo (Logo overlays top-left, headline below) */}
+      {/* Hero photo — logo top-left + large left-aligned headline below */}
       <div style={{ padding: '52px 16px 0' }}>
         <div style={{
           position: 'relative',
-          height: 200,
+          height: 260,
           borderRadius: 16, overflow: 'hidden',
           backgroundImage: `url(${HERO_IMAGE})`,
           backgroundSize: 'cover',
           backgroundPosition: '55% 32%',
           boxShadow: 'var(--shadow-sm)',
         }}>
-          {/* Overlay — slightly darker top-left for headline readability */}
+          {/* Overlay — darker left side so the large headline reads cleanly */}
           <div style={{
             position: 'absolute', inset: 0,
             background: [
-              'linear-gradient(120deg, rgba(2,8,20,0.55) 0%, rgba(2,8,20,0.28) 45%, rgba(2,8,20,0.12) 100%)',
-              'linear-gradient(180deg, rgba(2,8,20,0) 35%, rgba(2,8,20,0.45) 75%, rgba(2,8,20,0.72) 100%)',
+              'linear-gradient(105deg, rgba(2,8,20,0.78) 0%, rgba(2,8,20,0.45) 50%, rgba(2,8,20,0.15) 100%)',
+              'linear-gradient(180deg, rgba(2,8,20,0) 40%, rgba(2,8,20,0.45) 80%, rgba(2,8,20,0.72) 100%)',
             ].join(', '),
           }} />
           <div style={{
-            position: 'absolute', top: 14, left: 14, zIndex: 2,
+            position: 'absolute', top: 18, left: 20, zIndex: 2,
           }}>
-            <Logo size={19} light />
+            <Logo size={22} />
           </div>
           <div style={{
-            position: 'absolute', top: 58, left: 14, right: 16, zIndex: 2,
+            position: 'absolute', bottom: 22, left: 20, right: 24, zIndex: 2,
           }}>
             <h2 style={{
               margin: 0,
-              fontSize: 19, fontWeight: 700,
-              letterSpacing: '-0.022em', lineHeight: 1.18,
+              fontFamily: 'var(--font-heading)',
+              fontSize: 28, fontWeight: 800,
+              letterSpacing: '-0.028em', lineHeight: 1.08,
               color: 'white',
-              textWrap: 'balance',
-              textShadow: '0 2px 12px rgba(2,8,20,0.6)',
+              textShadow: '0 2px 14px rgba(2,8,20,0.6)',
             }}>
               Find trusted movers without <span style={{
                 color: 'var(--accent)',
-                textShadow: '0 2px 10px rgba(249,115,22,0.45)',
+                textShadow: '0 2px 12px rgba(249,115,22,0.45)',
               }}>overpaying.</span>
             </h2>
           </div>
