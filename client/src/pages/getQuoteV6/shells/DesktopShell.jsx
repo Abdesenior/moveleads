@@ -1,7 +1,6 @@
 // client/src/pages/getQuoteV6/shells/DesktopShell.jsx
 import Logo from '../components/Logo';
 import Icon from '../components/Icon';
-import Footer from '../components/Footer';
 import { homeTypeLabel, stairsLabel, bucketLabel, homeSizeLabelFromBackend } from '../enums';
 import { milesBetween } from '../route';
 import zipcodes from 'zipcodes';
@@ -204,7 +203,6 @@ function DesktopTopBar({ step }) {
 // children    — JSX rendered in the right white column
 export function DesktopShellLayout({ leftContent, children }) {
   return (
-    <>
     <div style={{
       background: 'var(--canvas)',
       minHeight: 760,
@@ -279,18 +277,14 @@ export function DesktopShellLayout({ leftContent, children }) {
         </div>
       </div>
     </div>
-    <Footer />
-    </>
   );
 }
 
 export default function DesktopShell({ step, answers, children }) {
   // The route step renders its own layout — RouteScreen handles the form
   // (full-bleed hero) and the preview moment (wraps in DesktopShellLayout
-  // itself with DesktopRouteContext on the left rail). We append Footer
-  // here so the route-step form mode also gets the page footer; the
-  // preview-mode path renders DesktopShellLayout, which has its own Footer.
-  if (step === 'route') return <>{children}<Footer /></>;
+  // itself with DesktopRouteContext on the left rail).
+  if (step === 'route') return children;
 
   const submitted = step === 'success';
   const showRoutePersistent = !['route', 'preview'].includes(step);
