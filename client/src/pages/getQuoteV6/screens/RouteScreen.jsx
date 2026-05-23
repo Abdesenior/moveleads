@@ -23,7 +23,14 @@ function RouteScreenMobile({
   pickupErr, destErr, sameZip, enrichmentFailed,
 }) {
   return (
-    <div className="screen-enter" style={{ background: 'var(--bg-white)', minHeight: '100%' }}>
+    <div className="screen-enter" style={{
+      background: 'var(--bg-white)',
+      backgroundImage: "url('/quote-bg-route-soft.webp')",
+      backgroundSize: 'cover',
+      backgroundPosition: 'center top',
+      backgroundRepeat: 'no-repeat',
+      minHeight: '100%',
+    }}>
       {/* Hero photo (Logo overlays top-left) */}
       <div style={{ padding: '52px 16px 0' }}>
         <div style={{
