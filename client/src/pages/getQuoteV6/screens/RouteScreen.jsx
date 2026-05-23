@@ -12,9 +12,9 @@ import { DesktopShellLayout, DesktopRouteContext } from '../shells/DesktopShell'
 const HERO_IMAGE = '/sidebar-bg-cinematic.webp';
 
 const HOW_IT_WORKS = [
-  { n: '1', t: 'Tell us about your move', s: 'Takes about 60 seconds.', icon: 'doc', emphasis: true },
-  { n: '2', t: 'We match you with vetted movers', s: 'Based on your route and move type.', icon: 'users' },
-  { n: '3', t: 'Compare quotes confidently', s: 'No obligation.', icon: 'phone' },
+  { n: '1', t: 'Share your route', icon: 'doc', emphasis: true },
+  { n: '2', t: 'Tell us about your move', icon: 'users' },
+  { n: '3', t: 'Compare trusted movers', icon: 'phone' },
 ];
 
 // ── Mobile landing ──────────────────────────────────────────
@@ -520,17 +520,13 @@ function RouteScreenDesktop({
                     }}>{h.n}</div>
                   </div>
 
-                  {/* Text */}
-                  <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
+                  {/* Title only — descriptions removed per B2C direction */}
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: 8 }}>
                     <div style={{
                       fontSize: 13.5, fontWeight: 700,
                       color: 'var(--primary)',
                       letterSpacing: '-0.005em', lineHeight: 1.3,
                     }}>{h.t}</div>
-                    <div style={{
-                      fontSize: 12, color: 'var(--text-secondary)',
-                      marginTop: 3, lineHeight: 1.5,
-                    }}>{h.s}</div>
                   </div>
                 </div>
               ))}

@@ -30,7 +30,9 @@ export default function HowCard({ h, compact = false }) {
       }}>{h.n}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--primary)', letterSpacing: '-0.005em' }}>{h.t}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1, lineHeight: 1.35 }}>{h.s}</div>
+        {h.s && (
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1, lineHeight: 1.35 }}>{h.s}</div>
+        )}
       </div>
     </div>
   );
