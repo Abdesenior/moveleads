@@ -205,16 +205,23 @@ export function DesktopShellLayout({ leftContent, children }) {
   return (
     <div style={{
       background: 'var(--canvas)',
-      minHeight: 760,
+      // Full-viewport floor lets the navy rail extend to the bottom edge of
+      // any window without locking the layout to a rigid 760px box. The
+      // previous fixed floor created dead space below short funnel steps
+      // and combined with justify-content: center on the columns to produce
+      // the "floating auth card" effect on wide displays.
+      minHeight: '100vh',
       display: 'grid',
       gridTemplateColumns: '340px 1fr',
     }}>
-      {/* Left navy rail */}
+      {/* Left navy rail — logo + leftContent anchor to the top, trust strip
+          to the bottom. space-between turns the column into a deliberate
+          composition instead of a vertically-centered island. */}
       <div style={{
         background: 'linear-gradient(180deg, var(--primary-darker) 0%, var(--primary) 65%, #0d2440 100%)',
         color: 'white',
         padding: '48px 28px 48px',
-        display: 'flex', flexDirection: 'column', gap: 32,
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 32,
         position: 'relative', overflow: 'hidden',
       }}>
         <svg viewBox="0 0 400 600" style={{
@@ -233,8 +240,9 @@ export function DesktopShellLayout({ leftContent, children }) {
             strokeDasharray="3 6" fill="none" opacity="0.5" />
         </svg>
 
-        {/* Logo + leftContent grouped in one centered flex so the whole composition sits balanced, not top-loaded */}
-        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
+        {/* Logo + leftContent stack from the top — the rail's outer
+            space-between pushes this group up and the trust strip down. */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 32 }}>
           <Logo size={26} light />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {leftContent}
@@ -265,11 +273,15 @@ export function DesktopShellLayout({ leftContent, children }) {
         </div>
       </div>
 
-      {/* Right column — content centered vertically so no empty bottom gap */}
+      {/* Right column — content top-anchored. The 88px top / 96px bottom
+          padding preserves intentional editorial breathing room; the column
+          stops growing where the content ends instead of vertical-centering
+          inside a 760px box. alignItems centers the 560px inner column
+          horizontally — that's still correct. */}
       <div style={{
-        padding: '72px 88px 72px 96px',
+        padding: '88px 88px 96px 96px',
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
+        alignItems: 'center', justifyContent: 'flex-start',
         background: '#ffffff',
       }}>
         <div style={{ width: '100%', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 24 }}>

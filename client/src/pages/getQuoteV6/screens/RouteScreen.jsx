@@ -165,8 +165,9 @@ function RouteScreenDesktop({
   const isWideDesktop = useMedia('(min-width: 1240px)');
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
-      {/* Two columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', minHeight: 760 }}>
+      {/* Two columns — see DesktopShell.jsx for the rationale behind
+          100vh + top-anchored content (avoids floating auth-card effect). */}
+      <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', minHeight: '100vh' }}>
         {/* Left — photo hero (Logo overlays top-left) */}
         <div style={{
           position: 'relative',
@@ -178,7 +179,7 @@ function RouteScreenDesktop({
           display: 'flex', flexDirection: 'column',
           gap: 0,
           overflow: 'hidden',
-          minHeight: 760,
+          minHeight: '100vh',
         }}>
           {/* Overlay */}
           <div style={{
@@ -209,8 +210,10 @@ function RouteScreenDesktop({
             background: 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 70%)',
           }} />
 
-          {/* Logo + Headline + trust cards (centered as one group) */}
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
+          {/* Logo + Headline + trust cards — stack from the top. flex: 1
+              still claims remaining vertical space so the trust strip
+              below this block remains pinned at the column bottom. */}
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 32 }}>
             <Logo size={26} />
             <div style={{ maxWidth: 300, display: 'flex', flexDirection: 'column', gap: 26 }}>
               <h2 style={{
@@ -291,24 +294,26 @@ function RouteScreenDesktop({
 
         </div>
 
-        {/* Right — form */}
+        {/* Right — form. Top-anchored so the card sits where the eye
+            expects it. The warm halo is anchored higher (top: 32%) to
+            stay behind the card instead of pooling in the lower half. */}
         <div style={{
           position: 'relative',
-          padding: '64px 40px 72px',
+          padding: '80px 40px 96px',
           background: 'var(--canvas)',
           backgroundImage: "url('/quote-bg-route-soft.webp')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+          display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center',
           overflow: 'hidden',
-          minHeight: 760,
+          minHeight: '100vh',
         }}>
 
           {/* Subtle warm halo behind the main card */}
           <div style={{
             position: 'absolute',
-            top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            top: '32%', left: '50%', transform: 'translate(-50%, -50%)',
             width: '80%', height: '70%',
             pointerEvents: 'none',
             background: 'radial-gradient(ellipse at center, rgba(255,237,213,0.4) 0%, rgba(255,237,213,0) 70%)',
