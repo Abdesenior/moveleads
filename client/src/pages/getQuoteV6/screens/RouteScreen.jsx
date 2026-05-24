@@ -299,12 +299,13 @@ function RouteScreenDesktop({
         {/* Right — form. Top-anchored so the card sits where the eye
             expects it. The warm halo is anchored higher (top: 32%) to
             stay behind the card instead of pooling in the lower half.
-            Horizontal padding (64px) gives the card cushioning without
-            making it feel small in the larger right column that the
-            340px sidebar leaves behind. */}
+            Horizontal padding (40px) keeps the card breathing without
+            surrounding it with so much whitespace that it stops feeling
+            dominant in the column. The card's own internal padding
+            (~44px 48px) supplies the rest of the visual cushion. */}
         <div style={{
           position: 'relative',
-          padding: '80px 64px 96px',
+          padding: '80px 40px 96px',
           background: 'var(--canvas)',
           backgroundImage: "url('/quote-bg-route-soft.webp')",
           backgroundSize: 'cover',
@@ -330,7 +331,7 @@ function RouteScreenDesktop({
           <div style={{
             position: 'relative',
             width: '100%',
-            maxWidth: 820,
+            maxWidth: 960,
             background: 'linear-gradient(180deg, #ffffff 0%, #fffdf9 100%)',
             border: '1px solid rgba(15,23,42,0.05)',
             borderRadius: 20,
