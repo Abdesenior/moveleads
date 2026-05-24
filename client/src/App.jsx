@@ -86,12 +86,10 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
-              {/* /get-quote renders the v6 design (canonical). /get-quote-v6
-                  stays aliased for QA / direct-link testing. /move/:from/:to
-                  intentionally still reuses V1 via MoveRoute — that
-                  migration is a separate PR. */}
+              {/* /get-quote is the single public quote URL — renders the v6
+                  funnel (file kept as GetQuoteV6.jsx for history; no rename).
+                  /move/:from/:to still reuses V1 via MoveRoute. */}
               <Route path="/get-quote" element={<GetQuoteV6 />} />
-              <Route path="/get-quote-v6" element={<GetQuoteV6 />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/move/:originCity/:destCity" element={<MoveRoute />} />
               <Route path="/thank-you" element={<ThankYou />} />
