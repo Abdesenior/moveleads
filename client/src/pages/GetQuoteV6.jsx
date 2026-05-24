@@ -382,7 +382,12 @@ export default function GetQuoteV6() {
   return (
     <div className="glq-v6">
       {desktop ? (
-        <DesktopShell step={node} answers={answers}>{screen}</DesktopShell>
+        <DesktopShell
+          step={node}
+          answers={answers}
+          onBack={goBack}
+          canGoBack={history.length > 0}
+        >{screen}</DesktopShell>
       ) : (
         <MobileShell>{screen}</MobileShell>
       )}

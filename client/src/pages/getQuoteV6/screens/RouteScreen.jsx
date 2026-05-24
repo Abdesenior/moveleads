@@ -165,9 +165,11 @@ function RouteScreenDesktop({
   const isWideDesktop = useMedia('(min-width: 1240px)');
   return (
     <div className="screen-enter" style={{ background: 'var(--bg-white)' }}>
-      {/* Two columns — see DesktopShell.jsx for the rationale behind
-          100vh + top-anchored content (avoids floating auth-card effect). */}
-      <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', minHeight: '100vh' }}>
+      {/* Two columns — matched to DesktopShellLayout proportions so the
+          sidebar doesn't visually jump when the user advances from the
+          landing into the funnel steps. Width and padding mirror the
+          340px / 48px 28px values used by the shared shell. */}
+      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', minHeight: '100vh' }}>
         {/* Left — photo hero (Logo overlays top-left) */}
         <div style={{
           position: 'relative',
@@ -175,7 +177,7 @@ function RouteScreenDesktop({
           backgroundSize: 'cover',
           backgroundPosition: '72% 55%',
           color: 'white',
-          padding: '72px 44px 72px',
+          padding: '48px 28px 48px',
           display: 'flex', flexDirection: 'column',
           gap: 0,
           overflow: 'hidden',
@@ -215,7 +217,7 @@ function RouteScreenDesktop({
               below this block remains pinned at the column bottom. */}
           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 32 }}>
             <Logo size={26} />
-            <div style={{ maxWidth: 300, display: 'flex', flexDirection: 'column', gap: 26 }}>
+            <div style={{ maxWidth: 280, display: 'flex', flexDirection: 'column', gap: 26 }}>
               <h2 style={{
                 margin: 0, fontSize: 36, fontWeight: 700,
                 letterSpacing: '-0.025em', lineHeight: 1.08,
@@ -296,10 +298,13 @@ function RouteScreenDesktop({
 
         {/* Right — form. Top-anchored so the card sits where the eye
             expects it. The warm halo is anchored higher (top: 32%) to
-            stay behind the card instead of pooling in the lower half. */}
+            stay behind the card instead of pooling in the lower half.
+            Horizontal padding (64px) gives the card cushioning without
+            making it feel small in the larger right column that the
+            340px sidebar leaves behind. */}
         <div style={{
           position: 'relative',
-          padding: '80px 40px 96px',
+          padding: '80px 64px 96px',
           background: 'var(--canvas)',
           backgroundImage: "url('/quote-bg-route-soft.webp')",
           backgroundSize: 'cover',
@@ -325,7 +330,7 @@ function RouteScreenDesktop({
           <div style={{
             position: 'relative',
             width: '100%',
-            maxWidth: 760,
+            maxWidth: 820,
             background: 'linear-gradient(180deg, #ffffff 0%, #fffdf9 100%)',
             border: '1px solid rgba(15,23,42,0.05)',
             borderRadius: 20,

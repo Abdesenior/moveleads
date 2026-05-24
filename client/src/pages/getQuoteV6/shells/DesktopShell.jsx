@@ -156,11 +156,36 @@ export function DesktopRouteContext({ answers, submitted = false }) {
   );
 }
 
-function DesktopTopBar({ step }) {
+function DesktopTopBar({ step, onBack, canGoBack }) {
   const map = stepToSection(step);
   if (!map) return null;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      {/* Desktop back button — mirrors the mobile FunnelHeader chevron so
+          the system reads as one navigation language. Only rendered when
+          there's a previous step to return to (history stack non-empty),
+          which is gated by the orchestrator via the canGoBack prop. */}
+      {canGoBack && (
+        <button
+          onClick={onBack}
+          aria-label="Back"
+          type="button"
+          className="nostroke"
+          style={{
+            width: 36, height: 36, borderRadius: 11,
+            background: 'var(--surface)', border: '1.5px solid var(--line)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--ink-2)', cursor: 'pointer',
+            flexShrink: 0,
+            transition: 'background 160ms ease, border-color 160ms ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--line-strong)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; }}
+        >
+          <Icon name="chevL" size={17} stroke={2.2} />
+        </button>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
       {SECTIONS.map((s, i) => {
         const done = s.id < map.section;
         const active = s.id === map.section;
@@ -190,6 +215,7 @@ function DesktopTopBar({ step }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -292,7 +318,7 @@ export function DesktopShellLayout({ leftContent, children }) {
   );
 }
 
-export default function DesktopShell({ step, answers, children }) {
+export default function DesktopShell({ step, answers, onBack, canGoBack, children }) {
   // The route step renders its own layout — RouteScreen handles the form
   // (full-bleed hero) and the preview moment (wraps in DesktopShellLayout
   // itself with DesktopRouteContext on the left rail).
@@ -306,7 +332,9 @@ export default function DesktopShell({ step, answers, children }) {
 
   return (
     <DesktopShellLayout leftContent={leftContent}>
-      {step !== 'route' && step !== 'preview' && step !== 'success' && <DesktopTopBar step={step} />}
+      {step !== 'route' && step !== 'preview' && step !== 'success' && (
+        <DesktopTopBar step={step} onBack={onBack} canGoBack={canGoBack} />
+      )}
       {children}
     </DesktopShellLayout>
   );
