@@ -336,7 +336,7 @@ function RouteScreenDesktop({
             border: '1px solid rgba(15,23,42,0.05)',
             borderRadius: 20,
             boxShadow: '0 30px 80px rgba(15,23,42,0.08), 0 10px 30px rgba(15,23,42,0.04), 0 0 0 1px rgba(255,255,255,0.6) inset, inset 0 1px 0 rgba(255,255,255,0.72)',
-            padding: '44px 48px 40px',
+            padding: '44px 48px 48px',
           }}>
             {/* Eyebrow — sans, operational kicker */}
             <div style={{
@@ -368,7 +368,7 @@ function RouteScreenDesktop({
 
             {/* ZIP row with 44px circular route connector */}
             <div style={{
-              marginTop: 32,
+              marginTop: 36,
               display: 'grid',
               gridTemplateColumns: '1fr auto 1fr',
               gap: 16,
@@ -451,7 +451,7 @@ function RouteScreenDesktop({
 
             {/* Feature pills strip — 4 items inside a single bordered container */}
             <div style={{
-              marginTop: 24,
+              marginTop: 28,
               padding: '16px 18px',
               background: 'var(--bg-white)',
               border: '1px solid var(--line)',
@@ -493,7 +493,7 @@ function RouteScreenDesktop({
 
             {/* Section header — small caps flanked by thin rules */}
             <div style={{
-              marginTop: 28,
+              marginTop: 32,
               display: 'flex', alignItems: 'center', gap: 14,
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
@@ -507,7 +507,7 @@ function RouteScreenDesktop({
 
             {/* 3 steps with icon chips + number badges */}
             <div style={{
-              marginTop: 24,
+              marginTop: 28,
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 1fr)',
               gap: 20,
