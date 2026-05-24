@@ -238,9 +238,17 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
-    // For non-admin users, annotate each lead with _matchesPreferences and
-    // sort matched-first. The client uses this to drive the "Matched for
-    // you" tab + a "Matches your setup" badge.
+    // For non-admin users, annotate each lead with _matchesPreferences.
+    // The client uses this flag to (a) filter the "Matched for you" tab and
+    // (b) render the "Matches your setup" badge on individual cards.
+    //
+    // We deliberately do NOT re-sort the response by match. The "All" tab is
+    // strict newest-listed first (preserves the distributionDecisionAt-desc
+    // order Mongo produced). The "Matched for you" tab is the relevance view —
+    // it filters by _matchesPreferences client-side, keeping the same freshness
+    // order within the filtered subset. Combining the two on the server side
+    // produced confusing orderings like "4d-ago (matched) > 1h-ago (unmatched)"
+    // on the All tab; that's now gone.
     if (!isAdmin) {
       const me = await User.findById(req.user.id).select('maxDistance preferredHomeSizes').lean();
       const myZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
@@ -248,9 +256,6 @@ router.get('/', auth, async (req, res) => {
       for (const l of leads) {
         l._matchesPreferences = doesLeadMatchMoverPreferences(l, me || {}, zipSet);
       }
-      // Stable matched-first sort. Within each group, preserve the existing
-      // createdAt-desc order from Mongo.
-      leads.sort((a, b) => (b._matchesPreferences ? 1 : 0) - (a._matchesPreferences ? 1 : 0));
     }
 
     // ── PII redaction ─────────────────────────────────────────────────────────

@@ -44,6 +44,17 @@ test('GET /api/leads sorts by distributionDecisionAt with createdAt tiebreaker',
     'routes/leads.js mover feed must NOT sort by createdAt alone — that ranks leads by ' +
     'homeowner-submission time, which makes recently-approved old leads appear stale.'
   );
+
+  // The mover feed must NOT re-sort by _matchesPreferences after the Mongo
+  // sort. That used to produce "4d-ago matched lead > 1h-ago unmatched lead"
+  // on the All tab. The Matched-for-you tab is now a client-side filter on
+  // the same freshness-ordered response; the "All" tab is strict freshness.
+  const badMatchedFirst = /leads\.sort\(\s*\([^)]*\)\s*=>\s*\(b\._matchesPreferences/;
+  assert.doesNotMatch(
+    src, badMatchedFirst,
+    'routes/leads.js must NOT server-side-reorder by _matchesPreferences. The All ' +
+    'tab is freshness-only; matched filtering happens client-side via the tab.'
+  );
 });
 
 test('frontend /dashboard/leads "Listed" label reads distributionDecisionAt', () => {
