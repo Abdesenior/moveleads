@@ -7,7 +7,13 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const CoverageArea = require('../models/CoverageArea');
 const PurchasedLead = require('../models/PurchasedLead');
-const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
+// Dashboard /dashboard/leads uses the coverage-only matcher
+// (isLeadInMoverCoverage) so the "Matches your setup" badge means a single,
+// honest thing: the lead is in the mover's service area. SMS/email dispatch
+// continue to use doesLeadMatchMoverPreferences (full policy) — see
+// twilioService.js and emailService.js. The two semantics are deliberately
+// separate; do not collapse them without a coordinated decision.
+const { isLeadInMoverCoverage } = require('../utils/leadMatching');
 const { deductLeadBalance, runAutoRecharge } = require('../services/billingService');
 const { sendSpeedToLeadSMS } = require('../services/twilioService');
 const PlatformSettings = require('../models/PlatformSettings');
@@ -250,11 +256,14 @@ router.get('/', auth, async (req, res) => {
     // produced confusing orderings like "4d-ago (matched) > 1h-ago (unmatched)"
     // on the All tab; that's now gone.
     if (!isAdmin) {
-      const me = await User.findById(req.user.id).select('maxDistance preferredHomeSizes').lean();
+      // isLeadInMoverCoverage only reads user.deliversNationwide. maxDistance
+      // and preferredHomeSizes are deliberately not fetched anymore — those
+      // are dispatch-policy concerns, not badge concerns.
+      const me = await User.findById(req.user.id).select('deliversNationwide').lean();
       const myZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
       const zipSet = new Set((myZips || []).map(z => String(z)));
       for (const l of leads) {
-        l._matchesPreferences = doesLeadMatchMoverPreferences(l, me || {}, zipSet);
+        l._matchesPreferences = isLeadInMoverCoverage(l, me || {}, zipSet);
       }
     }
 
