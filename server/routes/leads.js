@@ -200,7 +200,13 @@ router.get('/', auth, async (req, res) => {
       }
     );
 
-    const leads = await Lead.find(query).sort({ createdAt: -1 }).lean();
+    // Sort by when each lead became visible to movers (distributionDecisionAt),
+    // not when the homeowner originally submitted (createdAt). A 21-day-old
+    // lead approved today is "freshly listed" from the mover's POV and should
+    // rank with today's listings, not 21 days back. createdAt tiebreaker keeps
+    // ordering deterministic on millisecond-collision and sinks the rare
+    // legacy lead with a missing decision timestamp to the bottom.
+    const leads = await Lead.find(query).sort({ distributionDecisionAt: -1, createdAt: -1 }).lean();
 
     const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
 

@@ -765,7 +765,12 @@ export default function LeadFeed() {
                       <td className="col-listed" style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#94a3b8', fontSize: 13 }}>
                           <Clock size={13} />
-                          {timeAgo(lead.createdAt)}
+                          {/* "Listed" = when this lead became visible on the mover
+                              dashboard, not when the homeowner submitted. Falls
+                              back to createdAt only for legacy rows that somehow
+                              lack distributionDecisionAt (shouldn't happen for
+                              anything that passes moverVisibilityFilter). */}
+                          {timeAgo(lead.distributionDecisionAt || lead.createdAt)}
                         </div>
                       </td>
 
