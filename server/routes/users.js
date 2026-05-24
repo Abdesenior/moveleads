@@ -109,7 +109,11 @@ router.put('/:id', auth, async (req, res) => {
 
       // Mirror into onboarding.answers.pickup.states so coverageExpansion
       // (which reads pickup.states/delivery.states) regenerates correctly.
-      if (serviceStatesChanged && cleaned.length > 0) {
+      // Runs whenever the state list changes, including when it's cleared
+      // to []. A pre-fix `cleaned.length > 0` gate here meant clearing
+      // states left the mirror stale and the badge kept lighting up for
+      // ZIPs the mover no longer covered.
+      if (serviceStatesChanged) {
         safeBody['onboarding.answers.pickup.mode']    = 'states';
         safeBody['onboarding.answers.pickup.states']  = cleaned;
       }
@@ -119,7 +123,15 @@ router.put('/:id', auth, async (req, res) => {
 
     // Best-effort coverage regen: don't block the response. If it fails the
     // user can still toggle states again or wait for the next save.
-    if (serviceStatesChanged && nextServiceStates && nextServiceStates.length > 0) {
+    //
+    // We deliberately run this even when nextServiceStates is empty. The
+    // regen helper does `CoverageArea.deleteMany({ company: userId })` first
+    // and only re-inserts derived ZIPs (none, in the empty case) — so
+    // clearing service states cleanly wipes the mover's CoverageArea
+    // collection. Pre-fix this was gated on `nextServiceStates.length > 0`,
+    // leaving stale CoverageArea docs that kept lighting up the
+    // "Matches your setup" badge on /dashboard/leads.
+    if (serviceStatesChanged && nextServiceStates) {
       const dispatchBase = user?.onboarding?.answers?.dispatchBase || {};
       const delivery     = user?.onboarding?.answers?.delivery     || { mode: 'same', states: [] };
       regenerateCoverageForUser_v2(
