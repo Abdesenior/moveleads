@@ -55,6 +55,27 @@ test('GET /api/leads sorts by distributionDecisionAt with createdAt tiebreaker',
     'routes/leads.js must NOT server-side-reorder by _matchesPreferences. The All ' +
     'tab is freshness-only; matched filtering happens client-side via the tab.'
   );
+
+  // The /dashboard/leads annotation must use the coverage-only helper
+  // (isLeadInMoverCoverage), NOT the full-policy helper
+  // (doesLeadMatchMoverPreferences). Dispatch services keep using the
+  // full-policy helper directly — that's deliberate. See the comment block
+  // above the import in routes/leads.js for the split rationale.
+  const usesCoverageOnly = /_matchesPreferences\s*=\s*isLeadInMoverCoverage\(/;
+  assert.match(
+    src, usesCoverageOnly,
+    'routes/leads.js must annotate _matchesPreferences using isLeadInMoverCoverage. ' +
+    'Coverage-only badge semantics: a lead matches if its origin or destination ZIP ' +
+    'overlaps the mover CoverageArea (plus nationwide-on-origin fallback). Distance, ' +
+    'home size, and move type belong to dispatch policy, not the badge.'
+  );
+
+  const usesFullPolicy = /_matchesPreferences\s*=\s*doesLeadMatchMoverPreferences\(/;
+  assert.doesNotMatch(
+    src, usesFullPolicy,
+    'routes/leads.js must NOT use doesLeadMatchMoverPreferences for the dashboard ' +
+    'annotation — that helper is for SMS/email dispatch. Use isLeadInMoverCoverage instead.'
+  );
 });
 
 test('frontend /dashboard/leads "Listed" label reads distributionDecisionAt', () => {

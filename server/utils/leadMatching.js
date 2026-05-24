@@ -67,4 +67,47 @@ function doesLeadMatchMoverPreferences(lead, user, coverageZips) {
   return true;
 }
 
-module.exports = { doesLeadMatchMoverPreferences };
+/**
+ * Coverage-only match used by /dashboard/leads to drive the
+ * "Matches your setup" badge and the "Matched for you" tab.
+ *
+ * Strictly answers ONE question: is the lead's origin OR destination ZIP
+ * in the mover's CoverageArea? Does NOT consider distance, home size,
+ * move type, urgency, move date, or price — those are informational
+ * metadata on the lead card, not gates on the badge.
+ *
+ * Operational dispatch (SMS, email) deliberately continues to call the
+ * fuller `doesLeadMatchMoverPreferences` above. We split badge semantics
+ * (coverage-only) from dispatch semantics (full policy) to make the
+ * dashboard signal honest without disturbing broadcast volume.
+ *
+ * Behavior:
+ *   - zipSet empty (mover hasn't configured CoverageArea) → false.
+ *     The badge must mean something; onboarding-incomplete movers
+ *     should not see every lead as matched.
+ *   - lead.originZip in zipSet → true
+ *   - lead.destinationZip in zipSet → true
+ *   - deliversNationwide + lead.originZip in zipSet → true
+ *     (mover declared they'll deliver anywhere; origin coverage is
+ *     enough — same nationwide rule as the existing helper.)
+ *   - everything else → false
+ *
+ * @param {Object|null} lead          Lead doc / lean object with originZip + destinationZip
+ * @param {Object|null} user          User doc with deliversNationwide flag
+ * @param {Set<string>|Array<string>} coverageZips  Mover's CoverageArea zip codes
+ * @returns {boolean}
+ */
+function isLeadInMoverCoverage(lead, user, coverageZips) {
+  if (!lead || !user) return false;
+  const zipSet = coverageZips instanceof Set ? coverageZips : new Set(coverageZips || []);
+  if (zipSet.size === 0) return false;
+  const inOrigin       = lead.originZip      && zipSet.has(String(lead.originZip));
+  const inDest         = lead.destinationZip && zipSet.has(String(lead.destinationZip));
+  const nationwidePass = user.deliversNationwide && inOrigin;
+  return Boolean(inOrigin || inDest || nationwidePass);
+}
+
+module.exports = {
+  doesLeadMatchMoverPreferences,
+  isLeadInMoverCoverage,
+};
