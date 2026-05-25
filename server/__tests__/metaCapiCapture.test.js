@@ -128,6 +128,16 @@ test('ingest-v2 imports metaCapi and persists all six tracking fields', () => {
     /\.\.\.metaCapi\.extractRequestSignals\(\s*req\s*\)/,
     'ingest-v2 must spread metaCapi.extractRequestSignals(req) into the new Lead doc'
   );
+
+  // Fire-and-forget scaffold call so the `[metaCapi:scaffold]` log line
+  // appears in Render per ingest (Commit 1 visibility). Must use .catch()
+  // and never await — customer response cannot be gated on Meta uptime.
+  // Commit 2 flips this call site to a live CAPI POST without restructuring.
+  assert.match(
+    ingestRouteSrc,
+    /metaCapi\.sendLead\(\s*lead\s*,\s*req\s*\)\.catch\(/,
+    'ingest-v2 must invoke metaCapi.sendLead(lead, req).catch(...) after save so the scaffold log fires per submission'
+  );
 });
 
 // ── D. metaCapi scaffold surface + no-op safety ──────────────────────────
