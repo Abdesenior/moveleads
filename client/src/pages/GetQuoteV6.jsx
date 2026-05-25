@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import './getQuoteV6/styles.css';
 import useCanonical from '../utils/useCanonical';
+import {
+  generateEventId,
+  readFbp,
+  readFbc,
+  eventSourceUrl,
+  trackLead,
+} from '../utils/metaPixel';
 import useMedia from './getQuoteV6/useMedia';
 import RouteScreen from './getQuoteV6/screens/RouteScreen';
 import TimingPivotScreen from './getQuoteV6/screens/TimingPivotScreen';
@@ -286,6 +293,21 @@ export default function GetQuoteV6() {
         miles: answers.miles || 0,
       };
 
+      // Meta Pixel + CAPI attribution. The eventId is generated BEFORE the
+      // POST so the same value can be passed to both the server (for CAPI)
+      // and the browser fbq call (for Pixel) — Meta dedups by
+      // (event_name, event_id). _fbp / _fbc come from cookies the Pixel
+      // sets; _fbc falls back to the ?fbclid= URL param on first ad-click
+      // landings before the cookie is set.
+      const metaEventId    = generateEventId();
+      const metaFbp        = readFbp();
+      const metaFbc        = readFbc();
+      const metaSourceUrl  = eventSourceUrl();
+      if (metaEventId)   payload.metaEventId    = metaEventId;
+      if (metaFbp)       payload.fbp            = metaFbp;
+      if (metaFbc)       payload.fbc            = metaFbc;
+      if (metaSourceUrl) payload.eventSourceUrl = metaSourceUrl;
+
       const res = await fetch(`${API}/api/leads/ingest-v2`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -295,6 +317,14 @@ export default function GetQuoteV6() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.success === false) {
         throw new Error(json.msg || json.message || `Submission failed (${res.status})`);
+      }
+
+      // Browser-side Lead event — fires ONLY after a confirmed 200. The
+      // server is already firing the matching CAPI event with the same
+      // eventID, so Meta will dedupe them. Idempotent retries (same
+      // clientSubmissionId) skip this — they didn't create a new Lead.
+      if (!json.idempotent) {
+        trackLead(metaEventId);
       }
 
       patch({ clientSubmissionId: submissionId, intentConfirmed: true });

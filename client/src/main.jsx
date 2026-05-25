@@ -3,6 +3,13 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
+import { loadPixel } from './utils/metaPixel'
+
+// Meta Pixel — boots fbevents.js + fires PageView once. No-op when
+// VITE_META_PIXEL_ID is unset (e.g. local dev) or when blocked by an
+// ad-blocker. The Lead event itself fires from GetQuoteV6's submit
+// handler with a shared eventID for browser↔CAPI dedup.
+loadPixel();
 
 // Recover from stale-deploy chunk-load failures.
 // When a new build ships, hashed asset filenames change. Tabs that loaded the
