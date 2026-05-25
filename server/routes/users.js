@@ -8,17 +8,13 @@ const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
 const { regenerateCoverageForUser_v2 } = require('../utils/coverageExpansion');
 const { normalizeUSDigits, applyPhoneChange } = require('../utils/phoneVerification');
-
-// Canonical 50 US states + DC. Matches client/src/data/usStates.js. Used to
-// validate `serviceStates` in self-update payloads — unknown codes are
-// silently dropped (defensive) and we cap at 50 entries to bound impact.
-const VALID_STATE_CODES = new Set([
-  'AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN',
-  'IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH',
-  'NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT',
-  'VT','VA','WA','WV','WI','WY',
-]);
-const MAX_SERVICE_STATES = 50;
+const {
+  VALID_STATE_CODES,
+  MAX_STATES: MAX_SERVICE_STATES,
+  normalizeStateList,
+  buildServiceAreaPatch,
+  backfillFromServiceStates,
+} = require('../utils/serviceAreaMirror');
 
 // @route   GET /api/users
 // @desc    Admin: Get all users
@@ -51,10 +47,13 @@ router.put('/:id', auth, async (req, res) => {
     // phoneVerified is also stripped — it can only flip true via the
     // /api/users/me/phone/verify-code route after Twilio Verify approval.
     // phoneVerifiedAt + phoneVerification* are server-managed state.
+    // interstateEnabled is a derived field — recomputed server-side via
+    // serviceAreaMirror; never trust a client-supplied value.
     const { role, balance, isSuspended, password, isEmailVerified,
             emailVerificationToken, resetPasswordToken,
             phoneVerified, phoneVerifiedAt,
             phoneVerificationLastSentAt, phoneVerificationSendsToday,
+            interstateEnabled,
             ...safeBody } = req.body;
 
     // ── Phone-change invariant ─────────────────────────────────────────────
@@ -76,47 +75,115 @@ router.put('/:id', auth, async (req, res) => {
       }
     }
 
-    // ── serviceStates validation + canonical mirror ────────────────────────
-    // Source of truth for "what states does this mover operate in" is
-    // User.serviceStates. Coverage regen (regenerateCoverageForUser_v2) reads
-    // pickup/delivery from onboarding.answers, so we mirror serviceStates →
-    // onboarding.answers.pickup.states (mode='states') so the existing
-    // coverage helper produces the right ZIP set without a refactor.
-    let serviceStatesChanged = false;
-    let nextServiceStates = null;
-    if ('serviceStates' in safeBody) {
-      const raw = safeBody.serviceStates;
-      if (!Array.isArray(raw)) {
+    // ── Service-area write path (Phase 1 unified handler) ──────────────────
+    // Three input shapes are accepted, in priority order:
+    //   (1) New fields: pickupStates + deliveryStates + deliversNationwide
+    //   (2) Legacy fields: serviceStates (single flat list)
+    //   (3) Mixed (one of each) — new fields win; legacy is treated as
+    //       supplemental and ignored to avoid contradictory writes.
+    //
+    // Whichever path runs ends up producing the SAME mongoose `$set` shape
+    // via buildServiceAreaPatch: pickupStates + deliveryStates +
+    // deliversNationwide + serviceStates (legacy mirror) + interstateEnabled.
+    // The matcher still reads serviceStates today; Phase 3 cuts it over.
+    let serviceAreaChanged = false;
+    let regenPickup   = null;
+    let regenDelivery = null;
+
+    const hasNewPickup     = 'pickupStates'     in safeBody;
+    const hasNewDelivery   = 'deliveryStates'   in safeBody;
+    const hasNewNationwide = 'deliversNationwide' in safeBody;
+    const hasLegacyService = 'serviceStates'    in safeBody;
+
+    if (hasNewPickup || hasNewDelivery || hasNewNationwide) {
+      // Validate outer shapes only — buildServiceAreaPatch handles dedup,
+      // normalization, and unknown-code dropping internally.
+      if (hasNewPickup && !Array.isArray(safeBody.pickupStates)) {
+        return res.status(400).json({ msg: 'pickupStates must be an array of state codes' });
+      }
+      if (hasNewDelivery && !Array.isArray(safeBody.deliveryStates)) {
+        return res.status(400).json({ msg: 'deliveryStates must be an array of state codes' });
+      }
+      if (hasNewNationwide && typeof safeBody.deliversNationwide !== 'boolean') {
+        return res.status(400).json({ msg: 'deliversNationwide must be a boolean' });
+      }
+
+      const result = buildServiceAreaPatch({
+        pickupStates:       hasNewPickup     ? safeBody.pickupStates       : undefined,
+        deliveryStates:     hasNewDelivery   ? safeBody.deliveryStates     : undefined,
+        deliversNationwide: hasNewNationwide ? safeBody.deliversNationwide : undefined,
+        previous: {
+          pickupStates:       user.pickupStates,
+          deliveryStates:     user.deliveryStates,
+          deliversNationwide: user.deliversNationwide,
+        },
+      });
+
+      // Discard raw client values; use the helper's normalized versions.
+      delete safeBody.pickupStates;
+      delete safeBody.deliveryStates;
+      delete safeBody.deliversNationwide;
+      delete safeBody.serviceStates; // ignore legacy if mixed — new wins
+      Object.assign(safeBody, result.patch);
+
+      regenPickup   = { mode: 'states', states: result.pickupStates };
+      regenDelivery = result.deliversNationwide
+        ? { mode: 'nationwide', states: [] }
+        : (result.deliveryStates.length > 0
+            ? { mode: 'states', states: result.deliveryStates }
+            : { mode: 'same', states: [] });
+
+      // Keep onboarding.answers in sync so coverage regen's existing
+      // signature (which reads from there) sees the right inputs even on
+      // the back-compat regen call below.
+      safeBody['onboarding.answers.pickup.mode']    = regenPickup.mode;
+      safeBody['onboarding.answers.pickup.states']  = regenPickup.states;
+      safeBody['onboarding.answers.delivery.mode']  = regenDelivery.mode;
+      safeBody['onboarding.answers.delivery.states'] = regenDelivery.states;
+
+      // Detect actual change vs idempotent re-save
+      const prevPickup = Array.isArray(user.pickupStates) ? user.pickupStates : [];
+      const prevDeliv  = Array.isArray(user.deliveryStates) ? user.deliveryStates : [];
+      const prevNw     = !!user.deliversNationwide;
+      const samePickup = prevPickup.length === regenPickup.states.length
+        && [...prevPickup].sort().every((c, i) => c === [...regenPickup.states].sort()[i]);
+      const sameDeliv  = prevDeliv.length === (regenDelivery.states || []).length
+        && [...prevDeliv].sort().every((c, i) => c === [...(regenDelivery.states || [])].sort()[i]);
+      const sameNw     = prevNw === result.deliversNationwide;
+      serviceAreaChanged = !(samePickup && sameDeliv && sameNw);
+    } else if (hasLegacyService) {
+      // ── Legacy serviceStates path ────────────────────────────────────────
+      // Old clients (and admin tooling) still send serviceStates as a flat
+      // list. Normalize via the same helper to keep behavior consistent
+      // and backfill pickup/delivery for movers whose new fields are empty.
+      if (!Array.isArray(safeBody.serviceStates)) {
         return res.status(400).json({ msg: 'serviceStates must be an array of state codes' });
       }
-      // Normalize, dedupe, drop unknowns, cap.
-      const cleaned = [];
-      const seen = new Set();
-      for (const v of raw) {
-        if (typeof v !== 'string') continue;
-        const code = v.trim().toUpperCase();
-        if (!VALID_STATE_CODES.has(code)) continue; // silently drop
-        if (seen.has(code)) continue;
-        seen.add(code);
-        cleaned.push(code);
-        if (cleaned.length >= MAX_SERVICE_STATES) break;
-      }
+      const cleaned = normalizeStateList(safeBody.serviceStates);
       safeBody.serviceStates = cleaned;
-      nextServiceStates = cleaned;
       const prev = Array.isArray(user.serviceStates) ? user.serviceStates : [];
       const same = prev.length === cleaned.length && prev.every((c, i) => c === cleaned[i]);
-      serviceStatesChanged = !same;
+      const legacyChanged = !same;
 
-      // Mirror into onboarding.answers.pickup.states so coverageExpansion
-      // (which reads pickup.states/delivery.states) regenerates correctly.
-      // Runs whenever the state list changes, including when it's cleared
-      // to []. A pre-fix `cleaned.length > 0` gate here meant clearing
-      // states left the mirror stale and the badge kept lighting up for
-      // ZIPs the mover no longer covered.
-      if (serviceStatesChanged) {
+      if (legacyChanged) {
+        // Mirror to pickup.states for coverage regen (existing behavior).
         safeBody['onboarding.answers.pickup.mode']    = 'states';
         safeBody['onboarding.answers.pickup.states']  = cleaned;
+
+        // Phase 1 backfill: if the mover has no pickupStates / deliveryStates
+        // yet, populate them from the legacy write so they're not stuck on
+        // the old field after the new UI ships. Preserves nationwide intent.
+        const additions = backfillFromServiceStates(cleaned, {
+          pickupStates:       user.pickupStates,
+          deliveryStates:     user.deliveryStates,
+          deliversNationwide: user.deliversNationwide,
+        });
+        Object.assign(safeBody, additions);
       }
+
+      serviceAreaChanged = legacyChanged;
+      regenPickup   = { mode: 'states', states: cleaned };
+      regenDelivery = user?.onboarding?.answers?.delivery || { mode: 'same', states: [] };
     }
 
     user = await User.findByIdAndUpdate(req.params.id, { $set: safeBody }, { returnDocument: 'after' }).select('-password');
@@ -124,21 +191,18 @@ router.put('/:id', auth, async (req, res) => {
     // Best-effort coverage regen: don't block the response. If it fails the
     // user can still toggle states again or wait for the next save.
     //
-    // We deliberately run this even when nextServiceStates is empty. The
+    // We deliberately run this even when the pickup list is empty. The
     // regen helper does `CoverageArea.deleteMany({ company: userId })` first
     // and only re-inserts derived ZIPs (none, in the empty case) — so
     // clearing service states cleanly wipes the mover's CoverageArea
-    // collection. Pre-fix this was gated on `nextServiceStates.length > 0`,
-    // leaving stale CoverageArea docs that kept lighting up the
-    // "Matches your setup" badge on /dashboard/leads.
-    if (serviceStatesChanged && nextServiceStates) {
+    // collection.
+    if (serviceAreaChanged && regenPickup) {
       const dispatchBase = user?.onboarding?.answers?.dispatchBase || {};
-      const delivery     = user?.onboarding?.answers?.delivery     || { mode: 'same', states: [] };
       regenerateCoverageForUser_v2(
         user._id,
         dispatchBase,
-        { mode: 'states', states: nextServiceStates },
-        delivery,
+        regenPickup,
+        regenDelivery,
       ).catch(err => console.error('[Coverage] regen failed:', err.message));
     }
 

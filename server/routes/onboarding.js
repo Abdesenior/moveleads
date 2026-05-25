@@ -12,6 +12,7 @@ const {
 const { suggestPlaces } = require('../utils/placeAutocomplete');
 const zipcodes = require('zipcodes');
 const { normalizeUSDigits, applyPhoneChange } = require('../utils/phoneVerification');
+const { buildServiceAreaPatch, normalizeStateList } = require('../utils/serviceAreaMirror');
 
 // Whitelisted answer keys to prevent setting arbitrary fields
 const ANSWER_KEYS = [
@@ -109,6 +110,41 @@ router.post('/save-step', auth, async (req, res) => {
         update['deliversNationwide'] = (answers.delivery.mode === 'nationwide');
         if (answers.dispatchBase && answers.dispatchBase.city && answers.dispatchBase.state) {
           update['onboarding.answers.primaryMarket'] = `${answers.dispatchBase.city}, ${answers.dispatchBase.state}`;
+        }
+      }
+
+      // ── Mover-coverage cleanup Phase 1 — mirror nested pickup/delivery
+      //    onboarding answers into the new top-level User fields. The
+      //    matching code still reads serviceStates (Phase 3 cuts that
+      //    over); buildServiceAreaPatch keeps serviceStates synced as a
+      //    union for the duration of the migration.
+      //
+      // Triggers on either Step 1 (pickup) or Step 2 (delivery / nationwide).
+      // Resolves the union by reading the previous user doc for fields the
+      // current step didn't touch — so a Step 1 save doesn't clobber the
+      // Step 2 delivery answer the user already submitted.
+      if (step === 1 || step === 2) {
+        const pickupStates = answers && answers.pickup && Array.isArray(answers.pickup.states)
+          ? normalizeStateList(answers.pickup.states)
+          : undefined;
+        const deliveryStates = answers && answers.delivery && Array.isArray(answers.delivery.states)
+          ? normalizeStateList(answers.delivery.states)
+          : undefined;
+        const deliversNationwide = (answers && answers.delivery && typeof answers.delivery.mode === 'string')
+          ? (answers.delivery.mode === 'nationwide')
+          : undefined;
+
+        if (pickupStates !== undefined || deliveryStates !== undefined || deliversNationwide !== undefined) {
+          const previous = await User.findById(req.user.id)
+            .select('pickupStates deliveryStates deliversNationwide')
+            .lean();
+          const { patch } = buildServiceAreaPatch({
+            pickupStates,
+            deliveryStates,
+            deliversNationwide,
+            previous: previous || {},
+          });
+          Object.assign(update, patch);
         }
       }
     }

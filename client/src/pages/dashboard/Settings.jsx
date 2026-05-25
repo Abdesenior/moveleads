@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus, Star, ExternalLink, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import VerifyPhoneModal from '../../components/VerifyPhoneModal';
+import StatePicker from '../../components/StatePicker';
 import { AuthContext } from '../../context/AuthContext';
-import { US_STATES } from '../../data/usStates';
 
 /* ── iOS-style toggle switch ── */
 function Toggle({ on, onChange }) {
@@ -104,6 +104,16 @@ function ZipTagInput({ tags, onAdd, onRemove }) {
   );
 }
 
+/* Compare two state-code arrays as unordered sets (e.g. pickup vs delivery
+   for the "Same as pickup" radio detection on load). */
+function sameSet(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((v, i) => v === sb[i]);
+}
+
 const TABS = [
   { id: 'notifications', label: 'Notifications',   icon: Bell },
   { id: 'serviceAreas',  label: 'Service Areas',   icon: Globe },
@@ -130,26 +140,35 @@ export default function SettingsPage() {
   const [coverageSaving, setCoverageSaving] = useState(false);
   const [coverageMsg, setCoverageMsg] = useState('');
 
-  /* Service Areas (operating states) */
-  const [serviceStates, setServiceStates] = useState(user?.serviceStates || []);
-  const [statesSaving, setStatesSaving]   = useState(false);
-  const [statesMsg, setStatesMsg]         = useState('');
-  const [stateMenuOpen, setStateMenuOpen] = useState(false);
-  const [stateQuery, setStateQuery]       = useState('');
-  const [stateActiveIdx, setStateActiveIdx] = useState(0);
-  const stateMenuRef = useRef(null);
+  /* Service Area — Phase 2 unified pickup/delivery/distance settings.
+     Reads from new top-level User fields populated by the Phase 1 backfill
+     and onboarding mirrors. The save handler writes pickupStates,
+     deliveryStates, deliversNationwide, and maxDistance via PUT /users/:id.
+     Server-side serviceAreaMirror keeps the legacy serviceStates field in
+     sync until Phase 3 cuts the matcher over. */
+  const [pickupStates, setPickupStates] = useState(() =>
+    Array.isArray(user?.pickupStates) && user.pickupStates.length > 0
+      ? user.pickupStates
+      : (Array.isArray(user?.serviceStates) ? user.serviceStates : [])
+  );
+  // deliveryMode is UI-only — derived from the data on load (see effect below).
+  // 'same'       → save deliveryStates = pickupStates, deliversNationwide=false
+  // 'custom'     → save deliveryStates = deliveryStatesCustom, deliversNationwide=false
+  // 'nationwide' → save deliveryStates = [], deliversNationwide=true
+  const [deliveryMode, setDeliveryMode]               = useState('same');
+  const [deliveryStatesCustom, setDeliveryStatesCustom] = useState([]);
+  // moveDistance UI value: '' (Both) | 'Local' | 'Long Distance'
+  const [moveDistance, setMoveDistance] = useState(user?.maxDistance || '');
+  const [serviceAreaSaving, setServiceAreaSaving] = useState(false);
+  const [serviceAreaMsg, setServiceAreaMsg]       = useState('');
 
-  /* Lead Preferences */
+  /* Lead Preferences — home size only. Move distance moved into Service Area
+     (lives alongside pickup/delivery states; same conceptual surface). */
   const [homeSizePref, setHomeSizePref] = useState(() => {
     const pref = user?.preferredHomeSizes || [];
     if (pref.includes('2 Bedroom')) return '2+ Bedrooms only';
     if (pref.includes('3 Bedroom')) return '3+ Bedrooms only';
     return 'All Sizes';
-  });
-  const [maxDistancePref, setMaxDistancePref] = useState(() => {
-    if (user?.maxDistance === 'Local') return 'Local only (< 50 miles)';
-    if (user?.maxDistance === 'Long Distance') return 'Long Distance only (> 100 miles)';
-    return 'Any Distance';
   });
   const [prefsSaving, setPrefsSaving]   = useState(false);
   const [prefsMsg, setPrefsMsg]         = useState('');
@@ -192,32 +211,38 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteError, setDeleteError] = useState('');
 
-  /* Sync local state from DB whenever user object changes (page load / refresh) */
+  /* Sync local state from DB whenever user object changes (page load / refresh).
+     Service-area fields hydrate from the new top-level User fields populated
+     in Phase 1; deliveryMode is INFERRED from the persisted shape: */
   const didInit = useRef(false);
   useEffect(() => {
     if (!user) return;
     setEmailNotif(user.emailNotif ?? true);
     setSmsNotif(user.smsNotif ?? false);
     setProfilePhone(user.phone || '');
-    setServiceStates(Array.isArray(user.serviceStates) ? user.serviceStates : []);
+
+    const pickup = Array.isArray(user.pickupStates) && user.pickupStates.length > 0
+      ? user.pickupStates
+      : (Array.isArray(user.serviceStates) ? user.serviceStates : []);
+    const delivery = Array.isArray(user.deliveryStates) ? user.deliveryStates : [];
+    setPickupStates(pickup);
+
+    if (user.deliversNationwide) {
+      setDeliveryMode('nationwide');
+      setDeliveryStatesCustom([]);
+    } else if (delivery.length === 0 || sameSet(pickup, delivery)) {
+      // Empty delivery (legacy / fresh mover) reads as "Same as pickup" —
+      // the existing matcher already treats serviceStates symmetrically.
+      setDeliveryMode('same');
+      setDeliveryStatesCustom([]);
+    } else {
+      setDeliveryMode('custom');
+      setDeliveryStatesCustom(delivery);
+    }
+
+    setMoveDistance(user.maxDistance || '');
     didInit.current = true;
   }, [user?._id]); // eslint-disable-line
-
-  /* Close the "Add state" dropdown when clicking outside */
-  useEffect(() => {
-    if (!stateMenuOpen) {
-      setStateQuery('');
-      setStateActiveIdx(0);
-      return;
-    }
-    const onDocClick = (e) => {
-      if (stateMenuRef.current && !stateMenuRef.current.contains(e.target)) {
-        setStateMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [stateMenuOpen]);
 
   /* Auto-save notifications — skips the initial sync fire */
   useEffect(() => {
@@ -266,44 +291,45 @@ export default function SettingsPage() {
     saveCoverageZips(next);
   };
 
-  /* Service Areas (operating states) — save and add/remove handlers.
-     Persists to User.serviceStates via the standard self-update endpoint;
-     the server mirrors the value to onboarding.answers.pickup.states and
-     regenerates CoverageArea docs in the background. */
-  const saveServiceStates = async (next) => {
-    setStatesSaving(true);
-    setStatesMsg('');
+  /* Service Area — Phase 2 unified save.
+     Writes the new top-level User fields. The server's serviceAreaMirror
+     handles legacy serviceStates synchronization + CoverageArea regen,
+     so this client just sends pickup/delivery/nationwide + the move
+     distance preference. */
+  const saveServiceArea = async () => {
+    setServiceAreaSaving(true);
+    setServiceAreaMsg('');
     try {
+      const payload = {
+        pickupStates,
+        maxDistance: moveDistance, // '' | 'Local' | 'Long Distance'
+      };
+      if (deliveryMode === 'nationwide') {
+        payload.deliversNationwide = true;
+        payload.deliveryStates     = [];
+      } else if (deliveryMode === 'custom') {
+        payload.deliversNationwide = false;
+        payload.deliveryStates     = deliveryStatesCustom;
+      } else { // 'same'
+        payload.deliversNationwide = false;
+        payload.deliveryStates     = pickupStates;
+      }
+
       const res = await fetch(`${API_URL}/users/${user._id}`, {
         method: 'PUT',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceStates: next }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.msg || 'Failed to save');
       await refreshUser();
-      setStatesMsg('Service areas saved.');
-      setTimeout(() => setStatesMsg(''), 3000);
+      setServiceAreaMsg('Service area saved.');
+      setTimeout(() => setServiceAreaMsg(''), 3000);
     } catch (err) {
-      setStatesMsg('Failed to save: ' + (err.message || 'unknown error'));
+      setServiceAreaMsg('Failed to save: ' + (err.message || 'unknown error'));
     } finally {
-      setStatesSaving(false);
+      setServiceAreaSaving(false);
     }
-  };
-
-  const addServiceState = (code) => {
-    if (!code || serviceStates.includes(code)) return;
-    const next = [...serviceStates, code];
-    setServiceStates(next);
-    saveServiceStates(next);
-    setStateMenuOpen(false);
-    setStateQuery('');
-  };
-
-  const removeServiceState = (code) => {
-    const next = serviceStates.filter(s => s !== code);
-    setServiceStates(next);
-    saveServiceStates(next);
   };
 
   const saveLeadPreferences = async () => {
@@ -314,14 +340,10 @@ export default function SettingsPage() {
         homeSizePref === '2+ Bedrooms only' ? ['2 Bedroom', '3 Bedroom', '4+ Bedroom'] :
         homeSizePref === '3+ Bedrooms only' ? ['3 Bedroom', '4+ Bedroom'] : [];
 
-      const maxDistance =
-        maxDistancePref === 'Local only (< 50 miles)' ? 'Local' :
-        maxDistancePref === 'Long Distance only (> 100 miles)' ? 'Long Distance' : '';
-
       const res = await fetch(`${API_URL}/users/${user._id}`, {
         method: 'PUT',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preferredHomeSizes, maxDistance }),
+        body: JSON.stringify({ preferredHomeSizes }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.msg || 'Failed to save preferences');
@@ -457,20 +479,15 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ── Service Areas tab (operating states) ── */}
+          {/* ── Service Area tab (Phase 2: pickup + delivery + move distance) ── */}
           {activeTab === 'serviceAreas' && (
             <div
               style={{
                 background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                // overflow stays visible so the absolute-positioned dropdown
-                // doesn't get clipped by the card's rounded boundary.
+                // overflow stays visible so the absolute-positioned StatePicker
+                // dropdown isn't clipped by the card's rounded boundary.
                 overflow: 'visible',
-                // Breathing room when the dropdown is open: pushes whatever
-                // sits below the section out of the way and gives the
-                // expanded state an intentional, premium feel.
-                marginBottom: stateMenuOpen ? 220 : 0,
-                transition: 'margin-bottom 0.2s cubic-bezier(0.16,1,0.3,1)',
               }}
             >
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -479,171 +496,148 @@ export default function SettingsPage() {
                     <Globe size={16} color="#ea580c" />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>Operating States</div>
-                    <div style={{ fontSize: 12, color: '#94a3b8' }}>States where your crews operate</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>Service Area</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8' }}>Where you pick up, where you deliver, and the moves you'll take</div>
                   </div>
                 </div>
-                {statesSaving && <span style={{ fontSize: 11, color: '#94a3b8', background: '#f1f5f9', padding: '3px 10px', borderRadius: 6 }}>Saving…</span>}
+                {serviceAreaSaving && <span style={{ fontSize: 11, color: '#94a3b8', background: '#f1f5f9', padding: '3px 10px', borderRadius: 6 }}>Saving…</span>}
               </div>
 
-              <div style={{ padding: '24px' }}>
-                {/* Chip row */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14 }}>
-                  {serviceStates.length === 0 && (
-                    <span style={{ fontSize: 13, color: '#94a3b8' }}>No states added yet.</span>
-                  )}
-                  {serviceStates.map(code => {
-                    const rec = US_STATES.find(s => s.code === code);
-                    const label = rec ? `${rec.name} (${rec.code})` : code;
+              {/* ── Pickup ───────────────────────────────────────── */}
+              <div style={{ padding: '24px', borderBottom: '1px solid #f1f5f9' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  Where do you pick up moves?
+                </label>
+                <StatePicker
+                  value={pickupStates}
+                  onChange={setPickupStates}
+                  emptyHint="Add the states where your trucks start."
+                />
+                <p style={{ margin: '12px 0 0', fontSize: 12, color: '#94a3b8' }}>
+                  We'll only match you with leads originating in these states.
+                </p>
+              </div>
+
+              {/* ── Delivery ─────────────────────────────────────── */}
+              <div style={{ padding: '24px', borderBottom: '1px solid #f1f5f9' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  Where do you deliver moves?
+                </label>
+                <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+                  {[
+                    { id: 'same',       title: 'Same as pickup states',  hint: 'Local moves only — pickup and delivery in the same states.' },
+                    { id: 'custom',     title: 'Choose delivery states', hint: 'Pick the specific states you can deliver to.' },
+                    { id: 'nationwide', title: 'Nationwide delivery',    hint: 'You deliver anywhere in the US (no state list required).' },
+                  ].map(opt => {
+                    const active = deliveryMode === opt.id;
                     return (
-                      <span
-                        key={code}
+                      <label
+                        key={opt.id}
                         style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 6,
-                          background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa',
-                          borderRadius: 9999, padding: '6px 8px 6px 14px',
-                          fontSize: 13, fontWeight: 700,
+                          display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
+                          padding: '12px 14px', borderRadius: 12,
+                          border: active ? '2px solid #ea580c' : '1.5px solid #e2e8f0',
+                          background: active ? '#fff7ed' : '#fff',
+                          transition: 'border-color 0.15s, background 0.15s',
                         }}
                       >
-                        {label}
-                        <button
-                          type="button"
-                          aria-label={`Remove ${rec?.name || code}`}
-                          onClick={() => removeServiceState(code)}
-                          style={{
-                            background: 'none', border: 'none', cursor: 'pointer', color: '#fb923c',
-                            padding: 0, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: 32, height: 32, borderRadius: 9999,
-                          }}
-                        >
-                          <X size={14} />
-                        </button>
-                      </span>
+                        <input
+                          type="radio"
+                          name="deliveryMode"
+                          value={opt.id}
+                          checked={active}
+                          onChange={() => setDeliveryMode(opt.id)}
+                          style={{ marginTop: 3 }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{opt.title}</div>
+                          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{opt.hint}</div>
+                        </div>
+                      </label>
                     );
                   })}
-
-                  {/* Add state affordance + dropdown */}
-                  <div ref={stateMenuRef} style={{ position: 'relative' }}>
-                    <button
-                      type="button"
-                      onClick={() => setStateMenuOpen(o => !o)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        background: '#ea580c', border: 'none', borderRadius: 9999,
-                        padding: '8px 14px', minHeight: 32,
-                        fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        boxShadow: '0 2px 6px rgba(234,88,12,0.25)',
-                      }}
-                    >
-                      <Plus size={13} /> Add state
-                    </button>
-                    {stateMenuOpen && (() => {
-                      const q = stateQuery.trim().toLowerCase();
-                      const available = US_STATES.filter(s => !serviceStates.includes(s.code));
-                      const filtered = (q
-                        ? available.filter(s =>
-                            s.name.toLowerCase().includes(q) || s.code.toLowerCase().startsWith(q)
-                          )
-                        : available
-                      ).sort((a, b) => {
-                        if (!q) return a.name.localeCompare(b.name);
-                        const aPref = a.name.toLowerCase().startsWith(q) || a.code.toLowerCase().startsWith(q) ? 0 : 1;
-                        const bPref = b.name.toLowerCase().startsWith(q) || b.code.toLowerCase().startsWith(q) ? 0 : 1;
-                        if (aPref !== bPref) return aPref - bPref;
-                        return a.name.localeCompare(b.name);
-                      }).slice(0, 5);
-                      const handleKey = (e) => {
-                        if (e.key === 'ArrowDown') { e.preventDefault(); setStateActiveIdx(i => Math.min(i + 1, filtered.length - 1)); }
-                        else if (e.key === 'ArrowUp') { e.preventDefault(); setStateActiveIdx(i => Math.max(i - 1, 0)); }
-                        else if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const pick = filtered[stateActiveIdx] || filtered[0];
-                          if (pick) addServiceState(pick.code);
-                        } else if (e.key === 'Escape') {
-                          setStateMenuOpen(false);
-                        }
-                      };
-                      return (
-                        <div
-                          role="combobox"
-                          aria-expanded="true"
-                          style={{
-                            position: 'absolute', zIndex: 20, top: 'calc(100% + 8px)', left: 0,
-                            width: 280, background: '#fff',
-                            border: '1px solid #e2e8f0', borderRadius: 14,
-                            boxShadow: '0 12px 32px rgba(15,23,42,0.12), 0 2px 6px rgba(15,23,42,0.06)',
-                            overflow: 'hidden',
-                            animation: 'stateDropdownIn 0.15s cubic-bezier(0.16,1,0.3,1)',
-                          }}
-                        >
-                          <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9' }}>
-                            <input
-                              autoFocus
-                              type="text"
-                              value={stateQuery}
-                              onChange={e => { setStateQuery(e.target.value); setStateActiveIdx(0); }}
-                              onKeyDown={handleKey}
-                              placeholder="Search states..."
-                              aria-label="Search states"
-                              aria-autocomplete="list"
-                              style={{
-                                width: '100%', border: 'none', outline: 'none',
-                                padding: '6px 8px', fontSize: 14, fontFamily: 'inherit',
-                                color: '#0f172a', background: 'transparent',
-                              }}
-                            />
-                          </div>
-                          {filtered.length > 0 ? (
-                            <div role="listbox" style={{ maxHeight: 220, overflowY: 'auto', padding: 4 }}>
-                              {filtered.map((s, i) => (
-                                <button
-                                  key={s.code}
-                                  role="option"
-                                  aria-selected={i === stateActiveIdx}
-                                  type="button"
-                                  onClick={() => addServiceState(s.code)}
-                                  onMouseEnter={() => setStateActiveIdx(i)}
-                                  style={{
-                                    display: 'flex', alignItems: 'center',
-                                    width: '100%', height: 44,
-                                    padding: '0 12px', borderRadius: 8, border: 'none',
-                                    background: i === stateActiveIdx ? '#fff7ed' : '#fff',
-                                    fontSize: 14,
-                                    color: '#0f172a', cursor: 'pointer',
-                                    fontFamily: 'inherit', textAlign: 'left',
-                                    transition: 'background 0.12s',
-                                  }}
-                                >
-                                  <span style={{ fontWeight: 600 }}>{s.name}</span>
-                                  <span style={{ color: '#94a3b8', marginLeft: 6, fontSize: 13, fontWeight: 500 }}>({s.code})</span>
-                                </button>
-                              ))}
-                            </div>
-                          ) : (
-                            <div style={{ padding: '16px 14px', fontSize: 13, color: '#94a3b8', textAlign: 'center' }}>
-                              {available.length === 0 ? 'All states added.' : 'No matches.'}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
                 </div>
 
-                <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
-                  Select the states where you operate. Used to match leads in those markets.
-                </p>
-
-                {statesMsg && (
-                  <div style={{
-                    marginTop: 14, padding: '10px 14px', borderRadius: 10,
-                    background: statesMsg.startsWith('Failed') ? '#fee2e2' : '#dcfce7',
-                    color: statesMsg.startsWith('Failed') ? '#dc2626' : '#16a34a',
-                    fontSize: 13, fontWeight: 700,
-                  }}>
-                    {statesMsg.startsWith('Failed') ? '✕' : '✓'} {statesMsg}
+                {deliveryMode === 'custom' && (
+                  <div style={{ marginTop: 4 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 8 }}>
+                      Delivery states
+                    </label>
+                    <StatePicker
+                      value={deliveryStatesCustom}
+                      onChange={setDeliveryStatesCustom}
+                      emptyHint="Add the states you can deliver to."
+                    />
                   </div>
+                )}
+              </div>
+
+              {/* ── Move distance ────────────────────────────────── */}
+              <div style={{ padding: '24px', borderBottom: '1px solid #f1f5f9' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  Move distance
+                </label>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {[
+                    { id: '',              title: 'Both',                          hint: 'Local and long-distance leads.' },
+                    { id: 'Local',         title: 'Local only',                    hint: 'Same-city / short-haul moves only.' },
+                    { id: 'Long Distance', title: 'Long distance / interstate',    hint: 'Inter-state and cross-country moves only.' },
+                  ].map(opt => {
+                    const active = moveDistance === opt.id;
+                    return (
+                      <label
+                        key={opt.id || 'both'}
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
+                          padding: '12px 14px', borderRadius: 12,
+                          border: active ? '2px solid #ea580c' : '1.5px solid #e2e8f0',
+                          background: active ? '#fff7ed' : '#fff',
+                          transition: 'border-color 0.15s, background 0.15s',
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="moveDistance"
+                          value={opt.id}
+                          checked={active}
+                          onChange={() => setMoveDistance(opt.id)}
+                          style={{ marginTop: 3 }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{opt.title}</div>
+                          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{opt.hint}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Save ─────────────────────────────────────────── */}
+              <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <button
+                  type="button"
+                  onClick={saveServiceArea}
+                  disabled={serviceAreaSaving}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '11px 22px', borderRadius: 12, border: 'none',
+                    background: 'linear-gradient(135deg,#f97316,#ea580c)',
+                    color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    fontFamily: 'var(--font-heading)',
+                    boxShadow: '0 4px 12px rgba(234,88,12,0.25)',
+                    opacity: serviceAreaSaving ? 0.6 : 1,
+                  }}
+                >
+                  <Save size={14} /> {serviceAreaSaving ? 'Saving…' : 'Save Service Area'}
+                </button>
+                {serviceAreaMsg && (
+                  <span style={{
+                    fontSize: 13, fontWeight: 700,
+                    color: serviceAreaMsg.startsWith('Failed') ? '#dc2626' : '#16a34a',
+                  }}>
+                    {serviceAreaMsg.startsWith('Failed') ? '✕' : '✓'} {serviceAreaMsg}
+                  </span>
                 )}
               </div>
             </div>
@@ -706,37 +700,23 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                    Preferred Home Sizes
-                  </label>
-                  <select
-                    value={homeSizePref}
-                    onChange={e => setHomeSizePref(e.target.value)}
-                    className="input-field"
-                    style={{ width: '100%' }}
-                  >
-                    <option>All Sizes</option>
-                    <option>2+ Bedrooms only</option>
-                    <option>3+ Bedrooms only</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                    Maximum Distance
-                  </label>
-                  <select
-                    value={maxDistancePref}
-                    onChange={e => setMaxDistancePref(e.target.value)}
-                    className="input-field"
-                    style={{ width: '100%' }}
-                  >
-                    <option>Any Distance</option>
-                    <option>Local only (&lt; 50 miles)</option>
-                    <option>Long Distance only (&gt; 100 miles)</option>
-                  </select>
-                </div>
+              <div style={{ padding: '24px' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  Preferred Home Sizes
+                </label>
+                <select
+                  value={homeSizePref}
+                  onChange={e => setHomeSizePref(e.target.value)}
+                  className="input-field"
+                  style={{ width: '100%', maxWidth: 360 }}
+                >
+                  <option>All Sizes</option>
+                  <option>2+ Bedrooms only</option>
+                  <option>3+ Bedrooms only</option>
+                </select>
+                <p style={{ margin: '10px 0 0', fontSize: 12, color: '#94a3b8' }}>
+                  Move distance moved to <strong>Service Area</strong> — set it alongside your pickup &amp; delivery states.
+                </p>
               </div>
 
               <div style={{ padding: '0 24px 24px' }}>
