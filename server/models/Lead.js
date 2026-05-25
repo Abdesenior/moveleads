@@ -322,6 +322,48 @@ const LeadSchema = new mongoose.Schema({
   distributionDecisionBy:     { type: String, default: 'system' },
   distributionDecisionAt:     { type: Date },
   distributionDecisionReason: { type: String, maxlength: 500 },
+
+  // ── Meta Pixel + Conversions API tracking (Commit 1 — capture only) ─────
+  //
+  // Captured at ingest from the V6 funnel so the same Lead event can later
+  // be deduplicated across browser Pixel and server-side CAPI. Commit 1
+  // PERSISTS these fields only; no CAPI calls fire yet. Commits 2/3 add
+  // the browser pixel + server-side send.
+  //
+  //   metaEventId    Client-generated UUIDv4. Same value the browser passes
+  //                  as `eventID` to `fbq('track','Lead',…,{eventID})`. The
+  //                  CAPI payload uses the snake_case `event_id`. Meta
+  //                  dedupes by (event_name, event_id) within ~7 days.
+  //   fbp / fbc      Meta's first-party cookies (`_fbp` / `_fbc`). Client
+  //                  reads them from `document.cookie` and posts them in
+  //                  the body — keeps the server cookie-parser-free.
+  //                  `fbc` may be reconstructed from `?fbclid` on a fresh
+  //                  ad-click landing.
+  //   ipAddress      Captured server-side from `req.ip` (trust proxy is
+  //                  enabled, so this is the real client IP behind Vercel).
+  //   userAgent      `req.headers['user-agent']` — sent to Meta as
+  //                  `client_user_agent`. Plaintext, never hashed.
+  //   eventSourceUrl `window.location.href` at the moment the browser
+  //                  fires Lead. Must match exactly between Pixel and CAPI
+  //                  or Meta won't deduplicate.
+  //   metaCapiSentAt Set by metaCapi.sendLead after a successful CAPI
+  //                  POST. Idempotency guard against accidental re-fires.
+  //   metaQualifiedSentAt
+  //                  Set after QualifiedLead fires (later commit). Mirrors
+  //                  the same single-fire guarantee for the qualified event.
+  //
+  // All fields OPTIONAL — legacy leads and V4/V5 submissions that don't
+  // send these stay valid. Absent tracking fields just mean dedup quality
+  // degrades for that lead (we still fire CAPI; Meta falls back to PII
+  // hashes for matching).
+  metaEventId:         { type: String, index: true },
+  fbp:                 { type: String },
+  fbc:                 { type: String },
+  ipAddress:           { type: String },
+  userAgent:           { type: String },
+  eventSourceUrl:      { type: String },
+  metaCapiSentAt:      { type: Date },
+  metaQualifiedSentAt: { type: Date },
 });
 
 // Compound index on zip fields — the core routing hot path hits these on every lead ingest.

@@ -47,6 +47,7 @@ const validationPipeline = require('../services/validationPipeline');
 const pricingEngineV2 = require('../services/pricingEngineV2');
 const pricingEngineSimple = require('../services/pricingEngineSimple');
 const { instantDispatchEnabled } = require('../utils/instantDispatch');
+const metaCapi = require('../services/metaCapi');
 
 /**
  * Derive an `urgencyBucket` enum from a specific `moveDate`. V6 conversational
@@ -278,6 +279,17 @@ router.post('/', ingestLimiter, async (req, res) => {
       // V6 operational-difficulty signals. Optional — schema accepts null.
       ...(data.homeType && { homeType: data.homeType }),
       ...(data.stairs && { stairs: data.stairs }),
+
+      // Meta Pixel + CAPI attribution capture (Commit 1: persist only — no
+      // CAPI fire yet). Client-supplied fields come from the validated
+      // payload; server-supplied IP + UA come from req via metaCapi.
+      // Conditional spreads keep `undefined` off the doc so absent fields
+      // stay truly absent in Mongo rather than rendering as `null`.
+      ...(data.metaEventId    && { metaEventId:    data.metaEventId }),
+      ...(data.fbp            && { fbp:            data.fbp }),
+      ...(data.fbc            && { fbc:            data.fbc }),
+      ...(data.eventSourceUrl && { eventSourceUrl: data.eventSourceUrl }),
+      ...metaCapi.extractRequestSignals(req),
     });
 
     try {
