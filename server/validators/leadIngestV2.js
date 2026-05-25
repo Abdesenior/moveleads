@@ -168,6 +168,18 @@ const LeadIngestV2Schema = z.object({
 
   // Optional miles (server can recompute via Mapbox)
   miles: z.number().min(0).optional().default(0),
+
+  // ── Meta Pixel + CAPI attribution (optional, client-supplied) ────────────
+  // Commit 1: validator accepts these so future client commits stop being
+  // rejected by `.strict()`. Server-side capture (ipAddress, userAgent) does
+  // NOT come through the body — it's read from req.ip / req.headers.
+  //
+  // All optional. Schema bounded so a hostile client can't dump arbitrary
+  // payloads onto a public route.
+  metaEventId:    z.string().min(8).max(64).optional(),
+  fbp:            z.string().max(256).optional(),
+  fbc:            z.string().max(256).optional(),
+  eventSourceUrl: z.string().url().max(2048).optional(),
 }).strict()  // ← REJECT unknown fields (V5 must surface client/server drift)
   .refine(
     d => (d.pickupZip || d.originZip),
