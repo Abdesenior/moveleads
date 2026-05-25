@@ -314,6 +314,21 @@ router.post('/', ingestLimiter, async (req, res) => {
       throw err;
     }
 
+    // Meta CAPI scaffold (Commit 1) — fire-and-forget. The function is a
+    // NO-OP that logs `[metaCapi:scaffold] would send Lead event …` so we
+    // can observe in Render that the new ingest path is alive in prod
+    // without firing any actual graph.facebook.com request. Commit 2
+    // flips the implementation to a real CAPI POST without restructuring
+    // this call site. The catch keeps any future failure from leaking
+    // into the customer response.
+    //
+    // Not called on the idempotent-return / race-resolved paths above —
+    // those are retries of an already-created Lead, and CAPI must fire
+    // exactly once per Lead (dedup contract). The original ingest is what
+    // fired (or will fire, in Commit 2's live mode).
+    metaCapi.sendLead(lead, req).catch(err =>
+      console.error('[metaCapi] scaffold call threw:', err && err.message));
+
     // 8. Sequential background qualification chain (Phase 6.7) ─────────────────
     //
     // The customer-facing response returns immediately below. Behind the
