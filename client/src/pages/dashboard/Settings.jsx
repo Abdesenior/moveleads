@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MapPin, AlertTriangle, Save, Trash2, Filter, X, Plus, Star, ExternalLink, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Bell, AlertTriangle, Save, Trash2, Filter, Star, ExternalLink, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import VerifyPhoneModal from '../../components/VerifyPhoneModal';
 import StatePicker from '../../components/StatePicker';
@@ -32,77 +32,14 @@ function Toggle({ on, onChange }) {
   );
 }
 
-/* ── ZIP/tag input row ── */
-function ZipTagInput({ tags, onAdd, onRemove }) {
-  const [input, setInput] = useState('');
-  const inputRef = useRef(null);
-
-  const add = () => {
-    const z = input.trim();
-    if (!z || tags.includes(z)) { setInput(''); return; }
-    onAdd(z);
-    setInput('');
-  };
-
-  const handleKey = (e) => {
-    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); }
-    if (e.key === 'Backspace' && !input && tags.length) { onRemove(tags[tags.length - 1]); }
-  };
-
-  return (
-    <div
-      onClick={() => inputRef.current?.focus()}
-      style={{
-        display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
-        padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
-        background: '#fafbfc', minHeight: 46, cursor: 'text',
-        transition: 'border-color 0.2s',
-      }}
-      onFocusCapture={e => (e.currentTarget.style.borderColor = '#ea580c')}
-      onBlurCapture={e => (e.currentTarget.style.borderColor = '#e2e8f0')}
-    >
-      {tags.map(tag => (
-        <span key={tag} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa',
-          borderRadius: 9999, padding: '3px 10px 3px 12px',
-          fontSize: 12, fontWeight: 700,
-        }}>
-          {tag}
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onRemove(tag); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fb923c', padding: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}
-          >
-            <X size={11} />
-          </button>
-        </span>
-      ))}
-      <input
-        ref={inputRef}
-        type="text"
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={handleKey}
-        placeholder={tags.length === 0 ? 'Type a ZIP code and press Enter…' : ''}
-        style={{
-          border: 'none', outline: 'none', background: 'transparent',
-          fontSize: 13, color: '#0f172a', minWidth: 140, flex: 1,
-          fontFamily: 'inherit',
-        }}
-      />
-      {input && (
-        <button type="button" onClick={add} style={{
-          background: '#ea580c', border: 'none', borderRadius: 9999, padding: '3px 10px',
-          fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 4,
-        }}>
-          <Plus size={11} /> Add
-        </button>
-      )}
-    </div>
-  );
-}
+/* 2026-05-26 — PR-C1: Coverage ZIPs tab + manual ZipTagInput removed.
+   Service Areas (pickupStates / deliveryStates / deliversNationwide /
+   maxDistance) is now the single user-facing coverage surface. The
+   CoverageArea collection is still maintained internally by
+   regenerateCoverageForUser_v2 on every Service Area save, so socket
+   rooms, warm-transfer eligibility, and broadcast candidate queries
+   continue to function unchanged. The manual UI was vestigial —
+   any ZIPs entered here were wiped on the next Service Area save. */
 
 /* Compare two state-code arrays as unordered sets (e.g. pickup vs delivery
    for the "Same as pickup" radio detection on load). */
@@ -117,7 +54,6 @@ function sameSet(a, b) {
 const TABS = [
   { id: 'notifications', label: 'Notifications',   icon: Bell },
   { id: 'serviceAreas',  label: 'Service Areas',   icon: Globe },
-  { id: 'coverage',      label: 'Coverage Areas',  icon: MapPin },
   { id: 'preferences',   label: 'Lead Preferences', icon: Filter },
   { id: 'profile',       label: 'Profile',          icon: Star },
   { id: 'danger',        label: 'Danger Zone',      icon: AlertTriangle },
@@ -134,11 +70,6 @@ export default function SettingsPage() {
   const [smsNotif, setSmsNotif]     = useState(user?.smsNotif ?? false);
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('soundEnabled') !== 'false');
   const [saving, setSaving]         = useState(false);
-
-  /* Coverage Areas (ZIPs) */
-  const [coverageZips, setCoverageZips] = useState(user?.serviceAreas || []);
-  const [coverageSaving, setCoverageSaving] = useState(false);
-  const [coverageMsg, setCoverageMsg] = useState('');
 
   /* Service Area — Phase 2 unified pickup/delivery/distance settings.
      Reads from new top-level User fields populated by the Phase 1 backfill
@@ -258,39 +189,6 @@ export default function SettingsPage() {
       .finally(() => setSaving(false));
   }, [emailNotif, smsNotif]); // eslint-disable-line
 
-  const saveCoverageZips = async (nextZips) => {
-    setCoverageSaving(true);
-    setCoverageMsg('');
-    try {
-      const res = await fetch(`${API_URL}/routing/coverage/mine`, {
-        method: 'PUT',
-        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ zipCodes: nextZips }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.msg || 'Failed to save');
-      await refreshUser();
-      setCoverageMsg('Coverage areas saved.');
-      setTimeout(() => setCoverageMsg(''), 3000);
-    } catch (err) {
-      setCoverageMsg('Failed to save: ' + (err.message || 'unknown error'));
-    } finally {
-      setCoverageSaving(false);
-    }
-  };
-
-  const addZip = (zip) => {
-    const next = [...coverageZips, zip];
-    setCoverageZips(next);
-    saveCoverageZips(next);
-  };
-
-  const removeZip = (zip) => {
-    const next = coverageZips.filter(z => z !== zip);
-    setCoverageZips(next);
-    saveCoverageZips(next);
-  };
-
   /* Service Area — Phase 2 unified save.
      Writes the new top-level User fields. The server's serviceAreaMirror
      handles legacy serviceStates synchronization + CoverageArea regen,
@@ -385,7 +283,7 @@ export default function SettingsPage() {
         <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
           Account Settings
         </h1>
-        <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Manage notifications, coverage areas, and preferences</p>
+        <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Manage notifications, service area, and preferences</p>
       </div>
 
       {/* Two-column layout: vertical tabs + content */}
@@ -638,50 +536,6 @@ export default function SettingsPage() {
                   }}>
                     {serviceAreaMsg.startsWith('Failed') ? '✕' : '✓'} {serviceAreaMsg}
                   </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── Coverage Areas tab ── */}
-          {activeTab === 'coverage' && (
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <MapPin size={16} color="#22c55e" />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>Coverage ZIP Codes</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Leads from these areas will be matched to you first</div>
-                </div>
-              </div>
-
-              <div style={{ padding: '24px' }}>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16, marginTop: 0 }}>
-                  Type a ZIP code and press <kbd style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 5, padding: '1px 6px', fontSize: 11, fontFamily: 'monospace' }}>Enter</kbd> to add it. Click the × on any tag to remove it.
-                </p>
-
-                <ZipTagInput tags={coverageZips} onAdd={addZip} onRemove={removeZip} />
-
-                {coverageZips.length === 0 && (
-                  <p style={{ margin: '12px 0 0', fontSize: 12, color: '#94a3b8' }}>
-                    No coverage ZIPs added yet. Add your first ZIP code above.
-                  </p>
-                )}
-
-                {coverageMsg && (
-                  <div style={{
-                    marginTop: 14, padding: '10px 14px', borderRadius: 10,
-                    background: coverageMsg.includes('Failed') ? '#fee2e2' : '#dcfce7',
-                    color: coverageMsg.includes('Failed') ? '#dc2626' : '#16a34a',
-                    fontSize: 13, fontWeight: 700,
-                  }}>
-                    {coverageMsg.includes('Failed') ? '✕' : '✓'} {coverageMsg}
-                  </div>
-                )}
-
-                {coverageSaving && (
-                  <p style={{ margin: '10px 0 0', fontSize: 12, color: '#94a3b8' }}>Saving…</p>
                 )}
               </div>
             </div>
