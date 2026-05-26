@@ -1,4 +1,5 @@
-import { useState, useEffect, useContext, useCallback } from 'react';
+import { useState, useEffect, useContext, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ArrowRight, Truck, Calendar, Phone, Mail, StickyNote,
   Briefcase, ChevronDown, ChevronUp, DollarSign, Search
@@ -181,8 +182,27 @@ function ExpandedPanel({ purchase, onUpdate }) {
   );
 }
 
-function LeadRow({ purchase, onUpdate }) {
-  const [expanded, setExpanded] = useState(false);
+function LeadRow({ purchase, onUpdate, highlight = false }) {
+  // Phase B — when LeadFeed's SuccessModal "View lead details" CTA fires,
+  // it navigates to /dashboard/my-leads?highlight=<leadId>. The matching
+  // row auto-expands + scrolls into view + briefly pulses an orange
+  // border so the user lands directly on the lead they just bought.
+  const [expanded, setExpanded] = useState(highlight);
+  const [pulseHighlight, setPulseHighlight] = useState(highlight);
+  const rowRef = useRef(null);
+
+  useEffect(() => {
+    if (!highlight || !rowRef.current) return;
+    // Defer one frame so layout settles before scrolling.
+    const t = setTimeout(() => {
+      rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+    // Drop the pulse after the animation completes so the row settles
+    // into its normal expanded styling.
+    const fade = setTimeout(() => setPulseHighlight(false), 2400);
+    return () => { clearTimeout(t); clearTimeout(fade); };
+  }, [highlight]);
+
   const lead = purchase.lead;
   if (!lead) return null;
 
@@ -192,14 +212,16 @@ function LeadRow({ purchase, onUpdate }) {
   return (
     <>
       <tr
+        ref={rowRef}
         onClick={() => setExpanded(e => !e)}
         style={{
           cursor: 'pointer',
-          background: expanded ? '#f0f9ff' : 'transparent',
-          transition: 'background 0.15s',
+          background: pulseHighlight ? '#fff7ed' : (expanded ? '#f0f9ff' : 'transparent'),
+          transition: 'background 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s',
+          boxShadow: pulseHighlight ? 'inset 3px 0 0 #ea580c' : 'none',
         }}
-        onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = '#f8fafc'; }}
-        onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent'; }}
+        onMouseEnter={e => { if (!expanded && !pulseHighlight) e.currentTarget.style.background = '#f8fafc'; }}
+        onMouseLeave={e => { if (!expanded && !pulseHighlight) e.currentTarget.style.background = 'transparent'; }}
       >
         <td style={{ padding: '14px 20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -250,6 +272,11 @@ function LeadRow({ purchase, onUpdate }) {
 
 export default function MyLeads() {
   const { API_URL, token } = useContext(AuthContext);
+  const [searchParams] = useSearchParams();
+  // Phase B — deep-link from LeadFeed SuccessModal: ?highlight=<leadId>.
+  // Resolves against purchase.lead._id so the right LeadRow can self-
+  // expand + scroll into view. Query param (not hash) per operator spec.
+  const highlightLeadId = searchParams.get('highlight') || '';
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
@@ -428,6 +455,11 @@ export default function MyLeads() {
                     key={purchase._id}
                     purchase={purchase}
                     onUpdate={handleUpdate}
+                    highlight={
+                      !!highlightLeadId &&
+                      purchase.lead &&
+                      String(purchase.lead._id) === String(highlightLeadId)
+                    }
                   />
                 ))}
               </tbody>
