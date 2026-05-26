@@ -112,38 +112,17 @@ router.post('/coverage/bulk', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   PUT /api/routing/coverage/mine
-// @desc    Mover: atomically replace own coverage zip codes (syncs serviceAreas + CoverageArea collection)
-// @access  Private (any authenticated mover)
-router.put('/coverage/mine', auth, async (req, res) => {
-  const { zipCodes } = req.body;
-  if (!Array.isArray(zipCodes)) {
-    return res.status(400).json({ msg: 'zipCodes array is required' });
-  }
-
-  const companyId = req.user.id;
-  const cleanZips = [...new Set(zipCodes.map(z => String(z).trim()).filter(Boolean))];
-
-  try {
-    // 1. Replace CoverageArea docs (the source of truth for socket rooms + lead routing)
-    await CoverageArea.deleteMany({ company: companyId });
-    if (cleanZips.length > 0) {
-      await CoverageArea.insertMany(
-        cleanZips.map(zip => ({ company: companyId, zipCode: zip, type: 'both', radius: 0 })),
-        { ordered: false }
-      );
-    }
-
-    // 2. Mirror to user.serviceAreas so the Settings UI re-hydrates correctly
-    await User.findByIdAndUpdate(companyId, { $set: { serviceAreas: cleanZips } });
-
-    console.log(`[Coverage] ${companyId} saved ${cleanZips.length} zip(s): ${cleanZips.join(', ')}`);
-    res.json({ msg: 'Coverage areas updated', count: cleanZips.length, zipCodes: cleanZips });
-  } catch (err) {
-    console.error('[Coverage] PUT /mine error:', err.message);
-    res.status(500).json({ msg: 'Server error' });
-  }
-});
+// 2026-05-26 — PR-C1: PUT /api/routing/coverage/mine removed.
+// The mover-facing manual ZIP coverage entry has been retired. Service
+// Areas (pickupStates / deliveryStates / deliversNationwide / maxDistance)
+// is now the single user-facing coverage control. The unified service-area
+// handler in routes/users.js calls regenerateCoverageForUser_v2 on every
+// save, which keeps the CoverageArea collection populated with typed
+// (origin/destination/both) docs derived from those state preferences.
+// Socket rooms, warm-transfer eligibility, and broadcast candidate queries
+// continue to read CoverageArea unchanged. Admin coverage routes
+// (GET /coverage/:companyId, POST /coverage, POST /coverage/bulk,
+// DELETE /coverage/:id) are intentionally preserved for admin tooling.
 
 // @route   DELETE /api/routing/coverage/:id
 // @desc    Remove a coverage area
