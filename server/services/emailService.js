@@ -948,6 +948,9 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
     const emptyZipSet = new Set();
     let legacyPassCount = 0;
     let strictPassCount = 0;
+    // Optional per-candidate diagnosis trace, env-gated. Off by default;
+    // turn on for short debugging windows only via MATCHER_DIAGNOSE_LOG=1.
+    const diagnoseLog = process.env.MATCHER_DIAGNOSE_LOG === '1';
     const matched = candidates.filter(m => {
       const inLegacySet = legacyCandidateSet.has(String(m._id));
       const inStrictSet = strictCandidateSet.has(String(m._id));
@@ -956,6 +959,10 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
       if (passesLegacy) legacyPassCount++;
       if (passesStrict) strictPassCount++;
       logMatchShadow({ source: 'email', lead, mover: m, legacy: passesLegacy, strict: passesStrict });
+      if (diagnoseLog) {
+        const { diagnoseMatch, shortLogLine } = require('../utils/matcherDiagnosis');
+        console.log(shortLogLine(diagnoseMatch(lead, m, { strictMode })));
+      }
 
       const passesActive = strictMode ? passesStrict : passesLegacy;
       if (!passesActive) return false;
