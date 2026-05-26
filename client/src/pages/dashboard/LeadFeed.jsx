@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import {
-  ZapOff, X, CheckCircle, User, Phone as PhoneIcon, Truck,
+  ZapOff, X, User,
   Gavel, Clock, Package, Search, SlidersHorizontal, Zap
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ConfirmPurchaseModal from '../../components/ConfirmPurchaseModal';
+import PurchaseSuccessModal from '../../components/PurchaseSuccessModal';
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './LeadFeed.css';
@@ -282,36 +283,13 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBuyNow, claiming, err
    data.fromAuction was the auction_settled socket listener, also removed.
    When Deal Room adds back auction settlement on its own page, it can extend
    this modal or fork its own variant. */
-function SuccessModal({ data, onClose, onNavigate }) {
-  useBodyScrollLock();
-  const hasContact = data.lead?.customerName && data.lead?.customerPhone;
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content success-modal">
-        <div className="success-icon-box">
-          <CheckCircle size={48} />
-        </div>
-        <h2>Lead purchased successfully</h2>
-        <p>You now have full access to the customer's contact details.</p>
-        {hasContact && (
-          <div className="contact-details-box">
-            <div className="detail-item"><User size={18} /><div><label>Customer Name</label><span>{data.lead.customerName}</span></div></div>
-            <div className="detail-item"><PhoneIcon size={18} /><div><label>Phone Number</label><span>{data.lead.customerPhone}</span></div></div>
-            <div className="detail-item"><Truck size={18} /><div><label>Move Target</label><span>{data.lead.originCity} to {data.lead.destinationCity}</span></div></div>
-          </div>
-        )}
-        <div className="modal-actions">
-          {/* Primary CTA — deep-link into the purchased lead inside My Leads.
-              MyLeads reads the ?highlight=<leadId> query param and auto-scrolls
-              + auto-expands that row. Phase B replaces the prior
-              "Go to My Customers" CTA that routed to /dashboard/customers. */}
-          <button className="view-btn" onClick={onNavigate}>View lead details</button>
-          <button className="close-success-btn" onClick={onClose}>Keep browsing leads</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Legacy SuccessModal removed 2026-05-26. The post-purchase confirmation
+// now uses ../../components/PurchaseSuccessModal which mirrors the visual
+// language of ConfirmPurchaseModal (same overlay chrome, header, route
+// card, button styling) so the buy flow looks consistent from Confirm →
+// Success. The old component depended on .modal-overlay / .success-modal /
+// .contact-details-box CSS classes in LeadFeed.css; those classes are
+// still used by PreviewModal so they remain in the stylesheet.
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
 const fmtDate = (d) => d
@@ -1079,12 +1057,14 @@ export default function LeadFeed() {
         />
       )}
       {successData && (
-        <SuccessModal
-          data={successData}
+        <PurchaseSuccessModal
+          lead={successData.lead}
           onClose={() => setSuccessData(null)}
-          onNavigate={() => {
-            // Phase B — deep-link the purchased lead inside MyLeads. MyLeads
-            // reads ?highlight=<id> and auto-scrolls + auto-expands the row.
+          onView={() => {
+            // Deep-link the purchased lead inside MyLeads. MyLeads reads
+            // ?highlight=<id>, auto-expands the row, scrolls it into view,
+            // and gives it a brief orange pulse so the user lands directly
+            // on what they just bought.
             const leadId = successData?.lead?._id || successData?.lead?.id;
             setSuccessData(null);
             navigate(leadId ? `/dashboard/my-leads?highlight=${leadId}` : '/dashboard/my-leads');

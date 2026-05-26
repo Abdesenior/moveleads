@@ -183,17 +183,39 @@ test('D3. Generic error keeps the modal open with the server message', () => {
 // ── E. SuccessModal renamed + deep-link ──────────────────────────────────
 
 test('E1. SuccessModal heading + CTAs match operator spec', () => {
-  assert.match(leadFeedSrc, /Lead purchased successfully/,
+  // Heading + CTAs now live in the dedicated PurchaseSuccessModal
+  // component (../../components/PurchaseSuccessModal.jsx) — same visual
+  // language as ConfirmPurchaseModal. Read it directly.
+  const successModalSrc = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'client', 'src', 'components', 'PurchaseSuccessModal.jsx'),
+    'utf8'
+  );
+  assert.match(successModalSrc, /Lead purchased successfully/,
     'success heading must read "Lead purchased successfully"');
-  assert.match(leadFeedSrc, />\s*View lead details\s*</,
-    'primary CTA must be "View lead details"');
-  assert.match(leadFeedSrc, />\s*Keep browsing leads\s*</,
+  assert.match(successModalSrc, />\s*View full move details\s*</,
+    'primary CTA must be "View full move details"');
+  assert.match(successModalSrc, />\s*Keep browsing leads\s*</,
     'secondary CTA must be "Keep browsing leads"');
-  // Old labels gone
-  assert.ok(!/>\s*Go to My Customers\s*</.test(leadFeedSrc),
-    'old "Go to My Customers" CTA must be removed');
-  assert.ok(!/>\s*Continue Feeding\s*</.test(leadFeedSrc),
-    'old "Continue Feeding" CTA must be removed');
+  // Old labels gone from BOTH the page and the new component
+  for (const src of [leadFeedSrc, successModalSrc]) {
+    assert.ok(!/>\s*Go to My Customers\s*</.test(src),
+      'old "Go to My Customers" CTA must be removed');
+    assert.ok(!/>\s*Continue Feeding\s*</.test(src),
+      'old "Continue Feeding" CTA must be removed');
+    // The earlier intermediate label "View lead details" was replaced
+    // by the operator's preferred "View full move details" in 2026-05-26
+    assert.ok(!/>\s*View lead details\s*</.test(src),
+      'intermediate label "View lead details" must be replaced by "View full move details"');
+  }
+  // LeadFeed must NOT define an inline SuccessModal function anymore —
+  // that legacy component was replaced by the imported PurchaseSuccessModal.
+  assert.ok(!/function\s+SuccessModal\s*\(/.test(leadFeedSrc),
+    'inline SuccessModal function must be removed from LeadFeed.jsx');
+  // LeadFeed must import + render the new component
+  assert.match(leadFeedSrc, /from\s+['"]\.\.\/\.\.\/components\/PurchaseSuccessModal['"]/,
+    'LeadFeed must import PurchaseSuccessModal');
+  assert.match(leadFeedSrc, /<PurchaseSuccessModal/,
+    'LeadFeed must render <PurchaseSuccessModal>');
 });
 
 test('E2. Primary CTA navigates to /dashboard/my-leads?highlight=<leadId>', () => {
