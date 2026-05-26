@@ -6,6 +6,13 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
+import {
+  formatHomeType,
+  formatStairs,
+  formatUrgency,
+  heavyItemTone,
+  isRealEmail,
+} from '../../utils/leadDisplay';
 
 const STATUSES = ['New', 'Contacted', 'Quoted', 'Booked', 'Lost'];
 
@@ -85,10 +92,77 @@ function ExpandedPanel({ purchase, onUpdate }) {
     }
   };
 
+  // Operational signals the mover should see in their working file. Same
+  // V6 enum values rendered by PreviewModal + PurchaseSuccessModal so the
+  // mover's view of the lead is consistent before/after purchase.
+  const detailRows = [
+    lead?.homeType      && { label: 'Home type', value: formatHomeType(lead.homeType) },
+    lead?.stairs        && { label: 'Access',    value: formatStairs(lead.stairs) },
+    lead?.urgencyBucket && { label: 'Urgency',   value: formatUrgency(lead.urgencyBucket) },
+    Number.isFinite(lead?.miles) && lead.miles > 0 && { label: 'Distance', value: `${lead.miles} mi` },
+    lead?.distance      && { label: 'Move type', value: lead.distance },
+  ].filter(Boolean);
+  const heavyItems = Array.isArray(lead?.heavyItems) ? lead.heavyItems : [];
+  // Filter the synthetic `noemail+{phone}@moveleads.cloud` placeholder so
+  // the mover doesn't try to contact a nonexistent address. (Same guard
+  // the PurchaseSuccessModal applies.)
+  const emailToShow = isRealEmail(lead?.customerEmail) ? lead.customerEmail : null;
+
   return (
     <tr>
       <td colSpan={6} style={{ padding: 0, background: '#fafbfc', borderBottom: '1px solid #e2e8f0' }}>
-        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div style={{ padding: '20px 24px' }}>
+
+          {/* Move details — operational info: home type, access, urgency,
+              heavy items. Lives above the contact + CRM grid so it's the
+              first thing the mover sees when they expand the row. */}
+          {(detailRows.length > 0 || heavyItems.length > 0) && (
+            <div style={{
+              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
+              padding: '12px 14px', marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                Move details
+              </div>
+              {detailRows.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 18px', marginBottom: heavyItems.length > 0 ? 10 : 0 }}>
+                  {detailRows.map(r => (
+                    <div key={r.label}>
+                      <div style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 600, marginBottom: 1 }}>{r.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{r.value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {heavyItems.length > 0 && (
+                <div style={{ paddingTop: detailRows.length > 0 ? 10 : 0, borderTop: detailRows.length > 0 ? '1px solid #f1f5f9' : 'none' }}>
+                  <div style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>Heavy items</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {heavyItems.map((item, i) => {
+                      const isHeavy = heavyItemTone(item) === 'heavy';
+                      return (
+                        <span
+                          key={`${item}-${i}`}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            padding: '3px 9px', borderRadius: 9999,
+                            fontSize: 11.5, fontWeight: 700,
+                            background: isHeavy ? '#fef2f2' : '#f1f5f9',
+                            color:      isHeavy ? '#dc2626' : '#475569',
+                            border: `1px solid ${isHeavy ? '#fecaca' : '#e2e8f0'}`,
+                          }}
+                        >
+                          {item}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
 
           {/* Left: contact info */}
           <div>
@@ -103,13 +177,27 @@ function ExpandedPanel({ purchase, onUpdate }) {
                   <div style={{ fontSize: 11, color: '#64748b' }}>{lead?.customerPhone}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
-                <Mail size={13} color="#94a3b8" />
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{lead?.customerEmail}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>${purchase.pricePaid?.toFixed(2)} paid</div>
+              {/* Email row — skipped when the synthetic noemail+ placeholder
+                  was injected at ingest. Avoids showing the mover a fake
+                  inbox they'd waste outreach effort on. */}
+              {emailToShow && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                  <Mail size={13} color="#94a3b8" />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emailToShow}</div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>${purchase.pricePaid?.toFixed(2)} paid</div>
+                  </div>
                 </div>
-              </div>
+              )}
+              {!emailToShow && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                  <DollarSign size={13} color="#94a3b8" />
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>${purchase.pricePaid?.toFixed(2)} paid</div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>Customer didn't share email</div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -176,7 +264,8 @@ function ExpandedPanel({ purchase, onUpdate }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>{/* closes inner grid wrapper */}
+        </div>{/* closes outer padding wrapper added for the Move details block */}
       </td>
     </tr>
   );

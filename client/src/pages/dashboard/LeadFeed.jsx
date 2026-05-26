@@ -7,6 +7,12 @@ import {
 import DashboardLayout from '../../components/DashboardLayout';
 import ConfirmPurchaseModal from '../../components/ConfirmPurchaseModal';
 import PurchaseSuccessModal from '../../components/PurchaseSuccessModal';
+import {
+  formatHomeType,
+  formatStairs,
+  formatUrgency,
+  heavyItemTone,
+} from '../../utils/leadDisplay';
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './LeadFeed.css';
@@ -201,10 +207,45 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBuyNow, claiming, err
           </p>
           {/* Lead details */}
           <Row label="Home Size"  value={lead.homeSize || '—'} />
+          {lead.homeType && <Row label="Home Type" value={formatHomeType(lead.homeType)} />}
+          {lead.stairs   && <Row label="Access"    value={formatStairs(lead.stairs)} />}
           <Row label="Move Date"  value={lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'} />
+          {lead.urgencyBucket && <Row label="Urgency" value={formatUrgency(lead.urgencyBucket)} />}
           <Row label="Distance"   value={isLD ? 'Long Distance' : 'Local'} />
           {lead.miles > 0 && <Row label="Miles" value={`${lead.miles} mi`} />}
           {lead.grade && <Row label="Lead Grade" value={lead.grade === 'A' ? '⭐ A — Premium' : lead.grade} />}
+
+          {/* Heavy items — operational difficulty signal. Movers need to
+              see these BEFORE unlocking so they can price the bid correctly.
+              Rendered as a chip row; piano/safe/hot-tub get a darker tone. */}
+          {Array.isArray(lead.heavyItems) && lead.heavyItems.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
+                Heavy items
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {lead.heavyItems.map((item, i) => {
+                  const tone = heavyItemTone(item);
+                  const isHeavy = tone === 'heavy';
+                  return (
+                    <span
+                      key={`${item}-${i}`}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        padding: '4px 10px', borderRadius: 9999,
+                        fontSize: 12, fontWeight: 700,
+                        background: isHeavy ? '#fef2f2' : '#f1f5f9',
+                        color:      isHeavy ? '#dc2626' : '#475569',
+                        border: `1px solid ${isHeavy ? '#fecaca' : '#e2e8f0'}`,
+                      }}
+                    >
+                      {item}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {daysToMove <= 7 && daysToMove > 0 && (
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '8px 14px', marginTop: 12, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
               ⚡ Moving {daysToMove <= 1 ? 'today' : `in ${Math.ceil(daysToMove)} days`} — act fast!
