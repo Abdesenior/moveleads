@@ -1,4 +1,11 @@
 import { X, CheckCircle2, User as UserIcon, Phone as PhoneIcon } from 'lucide-react';
+import {
+  formatHomeType,
+  formatStairs,
+  formatUrgency,
+  heavyItemTone,
+  isRealEmail,
+} from '../utils/leadDisplay';
 
 /**
  * PurchaseSuccessModal — post-purchase confirmation that the lead is owned.
@@ -30,10 +37,22 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
   if (!lead) return null;
 
   const hasContact = !!(lead.customerName && lead.customerPhone);
+  const realEmail = isRealEmail(lead.customerEmail) ? lead.customerEmail : null;
   const fmtPart = (city, state) => {
     if (city && state) return `${city}, ${state}`;
     return city || state || '—';
   };
+
+  // Move-detail rows the operational-details card will render. Same enums
+  // V6 collects; missing fields are skipped (no "—" placeholders that
+  // would clutter the layout).
+  const detailRows = [
+    lead.homeType      && { label: 'Home type', value: formatHomeType(lead.homeType) },
+    lead.stairs        && { label: 'Access',    value: formatStairs(lead.stairs) },
+    lead.urgencyBucket && { label: 'Urgency',   value: formatUrgency(lead.urgencyBucket) },
+    Number.isFinite(lead.miles) && lead.miles > 0 && { label: 'Distance', value: `${lead.miles} mi` },
+  ].filter(Boolean);
+  const heavyItems = Array.isArray(lead.heavyItems) ? lead.heavyItems : [];
 
   return (
     <div
@@ -117,6 +136,52 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
             )}
           </div>
 
+          {/* Move details — operational info the mover needs in-hand. Same
+              data the PreviewModal showed pre-purchase, repeated here so
+              the buyer doesn't have to flip back to the marketplace card. */}
+          {(detailRows.length > 0 || heavyItems.length > 0) && (
+            <div style={{
+              padding: '14px 16px', borderRadius: 12,
+              background: '#f8fafc', border: '1px solid #e2e8f0',
+              marginBottom: 14,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>
+                Move details
+              </div>
+              {detailRows.map(r => (
+                <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0' }}>
+                  <span style={{ fontSize: 12.5, color: '#64748b' }}>{r.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{r.value}</span>
+                </div>
+              ))}
+              {heavyItems.length > 0 && (
+                <div style={{ marginTop: detailRows.length > 0 ? 10 : 0, paddingTop: detailRows.length > 0 ? 10 : 0, borderTop: detailRows.length > 0 ? '1px solid #e2e8f0' : 'none' }}>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>Heavy items</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {heavyItems.map((item, i) => {
+                      const isHeavy = heavyItemTone(item) === 'heavy';
+                      return (
+                        <span
+                          key={`${item}-${i}`}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            padding: '3px 9px', borderRadius: 9999,
+                            fontSize: 11.5, fontWeight: 700,
+                            background: isHeavy ? '#fef2f2' : '#fff',
+                            color:      isHeavy ? '#dc2626' : '#475569',
+                            border: `1px solid ${isHeavy ? '#fecaca' : '#e2e8f0'}`,
+                          }}
+                        >
+                          {item}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Unlocked contact — labeled rows matching ConfirmModal's money breakdown */}
           {hasContact ? (
             <div style={{
@@ -128,8 +193,8 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
               </div>
               <ContactRow icon={<UserIcon size={14} />} label="Name"  value={lead.customerName} />
               <ContactRow icon={<PhoneIcon size={14} />} label="Phone" value={lead.customerPhone} mono />
-              {lead.customerEmail && !String(lead.customerEmail).startsWith('noemail+') && (
-                <ContactRow label="Email" value={lead.customerEmail} mono />
+              {realEmail && (
+                <ContactRow label="Email" value={realEmail} mono />
               )}
             </div>
           ) : (
