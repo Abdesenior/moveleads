@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
-import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Weight, Hash, Package, Search, Upload, Download, CheckCircle, AlertCircle, BarChart2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, MapPin, Home, Calendar, DollarSign, User, Phone, Mail, FileText, Hash, Package, Search, Upload, Download, CheckCircle, AlertCircle, BarChart2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
@@ -426,11 +426,18 @@ export default function AdminLeads() {
   const [sortKey, setSortKey] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
   
+  // Dead V4-only fields removed from the admin edit modal 2026-05-26:
+  //   estimatedWeight (String) — never written by V5/V6 funnels
+  //   numberOfRooms   (Number) — never written by V5/V6 funnels
+  // Both stay on the Lead schema for back-compat with the legacy V4
+  // ingest path (server/routes/leadIngest.js); they just no longer
+  // appear as editable rows in the admin modal where they were always
+  // empty for any modern lead.
   const emptyForm = {
     originCity: '', originZip: '', destinationCity: '', destinationZip: '',
     homeSize: '1 Bedroom', moveDate: '', distance: 'Local', customerName: '',
     customerPhone: '', customerEmail: '', price: 10,
-    specialInstructions: '', estimatedWeight: '', numberOfRooms: 0
+    specialInstructions: ''
   };
 
   const [formData, setFormData] = useState(emptyForm);
@@ -606,8 +613,7 @@ export default function AdminLeads() {
       moveDate: lead.moveDate ? new Date(lead.moveDate).toISOString().split('T')[0] : '',
       distance: lead.distance || 'Local', customerName: lead.customerName || '',
       customerPhone: lead.customerPhone || '', customerEmail: lead.customerEmail || '',
-      price: lead.price || 10, specialInstructions: lead.specialInstructions || '',
-      estimatedWeight: lead.estimatedWeight || '', numberOfRooms: lead.numberOfRooms || 0
+      price: lead.price || 10, specialInstructions: lead.specialInstructions || ''
     });
     setShowModal(true);
   };
@@ -619,7 +625,6 @@ export default function AdminLeads() {
       ...formData,
       route: `${formData.originCity} to ${formData.destinationCity}`,
       price: parseInt(formData.price, 10) || 10,
-      numberOfRooms: parseInt(formData.numberOfRooms, 10) || 0
     };
 
     try {
@@ -1342,21 +1347,17 @@ export default function AdminLeads() {
                 </FieldGroup>
               </div>
 
-              {/* ── Section 2: Property Info ── */}
-              <SectionHeader icon={<Home size={14} color="#8b5cf6" />} bg="#f5f3ff" title="Property Information" subtitle="Home size and move logistics" />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
+              {/* ── Section 2: Property Info ──
+                  V4 dead-field cleanup 2026-05-26: dropped "Number of Rooms"
+                  + "Est. Weight (lbs)" inputs — they were V4-only legacy
+                  fields, never written by V5/V6 leads, always empty in the
+                  modal. Schema retains both for V4 back-compat. */}
+              <SectionHeader icon={<Home size={14} color="#8b5cf6" />} bg="#f5f3ff" title="Property Information" subtitle="Home size" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14, marginBottom: 24 }}>
                 <FieldGroup label="Home Size *" icon={<Home size={13} color="#94a3b8" />}>
                   <select name="homeSize" value={formData.homeSize} onChange={handleInput} style={inputStyle}>
                     {HOME_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
-                </FieldGroup>
-                <FieldGroup label="Number of Rooms" icon={<Hash size={13} color="#94a3b8" />}>
-                  <input type="number" name="numberOfRooms" value={formData.numberOfRooms} onChange={handleInput}
-                    style={inputStyle} placeholder="0" min="0" />
-                </FieldGroup>
-                <FieldGroup label="Est. Weight (lbs)" icon={<Weight size={13} color="#94a3b8" />}>
-                  <input type="text" name="estimatedWeight" value={formData.estimatedWeight} onChange={handleInput}
-                    style={inputStyle} placeholder="e.g. 5,000" />
                 </FieldGroup>
               </div>
 
