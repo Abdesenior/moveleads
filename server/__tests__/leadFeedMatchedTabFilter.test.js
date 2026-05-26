@@ -41,15 +41,49 @@ test('Matched-tab filter uses strict === true (not truthy)', () => {
 test('Matched-tab filter has no looser fallback', () => {
   // Explicitly reject the older `!l._matchesPreferences` truthy check —
   // it lets undefined/null/0/"" sneak through if the field is missing.
-  // We DO allow it inside the dev-mode invariant (where it's used to log
-  // leaks for diagnosis), so the assertion is anchored to the filter
-  // path, which is followed by `return false;`.
   const looserFilter = /if\s*\(\s*!isMine\s*&&\s*!l\._matchesPreferences\s*\)\s*return\s*false/;
   assert.doesNotMatch(
     leadFeedSrc,
     looserFilter,
     'Old truthy check must be replaced by the strict === true predicate'
   );
+});
+
+test('Matched-tab filter does NOT pass purchased-but-unmatched leads', () => {
+  // The operator's spec: "In Matched for you, show ONLY leads where
+  // _matchesPreferences === true." Previously the filter also passed
+  // leads the mover had already purchased, which produced confusing
+  // pill counts (e.g. hero pill shows 6 while tab badge shows 2 because
+  // 4 of those 6 were old test purchases from outside the mover's
+  // current pickup/delivery). The fix is to drop the
+  // `!isPurchasedByMe(l) && !isExplicitlyMatched(l)` pass-through and
+  // gate strictly on the server flag.
+  const passesPurchased = /if\s*\(\s*!isPurchasedByMe\(l\)\s*&&\s*!isExplicitlyMatched\(l\)\s*\)\s*return\s*false/;
+  assert.doesNotMatch(
+    leadFeedSrc,
+    passesPurchased,
+    'Matched filter must NOT have the purchased pass-through anymore; ' +
+    'predicate should be `if (!isExplicitlyMatched(l)) return false;`'
+  );
+  // Affirmative: the strict-only filter line is present.
+  const strictOnly = /if\s*\(\s*!isExplicitlyMatched\(l\)\s*\)\s*return\s*false/;
+  assert.match(
+    leadFeedSrc,
+    strictOnly,
+    'Matched filter must use `if (!isExplicitlyMatched(l)) return false;`'
+  );
+});
+
+test('Dev invariant catches purchased-but-unmatched leaks too', () => {
+  // The runtime invariant must mirror the new strict predicate so
+  // purchased-but-unmatched leads (the bug the operator hit on
+  // 2026-05-26) are flagged in browser console.
+  const oldInvariant = /leaks\s*=\s*displayedLeads\.filter\(\s*l\s*=>\s*!isPurchasedByMe\(l\)\s*&&\s*!isExplicitlyMatched\(l\)\s*\)/;
+  assert.doesNotMatch(leadFeedSrc, oldInvariant,
+    'Dev invariant must drop the purchased pass-through to match the strict filter');
+  const newInvariant = /leaks\s*=\s*displayedLeads\.filter\(\s*l\s*=>\s*!isExplicitlyMatched\(l\)\s*\)/;
+  assert.match(leadFeedSrc, newInvariant,
+    'Dev invariant must use `displayedLeads.filter(l => !isExplicitlyMatched(l))`');
 });
 
 test('Matched-tab filter runs through useMemo (deterministic re-compute)', () => {

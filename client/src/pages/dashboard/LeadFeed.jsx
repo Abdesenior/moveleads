@@ -487,9 +487,6 @@ export default function LeadFeed() {
   // payload; per-user matching only happens on REST fetch). Treating those
   // as NOT matched is the safe default.
   const isExplicitlyMatched = (l) => l && l._matchesPreferences === true;
-  const isPurchasedByMe = (l) =>
-    !!(l && Array.isArray(l.buyers) && user?._id &&
-       l.buyers.some(b => b && b.company && String(b.company) === String(user._id)));
 
   // Memoize so the filter runs in a single pass per dependency change.
   // Previously a fresh closure ran on every render; the new useMemo makes
@@ -500,8 +497,19 @@ export default function LeadFeed() {
     return leads.filter(l => {
       if (matchedScope) {
         // STRICT contract for the Matched-for-you tab:
-        //   row passes iff (purchased by me) OR (server flagged explicit true)
-        if (!isPurchasedByMe(l) && !isExplicitlyMatched(l)) return false;
+        //   row passes iff the server explicitly flagged it.
+        //
+        // Previously the filter also passed leads the mover had already
+        // PURCHASED. That made sense when "Matched" meant "leads you might
+        // care about". The operator's Phase 3.1 spec is sharper:
+        //   In Matched for you, show ONLY leads where
+        //   _matchesPreferences === true.
+        // Purchased leads still live in All marketplace leads (and in the
+        // mover's purchases history). Conflating purchased with matched
+        // produced confusing pill counts (e.g. 6 displayed but tab
+        // badge shows 2 because 4 of those 6 were old test purchases
+        // from states outside the mover's current pickup/delivery).
+        if (!isExplicitlyMatched(l)) return false;
       }
       if (distFilter === 'local' && l.distance !== 'Local') return false;
       if (distFilter === 'long'  && l.distance !== 'Long Distance') return false;
@@ -548,10 +556,11 @@ export default function LeadFeed() {
 
   // Runtime invariant — catches the exact bug the operator reported:
   // unmatched leads leaking into the Matched-for-you tab. Logs the offender
-  // so the problem can never go silent again.
+  // so the problem can never go silent again. Mirrors the strict filter
+  // predicate so purchased-but-not-matched leads now count as leaks too.
   useEffect(() => {
     if (feedScope !== 'matched') return;
-    const leaks = displayedLeads.filter(l => !isPurchasedByMe(l) && !isExplicitlyMatched(l));
+    const leaks = displayedLeads.filter(l => !isExplicitlyMatched(l));
     if (leaks.length > 0) {
       // eslint-disable-next-line no-console
       console.error(
