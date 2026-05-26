@@ -113,34 +113,66 @@ test('B3. PreviewModal renders heavyItems chips when non-empty', () => {
 });
 
 // ── C. PurchaseSuccessModal (just-bought) ────────────────────────────────
+//
+// 2026-05-26 architecture simplification (PR A of lead-detail cleanup):
+// the modal celebrates the unlock + hands off to MyLeads. It must NOT
+// re-render the operational-details breakdown — that's MyLeads' job.
 
-test('C1. PurchaseSuccessModal imports the leadDisplay helpers', () => {
+test('C1. PurchaseSuccessModal imports isRealEmail (only)', () => {
   assert.match(purchaseSuccessSrc, /from\s+['"]\.\.\/utils\/leadDisplay['"]/,
-    'PurchaseSuccessModal must import from utils/leadDisplay');
+    'must import from utils/leadDisplay');
+  assert.match(purchaseSuccessSrc, /\bisRealEmail\b/,
+    'must reference isRealEmail');
 });
 
-test('C2. PurchaseSuccessModal builds a detailRows array from the four fields', () => {
-  // The component computes a `detailRows` array filtering out missing
-  // fields so it doesn't render em-dash rows. The shape:
-  //   { label: 'Home type', value: formatHomeType(lead.homeType) }
-  assert.match(purchaseSuccessSrc, /detailRows\s*=\s*\[/);
-  assert.match(purchaseSuccessSrc, /formatHomeType\(lead\.homeType\)/);
-  assert.match(purchaseSuccessSrc, /formatStairs\(lead\.stairs\)/);
-  assert.match(purchaseSuccessSrc, /formatUrgency\(lead\.urgencyBucket\)/);
+test('C2. PurchaseSuccessModal does NOT re-render the Move details breakdown', () => {
+  // The pre-PR-A modal had a detailRows array enumerating homeType /
+  // access / urgency / distance — duplicated content the mover already
+  // saw in PreviewModal and is about to see in MyLeads.
+  assert.ok(!/detailRows\s*=\s*\[/.test(purchaseSuccessSrc),
+    'detailRows array must be removed (was the duplicated Move details card data)');
+  assert.ok(!/formatHomeType\(lead\.homeType\)/.test(purchaseSuccessSrc),
+    'formatHomeType must not be called here (use MyLeads for full breakdown)');
+  assert.ok(!/formatStairs\(lead\.stairs\)/.test(purchaseSuccessSrc),
+    'formatStairs must not be called here');
+  assert.ok(!/formatUrgency\(lead\.urgencyBucket\)/.test(purchaseSuccessSrc),
+    'formatUrgency must not be called here');
+  // The label string "Move details" was the heading of the removed card.
+  assert.ok(!/>\s*Move details\s*</.test(purchaseSuccessSrc),
+    'the "Move details" card heading must be removed');
 });
 
-test('C3. PurchaseSuccessModal renders the Move details card', () => {
-  assert.match(purchaseSuccessSrc, /Move details/,
-    'must label the operational details block');
-  assert.match(purchaseSuccessSrc, /heavyItems\.map/,
-    'must render heavyItems as chips');
+test('C3. PurchaseSuccessModal does NOT enumerate heavy items', () => {
+  // Heavy items chips moved to MyLeads. The success modal mentions them
+  // in the handoff cue ("heavy items included") but does not list them.
+  assert.ok(!/heavyItems\.map/.test(purchaseSuccessSrc),
+    'heavyItems.map must be removed (no chip enumeration in this modal)');
+  assert.ok(!/heavyItemTone\(/.test(purchaseSuccessSrc),
+    'heavyItemTone must not be called here — chip styling lives in MyLeads now');
 });
 
 test('C4. PurchaseSuccessModal uses isRealEmail to gate the email row', () => {
-  // The earlier inline `startsWith('noemail+')` check is replaced by the
-  // shared helper for consistency with MyLeads.
   assert.match(purchaseSuccessSrc, /isRealEmail\(lead\.customerEmail\)/,
     'must call isRealEmail to filter the noemail+ placeholder');
+});
+
+test('C5. PurchaseSuccessModal renders the My Leads handoff cue', () => {
+  // Single cue line below the customer-details card telling the mover
+  // where to find the full breakdown. Subtle copy, not a button.
+  assert.match(purchaseSuccessSrc, /My Leads/,
+    'must reference "My Leads" in the handoff cue');
+  assert.match(purchaseSuccessSrc, /Home type, access, urgency/,
+    'cue must enumerate the categories the mover will find in MyLeads');
+});
+
+test('C6. PurchaseSuccessModal conditionally mentions heavy items in the cue (no list)', () => {
+  // When heavyItems.length > 0 the cue includes the phrase "heavy items
+  // included" — but does NOT render the list of items. The actual list
+  // is in MyLeads.
+  assert.match(purchaseSuccessSrc, /hasHeavyItems/,
+    'must compute hasHeavyItems boolean to gate the cue text');
+  assert.match(purchaseSuccessSrc, /heavy items included/i,
+    'cue must use the phrase "heavy items included" when hasHeavyItems is true');
 });
 
 // ── D. MyLeads ExpandedPanel (post-purchase history) ─────────────────────
