@@ -1,18 +1,16 @@
 import { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import {
-  ZapOff, X, User,
+  ZapOff, X,
   Gavel, Clock, Package, Search, SlidersHorizontal, Zap
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ConfirmPurchaseModal from '../../components/ConfirmPurchaseModal';
 import PurchaseSuccessModal from '../../components/PurchaseSuccessModal';
-import {
-  formatHomeType,
-  formatStairs,
-  formatUrgency,
-  heavyItemTone,
-} from '../../utils/leadDisplay';
+// 2026-05-26 — leadDisplay helpers (formatHomeType / formatStairs /
+// formatUrgency / heavyItemTone) were only consumed by the removed
+// PreviewModal. They remain in client/src/utils/leadDisplay.js because
+// MyLeads ExpandedPanel + PurchaseSuccessModal still use them.
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './LeadFeed.css';
@@ -168,152 +166,26 @@ function Row({ label, value }) {
   );
 }
 
-/* ─── Preview modal (read-only — no purchase happens here) ─────────────────── */
-function PreviewModal({ lead, balance, onClose, onClaim, onBuyNow, claiming, error }) {
-  useBodyScrollLock();
-  // Phase D — main feed is instant-only. The bid surface was removed from this
-  // modal; what remains is a single Unlock CTA. We still distinguish "active"
-  // leads (use the atomic /buy-now route via onBuyNow) from non-active legacy
-  // admin-imports (use the older /api/leads/:id/claim route via onClaim).
-  const isClaimable = lead.auctionStatus === 'active';
-  const buyNowPrice = getLeadPrice(lead);
-  const displayPrice = buyNowPrice;
-  const isLD           = lead.distance === 'Long Distance';
-  const [openedAt]     = useState(() => Date.now());
-  const daysToMove     = lead.moveDate ? (new Date(lead.moveDate) - openedAt) / 86400000 : 99;
+/* ─── PreviewModal — REMOVED 2026-05-26 ─────────────────────────────────────
+   The row-click → PreviewModal entry point was a duplicate of the Unlock
+   button → ConfirmPurchaseModal flow. The buy-flow architecture now has
+   exactly ONE entry: clicking the Unlock CTA on a marketplace row opens
+   ConfirmPurchaseModal, which posts on confirm. Legacy admin-imported
+   leads (auctionStatus !== 'active') use the same Unlock CTA — labeled
+   "Get Details" — which auto-routes inside executePurchase to the
+   /leads/:id/claim endpoint via the existing isClaimable branch.
 
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: 480 }}>
-        {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg,#0a192f,#112240)', padding: '22px 28px', borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Move Opportunity</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
-              {fmtRoutePart(lead.originCity, lead.originState)} → {fmtRoutePart(lead.destinationCity, lead.destinationState)}
-            </div>
-            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', marginTop: 3, letterSpacing: '0.02em' }}>
-              {lead.originZip} → {lead.destinationZip}
-            </div>
-          </div>
-          <button className="close-btn" onClick={onClose} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'rgba(255,255,255,0.7)', borderRadius: 9, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-            <X size={18} />
-          </button>
-        </div>
+   PreviewModal's entire purpose (route + size + homeType + access +
+   urgency + distance + miles + grade + heavy-items indicator + locked
+   contact teaser + price + duplicate Unlock CTA) was a second
+   pre-purchase details surface that overlapped the marketplace row's
+   visible cells. The architecture trilogy (PRs #25/#26/#27) consolidated
+   operational-details rendering into MyLeads ExpandedPanel as the sole
+   comprehensive workspace; this PR closes the loop by removing the
+   marketplace's secondary modal entry point.
+*/
+// (no stub kept — the comment block above is the sole audit-trail marker)
 
-        <div className="modal-body" style={{ padding: '22px 28px' }}>
-          <p style={{ fontSize: 12.5, color: '#94a3b8', margin: '0 0 16px', lineHeight: 1.5 }}>
-            Review the route, timing, and move size before unlocking.
-          </p>
-          {/* Lead details */}
-          <Row label="Home Size"  value={lead.homeSize || '—'} />
-          {lead.homeType && <Row label="Home Type" value={formatHomeType(lead.homeType)} />}
-          {lead.stairs   && <Row label="Access"    value={formatStairs(lead.stairs)} />}
-          <Row label="Move Date"  value={lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'} />
-          {lead.urgencyBucket && <Row label="Urgency" value={formatUrgency(lead.urgencyBucket)} />}
-          <Row label="Distance"   value={isLD ? 'Long Distance' : 'Local'} />
-          {lead.miles > 0 && <Row label="Miles" value={`${lead.miles} mi`} />}
-          {lead.grade && <Row label="Lead Grade" value={lead.grade === 'A' ? '⭐ A — Premium' : lead.grade} />}
-
-          {/* Heavy items — lightweight indicator only, NOT chip enumeration.
-              PR B of the lead-detail architecture simplification (2026-05-26):
-              PreviewModal communicates that heavy items exist + how many +
-              whether any are specialty-tier (piano / safe / hot tub / pool
-              table), so the mover can price risk intelligently. The full
-              item list lives in MyLeads ExpandedPanel post-purchase — this
-              modal stays decision-oriented, not a CRM-style breakdown. */}
-          {Array.isArray(lead.heavyItems) && lead.heavyItems.length > 0 && (
-            <Row
-              label="Heavy items"
-              value={
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span>Included · {lead.heavyItems.length}</span>
-                  {lead.heavyItems.some(i => heavyItemTone(i) === 'heavy') && (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center',
-                      fontSize: 11, fontWeight: 700, color: '#dc2626',
-                      background: '#fef2f2', border: '1px solid #fecaca',
-                      borderRadius: 9999, padding: '2px 8px',
-                      letterSpacing: 0.2,
-                    }}>
-                      ⚠ specialty
-                    </span>
-                  )}
-                </span>
-              }
-            />
-          )}
-          {daysToMove <= 7 && daysToMove > 0 && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '8px 14px', marginTop: 12, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
-              ⚡ Moving {daysToMove <= 1 ? 'today' : `in ${Math.ceil(daysToMove)} days`} — act fast!
-            </div>
-          )}
-
-          {/* Locked contact teaser */}
-          <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 12, padding: '14px 16px', marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <User size={18} color="#94a3b8" />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', letterSpacing: 4, marginBottom: 2 }}>••••• ••••••••</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>Name & contact info unlocked after claiming</div>
-            </div>
-          </div>
-
-          {/* Price + actions */}
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Price
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a' }}>${displayPrice.toFixed ? displayPrice.toFixed(2) : displayPrice}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your Balance</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: balance >= displayPrice ? '#16a34a' : '#dc2626' }}>${balance.toFixed(2)}</div>
-              </div>
-            </div>
-
-            {/* Inline error — shown when claim/buy fails (other than the
-                insufficient-balance case, which is handled inline below). */}
-            {error && !(error.includes('balance') || error.includes('Insufficient')) && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
-                  {error}
-                </div>
-              </div>
-            )}
-
-            {balance < displayPrice ? (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600, marginBottom: 8 }}>
-                  Insufficient balance. Please add funds to your account.
-                </div>
-                <button
-                  onClick={() => window.open('/dashboard/billing', '_blank')}
-                  style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Add Funds →
-                </button>
-              </div>
-            ) : (
-              /* Single Unlock CTA. /buy-now is the canonical claim endpoint
-                 for any lead in auctionStatus='active' (instant leads and
-                 legacy auction leads alike); onClaim handles the older
-                 admin-imported lead path where auctionStatus !== 'active'. */
-              <button
-                onClick={() => isClaimable ? onBuyNow(lead) : onClaim(lead)}
-                disabled={claiming}
-                style={{ width: '100%', ...BTN_PRIMARY, borderRadius: 12, padding: '13px', fontSize: 14, opacity: claiming ? 0.6 : 1 }}>
-                {claiming ? 'Claiming…' : `Unlock Lead — $${buyNowPrice.toFixed(2)} ›`}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Success modal — instant unlock confirmation ────────────────────────────
    Phase D removed the auction-win variant (Gavel icon + "Auction Won!" copy +
@@ -364,15 +236,12 @@ export default function LeadFeed() {
     window.dispatchEvent(new CustomEvent('moveleads:socket-status', { detail: null }));
   }, []);
   const [successData, setSuccessData]   = useState(null);
-  const [previewLead, setPreviewLead]   = useState(null);
-  // Phase B — pre-purchase confirmation modal. The Unlock click on any
-  // surface (table, mobile card, preview modal) opens this. Confirm
-  // triggers the actual POST. Lives in a separate state from previewLead
-  // so the user can browse leads via preview without entering the buy flow.
+  // 2026-05-26 — `previewLead` / `claimError` state removed alongside the
+  // PreviewModal. The Unlock CTA opens ConfirmPurchaseModal directly, and
+  // buy errors live inside it via `confirmError` + `confirmErrorKind`.
   const [confirmLead, setConfirmLead]   = useState(null);
   const [confirmError, setConfirmError] = useState('');
   const [confirmErrorKind, setConfirmErrorKind] = useState('generic'); // 'generic'|'race'|'insufficient'
-  const [claimError, setClaimError]     = useState('');
   const [claimingId, setClaimingId]     = useState(null);
   const [search, setSearch]             = useState('');
   const [distFilter, setDistFilter]     = useState('all');
@@ -456,18 +325,14 @@ export default function LeadFeed() {
     return () => { stopPolling(); socket.disconnect(); };
   }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling, user?._id]);
 
-  // Phase B — purchase flow is now a two-step process:
+  // Purchase flow is a two-step process:
   //   openPurchaseConfirm(lead)   — opens ConfirmPurchaseModal; no POST fires
   //   executePurchase(lead)       — runs the actual POST after user confirms
-  // Every Unlock surface (desktop table, mobile card, preview modal) goes
-  // through openPurchaseConfirm. The old single-click-charges-instantly
-  // path is gone — no money moves without an explicit Confirm click.
+  // Every Unlock surface (desktop table, mobile card) goes through
+  // openPurchaseConfirm. The old single-click-charges-instantly path is
+  // gone — no money moves without an explicit Confirm click.
   const openPurchaseConfirm = (lead) => {
     if (!lead) return;
-    // Close the preview modal if it was open — we replace it with the
-    // confirmation. Keeps modal stack clean (only one modal at a time).
-    setPreviewLead(null);
-    setClaimError('');
     setConfirmError('');
     setConfirmErrorKind('generic');
     setConfirmLead(lead);
@@ -557,12 +422,12 @@ export default function LeadFeed() {
     }
   };
 
-  // Legacy aliases — every "Unlock" / "Claim" surface in the JSX now
-  // routes through openPurchaseConfirm. executePurchase auto-selects the
-  // right endpoint (/bids/:id/buy-now vs /leads/:id/claim) based on the
-  // lead's auctionStatus. No code path triggers an immediate POST.
+  // Every Unlock surface in the JSX routes through openPurchaseConfirm.
+  // executePurchase auto-selects the right endpoint (/bids/:id/buy-now
+  // vs /leads/:id/claim) based on the lead's auctionStatus. No code path
+  // triggers an immediate POST. `handleClaim` alias removed 2026-05-26
+  // when the row-click + PreviewModal entry point was deleted.
   const handleBuyNow = openPurchaseConfirm;
-  const handleClaim  = openPurchaseConfirm;
 
   // Client-side filters + sort
   const q = search.toLowerCase();
@@ -856,10 +721,14 @@ export default function LeadFeed() {
                     <tr
                       key={id}
                       className="leads-row"
-                      style={{ borderBottom: i < displayedLeads.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.12s', cursor: 'pointer' }}
+                      // No row-onClick — the marketplace row is a passive list
+                      // surface. The Unlock CTA is the ONLY entry into the
+                      // buy flow. Mouse hover stays for affordance so the
+                      // row feels alive; the cursor reverts to default so
+                      // the row no longer reads as a click target.
+                      style={{ borderBottom: i < displayedLeads.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.12s' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#fafbff'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      onClick={() => { setClaimError(''); setPreviewLead(lead); }}
                     >
                       {/* ── Route ── city-first hierarchy: movers think in
                           markets, not ZIPs. "City, ST" reads big, ZIP is
@@ -948,15 +817,22 @@ export default function LeadFeed() {
                         </div>
                       </td>
 
-                      {/* ── Action ── single Unlock CTA. Active leads claim
-                          via the atomic /buy-now route; non-active legacy
-                          admin-imports open the preview modal where the
-                          older /api/leads/:id/claim path is used. */}
+                      {/* ── Action ── single Unlock CTA. Active leads route
+                          through /bids/:id/buy-now; non-active legacy admin
+                          imports route through /api/leads/:id/claim — both
+                          paths flow through openPurchaseConfirm →
+                          ConfirmPurchaseModal, which gates on the user's
+                          explicit Confirm click before any POST. The
+                          executePurchase auto-selects the endpoint based
+                          on lead.auctionStatus. The `e.stopPropagation()`
+                          is vestigial (the row no longer has its own
+                          onClick) but kept defensively in case future
+                          row-level handlers are added. */}
                       <td className="col-action" style={{ padding: '18px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {isClaimable ? (
                           <button
                             className="cta-buy"
-                            onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
+                            onClick={(e) => { e.stopPropagation(); handleBuyNow(lead); }}
                             disabled={claimingId === id}
                             style={{ ...BTN_PRIMARY, opacity: claimingId === id ? 0.6 : 1 }}>
                             {claimingId === id ? 'Claiming…' : (
@@ -969,7 +845,7 @@ export default function LeadFeed() {
                         ) : (
                           <button
                             className="cta-view"
-                            onClick={(e) => { e.stopPropagation(); setClaimError(''); setPreviewLead(lead); }}
+                            onClick={(e) => { e.stopPropagation(); handleBuyNow(lead); }}
                             style={{ ...BTN_PRIMARY }}>
                             <span className="cta-text-desktop">Get Details ›</span>
                             <span className="cta-text-mobile">Get details</span>
@@ -1006,7 +882,9 @@ export default function LeadFeed() {
                   key={id}
                   role="listitem"
                   className="lm-card"
-                  onClick={() => { setClaimError(''); setPreviewLead(lead); }}
+                  /* No card-onClick — the Unlock CTA below is the ONLY
+                     entry into the buy flow. Matches the desktop row's
+                     passive-list-surface semantics. */
                 >
                   {/* Route — city is the primary signal, ZIP is the
                       reference. Order matches the desktop table. State
@@ -1057,7 +935,7 @@ export default function LeadFeed() {
                   <button
                     type="button"
                     className="lm-cta-primary"
-                    onClick={(e) => { e.stopPropagation(); setClaimError(''); handleBuyNow(lead); }}
+                    onClick={(e) => { e.stopPropagation(); handleBuyNow(lead); }}
                     disabled={claimingId === id}
                   >
                     {claimingId === id
@@ -1072,17 +950,6 @@ export default function LeadFeed() {
         )}
       </div>
 
-      {previewLead && (
-        <PreviewModal
-          lead={previewLead}
-          balance={balance}
-          claiming={claimingId === (previewLead._id || previewLead.id)?.toString()}
-          error={claimError}
-          onClose={() => { setPreviewLead(null); setClaimError(''); }}
-          onClaim={handleClaim}
-          onBuyNow={handleBuyNow}
-        />
-      )}
       {confirmLead && (
         <ConfirmPurchaseModal
           lead={confirmLead}
