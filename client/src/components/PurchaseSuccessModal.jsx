@@ -1,58 +1,48 @@
-import { X, CheckCircle2, User as UserIcon, Phone as PhoneIcon } from 'lucide-react';
-import {
-  formatHomeType,
-  formatStairs,
-  formatUrgency,
-  heavyItemTone,
-  isRealEmail,
-} from '../utils/leadDisplay';
+import { X, CheckCircle2, User as UserIcon, Phone as PhoneIcon, ArrowRight } from 'lucide-react';
+import { isRealEmail } from '../utils/leadDisplay';
 
 /**
- * PurchaseSuccessModal — post-purchase confirmation that the lead is owned.
+ * PurchaseSuccessModal — post-purchase celebration + handoff to MyLeads.
  *
  * Visual language mirrors ConfirmPurchaseModal (same overlay, container
  * chrome, header, row layout, footer button styling) so the buy flow has
- * one consistent look from Confirm → Success. Replaces the legacy
- * .modal-overlay / .success-modal / .contact-details-box CSS-class
- * component that pre-dated the Phase B refactor.
+ * one consistent look from Confirm → Success.
  *
- * Props:
- *   lead       — Lead doc returned by the buy-now/claim endpoint, with PII
- *                (customerName, customerPhone) populated for the buyer
- *   onView     — primary CTA handler (parent navigates to
- *                /dashboard/my-leads?highlight=<leadId>)
- *   onClose    — secondary CTA handler / overlay click (parent clears
- *                successData so the modal unmounts)
+ * SCOPE (2026-05-26 simplification, per operator's "one responsibility
+ * per surface" guidance):
+ *   The modal celebrates the unlock + hands the mover off to MyLeads.
+ *   It does NOT re-render the operational-details breakdown the mover
+ *   already saw pre-purchase in PreviewModal and is about to see in
+ *   the MyLeads ExpandedPanel. The handoff cue below the customer
+ *   details points there explicitly.
  *
- * Operator spec:
- *   - Title: "Lead purchased successfully"
- *   - Short confirmation message
- *   - Route summary
- *   - Customer/contact teaser or unlocked status
- *   - Two buttons:
- *       View full move details  →  onView
- *       Keep browsing leads     →  onClose
+ * Renders only:
+ *   - Title (celebration)
+ *   - One-sentence confirmation
+ *   - Route card (identity reminder)
+ *   - Customer details card — the unlock value just delivered
+ *   - Subtle handoff cue: "Full move details … are in My Leads"
+ *   - Two CTAs: View full move details → /dashboard/my-leads?highlight=<id>
+ *               Keep browsing leads     → close modal
+ *
+ * Removed in 2026-05-26 simplification:
+ *   - Move details card (homeType / access / urgency / distance rows)
+ *   - Heavy items chip list
+ *   Both duplicated content the mover sees in PreviewModal pre-purchase
+ *   AND in MyLeads ExpandedPanel post-purchase. PR A of the lead-detail
+ *   architecture simplification, paired with PR B which lightens the
+ *   pre-purchase PreviewModal in the same direction.
  */
 export default function PurchaseSuccessModal({ lead, onView, onClose }) {
   if (!lead) return null;
 
   const hasContact = !!(lead.customerName && lead.customerPhone);
   const realEmail = isRealEmail(lead.customerEmail) ? lead.customerEmail : null;
+  const hasHeavyItems = Array.isArray(lead.heavyItems) && lead.heavyItems.length > 0;
   const fmtPart = (city, state) => {
     if (city && state) return `${city}, ${state}`;
     return city || state || '—';
   };
-
-  // Move-detail rows the operational-details card will render. Same enums
-  // V6 collects; missing fields are skipped (no "—" placeholders that
-  // would clutter the layout).
-  const detailRows = [
-    lead.homeType      && { label: 'Home type', value: formatHomeType(lead.homeType) },
-    lead.stairs        && { label: 'Access',    value: formatStairs(lead.stairs) },
-    lead.urgencyBucket && { label: 'Urgency',   value: formatUrgency(lead.urgencyBucket) },
-    Number.isFinite(lead.miles) && lead.miles > 0 && { label: 'Distance', value: `${lead.miles} mi` },
-  ].filter(Boolean);
-  const heavyItems = Array.isArray(lead.heavyItems) ? lead.heavyItems : [];
 
   return (
     <div
@@ -110,9 +100,11 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
 
         {/* Body */}
         <div style={{ padding: '20px 24px' }}>
+          {/* One-sentence celebration. The handoff-to-MyLeads cue sits at
+              the bottom of the body where the user's eye lands before
+              the CTAs — keeps this top line purely affirmational. */}
           <p style={{ margin: '0 0 16px', fontSize: 13.5, color: '#475569', lineHeight: 1.5 }}>
-            You now have full access to the customer's contact details. The
-            lead has moved to your <strong>My Leads</strong> dashboard.
+            You now have full access to the customer's contact details.
           </p>
 
           {/* Route — same chip-style card as ConfirmPurchaseModal */}
@@ -135,52 +127,6 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
               </div>
             )}
           </div>
-
-          {/* Move details — operational info the mover needs in-hand. Same
-              data the PreviewModal showed pre-purchase, repeated here so
-              the buyer doesn't have to flip back to the marketplace card. */}
-          {(detailRows.length > 0 || heavyItems.length > 0) && (
-            <div style={{
-              padding: '14px 16px', borderRadius: 12,
-              background: '#f8fafc', border: '1px solid #e2e8f0',
-              marginBottom: 14,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>
-                Move details
-              </div>
-              {detailRows.map(r => (
-                <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0' }}>
-                  <span style={{ fontSize: 12.5, color: '#64748b' }}>{r.label}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{r.value}</span>
-                </div>
-              ))}
-              {heavyItems.length > 0 && (
-                <div style={{ marginTop: detailRows.length > 0 ? 10 : 0, paddingTop: detailRows.length > 0 ? 10 : 0, borderTop: detailRows.length > 0 ? '1px solid #e2e8f0' : 'none' }}>
-                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>Heavy items</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {heavyItems.map((item, i) => {
-                      const isHeavy = heavyItemTone(item) === 'heavy';
-                      return (
-                        <span
-                          key={`${item}-${i}`}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center',
-                            padding: '3px 9px', borderRadius: 9999,
-                            fontSize: 11.5, fontWeight: 700,
-                            background: isHeavy ? '#fef2f2' : '#fff',
-                            color:      isHeavy ? '#dc2626' : '#475569',
-                            border: `1px solid ${isHeavy ? '#fecaca' : '#e2e8f0'}`,
-                          }}
-                        >
-                          {item}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Unlocked contact — labeled rows matching ConfirmModal's money breakdown */}
           {hasContact ? (
@@ -206,6 +152,28 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
               Contact details syncing — they'll appear on the My Leads page momentarily.
             </div>
           )}
+
+          {/* Handoff cue — pointer to the comprehensive view in MyLeads.
+              Replaces the prior duplicated Move details card per the
+              2026-05-26 architecture simplification: PurchaseSuccessModal
+              celebrates + hands off; MyLeads is the single workspace for
+              the full operational breakdown. Heavy items get one
+              lightweight mention here (no enumeration) so the mover
+              knows the next page surfaces them. */}
+          <div style={{
+            marginTop: 14,
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontSize: 12.5, color: '#64748b',
+            paddingTop: 12, borderTop: '1px dashed #e2e8f0',
+          }}>
+            <ArrowRight size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
+            <span>
+              Home type, access, urgency
+              {hasHeavyItems && <>, and <strong style={{ color: '#0f172a' }}>heavy items included</strong></>}
+              {' '}are listed in your{' '}
+              <strong style={{ color: '#0f172a' }}>My Leads</strong> dashboard.
+            </span>
+          </div>
         </div>
 
         {/* Footer */}
