@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import {
   ZapOff, X, CheckCircle, User, Phone as PhoneIcon, Truck,
@@ -353,8 +353,30 @@ export default function LeadFeed() {
   const [sortBy, setSortBy]             = useState('listed');
   // Server-supplied _matchesPreferences flag drives this. Default to "Matched
   // for you" when the mover has any preferences set; otherwise "All leads".
-  const hasPrefs = !!(user?.maxDistance || (user?.preferredHomeSizes && user.preferredHomeSizes.length));
-  const [feedScope, setFeedScope]       = useState(hasPrefs ? 'matched' : 'all');
+  //
+  // hasPrefs is computed on every render. The Phase 1+2 pickup/delivery
+  // fields are now considered preferences too — a mover who only configured
+  // pickup states (no maxDistance/homeSize yet) should still default to the
+  // matched tab.
+  const hasPrefs = !!(
+    user?.maxDistance ||
+    (user?.preferredHomeSizes && user.preferredHomeSizes.length) ||
+    (user?.pickupStates && user.pickupStates.length) ||
+    (user?.deliveryStates && user.deliveryStates.length) ||
+    user?.deliversNationwide
+  );
+  const [feedScope, setFeedScope] = useState('all');
+  // Promote scope to 'matched' once the user object loads with prefs.
+  // Without this, the initial render (before AuthContext resolves) locks
+  // scope to 'all' and the filter never engages — the symptom: tab badge
+  // shows the matched count but the table renders unmatched rows. Only
+  // fires while the user hasn't manually picked a tab yet.
+  const scopeUserPickedRef = useRef(false);
+  useEffect(() => {
+    if (!scopeUserPickedRef.current && hasPrefs && feedScope === 'all') {
+      setFeedScope('matched');
+    }
+  }, [hasPrefs, feedScope]);
   const pollRef   = useRef(null);
 
   const fetchLeads = useCallback(async () => {
@@ -458,51 +480,87 @@ export default function LeadFeed() {
   const q = search.toLowerCase();
   const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
 
-  const visible = leads.filter(l => {
-    // "Matched for you" tab — narrow to leads the server flagged as matching
-    // this mover's coverage + preferences. Purchased leads always pass through.
-    if (feedScope === 'matched') {
-      const isMine = (l.buyers || []).some(b => String(b.company) === String(user?._id));
-      if (!isMine && !l._matchesPreferences) return false;
-    }
-    if (distFilter === 'local' && l.distance !== 'Local') return false;
-    if (distFilter === 'long'  && l.distance !== 'Long Distance') return false;
-    if (q && !(
-      l.originCity?.toLowerCase().includes(q) ||
-      l.destinationCity?.toLowerCase().includes(q) ||
-      l.originZip?.includes(q) ||
-      l.destinationZip?.includes(q)
-    )) return false;
+  // Helper — strict matched check. Uses `=== true` so server payloads where
+  // the field is missing/undefined/null/object don't accidentally leak
+  // unmatched leads into the Matched-for-you tab. Socket-pushed leads in
+  // particular arrive without _matchesPreferences (server emits a generic
+  // payload; per-user matching only happens on REST fetch). Treating those
+  // as NOT matched is the safe default.
+  const isExplicitlyMatched = (l) => l && l._matchesPreferences === true;
+  const isPurchasedByMe = (l) =>
+    !!(l && Array.isArray(l.buyers) && user?._id &&
+       l.buyers.some(b => b && b.company && String(b.company) === String(user._id)));
 
-    if (dateFilter !== 'all' && l.moveDate) {
-      const d = new Date(l.moveDate);
-      if (dateFilter === 'today') {
-        if (d.toDateString() !== todayMidnight.toDateString()) return false;
-      } else if (dateFilter === '3days') {
-        const cap = new Date(todayMidnight); cap.setDate(cap.getDate() + 3);
-        if (d < todayMidnight || d > cap) return false;
-      } else if (dateFilter === 'week') {
-        const cap = new Date(todayMidnight); cap.setDate(cap.getDate() + 7);
-        if (d < todayMidnight || d > cap) return false;
-      } else if (dateFilter === 'month') {
-        const cap = new Date(todayMidnight); cap.setMonth(cap.getMonth() + 1);
-        if (d < todayMidnight || d > cap) return false;
-      } else if (dateFilter === 'custom') {
-        if (!customDate) return true;
-        const custom = new Date(customDate + 'T12:00:00.000Z');
-        if (d.toDateString() !== custom.toDateString()) return false;
+  // Memoize so the filter runs in a single pass per dependency change.
+  // Previously a fresh closure ran on every render; the new useMemo makes
+  // the relationship between feedScope and the rendered rows deterministic
+  // and easier to debug.
+  const visible = useMemo(() => {
+    const matchedScope = feedScope === 'matched';
+    return leads.filter(l => {
+      if (matchedScope) {
+        // STRICT contract for the Matched-for-you tab:
+        //   row passes iff (purchased by me) OR (server flagged explicit true)
+        if (!isPurchasedByMe(l) && !isExplicitlyMatched(l)) return false;
       }
-    }
-    return true;
-  });
+      if (distFilter === 'local' && l.distance !== 'Local') return false;
+      if (distFilter === 'long'  && l.distance !== 'Long Distance') return false;
+      if (q && !(
+        l.originCity?.toLowerCase().includes(q) ||
+        l.destinationCity?.toLowerCase().includes(q) ||
+        l.originZip?.includes(q) ||
+        l.destinationZip?.includes(q)
+      )) return false;
 
-  const displayedLeads = [...visible].sort((a, b) => {
-    if (sortBy === 'moveDate_asc')  return new Date(a.moveDate) - new Date(b.moveDate);
-    if (sortBy === 'moveDate_desc') return new Date(b.moveDate) - new Date(a.moveDate);
-    if (sortBy === 'price_asc')     return (a.buyNowPrice || a.price || 0) - (b.buyNowPrice || b.price || 0);
-    if (sortBy === 'price_desc')    return (b.buyNowPrice || b.price || 0) - (a.buyNowPrice || a.price || 0);
-    return 0; // 'listed' = API order preserved
-  });
+      if (dateFilter !== 'all' && l.moveDate) {
+        const d = new Date(l.moveDate);
+        if (dateFilter === 'today') {
+          if (d.toDateString() !== todayMidnight.toDateString()) return false;
+        } else if (dateFilter === '3days') {
+          const cap = new Date(todayMidnight); cap.setDate(cap.getDate() + 3);
+          if (d < todayMidnight || d > cap) return false;
+        } else if (dateFilter === 'week') {
+          const cap = new Date(todayMidnight); cap.setDate(cap.getDate() + 7);
+          if (d < todayMidnight || d > cap) return false;
+        } else if (dateFilter === 'month') {
+          const cap = new Date(todayMidnight); cap.setMonth(cap.getMonth() + 1);
+          if (d < todayMidnight || d > cap) return false;
+        } else if (dateFilter === 'custom') {
+          if (!customDate) return true;
+          const custom = new Date(customDate + 'T12:00:00.000Z');
+          if (d.toDateString() !== custom.toDateString()) return false;
+        }
+      }
+      return true;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, feedScope, user?._id, distFilter, q, dateFilter, customDate]);
+
+  const displayedLeads = useMemo(() => {
+    return [...visible].sort((a, b) => {
+      if (sortBy === 'moveDate_asc')  return new Date(a.moveDate) - new Date(b.moveDate);
+      if (sortBy === 'moveDate_desc') return new Date(b.moveDate) - new Date(a.moveDate);
+      if (sortBy === 'price_asc')     return (a.buyNowPrice || a.price || 0) - (b.buyNowPrice || b.price || 0);
+      if (sortBy === 'price_desc')    return (b.buyNowPrice || b.price || 0) - (a.buyNowPrice || a.price || 0);
+      return 0; // 'listed' = API order preserved
+    });
+  }, [visible, sortBy]);
+
+  // Runtime invariant — catches the exact bug the operator reported:
+  // unmatched leads leaking into the Matched-for-you tab. Logs the offender
+  // so the problem can never go silent again.
+  useEffect(() => {
+    if (feedScope !== 'matched') return;
+    const leaks = displayedLeads.filter(l => !isPurchasedByMe(l) && !isExplicitlyMatched(l));
+    if (leaks.length > 0) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[LeadFeed] Matched-tab filter leak: ${leaks.length} unmatched lead(s) rendered. ` +
+        `Examples: ${leaks.slice(0, 3).map(l => `${l.originCity || l.originZip}→${l.destinationCity || l.destinationZip} (_matchesPreferences=${JSON.stringify(l._matchesPreferences)})`).join('; ')}`
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayedLeads, feedScope, user?._id]);
 
   const balance = user?.balance || 0;
 
@@ -559,14 +617,18 @@ export default function LeadFeed() {
             { id: 'all',     label: 'All marketplace leads' },
           ].map(tab => {
             const active = feedScope === tab.id;
-            const matchedCount = leads.filter(l => l._matchesPreferences).length;
+            // Strict `=== true` here too — same predicate the filter uses, so
+            // the tab badge count can never drift from the actual matched row
+            // count. (Was `l._matchesPreferences` truthy check, which would
+            // accept any non-falsy value.)
+            const matchedCount = leads.filter(l => l._matchesPreferences === true).length;
             const showCount = tab.id === 'matched' && hasPrefs;
             return (
               <button
                 key={tab.id}
                 role="tab"
                 aria-selected={active}
-                onClick={() => setFeedScope(tab.id)}
+                onClick={() => { scopeUserPickedRef.current = true; setFeedScope(tab.id); }}
                 style={{
                   padding: '7px 14px',
                   borderRadius: 9,
