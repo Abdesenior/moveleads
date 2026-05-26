@@ -306,8 +306,12 @@ test('K2. emailService.js imports strict matcher + flag + shadow helper', () => 
     'emailService must emit per-candidate shadow log with source=email');
 });
 
-test('K3. leads.js dashboard handler imports strict matcher + flag + shadow helper', () => {
-  assert.match(leadsSrc, /isLeadInMoverCoverageStrict/);
+test('K3. leads.js dashboard handler imports the full-policy strict matcher + flag + shadow helper', () => {
+  // Phase 3.1: the dashboard now uses the FULL-POLICY strict matcher
+  // (doesLeadMatchMoverPreferencesStrict) — same as SMS + email. The
+  // coverage-only strict variant is no longer used by the dashboard.
+  assert.match(leadsSrc, /doesLeadMatchMoverPreferencesStrict/,
+    'leads.js must import the full-policy strict matcher (NOT the coverage-only one)');
   assert.match(leadsSrc, /require\(['"]\.\.\/utils\/strictMatchingFlag['"]\)/);
   assert.match(leadsSrc, /require\(['"]\.\.\/utils\/matchShadowLog['"]\)/);
   assert.match(leadsSrc, /logDashboardShadow\(/,
@@ -337,4 +341,148 @@ test('L. .env.example documents STRICT_INTERSTATE_MATCHING with safe default', (
     '.env.example must default STRICT_INTERSTATE_MATCHING=false');
 });
 
-console.log('\nPhase 3 strict interstate matching lock-in tests scheduled.');
+// ── M. Phase 3.1 — dashboard badge uses full-policy strict matcher ──────
+
+const leadsRouteSrcM = fs.readFileSync(path.join(__dirname, '..', 'routes', 'leads.js'), 'utf8');
+
+test('M1. Dashboard handler computes strict badge via doesLeadMatchMoverPreferencesStrict (full policy)', () => {
+  assert.match(leadsRouteSrcM, /doesLeadMatchMoverPreferencesStrict/,
+    'leads.js must import doesLeadMatchMoverPreferencesStrict for the strict badge');
+  // The strict assignment must use the full-policy matcher (not the
+  // coverage-only one — that was the Phase 3 mistake that let badges leak
+  // onto leads whose maxDistance / homeSize / moveTypes the mover doesn't accept).
+  assert.match(
+    leadsRouteSrcM,
+    /const strict\s*=\s*doesLeadMatchMoverPreferencesStrict\(/,
+    'dashboard strict branch must use doesLeadMatchMoverPreferencesStrict (NOT the coverage-only isLeadInMoverCoverageStrict)'
+  );
+});
+
+test('M2. Dashboard fetches User fields needed by full-policy matcher', () => {
+  assert.match(leadsRouteSrcM, /maxDistance/,           'must select maxDistance');
+  assert.match(leadsRouteSrcM, /preferredHomeSizes/,    'must select preferredHomeSizes');
+  assert.match(leadsRouteSrcM, /onboarding\.answers/,   'must select onboarding.answers (moveTypes)');
+});
+
+test('M3. Strict badge respects maxDistance — local-only mover does NOT match long-distance lead', () => {
+  const mover = {
+    pickupStates: ['NY'],
+    deliveryStates: ['CA'],
+    deliversNationwide: false,
+    maxDistance: 'Local',
+  };
+  // NY → CA is in coverage (origin NY pickup, dest CA delivery) but it's
+  // a long-distance lead. The mover only wants Local. Badge must NOT fire.
+  const lead = {
+    originState: 'NY', destinationState: 'CA',
+    originZip: '10001', destinationZip: '90210',
+    distance: 'Long Distance',
+  };
+  assert.equal(doesLeadMatchMoverPreferencesStrict(lead, mover, {}), false,
+    'Local-only mover should NOT match a Long Distance lead even when coverage is satisfied');
+});
+
+test('M4. Strict badge respects maxDistance — long-distance-only mover does NOT match local lead', () => {
+  const mover = {
+    pickupStates: ['NY'],
+    deliveryStates: ['NY'],
+    deliversNationwide: false,
+    maxDistance: 'Long Distance',
+  };
+  const localLead = {
+    originState: 'NY', destinationState: 'NY',
+    originZip: '10001', destinationZip: '10002',
+    distance: 'Local',
+  };
+  assert.equal(doesLeadMatchMoverPreferencesStrict(localLead, mover, {}), false,
+    'Long-distance-only mover should NOT match a Local lead');
+});
+
+test('M5. maxDistance empty (Both) matches both distances', () => {
+  const mover = {
+    pickupStates: ['NY'],
+    deliveryStates: ['CA'],
+    deliversNationwide: false,
+    maxDistance: '',  // both
+  };
+  const longLead = {
+    originState: 'NY', destinationState: 'CA',
+    distance: 'Long Distance',
+  };
+  assert.equal(doesLeadMatchMoverPreferencesStrict(longLead, mover, {}), true,
+    'Both/Any-distance mover matches long-distance');
+});
+
+test('M6. Strict badge respects preferredHomeSizes', () => {
+  const mover = {
+    pickupStates: ['NY'],
+    deliveryStates: ['CA'],
+    deliversNationwide: false,
+    preferredHomeSizes: ['3 Bedroom', '4+ Bedroom'],
+  };
+  const smallLead = {
+    originState: 'NY', destinationState: 'CA',
+    distance: 'Long Distance',
+    homeSize: '1 Bedroom',
+  };
+  assert.equal(doesLeadMatchMoverPreferencesStrict(smallLead, mover, {}), false,
+    '1 Bedroom lead must NOT match a mover who only wants 3+ Bedroom');
+
+  const bigLead = { ...smallLead, homeSize: '3 Bedroom' };
+  assert.equal(doesLeadMatchMoverPreferencesStrict(bigLead, mover, {}), true,
+    '3 Bedroom lead matches a 3+ Bedroom preference');
+});
+
+test('M7. Legacy fallback log fires once per mover per process (not per match call)', () => {
+  // Capture warn output
+  const captured = [];
+  const orig = console.warn;
+  console.warn = (...args) => captured.push(args.join(' '));
+  try {
+    const fallbackMover = {
+      _id: 'unbackfilled-mover-1',
+      pickupStates: [],
+      deliveryStates: [],
+      serviceStates: ['NY'],
+    };
+    // Three matches against the same mover should produce ONE warn line
+    resolveMoverStates(fallbackMover);
+    resolveMoverStates(fallbackMover);
+    resolveMoverStates(fallbackMover);
+    const fired = captured.filter(l => /legacy serviceStates fallback fired for mover=unbackfilled-mover-1/.test(l));
+    assert.equal(fired.length, 1,
+      'fallback warn must dedupe per mover per process');
+    // A different mover triggers a separate warn
+    resolveMoverStates({
+      _id: 'unbackfilled-mover-2',
+      pickupStates: [], deliveryStates: [],
+      serviceStates: ['CA'],
+    });
+    const fired2 = captured.filter(l => /unbackfilled-mover-2/.test(l));
+    assert.equal(fired2.length, 1);
+  } finally {
+    console.warn = orig;
+  }
+});
+
+test('M8. Legacy fallback log does NOT fire for backfilled movers', () => {
+  const captured = [];
+  const orig = console.warn;
+  console.warn = (...args) => captured.push(args.join(' '));
+  try {
+    const backfilledMover = {
+      _id: 'backfilled-mover-1',
+      pickupStates: ['NY'],
+      deliveryStates: ['CA'],
+      serviceStates: ['NY', 'CA'],
+    };
+    resolveMoverStates(backfilledMover);
+    const fired = captured.filter(l => /legacy serviceStates fallback/.test(l));
+    assert.equal(fired.length, 0,
+      'backfilled mover must NOT trigger the legacy fallback warn');
+  } finally {
+    console.warn = orig;
+  }
+});
+
+console.log('\nPhase 3 + 3.1 strict interstate matching lock-in tests scheduled.');

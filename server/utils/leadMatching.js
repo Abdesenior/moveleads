@@ -144,18 +144,35 @@ function isLeadInMoverCoverage(lead, user, coverageZips) {
 function resolveMoverStates(mover) {
   let pickup   = Array.isArray(mover.pickupStates)   ? mover.pickupStates   : [];
   let delivery = Array.isArray(mover.deliveryStates) ? mover.deliveryStates : [];
+  let usedLegacyFallback = false;
   if (pickup.length === 0 && Array.isArray(mover.serviceStates) && mover.serviceStates.length > 0) {
     // Legacy fallback — treat serviceStates as both pickup AND delivery so
     // un-backfilled movers don't suddenly stop matching.
+    //
+    // After the Phase 1 backfill ran in production every mover should have
+    // pickupStates populated. If this branch fires, it means a mover slipped
+    // past the backfill (admin creation? manual seed?). The log line lets
+    // ops grep for stragglers and apply a one-shot fix.
     pickup   = mover.serviceStates;
     delivery = mover.serviceStates;
+    usedLegacyFallback = true;
+    // Throttle by mover._id so we don't flood logs on every match decision
+    // for the same straggler. Memoized per process — Render restarts reset.
+    if (!_loggedLegacyFallback.has(String(mover._id))) {
+      _loggedLegacyFallback.add(String(mover._id));
+      console.warn(`[leadMatching] legacy serviceStates fallback fired for mover=${mover._id} — Phase 1 backfill should have populated pickupStates. Run scripts/backfillMoverServiceArea.js --apply to fix.`);
+    }
   }
   return {
     pickup:     new Set(pickup),
     delivery:   new Set(delivery),
     nationwide: !!mover.deliversNationwide,
+    usedLegacyFallback,
   };
 }
+
+// Per-process dedup set for the legacy-fallback warning. Reset on restart.
+const _loggedLegacyFallback = new Set();
 
 /**
  * Coverage-only strict match (origin AND destination).

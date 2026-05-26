@@ -56,38 +56,35 @@ test('GET /api/leads sorts by distributionDecisionAt with createdAt tiebreaker',
     'tab is freshness-only; matched filtering happens client-side via the tab.'
   );
 
-  // The /dashboard/leads annotation must use a COVERAGE-ONLY helper — both
-  // the legacy `isLeadInMoverCoverage` (origin OR destination) and the new
-  // strict `isLeadInMoverCoverageStrict` (origin AND destination) qualify.
-  // The full-policy helper (`doesLeadMatchMoverPreferences[Strict]`) is for
-  // SMS/email dispatch only — it layers distance + home size + moveTypes
-  // filters that don't belong on the dashboard badge.
+  // Phase 3.1 — the dashboard badge under strict mode is the SAME matcher
+  // the SMS + email broadcasts use: doesLeadMatchMoverPreferencesStrict.
+  // This guarantees a "✓ Matches your setup" badge means "I qualify for
+  // this lead" (coverage AND distance AND home size AND moveTypes), not
+  // just "the ZIP overlaps something I configured" — which was the gap
+  // that let badges leak onto leads the mover doesn't actually want.
   //
-  // Phase 3 cutover: the handler computes BOTH legacy and strict badges for
-  // shadow logging and picks the active one via STRICT_INTERSTATE_MATCHING.
-  // Either coverage-only helper appearing in the assignment is acceptable;
-  // a full-policy helper is not.
-  const usesCoverageOnlyLegacy = /_matchesPreferences\s*=\s*(?:strictMode\s*\?\s*\w+\s*:\s*)?isLeadInMoverCoverage\(/;
-  const callsLegacyDirect      = /\bisLeadInMoverCoverage\(/;
-  const callsStrict            = /\bisLeadInMoverCoverageStrict\(/;
-  assert.ok(callsLegacyDirect.test(src) || callsStrict.test(src),
-    'routes/leads.js must annotate _matchesPreferences using a coverage-only helper ' +
-    '(isLeadInMoverCoverage and/or isLeadInMoverCoverageStrict). Coverage-only badge ' +
-    'semantics: a lead matches if origin (and, under strict, destination) overlap the ' +
-    'mover\'s pickup/delivery. Distance, home size, and move type belong to dispatch ' +
-    'policy, not the badge.');
+  // Legacy mode (flag off) keeps the historic coverage-only badge
+  // (isLeadInMoverCoverage) for back-compat — flipping it quietly would
+  // surprise existing movers.
+  //
+  // Rejected: the LEGACY full-policy matcher
+  // (doesLeadMatchMoverPreferences without "Strict") — that was the original
+  // historical concern: it bundled coverage-only + dispatch concerns in a
+  // way that made the badge over-restrictive in legacy mode. The strict
+  // variant (doesLeadMatchMoverPreferencesStrict) is purpose-built for the
+  // strict cutover and is the new badge truth.
+  const callsLegacyCoverage = /\bisLeadInMoverCoverage\(/;
+  const callsStrictPolicy   = /\bdoesLeadMatchMoverPreferencesStrict\(/;
+  assert.ok(callsLegacyCoverage.test(src) && callsStrictPolicy.test(src),
+    'routes/leads.js must use isLeadInMoverCoverage for the legacy-mode badge ' +
+    'AND doesLeadMatchMoverPreferencesStrict for the strict-mode badge. ' +
+    'This is the Phase 3.1 unification: strict mode = same matcher SMS + email use.');
 
-  const usesFullPolicy = /_matchesPreferences\s*=\s*doesLeadMatchMoverPreferences\(/;
+  const usesLegacyFullPolicy = /_matchesPreferences\s*=\s*doesLeadMatchMoverPreferences\(/;
   assert.doesNotMatch(
-    src, usesFullPolicy,
-    'routes/leads.js must NOT use doesLeadMatchMoverPreferences for the dashboard ' +
-    'annotation — that helper is for SMS/email dispatch.'
-  );
-  const usesFullPolicyStrict = /_matchesPreferences\s*=\s*doesLeadMatchMoverPreferencesStrict\(/;
-  assert.doesNotMatch(
-    src, usesFullPolicyStrict,
-    'routes/leads.js must NOT use doesLeadMatchMoverPreferencesStrict for the dashboard ' +
-    'annotation either — same rationale, dispatch helper.'
+    src, usesLegacyFullPolicy,
+    'routes/leads.js must NOT use the LEGACY doesLeadMatchMoverPreferences helper ' +
+    'for the dashboard annotation — that was the historic over-restrictive path.'
   );
 });
 

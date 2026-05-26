@@ -13,7 +13,10 @@ const PurchasedLead = require('../models/PurchasedLead');
 // continue to use doesLeadMatchMoverPreferences (full policy) — see
 // twilioService.js and emailService.js. The two semantics are deliberately
 // separate; do not collapse them without a coordinated decision.
-const { isLeadInMoverCoverage, isLeadInMoverCoverageStrict } = require('../utils/leadMatching');
+const {
+  isLeadInMoverCoverage,
+  doesLeadMatchMoverPreferencesStrict,
+} = require('../utils/leadMatching');
 const { strictMatchingEnabled } = require('../utils/strictMatchingFlag');
 const { logDashboardShadow } = require('../utils/matchShadowLog');
 const { deductLeadBalance, runAutoRecharge } = require('../services/billingService');
@@ -258,17 +261,27 @@ router.get('/', auth, async (req, res) => {
     // produced confusing orderings like "4d-ago (matched) > 1h-ago (unmatched)"
     // on the All tab; that's now gone.
     if (!isAdmin) {
-      // Phase 3 — always compute BOTH legacy + strict badges for shadow
-      // logging. The active mode (selected by STRICT_INTERSTATE_MATCHING)
-      // determines which one drives the response's _matchesPreferences flag.
+      // Phase 3.1 — single-matcher-controls-everything model.
       //
-      // Pull the new pickup/delivery + nationwide fields so the strict
-      // matcher can read them in-memory; fetch ZIP coverage typed by origin
-      // vs destination so the strict matcher can fall back to ZIP-level
-      // matching when state-level doesn't fire.
+      // Under strict mode, the dashboard badge / "Matched for you" tab /
+      // tab count / SMS broadcast / email broadcast all run through the
+      // SAME matcher: `doesLeadMatchMoverPreferencesStrict`. That means
+      // the badge respects EVERY mover preference (pickup states,
+      // delivery states, nationwide, maxDistance, preferredHomeSizes,
+      // moveTypes / avoidMoveTypes) — not just coverage. A "✓ Matches
+      // your setup" badge means "I can actually dispatch this lead",
+      // not "the ZIP overlaps something I've configured".
+      //
+      // Legacy mode (flag off) keeps the historic coverage-only badge
+      // for compatibility — flipping that quietly would surprise existing
+      // movers. Strict mode is the future; legacy is parked.
+      //
+      // Shadow log keeps firing in both modes so the operator can spot
+      // post-cutover anomalies (e.g. an unexpected zero strict count).
       const strictMode = strictMatchingEnabled();
       const me = await User.findById(req.user.id)
-        .select('deliversNationwide pickupStates deliveryStates serviceStates')
+        .select('deliversNationwide pickupStates deliveryStates serviceStates ' +
+                'maxDistance preferredHomeSizes onboarding.answers')
         .lean();
 
       // Legacy: flat union of all coverage ZIPs (unchanged behavior).
@@ -292,8 +305,11 @@ router.get('/', auth, async (req, res) => {
       let legacyMatched = 0;
       let strictMatched = 0;
       for (const l of leads) {
+        // Legacy mode: historic coverage-only badge.
         const legacy = isLeadInMoverCoverage(l, me || {}, flatZipSet);
-        const strict = isLeadInMoverCoverageStrict(l, me || {}, { originZipSet, destinationZipSet });
+        // Strict mode: full-policy match — the SAME function the SMS +
+        // email broadcasters call. One source of truth.
+        const strict = doesLeadMatchMoverPreferencesStrict(l, me || {}, { originZipSet, destinationZipSet });
         if (legacy) legacyMatched++;
         if (strict) strictMatched++;
         l._matchesPreferences = strictMode ? strict : legacy;
