@@ -112,7 +112,7 @@ function isWithinDispatchHours(user, channel, now = new Date()) {
  * Map a lead to one of the onboarding moveType enum values.
  *
  * If the lead carries an explicit `moveType` field already, that wins.
- * Otherwise we derive from distance + homeSize.
+ * Otherwise we derive from homeSize.
  *
  * homeSize enum in Lead.js (via validators/leadIngest.js) is currently:
  *   'Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom', '4 Bedroom',
@@ -121,14 +121,25 @@ function isWithinDispatchHours(user, channel, now = new Date()) {
  * other categories that the lead schema can't currently produce — those
  * cases fall through to null (which the matcher treats as "don't filter").
  *
+ * 2026-05-26 — distance-as-category override removed.
+ * Previously this function returned `'longDistance'` when
+ * `lead.distance === 'Long Distance'`, before falling through to homeSize.
+ * That conflated two orthogonal filters: distance is gated by
+ * `User.maxDistance` (Settings), and `moveTypes` should only classify the
+ * KIND of move (apartment/home/office), not its distance. The override
+ * silently dropped long-distance leads for movers whose legacy
+ * `onboarding.answers.moveTypes` array (from a prior onboarding wizard
+ * version, no longer collected in the current UI) didn't include
+ * `'longDistance'` — even when those movers explicitly set
+ * `maxDistance=''` (Both) and `deliversNationwide=true`. The dashboard
+ * "Matched for you" tab silently filtered such leads out of view.
+ *
  * @param {Object} lead
  * @returns {'apartment'|'home'|'office'|'longDistance'|'packing'|'storage'|'emergency'|null}
  */
 function derivedMoveType(lead) {
   if (!lead) return null;
   if (lead.moveType) return lead.moveType;
-
-  if (lead.distance === 'Long Distance') return 'longDistance';
 
   const size = (lead.homeSize || '').toString().toLowerCase().trim();
   if (!size) return null;
