@@ -5,6 +5,7 @@ import {
   Gavel, Clock, Package, Search, SlidersHorizontal, Zap
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import ConfirmPurchaseModal from '../../components/ConfirmPurchaseModal';
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './LeadFeed.css';
@@ -290,7 +291,7 @@ function SuccessModal({ data, onClose, onNavigate }) {
         <div className="success-icon-box">
           <CheckCircle size={48} />
         </div>
-        <h2>Lead Unlocked!</h2>
+        <h2>Lead purchased successfully</h2>
         <p>You now have full access to the customer's contact details.</p>
         {hasContact && (
           <div className="contact-details-box">
@@ -300,8 +301,12 @@ function SuccessModal({ data, onClose, onNavigate }) {
           </div>
         )}
         <div className="modal-actions">
-          <button className="view-btn" onClick={onNavigate}>Go to My Customers</button>
-          <button className="close-success-btn" onClick={onClose}>Continue Feeding</button>
+          {/* Primary CTA — deep-link into the purchased lead inside My Leads.
+              MyLeads reads the ?highlight=<leadId> query param and auto-scrolls
+              + auto-expands that row. Phase B replaces the prior
+              "Go to My Customers" CTA that routed to /dashboard/customers. */}
+          <button className="view-btn" onClick={onNavigate}>View lead details</button>
+          <button className="close-success-btn" onClick={onClose}>Keep browsing leads</button>
         </div>
       </div>
     </div>
@@ -344,6 +349,13 @@ export default function LeadFeed() {
   }, []);
   const [successData, setSuccessData]   = useState(null);
   const [previewLead, setPreviewLead]   = useState(null);
+  // Phase B — pre-purchase confirmation modal. The Unlock click on any
+  // surface (table, mobile card, preview modal) opens this. Confirm
+  // triggers the actual POST. Lives in a separate state from previewLead
+  // so the user can browse leads via preview without entering the buy flow.
+  const [confirmLead, setConfirmLead]   = useState(null);
+  const [confirmError, setConfirmError] = useState('');
+  const [confirmErrorKind, setConfirmErrorKind] = useState('generic'); // 'generic'|'race'|'insufficient'
   const [claimError, setClaimError]     = useState('');
   const [claimingId, setClaimingId]     = useState(null);
   const [search, setSearch]             = useState('');
@@ -428,53 +440,113 @@ export default function LeadFeed() {
     return () => { stopPolling(); socket.disconnect(); };
   }, [SOCKET_URL, token, fetchLeads, startPolling, stopPolling, user?._id]);
 
-  const handleBuyNow = async (lead) => {
-    const id      = (lead._id || lead.id)?.toString();
-    const balance = user?.balance || 0;
-    const price   = getLeadPrice(lead);
-
-    // Pre-flight: catch insufficient balance before hitting the server
-    if (balance < price) {
-      setClaimError('Insufficient balance. Please add funds to your account.');
-      setPreviewLead(lead); // Open modal so the error + "Add Funds" button are visible
-      return;
-    }
-
-    setClaimingId(id);
-    try {
-      const res  = await fetch(`${API_URL}/bids/${id}/buy-now`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
-      const data = await res.json();
-      if (!res.ok) {
-        setClaimError(data.error || 'Failed to claim lead. Please try again.');
-        setPreviewLead(lead); // Ensure modal is open so error is visible
-        return;
-      }
-      setPreviewLead(null);
-      setClaimError('');
-      setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== id));
-      setSuccessData({ lead: data.lead || lead });
-      refreshUser();
-    } finally { setClaimingId(null); }
-  };
-
-  const handleClaim = async (lead) => {
-    const id = (lead._id || lead.id)?.toString();
-    setClaimingId(id);
+  // Phase B — purchase flow is now a two-step process:
+  //   openPurchaseConfirm(lead)   — opens ConfirmPurchaseModal; no POST fires
+  //   executePurchase(lead)       — runs the actual POST after user confirms
+  // Every Unlock surface (desktop table, mobile card, preview modal) goes
+  // through openPurchaseConfirm. The old single-click-charges-instantly
+  // path is gone — no money moves without an explicit Confirm click.
+  const openPurchaseConfirm = (lead) => {
+    if (!lead) return;
+    // Close the preview modal if it was open — we replace it with the
+    // confirmation. Keeps modal stack clean (only one modal at a time).
+    setPreviewLead(null);
     setClaimError('');
+    setConfirmError('');
+    setConfirmErrorKind('generic');
+    setConfirmLead(lead);
+  };
+
+  const cancelPurchaseConfirm = () => {
+    setConfirmLead(null);
+    setConfirmError('');
+    setConfirmErrorKind('generic');
+  };
+
+  const executePurchase = async () => {
+    const lead = confirmLead;
+    if (!lead) return;
+    const id    = (lead._id || lead.id)?.toString();
+    const price = getLeadPrice(lead);
+    // Endpoint selection mirrors the pre-Phase-B split:
+    //   /bids/:id/buy-now  → modern instant-dispatch path (atomic, refunds-on-fail,
+    //                        emits lead_sold socket event)
+    //   /leads/:id/claim   → legacy multi-buyer / non-active auctionStatus path
+    // The ConfirmModal UX is identical for both — only the API URL differs.
+    const isClaimable = lead.auctionStatus === 'active';
+    const url = isClaimable
+      ? `${API_URL}/bids/${id}/buy-now`
+      : `${API_URL}/leads/${id}/claim`;
+
+    setClaimingId(id);
+    setConfirmError('');
+    setConfirmErrorKind('generic');
     try {
-      const res  = await fetch(`${API_URL}/leads/${id}/claim`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
-      const data = await res.json();
+      const res  = await fetch(url, {
+        method: 'POST',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        setClaimError(data.msg || 'Failed to claim lead. Please try again.');
+        // Race-loss (400 "Lead no longer available") and already-claimed (409)
+        // both mean the lead was just bought by someone else (or by us in a
+        // duplicate tab). Treat them as the "race" UI state — graceful,
+        // non-scary copy in the modal; lead is removed from the dashboard.
+        const msg = String((data && (data.error || data.msg)) || '').toLowerCase();
+        const isRace =
+          res.status === 400 ||
+          res.status === 409 ||
+          /no longer available|already (claimed|purchased|owned)/.test(msg);
+
+        if (isRace) {
+          setConfirmErrorKind('race');
+          setConfirmError('This lead was just purchased by another mover.');
+          // Drop the lead from the local feed so the user doesn't see it
+          // sitting there with no Unlock affordance after they dismiss.
+          setLeads(prev => prev.filter(l => (l._id || l.id)?.toString() !== id));
+          return;
+        }
+
+        // 402 insufficient balance (rare — pre-flight catches it). Surface
+        // the server message; ConfirmModal will show the Add Funds CTA
+        // because balance < price.
+        if (res.status === 402) {
+          setConfirmErrorKind('insufficient');
+          setConfirmError(data.error || data.msg || 'Insufficient balance.');
+          return;
+        }
+
+        // Generic 5xx / network. Stay in the modal so the user can retry
+        // or cancel — never silently swallow.
+        setConfirmErrorKind('generic');
+        setConfirmError(data.error || data.msg || `Purchase failed (${res.status}). Please try again.`);
         return;
       }
-      setPreviewLead(null);
-      setClaimError('');
+
+      // ── Success ──────────────────────────────────────────────────────
+      // Optimistic local removal — Phase A server change makes this
+      // permanent: even a hard refresh won't bring the lead back to the
+      // marketplace feed. Kept here for instant UI snap (avoids waiting
+      // on the socket round-trip).
       setLeads(prev => prev.filter(l => (l._id||l.id)?.toString() !== id));
+      setConfirmLead(null);
       setSuccessData({ lead: data.lead || lead });
       refreshUser();
-    } finally { setClaimingId(null); }
+    } catch (err) {
+      setConfirmErrorKind('generic');
+      setConfirmError(err && err.message ? err.message : 'Network error. Please try again.');
+    } finally {
+      setClaimingId(null);
+    }
   };
+
+  // Legacy aliases — every "Unlock" / "Claim" surface in the JSX now
+  // routes through openPurchaseConfirm. executePurchase auto-selects the
+  // right endpoint (/bids/:id/buy-now vs /leads/:id/claim) based on the
+  // lead's auctionStatus. No code path triggers an immediate POST.
+  const handleBuyNow = openPurchaseConfirm;
+  const handleClaim  = openPurchaseConfirm;
 
   // Client-side filters + sort
   const q = search.toLowerCase();
@@ -995,11 +1067,28 @@ export default function LeadFeed() {
           onBuyNow={handleBuyNow}
         />
       )}
+      {confirmLead && (
+        <ConfirmPurchaseModal
+          lead={confirmLead}
+          balance={balance}
+          isProcessing={claimingId === (confirmLead._id || confirmLead.id)?.toString()}
+          error={confirmError}
+          errorKind={confirmErrorKind}
+          onConfirm={executePurchase}
+          onCancel={cancelPurchaseConfirm}
+        />
+      )}
       {successData && (
         <SuccessModal
           data={successData}
           onClose={() => setSuccessData(null)}
-          onNavigate={() => { setSuccessData(null); navigate('/dashboard/customers'); }}
+          onNavigate={() => {
+            // Phase B — deep-link the purchased lead inside MyLeads. MyLeads
+            // reads ?highlight=<id> and auto-scrolls + auto-expands the row.
+            const leadId = successData?.lead?._id || successData?.lead?.id;
+            setSuccessData(null);
+            navigate(leadId ? `/dashboard/my-leads?highlight=${leadId}` : '/dashboard/my-leads');
+          }}
         />
       )}
     </DashboardLayout>
