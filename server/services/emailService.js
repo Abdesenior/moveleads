@@ -863,47 +863,103 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
     const CoverageArea = require('../models/CoverageArea');
     const User = require('../models/User');
     const Lead = require('../models/Lead');
-    const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
+    const { doesLeadMatchMoverPreferences, doesLeadMatchMoverPreferencesStrict } = require('../utils/leadMatching');
     const { wantsChannel, matchesMoveTypes } = require('../utils/dispatchPolicy');
+    const { strictMatchingEnabled } = require('../utils/strictMatchingFlag');
+    const { logMatchShadow } = require('../utils/matchShadowLog');
 
-    // 1. Coverage candidates. Mirrors broadcastLeadSMS.
-    const matchingCompanyIds = await CoverageArea.distinct('company', {
+    // 1. Candidate selection — mirrors broadcastLeadSMS exactly.
+    //    Compute BOTH legacy and strict candidate sets; hydrate the union;
+    //    shadow-log every (lead, mover) decision; use whichever set the
+    //    STRICT_INTERSTATE_MATCHING flag selects.
+    const strictMode = strictMatchingEnabled();
+
+    const legacyZipMatchIds = await CoverageArea.distinct('company', {
       zipCode: { $in: [lead.originZip, lead.destinationZip].filter(Boolean) },
     });
-    const nationwideOriginIds = lead.originZip
-      ? await CoverageArea.distinct('company', { zipCode: lead.originZip })
+    const legacyCandidateSet = new Set(legacyZipMatchIds.map(String));
+
+    const pickupCoverageOriginIds = lead.originZip
+      ? await CoverageArea.distinct('company', {
+          zipCode: lead.originZip,
+          type: { $in: ['origin', 'both'] },
+        })
       : [];
-    const candidateIdSet = new Set([
-      ...matchingCompanyIds.map(String),
-      ...nationwideOriginIds.map(String),
+    const pickupStateMatchIds = lead.originState
+      ? await User.distinct('_id', {
+          pickupStates: String(lead.originState).toUpperCase(),
+          role: 'customer',
+        })
+      : [];
+    const originStrictSet = new Set([
+      ...pickupCoverageOriginIds.map(String),
+      ...pickupStateMatchIds.map(String),
     ]);
-    if (!candidateIdSet.size) {
-      console.log('[LeadEmail] No companies cover this lead — no email sent');
+
+    const deliveryCoverageDestIds = lead.destinationZip
+      ? await CoverageArea.distinct('company', {
+          zipCode: lead.destinationZip,
+          type: { $in: ['destination', 'both'] },
+        })
+      : [];
+    const deliveryStateMatchIds = lead.destinationState
+      ? await User.distinct('_id', {
+          deliveryStates: String(lead.destinationState).toUpperCase(),
+          role: 'customer',
+        })
+      : [];
+    const nationwideIds = await User.distinct('_id', {
+      deliversNationwide: true,
+      role: 'customer',
+    });
+    const destStrictSet = new Set([
+      ...deliveryCoverageDestIds.map(String),
+      ...deliveryStateMatchIds.map(String),
+      ...nationwideIds.map(String),
+    ]);
+    const strictCandidateSet = new Set(
+      [...originStrictSet].filter(id => destStrictSet.has(id))
+    );
+
+    const unionIds = new Set([...legacyCandidateSet, ...strictCandidateSet]);
+    if (!unionIds.size) {
+      console.log('[LeadEmail] No companies cover this lead (legacy+strict both empty) — no email sent');
       return;
     }
 
     // 2. Hydrate candidates. Drop the `emailNotif: true` Mongo filter — the
     //    dispatch-policy helper now owns the channel decision. Hard filters
     //    that remain: not suspended, email present, AND email verified
-    //    (new gate — we won't blast unverified inboxes).
+    //    (new gate — we won't blast unverified inboxes). Pull the new
+    //    pickup/delivery fields so the strict matcher can read them.
     const candidates = await User.find({
-      _id:             { $in: Array.from(candidateIdSet) },
+      _id:             { $in: Array.from(unionIds) },
       role:            'customer',
       isSuspended:     { $ne: true },
       isEmailVerified: true,
       email:           { $exists: true, $nin: ['', null] },
-    }).select('email companyName smsNotif emailNotif isSuspended isEmailVerified maxDistance preferredHomeSizes deliversNationwide onboarding.answers').lean();
+    }).select('email companyName smsNotif emailNotif isSuspended isEmailVerified maxDistance preferredHomeSizes deliversNationwide pickupStates deliveryStates serviceStates onboarding.answers').lean();
     if (!candidates.length) {
       console.log('[LeadEmail] No verified email candidates');
       return;
     }
 
-    // 3. Apply preference filter via the shared helper, then layer on
-    //    dispatch-policy (channel opt-in + moveTypes). Email bypasses
-    //    dispatch hours by design (not a disturbing channel).
+    // 3. Per-candidate match decision + shadow log.
     const emptyZipSet = new Set();
+    let legacyPassCount = 0;
+    let strictPassCount = 0;
     const matched = candidates.filter(m => {
-      if (!doesLeadMatchMoverPreferences(lead, m, emptyZipSet)) return false;
+      const inLegacySet = legacyCandidateSet.has(String(m._id));
+      const inStrictSet = strictCandidateSet.has(String(m._id));
+      const passesLegacy = inLegacySet && doesLeadMatchMoverPreferences(lead, m, emptyZipSet);
+      const passesStrict = inStrictSet && doesLeadMatchMoverPreferencesStrict(lead, m, {});
+      if (passesLegacy) legacyPassCount++;
+      if (passesStrict) strictPassCount++;
+      logMatchShadow({ source: 'email', lead, mover: m, legacy: passesLegacy, strict: passesStrict });
+
+      const passesActive = strictMode ? passesStrict : passesLegacy;
+      if (!passesActive) return false;
+
       if (!wantsChannel(m, 'email')) {
         console.log(`[LeadEmail] Drop ${m.companyName || m._id}: alertChannels does not include 'email'`);
         return false;
@@ -914,7 +970,8 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
       }
       return true;
     });
-    console.log(`[LeadEmail] ${matchingCompanyIds.length} cover, ${candidates.length} candidates, ${matched.length} pass full policy`);
+    console.log(`[MatchShadow] source=email lead=${lead._id} candidates=${candidates.length} legacy_pass=${legacyPassCount} strict_pass=${strictPassCount} active=${strictMode ? 'strict' : 'legacy'}`);
+    console.log(`[LeadEmail] ${unionIds.size} cover this lead (union of legacy+strict), ${candidates.length} candidates after gates, ${matched.length} pass full policy under active mode`);
     if (!matched.length) return;
 
     for (const mover of matched) {

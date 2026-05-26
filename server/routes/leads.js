@@ -13,7 +13,9 @@ const PurchasedLead = require('../models/PurchasedLead');
 // continue to use doesLeadMatchMoverPreferences (full policy) — see
 // twilioService.js and emailService.js. The two semantics are deliberately
 // separate; do not collapse them without a coordinated decision.
-const { isLeadInMoverCoverage } = require('../utils/leadMatching');
+const { isLeadInMoverCoverage, isLeadInMoverCoverageStrict } = require('../utils/leadMatching');
+const { strictMatchingEnabled } = require('../utils/strictMatchingFlag');
+const { logDashboardShadow } = require('../utils/matchShadowLog');
 const { deductLeadBalance, runAutoRecharge } = require('../services/billingService');
 const { sendSpeedToLeadSMS } = require('../services/twilioService');
 const PlatformSettings = require('../models/PlatformSettings');
@@ -256,15 +258,55 @@ router.get('/', auth, async (req, res) => {
     // produced confusing orderings like "4d-ago (matched) > 1h-ago (unmatched)"
     // on the All tab; that's now gone.
     if (!isAdmin) {
-      // isLeadInMoverCoverage only reads user.deliversNationwide. maxDistance
-      // and preferredHomeSizes are deliberately not fetched anymore — those
-      // are dispatch-policy concerns, not badge concerns.
-      const me = await User.findById(req.user.id).select('deliversNationwide').lean();
-      const myZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
-      const zipSet = new Set((myZips || []).map(z => String(z)));
+      // Phase 3 — always compute BOTH legacy + strict badges for shadow
+      // logging. The active mode (selected by STRICT_INTERSTATE_MATCHING)
+      // determines which one drives the response's _matchesPreferences flag.
+      //
+      // Pull the new pickup/delivery + nationwide fields so the strict
+      // matcher can read them in-memory; fetch ZIP coverage typed by origin
+      // vs destination so the strict matcher can fall back to ZIP-level
+      // matching when state-level doesn't fire.
+      const strictMode = strictMatchingEnabled();
+      const me = await User.findById(req.user.id)
+        .select('deliversNationwide pickupStates deliveryStates serviceStates')
+        .lean();
+
+      // Legacy: flat union of all coverage ZIPs (unchanged behavior).
+      const flatCoverageZips = await CoverageArea.distinct('zipCode', { company: req.user.id });
+      const flatZipSet = new Set((flatCoverageZips || []).map(z => String(z)));
+
+      // Strict: typed coverage. origin/both → origin-side; destination/both
+      // → destination-side. Two queries, both cheap (indexed on
+      // {company, type}).
+      const originCoverageZips = await CoverageArea.distinct('zipCode', {
+        company: req.user.id,
+        type: { $in: ['origin', 'both'] },
+      });
+      const destCoverageZips = await CoverageArea.distinct('zipCode', {
+        company: req.user.id,
+        type: { $in: ['destination', 'both'] },
+      });
+      const originZipSet      = new Set((originCoverageZips || []).map(z => String(z)));
+      const destinationZipSet = new Set((destCoverageZips   || []).map(z => String(z)));
+
+      let legacyMatched = 0;
+      let strictMatched = 0;
       for (const l of leads) {
-        l._matchesPreferences = isLeadInMoverCoverage(l, me || {}, zipSet);
+        const legacy = isLeadInMoverCoverage(l, me || {}, flatZipSet);
+        const strict = isLeadInMoverCoverageStrict(l, me || {}, { originZipSet, destinationZipSet });
+        if (legacy) legacyMatched++;
+        if (strict) strictMatched++;
+        l._matchesPreferences = strictMode ? strict : legacy;
       }
+
+      // One summary log per request — far less noisy than per-lead logging
+      // for a typical dashboard load with dozens of leads.
+      logDashboardShadow({
+        userId: req.user.id,
+        leadsCount: leads.length,
+        legacyMatched,
+        strictMatched,
+      });
     }
 
     // ── PII redaction ─────────────────────────────────────────────────────────

@@ -4,8 +4,10 @@ const User = require('../models/User');
 const CoverageArea = require('../models/CoverageArea');
 const Communication = require('../models/Communication');
 const PurchasedLead = require('../models/PurchasedLead');
-const { doesLeadMatchMoverPreferences } = require('../utils/leadMatching');
+const { doesLeadMatchMoverPreferences, doesLeadMatchMoverPreferencesStrict } = require('../utils/leadMatching');
 const { wantsChannel, isWithinDispatchHours, matchesMoveTypes } = require('../utils/dispatchPolicy');
+const { strictMatchingEnabled } = require('../utils/strictMatchingFlag');
+const { logMatchShadow } = require('../utils/matchShadowLog');
 const socketService = require('./socketService');
 const { calculateLeadScore } = require('./scoringService');
 const { calculateAuctionPrice } = require('../utils/pricingEngine');
@@ -66,60 +68,123 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
   }
 
   try {
-    // 1. Find companies whose CoverageArea covers either the origin or the
-    //    destination ZIP. Plus: include companies with deliversNationwide=true
-    //    whose coverage covers the ORIGIN — they explicitly opted into
-    //    long-distance opportunities anywhere.
-    const matchingCompanyIds = await CoverageArea.distinct('company', {
+    // 1. Candidate selection ─────────────────────────────────────────────────
+    //
+    // Always compute BOTH the legacy candidate set (origin OR destination, flat
+    // ZIP query) AND the strict candidate set (origin AND destination, typed
+    // CoverageArea queries + state-level pickup/delivery + nationwide).
+    //
+    // We hydrate the UNION so we have every candidate in memory regardless of
+    // which mode is active. The per-candidate loop below logs the shadow
+    // (legacy vs strict) for each one so the operator can diff candidate
+    // counts on real traffic before flipping STRICT_INTERSTATE_MATCHING=true.
+    const strictMode = strictMatchingEnabled();
+
+    // ── Legacy candidate set: union of origin + destination ZIPs ─────────
+    const legacyZipMatchIds = await CoverageArea.distinct('company', {
       zipCode: { $in: [lead.originZip, lead.destinationZip].filter(Boolean) },
     });
-    const nationwideOriginIds = lead.originZip
-      ? await CoverageArea.distinct('company', { zipCode: lead.originZip })
+    const legacyCandidateSet = new Set(legacyZipMatchIds.map(String));
+
+    // ── Strict candidate set: intersection of (pickup covers origin) AND
+    //    (delivery covers destination OR nationwide). State-level checks
+    //    via User.pickupStates / deliveryStates / deliversNationwide; ZIP
+    //    fallback via CoverageArea typed on origin/destination/both. ─────
+    const pickupCoverageOriginIds = lead.originZip
+      ? await CoverageArea.distinct('company', {
+          zipCode: lead.originZip,
+          type: { $in: ['origin', 'both'] },
+        })
       : [];
-    const candidateIdSet = new Set([
-      ...matchingCompanyIds.map(String),
-      ...nationwideOriginIds.map(String),
+    const pickupStateMatchIds = lead.originState
+      ? await User.distinct('_id', {
+          pickupStates: String(lead.originState).toUpperCase(),
+          role: 'customer',
+        })
+      : [];
+    const originStrictSet = new Set([
+      ...pickupCoverageOriginIds.map(String),
+      ...pickupStateMatchIds.map(String),
     ]);
 
-    if (!candidateIdSet.size) {
-      console.log('[SMS] No companies cover this lead — no SMS sent');
+    const deliveryCoverageDestIds = lead.destinationZip
+      ? await CoverageArea.distinct('company', {
+          zipCode: lead.destinationZip,
+          type: { $in: ['destination', 'both'] },
+        })
+      : [];
+    const deliveryStateMatchIds = lead.destinationState
+      ? await User.distinct('_id', {
+          deliveryStates: String(lead.destinationState).toUpperCase(),
+          role: 'customer',
+        })
+      : [];
+    const nationwideIds = await User.distinct('_id', {
+      deliversNationwide: true,
+      role: 'customer',
+    });
+    const destStrictSet = new Set([
+      ...deliveryCoverageDestIds.map(String),
+      ...deliveryStateMatchIds.map(String),
+      ...nationwideIds.map(String),
+    ]);
+    const strictCandidateSet = new Set(
+      [...originStrictSet].filter(id => destStrictSet.has(id))
+    );
+
+    // ── Hydration: union of both so we can shadow-log each candidate ─────
+    const unionIds = new Set([...legacyCandidateSet, ...strictCandidateSet]);
+    if (!unionIds.size) {
+      console.log('[SMS] No companies cover this lead (legacy+strict both empty) — no SMS sent');
       return;
     }
 
-    // 2. Hydrate candidate movers. Keep the cheap hard filters in Mongo
-    //    (phone present, not suspended). We deliberately drop the
-    //    `smsNotif: true` mongo filter — the dispatch-policy helper now
-    //    owns the channel decision (alertChannels first, legacy smsNotif
-    //    as fallback). Pull onboarding.answers so the helper can read it.
+    // Hydrate candidate movers. Keep the cheap hard filters in Mongo
+    // (phone present, not suspended). We deliberately drop the
+    // `smsNotif: true` mongo filter — the dispatch-policy helper now
+    // owns the channel decision (alertChannels first, legacy smsNotif
+    // as fallback). Pull onboarding.answers so the helper can read it,
+    // plus the new Phase 1 pickup/delivery fields for the strict matcher.
     //
-    //    TCPA / Block E.2: also require smsOptOut !== true and
-    //    phoneVerified === true so STOP-replied or unverified partner
-    //    phones never receive a broadcast.
+    // TCPA / Block E.2: also require smsOptOut !== true and
+    // phoneVerified === true so STOP-replied or unverified partner
+    // phones never receive a broadcast.
     const candidates = await User.find({
-      _id:      { $in: Array.from(candidateIdSet) },
+      _id:      { $in: Array.from(unionIds) },
       role:     'customer',
       isSuspended:   { $ne: true },
       smsOptOut:     { $ne: true },
       phoneVerified: true,
       phone:    { $exists: true, $nin: ['', null] },
-    }).select('phone companyName smsNotif emailNotif isSuspended smsOptOut phoneVerified smsCounters maxDistance preferredHomeSizes deliversNationwide onboarding.answers').lean();
+    }).select('phone companyName smsNotif emailNotif isSuspended smsOptOut phoneVerified smsCounters maxDistance preferredHomeSizes deliversNationwide pickupStates deliveryStates serviceStates onboarding.answers').lean();
 
     if (!candidates.length) {
       console.log('[SMS] No candidates with phone on file');
       return;
     }
 
-    // 3. Apply the full preference filter using the shared matching helper.
+    // 3. Per-candidate match decision + shadow log.
     //    Each mover already passes coverage (Stage 1), so we pass an empty
-    //    Set to skip the coverage check inside the helper and only test
-    //    distance + home size. Then layer on the dispatch-policy checks
-    //    (channel opt-in, dispatch hours, move types).
+    //    ZIP set to the legacy helper to skip its in-helper coverage check
+    //    and let it focus on distance + home size + moveTypes.
+    //    The strict helper does its own state-level coverage gate (the
+    //    Mongo pre-filter only narrows; the in-memory check is the truth).
     const emptyZipSet = new Set();
     const now = new Date();
+    let legacyPassCount = 0;
+    let strictPassCount = 0;
     const matched = candidates.filter(m => {
-      if (!doesLeadMatchMoverPreferences(lead, m, emptyZipSet)) {
-        return false;
-      }
+      const inLegacySet = legacyCandidateSet.has(String(m._id));
+      const inStrictSet = strictCandidateSet.has(String(m._id));
+      const passesLegacy = inLegacySet && doesLeadMatchMoverPreferences(lead, m, emptyZipSet);
+      const passesStrict = inStrictSet && doesLeadMatchMoverPreferencesStrict(lead, m, {});
+      if (passesLegacy) legacyPassCount++;
+      if (passesStrict) strictPassCount++;
+      logMatchShadow({ source: 'sms', lead, mover: m, legacy: passesLegacy, strict: passesStrict });
+
+      const passesActive = strictMode ? passesStrict : passesLegacy;
+      if (!passesActive) return false;
+
       if (!wantsChannel(m, 'sms')) {
         console.log(`[SMS] Drop ${m.companyName || m._id}: alertChannels does not include 'sms'`);
         return false;
@@ -135,7 +200,9 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
       return true;
     });
 
-    console.log(`[SMS] ${matchingCompanyIds.length} cover this lead, ${candidates.length} candidates, ${matched.length} pass full policy`);
+    console.log(`[MatchShadow] source=sms lead=${lead._id} candidates=${candidates.length} legacy_pass=${legacyPassCount} strict_pass=${strictPassCount} active=${strictMode ? 'strict' : 'legacy'}`);
+
+    console.log(`[SMS] ${unionIds.size} cover this lead (union of legacy+strict), ${candidates.length} candidates after gates, ${matched.length} pass full policy under active mode`);
     if (!matched.length) return;
     console.log(`[SMS] Broadcasting to: ${matched.map(m => m.companyName || m.phone).join(', ')}`);
 

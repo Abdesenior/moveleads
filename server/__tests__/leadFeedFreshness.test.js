@@ -56,25 +56,38 @@ test('GET /api/leads sorts by distributionDecisionAt with createdAt tiebreaker',
     'tab is freshness-only; matched filtering happens client-side via the tab.'
   );
 
-  // The /dashboard/leads annotation must use the coverage-only helper
-  // (isLeadInMoverCoverage), NOT the full-policy helper
-  // (doesLeadMatchMoverPreferences). Dispatch services keep using the
-  // full-policy helper directly — that's deliberate. See the comment block
-  // above the import in routes/leads.js for the split rationale.
-  const usesCoverageOnly = /_matchesPreferences\s*=\s*isLeadInMoverCoverage\(/;
-  assert.match(
-    src, usesCoverageOnly,
-    'routes/leads.js must annotate _matchesPreferences using isLeadInMoverCoverage. ' +
-    'Coverage-only badge semantics: a lead matches if its origin or destination ZIP ' +
-    'overlaps the mover CoverageArea (plus nationwide-on-origin fallback). Distance, ' +
-    'home size, and move type belong to dispatch policy, not the badge.'
-  );
+  // The /dashboard/leads annotation must use a COVERAGE-ONLY helper — both
+  // the legacy `isLeadInMoverCoverage` (origin OR destination) and the new
+  // strict `isLeadInMoverCoverageStrict` (origin AND destination) qualify.
+  // The full-policy helper (`doesLeadMatchMoverPreferences[Strict]`) is for
+  // SMS/email dispatch only — it layers distance + home size + moveTypes
+  // filters that don't belong on the dashboard badge.
+  //
+  // Phase 3 cutover: the handler computes BOTH legacy and strict badges for
+  // shadow logging and picks the active one via STRICT_INTERSTATE_MATCHING.
+  // Either coverage-only helper appearing in the assignment is acceptable;
+  // a full-policy helper is not.
+  const usesCoverageOnlyLegacy = /_matchesPreferences\s*=\s*(?:strictMode\s*\?\s*\w+\s*:\s*)?isLeadInMoverCoverage\(/;
+  const callsLegacyDirect      = /\bisLeadInMoverCoverage\(/;
+  const callsStrict            = /\bisLeadInMoverCoverageStrict\(/;
+  assert.ok(callsLegacyDirect.test(src) || callsStrict.test(src),
+    'routes/leads.js must annotate _matchesPreferences using a coverage-only helper ' +
+    '(isLeadInMoverCoverage and/or isLeadInMoverCoverageStrict). Coverage-only badge ' +
+    'semantics: a lead matches if origin (and, under strict, destination) overlap the ' +
+    'mover\'s pickup/delivery. Distance, home size, and move type belong to dispatch ' +
+    'policy, not the badge.');
 
   const usesFullPolicy = /_matchesPreferences\s*=\s*doesLeadMatchMoverPreferences\(/;
   assert.doesNotMatch(
     src, usesFullPolicy,
     'routes/leads.js must NOT use doesLeadMatchMoverPreferences for the dashboard ' +
-    'annotation — that helper is for SMS/email dispatch. Use isLeadInMoverCoverage instead.'
+    'annotation — that helper is for SMS/email dispatch.'
+  );
+  const usesFullPolicyStrict = /_matchesPreferences\s*=\s*doesLeadMatchMoverPreferencesStrict\(/;
+  assert.doesNotMatch(
+    src, usesFullPolicyStrict,
+    'routes/leads.js must NOT use doesLeadMatchMoverPreferencesStrict for the dashboard ' +
+    'annotation either — same rationale, dispatch helper.'
   );
 });
 
