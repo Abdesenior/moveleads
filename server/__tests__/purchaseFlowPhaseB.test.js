@@ -132,11 +132,16 @@ test('B5. ConfirmPurchaseModal is rendered conditionally on confirmLead', () => 
 
 // ── C. All 3 Unlock surfaces route through confirm modal ─────────────────
 
-test('C1. handleBuyNow + handleClaim aliased to openPurchaseConfirm', () => {
-  // Belt-and-suspenders for any legacy callsite. Every Unlock surface
-  // must route through the confirm modal, never trigger an immediate POST.
+test('C1. handleBuyNow aliased to openPurchaseConfirm', () => {
+  // Every Unlock surface must route through the confirm modal, never
+  // trigger an immediate POST. The legacy `handleClaim` alias was retired
+  // alongside PreviewModal removal (PR #28) — it had no remaining callsite.
   assert.match(leadFeedSrc, /const\s+handleBuyNow\s*=\s*openPurchaseConfirm/);
-  assert.match(leadFeedSrc, /const\s+handleClaim\s*=\s*openPurchaseConfirm/);
+  assert.doesNotMatch(
+    leadFeedSrc,
+    /const\s+handleClaim\s*=/,
+    'handleClaim alias must stay retired after PreviewModal removal — re-introducing it would resurrect a dead callsite'
+  );
 });
 
 test('C2. No JSX onClick triggers fetch directly anymore', () => {

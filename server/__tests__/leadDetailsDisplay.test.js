@@ -84,46 +84,86 @@ test('A2. leadDisplay helpers map enum values correctly (behavior, not just sour
   assert.equal(mod.heavyItemTone(''),              'neutral');
 });
 
-// ── B. PreviewModal (pre-purchase) — operational details visible ─────────
+// ── B. PreviewModal REMOVED — marketplace row is passive, Unlock is sole entry
 
-test('B1. PreviewModal imports the leadDisplay helpers', () => {
-  assert.match(leadFeedSrc, /from\s+['"]\.\.\/\.\.\/utils\/leadDisplay['"]/,
-    'LeadFeed.jsx must import from utils/leadDisplay');
-  for (const fn of ['formatHomeType', 'formatStairs', 'formatUrgency', 'heavyItemTone']) {
-    assert.match(leadFeedSrc, new RegExp(`\\b${fn}\\b`),
-      `LeadFeed.jsx must reference ${fn}`);
-  }
+test('B1. PreviewModal component is gone from LeadFeed.jsx', () => {
+  // The row-click → PreviewModal entry point was a duplicate of the
+  // Unlock button → ConfirmPurchaseModal flow. PreviewModal deleted
+  // 2026-05-26. ConfirmPurchaseModal is now the sole buy-flow gate.
+  assert.ok(!/^function PreviewModal\b/m.test(leadFeedSrc),
+    'PreviewModal function declaration must be removed from LeadFeed.jsx');
+  assert.ok(!/<PreviewModal[^A-Za-z]/.test(leadFeedSrc),
+    '<PreviewModal> JSX render must be removed from LeadFeed.jsx');
+  // The removal-marker comment block must remain so future readers
+  // understand WHY this component is gone (avoids someone helpfully
+  // resurrecting it).
+  assert.match(leadFeedSrc, /PreviewModal — REMOVED/,
+    'audit-trail comment block must remain explaining the removal');
 });
 
-test('B2. PreviewModal renders Home Type / Access / Urgency rows when present', () => {
-  // Each row is conditional on the lead field being truthy, and feeds
-  // through the helper. Source-level assertion checks the wiring.
-  assert.match(leadFeedSrc, /lead\.homeType\s*&&\s*<Row\s+label="Home Type"\s+value=\{formatHomeType\(lead\.homeType\)\}/);
-  assert.match(leadFeedSrc, /lead\.stairs\s+&&\s*<Row\s+label="Access"\s+value=\{formatStairs\(lead\.stairs\)\}/);
-  assert.match(leadFeedSrc, /lead\.urgencyBucket\s*&&\s*<Row\s+label="Urgency"\s+value=\{formatUrgency\(lead\.urgencyBucket\)\}/);
+test('B2. No previewLead / claimError state remains', () => {
+  // Both useState hooks were exclusively driving PreviewModal — deleted
+  // alongside it. Buy errors live inside ConfirmPurchaseModal now via
+  // confirmError / confirmErrorKind.
+  assert.ok(!/useState\([^)]*\)\s*;\s*$.*previewLead/m.test(leadFeedSrc));
+  assert.ok(!/\bsetPreviewLead\b/.test(leadFeedSrc),
+    'setPreviewLead must not appear anywhere');
+  assert.ok(!/\bsetClaimError\b/.test(leadFeedSrc),
+    'setClaimError must not appear anywhere');
 });
 
-test('B3. PreviewModal heavy items: single indicator, NOT chip enumeration', () => {
-  // PR B simplification (2026-05-26): the chip-by-chip enumeration was
-  // making PreviewModal feel like a second CRM/details page. Replaced
-  // with a single Row showing count + optional specialty flag. The full
-  // item list lives in MyLeads ExpandedPanel post-purchase.
-  assert.match(leadFeedSrc, /lead\.heavyItems[\s\S]*?\.length\s*>\s*0/,
-    'must still gate on heavyItems.length > 0');
-  assert.match(leadFeedSrc, /Heavy items/,
-    'must still label the indicator');
-  // Affirmative — the new shape is a Row with "Heavy items" label.
-  assert.match(leadFeedSrc, /<Row\s+label="Heavy items"/,
-    'must render heavy items as a single Row (not a chip block)');
-  assert.match(leadFeedSrc, /Included\s*·\s*\{lead\.heavyItems\.length\}/,
-    'Row value must include the count text "Included · {lead.heavyItems.length}"');
-  // Specialty flag still surfaced via heavyItemTone — operator's spec:
-  // "if needed, show a subtle severity indicator for piano/safe/hot-tub".
-  assert.match(leadFeedSrc, /lead\.heavyItems\.some\(\s*i\s*=>\s*heavyItemTone\(i\)\s*===\s*['"]heavy['"]\s*\)/,
-    'must use .some() + heavyItemTone to flag specialty items in the indicator');
-  // Reject the chip enumeration pattern explicitly so it can't return.
-  assert.ok(!/lead\.heavyItems\.map\(/.test(leadFeedSrc),
-    'must NOT enumerate heavyItems with .map() in the PreviewModal — full list is in MyLeads now');
+test('B3. Marketplace row + mobile card have NO onClick handler', () => {
+  // The row-click entry point is gone. The Unlock CTA is the only
+  // affordance into the buy flow. Mouse hover stays for affordance but
+  // cursor:pointer is gone too (row no longer reads as a click target).
+  //
+  // Slice the desktop table-row block: from `<tr` through `>` and
+  // assert no `onClick=` between them. Same for the mobile `<article`.
+  const trIdx = leadFeedSrc.indexOf('className="leads-row"');
+  assert.ok(trIdx > -1, 'desktop row className="leads-row" must exist');
+  // Walk back to the nearest `<tr` and forward to the closing `>` of
+  // the opening tag. The opening tag spans a few lines.
+  const trOpen = leadFeedSrc.lastIndexOf('<tr', trIdx);
+  const trClose = leadFeedSrc.indexOf('>', trIdx);
+  assert.ok(trOpen > -1 && trClose > trOpen);
+  const trOpeningTag = leadFeedSrc.slice(trOpen, trClose);
+  assert.ok(!/\bonClick=/.test(trOpeningTag),
+    '<tr> row opening tag must NOT have an onClick handler');
+  assert.ok(!/cursor:\s*['"]pointer['"]/.test(trOpeningTag),
+    '<tr> row must NOT use cursor: pointer (row is no longer a click target)');
+
+  const articleIdx = leadFeedSrc.indexOf('className="lm-card"');
+  assert.ok(articleIdx > -1, 'mobile card className="lm-card" must exist');
+  const articleOpen = leadFeedSrc.lastIndexOf('<article', articleIdx);
+  const articleClose = leadFeedSrc.indexOf('>', articleIdx);
+  const articleOpeningTag = leadFeedSrc.slice(articleOpen, articleClose);
+  assert.ok(!/\bonClick=/.test(articleOpeningTag),
+    '<article> mobile card opening tag must NOT have an onClick handler');
+});
+
+test('B4. "Get Details" button routes through handleBuyNow (no PreviewModal fallback)', () => {
+  // Legacy non-active leads (auctionStatus !== 'active') still get a
+  // "Get Details" CTA. Pre-removal, that button opened PreviewModal.
+  // Post-removal, it opens ConfirmPurchaseModal via handleBuyNow, and
+  // executePurchase auto-routes to /leads/:id/claim based on
+  // auctionStatus. Single buy flow, single modal.
+  const getDetailsIdx = leadFeedSrc.indexOf('cta-view');
+  assert.ok(getDetailsIdx > -1, 'Get Details button (cta-view class) must still exist');
+  // Find the button's onClick on the next line(s)
+  const buttonBlock = leadFeedSrc.slice(getDetailsIdx, getDetailsIdx + 400);
+  assert.match(buttonBlock, /onClick=\{[^}]*handleBuyNow\(lead\)/,
+    'Get Details button onClick must call handleBuyNow(lead) → ConfirmPurchaseModal');
+  assert.ok(!/setPreviewLead\(lead\)/.test(buttonBlock),
+    'Get Details button must NOT call setPreviewLead anymore');
+});
+
+test('B5. LeadFeed.jsx no longer imports the leadDisplay helpers', () => {
+  // All four operational-detail helpers (formatHomeType/Stairs/Urgency/
+  // heavyItemTone) were consumed exclusively by PreviewModal. They
+  // remain in client/src/utils/leadDisplay.js for MyLeads + the
+  // PurchaseSuccessModal handoff cue.
+  assert.ok(!/from\s+['"]\.\.\/\.\.\/utils\/leadDisplay['"]/.test(leadFeedSrc),
+    'LeadFeed.jsx must NOT import from utils/leadDisplay (no consumers remain)');
 });
 
 // ── C. PurchaseSuccessModal (just-bought) ────────────────────────────────
