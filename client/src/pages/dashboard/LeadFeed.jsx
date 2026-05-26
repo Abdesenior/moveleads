@@ -215,36 +215,33 @@ function PreviewModal({ lead, balance, onClose, onClaim, onBuyNow, claiming, err
           {lead.miles > 0 && <Row label="Miles" value={`${lead.miles} mi`} />}
           {lead.grade && <Row label="Lead Grade" value={lead.grade === 'A' ? '⭐ A — Premium' : lead.grade} />}
 
-          {/* Heavy items — operational difficulty signal. Movers need to
-              see these BEFORE unlocking so they can price the bid correctly.
-              Rendered as a chip row; piano/safe/hot-tub get a darker tone. */}
+          {/* Heavy items — lightweight indicator only, NOT chip enumeration.
+              PR B of the lead-detail architecture simplification (2026-05-26):
+              PreviewModal communicates that heavy items exist + how many +
+              whether any are specialty-tier (piano / safe / hot tub / pool
+              table), so the mover can price risk intelligently. The full
+              item list lives in MyLeads ExpandedPanel post-purchase — this
+              modal stays decision-oriented, not a CRM-style breakdown. */}
           {Array.isArray(lead.heavyItems) && lead.heavyItems.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
-                Heavy items
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {lead.heavyItems.map((item, i) => {
-                  const tone = heavyItemTone(item);
-                  const isHeavy = tone === 'heavy';
-                  return (
-                    <span
-                      key={`${item}-${i}`}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center',
-                        padding: '4px 10px', borderRadius: 9999,
-                        fontSize: 12, fontWeight: 700,
-                        background: isHeavy ? '#fef2f2' : '#f1f5f9',
-                        color:      isHeavy ? '#dc2626' : '#475569',
-                        border: `1px solid ${isHeavy ? '#fecaca' : '#e2e8f0'}`,
-                      }}
-                    >
-                      {item}
+            <Row
+              label="Heavy items"
+              value={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span>Included · {lead.heavyItems.length}</span>
+                  {lead.heavyItems.some(i => heavyItemTone(i) === 'heavy') && (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center',
+                      fontSize: 11, fontWeight: 700, color: '#dc2626',
+                      background: '#fef2f2', border: '1px solid #fecaca',
+                      borderRadius: 9999, padding: '2px 8px',
+                      letterSpacing: 0.2,
+                    }}>
+                      ⚠ specialty
                     </span>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
+                </span>
+              }
+            />
           )}
           {daysToMove <= 7 && daysToMove > 0 && (
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '8px 14px', marginTop: 12, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>

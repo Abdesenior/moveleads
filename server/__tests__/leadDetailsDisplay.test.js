@@ -103,13 +103,27 @@ test('B2. PreviewModal renders Home Type / Access / Urgency rows when present', 
   assert.match(leadFeedSrc, /lead\.urgencyBucket\s*&&\s*<Row\s+label="Urgency"\s+value=\{formatUrgency\(lead\.urgencyBucket\)\}/);
 });
 
-test('B3. PreviewModal renders heavyItems chips when non-empty', () => {
+test('B3. PreviewModal heavy items: single indicator, NOT chip enumeration', () => {
+  // PR B simplification (2026-05-26): the chip-by-chip enumeration was
+  // making PreviewModal feel like a second CRM/details page. Replaced
+  // with a single Row showing count + optional specialty flag. The full
+  // item list lives in MyLeads ExpandedPanel post-purchase.
   assert.match(leadFeedSrc, /lead\.heavyItems[\s\S]*?\.length\s*>\s*0/,
-    'must gate the chip block on heavyItems.length > 0');
-  assert.match(leadFeedSrc, /lead\.heavyItems\.map/,
-    'must map over heavyItems');
+    'must still gate on heavyItems.length > 0');
   assert.match(leadFeedSrc, /Heavy items/,
-    'must label the chip block');
+    'must still label the indicator');
+  // Affirmative — the new shape is a Row with "Heavy items" label.
+  assert.match(leadFeedSrc, /<Row\s+label="Heavy items"/,
+    'must render heavy items as a single Row (not a chip block)');
+  assert.match(leadFeedSrc, /Included\s*·\s*\{lead\.heavyItems\.length\}/,
+    'Row value must include the count text "Included · {lead.heavyItems.length}"');
+  // Specialty flag still surfaced via heavyItemTone — operator's spec:
+  // "if needed, show a subtle severity indicator for piano/safe/hot-tub".
+  assert.match(leadFeedSrc, /lead\.heavyItems\.some\(\s*i\s*=>\s*heavyItemTone\(i\)\s*===\s*['"]heavy['"]\s*\)/,
+    'must use .some() + heavyItemTone to flag specialty items in the indicator');
+  // Reject the chip enumeration pattern explicitly so it can't return.
+  assert.ok(!/lead\.heavyItems\.map\(/.test(leadFeedSrc),
+    'must NOT enumerate heavyItems with .map() in the PreviewModal — full list is in MyLeads now');
 });
 
 // ── C. PurchaseSuccessModal (just-bought) ────────────────────────────────
