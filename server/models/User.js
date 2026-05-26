@@ -17,7 +17,29 @@ const UserSchema = new mongoose.Schema({
   dateJoined: { type: Date, default: Date.now },
   serviceAreas: [String],
   serviceZips: [String],
+  // ── Legacy "operating states" list. Kept readable for back-compat through
+  // Phase 3 of the mover-coverage cleanup. Existing matcher + coverage regen
+  // still read from this field; new write paths mirror to it from
+  // pickupStates ∪ deliveryStates via utils/serviceAreaMirror.
   serviceStates: [String],
+  // ── New canonical service-area fields (Phase 1) ─────────────────────────
+  // pickupStates    — 2-letter USPS codes where this mover can ORIGINATE a
+  //                   move (where their trucks start from).
+  // deliveryStates  — 2-letter codes where this mover can DELIVER. Force-
+  //                   cleared to [] when deliversNationwide=true.
+  // interstateEnabled — derived from the above; true iff the mover delivers
+  //                   to any state they don't pick up from (or nationwide).
+  //                   Stored for fast filtering; recomputed on every write
+  //                   via utils/serviceAreaMirror.computeInterstateEnabled.
+  //
+  // Phase 1 INVARIANT: these fields are POPULATED by the new Settings UI
+  // and onboarding mirrors, but the matching/dispatch code still reads
+  // legacy `serviceStates` + `deliversNationwide`. The buildServiceAreaPatch
+  // helper guarantees the legacy field stays in sync until Phase 3 cuts
+  // the matcher over.
+  pickupStates: { type: [String], default: undefined },
+  deliveryStates: { type: [String], default: undefined },
+  interstateEnabled: { type: Boolean, default: false },
   preferredHomeSizes: [String],
   maxDistance: { type: String },
   emailNotif: { type: Boolean, default: true },
