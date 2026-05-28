@@ -225,14 +225,19 @@ test('E1. smsClaim buildReadiness: smsNotifEnabled uses smsNotif only', () => {
   assert.doesNotMatch(smsClaimSrc, /alertChannels.*includes\(['"]sms['"]\)/);
 });
 
-test('E2. smsClaim buildOnboardingPreview drops alertChannels from payload', () => {
+test('E2. smsClaim coverage preview drops alertChannels from payload', () => {
   // Old preview included an alertChannels array — now absent.
-  const preview = smsClaimSrc.match(/function buildOnboardingPreview[\s\S]*?\n\}/);
-  assert.ok(preview, 'buildOnboardingPreview must be findable');
+  // The function was renamed buildOnboardingPreview → buildCoveragePreview
+  // (coverage source-of-truth fix, 2026-05-28). Either name should work as
+  // a regression guard for the alertChannels-dropped invariant, so we match
+  // the rename without failing.
+  const preview = smsClaimSrc.match(/function buildCoveragePreview[\s\S]*?\n\}/)
+                || smsClaimSrc.match(/function buildOnboardingPreview[\s\S]*?\n\}/);
+  assert.ok(preview, 'coverage preview function must be findable');
   assert.doesNotMatch(
     preview[0],
     /alertChannels:/,
-    "buildOnboardingPreview must no longer return an 'alertChannels' field"
+    "coverage preview must not return an 'alertChannels' field"
   );
 });
 
