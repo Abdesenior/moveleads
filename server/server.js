@@ -182,6 +182,9 @@ require('./jobs/settleAuctions');
 require('./jobs/requestFeedback');
 require('./jobs/cleanupExpiredLeads');
 require('./jobs/onboardingRecovery');
+// PR-S4 — SMS Claim Pipeline pre-flip hardening. Expires stale open
+// claimWindows every 5 min (flag-independent maintenance — see file header).
+require('./jobs/closeStaleClaimWindows');
 
 app.use((req, res, next) => {
   res.status(404).json({ msg: 'Route not found' });
