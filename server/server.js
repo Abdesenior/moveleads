@@ -100,8 +100,17 @@ app.use('/api/twilio', require('./routes/twilio'));  // PUBLIC: Twilio signature
 //
 // Kept for historical compatibility / potential future re-introduction:
 //   - server/routes/voice.js                  (file remains on disk)
-//   - server/utils/findEligibleMovers.js      (receiveLiveTransfers filter)
-//   - User.receiveLiveTransfers               (schema field — permanent)
+//   - server/utils/findEligibleMovers.js      (CoverageArea typed-zip
+//                                              aggregation — used by
+//                                              warm transfers when voice
+//                                              ships AND by future
+//                                              eligibility queries)
+//   - User.receiveLiveTransfers               (schema field — permanent.
+//                                              FILTER retired in PR-D7
+//                                              per no-hidden-backend-prefs;
+//                                              when voice ships, the next
+//                                              PR decides an explicit
+//                                              opt-in mechanism with UI.)
 //   - Lead.isWarmTransfer                     (schema field — permanent)
 //   - PurchasedLead.isLiveTransfer            (schema field — permanent)
 //   - Existing Transaction rows with description 'Live Warm Transfer'

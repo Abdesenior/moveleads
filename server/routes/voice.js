@@ -69,8 +69,17 @@ router.post('/customer-gather', twilioWebhook, async (req, res) => {
 
       const allEligible = await findEligibleMovers(lead.originZip, lead.destinationZip);
 
+      // 2026-05-28 — PR-D7: `receiveLiveTransfers === true` filter dropped.
+      // Same retirement as the matching clause in findEligibleMovers.js
+      // (line ~83 there). The field had no Settings UI; per
+      // [[no-hidden-backend-prefs]] backend prefs that drive dispatch
+      // must be UI-editable or stop being read. Voice routes are
+      // unmounted in production (server.js:98-118) so this is a
+      // proactive cleanup — when voice ships, the next PR decides on
+      // an explicit opt-in mechanism. The `balance >= 50` money-safety
+      // gate stays in place.
       const warmTransferMovers = allEligible
-        .filter(m => m.balance >= 50 && m.receiveLiveTransfers === true)
+        .filter(m => m.balance >= 50)
         .slice(0, 3);
 
       if (warmTransferMovers.length === 0) {
