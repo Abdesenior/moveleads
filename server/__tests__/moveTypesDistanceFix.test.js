@@ -169,17 +169,32 @@ test("C3. maxDistance='' (Both) still accepts both distances", () => {
 // movers with moveTypes=['apartment'] still reject 'home'-sized leads,
 // and explicit lead.moveType still wins.
 
-test("D1. mover with moveTypes=['apartment'] rejects a 3 Bedroom lead", () => {
+// 2026-05-28 — PR-C4: the categorical moveTypes / avoidMoveTypes filter
+// has been retired (matchesMoveTypes always returns true now). D1-D3
+// were originally regression guards for that filter's narrow behavior
+// (apartment vs home, avoidMoveTypes rejection). After PR-C4 they
+// invert: the gate is permissive, so leads pass regardless of stale
+// preferences. derivedMoveType itself is unchanged — D4, E1, E2 still
+// pin it as a pure classifier.
+
+test("D1. PR-C4: mover with moveTypes=['apartment'] now MATCHES a 3 Bedroom lead (filter retired)", () => {
   const moverApartmentOnly = nationwideTexasMover({
     onboarding: { answers: { moveTypes: ['apartment'] } },
   });
   const lead3BR = leadTxToTx({ homeSize: '3 Bedroom' });
-  // derivedMoveType(3 Bedroom) = 'home' — not in ['apartment'] → reject.
+  // derivedMoveType is unchanged — still classifies 3 Bedroom as 'home'.
   assert.equal(derivedMoveType(lead3BR), 'home');
-  assert.equal(doesLeadMatchMoverPreferencesStrict(lead3BR, moverApartmentOnly), false);
+  // But the matcher no longer filters on it. The visible Settings
+  // (preferredHomeSizes, distance, pickup/delivery) are the complete
+  // dispatch picture now.
+  assert.equal(
+    doesLeadMatchMoverPreferencesStrict(lead3BR, moverApartmentOnly),
+    true,
+    'PR-C4: matchesMoveTypes always passes; stale moveTypes preference must not filter'
+  );
 });
 
-test("D2. mover with moveTypes=['apartment'] accepts a Studio lead", () => {
+test("D2. PR-C4: mover with moveTypes=['apartment'] still MATCHES a Studio lead (filter retired, same outcome)", () => {
   const moverApartmentOnly = nationwideTexasMover({
     onboarding: { answers: { moveTypes: ['apartment'] } },
   });
@@ -188,13 +203,18 @@ test("D2. mover with moveTypes=['apartment'] accepts a Studio lead", () => {
   assert.equal(doesLeadMatchMoverPreferencesStrict(leadStudio, moverApartmentOnly), true);
 });
 
-test('D3. avoidMoveTypes still rejects matching kinds', () => {
+test('D3. PR-C4: avoidMoveTypes is ignored — match passes regardless of stale avoids', () => {
   const moverAvoidsHome = nationwideTexasMover({
     onboarding: { answers: { moveTypes: ['apartment', 'home'], avoidMoveTypes: ['home'] } },
   });
   const lead3BR = leadTxToTx({ homeSize: '3 Bedroom' });
-  // derivedMoveType = 'home' → avoidMoveTypes includes 'home' → reject.
-  assert.equal(doesLeadMatchMoverPreferencesStrict(lead3BR, moverAvoidsHome), false);
+  // derivedMoveType still resolves to 'home', but avoidMoveTypes is
+  // no longer consulted (filter retired). Lead matches.
+  assert.equal(
+    doesLeadMatchMoverPreferencesStrict(lead3BR, moverAvoidsHome),
+    true,
+    'PR-C4: avoidMoveTypes must not filter — Settings is the sole dispatch authority'
+  );
 });
 
 test('D4. explicit lead.moveType still wins over homeSize derivation', () => {

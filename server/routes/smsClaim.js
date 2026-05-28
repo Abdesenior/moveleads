@@ -56,8 +56,10 @@ function buildReadiness(user, balance, recommended) {
     !!a.primaryMarket;
   const dispatchHoursConfigured =
     !!a.dispatchHoursOpen && !!a.dispatchHoursClose;
-  const moveTypesConfigured =
-    Array.isArray(a.moveTypes) && a.moveTypes.length > 0;
+  // 2026-05-28 — PR-C4: moveTypesConfigured dropped. The dispatch gate
+  // it tracked has been retired (matchesMoveTypes is now permissive),
+  // so surfacing this as a readiness condition would imply it still
+  // affects SMS Claim eligibility — it doesn't.
   return {
     balance:            Number(balance || 0),
     recommendedBalance: recommended,
@@ -70,22 +72,19 @@ function buildReadiness(user, balance, recommended) {
     smsNotifEnabled:    user?.smsNotif === true,
     coverageConfigured,
     dispatchHoursConfigured,
-    moveTypesConfigured,
   };
 }
 
 function buildOnboardingPreview(user) {
   // 2026-05-28 — PR-C3: `alertChannels` dropped from the preview payload.
-  // After the precedence cleanup, only Settings (smsNotif/emailNotif) is
-  // authoritative for dispatch; surfacing a dormant field here would
-  // re-create the same "hidden backend pref" failure mode the cleanup
-  // was meant to eliminate.
+  // 2026-05-28 — PR-C4: `moveTypes` dropped from the preview payload too,
+  // for the same reason: the dispatch read was retired, so surfacing the
+  // stored array would imply it still influences dispatch when it doesn't.
   const a = user?.onboarding?.answers || {};
   return {
     primaryMarket:       a.primaryMarket || '',
     coverageRadius:      a.coverageRadius || '',
     coverageMode:        a.coverageMode || '',
-    moveTypes:           Array.isArray(a.moveTypes) ? a.moveTypes : [],
     dispatchHoursOpen:   a.dispatchHoursOpen || '',
     dispatchHoursClose:  a.dispatchHoursClose || '',
   };

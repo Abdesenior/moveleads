@@ -183,7 +183,10 @@ export default function SmsClaim() {
             <ReadyRow ok={r.smsNotifEnabled}         label="SMS alerts channel enabled" cta={!r.smsNotifEnabled && <Link to="/dashboard/settings" style={linkSm}>Settings →</Link>} />
             <ReadyRow ok={r.coverageConfigured}      label="Coverage area set" />
             <ReadyRow ok={r.dispatchHoursConfigured} label="Dispatch hours set" />
-            <ReadyRow ok={r.moveTypesConfigured}     label="Move types selected" />
+            {/* 2026-05-28 — PR-C4: "Move types selected" row dropped. The
+                dispatch filter it tracked has been retired (matchesMoveTypes
+                is now permissive); surfacing it here would imply it still
+                affects readiness when it doesn't. */}
           </div>
         </section>
 
@@ -267,11 +270,13 @@ export default function SmsClaim() {
             <Row label="Primary market"   value={data.onboardingPreview.primaryMarket || '—'} />
             <Row label="Coverage radius"  value={data.onboardingPreview.coverageRadius || '—'} />
             <Row label="Coverage mode"    value={data.onboardingPreview.coverageMode || '—'} />
-            <Row label="Move types"       value={data.onboardingPreview.moveTypes.join(', ') || '—'} />
             {/* 2026-05-28 — PR-C3: Alert channels row dropped. The field
                 no longer influences dispatch (Settings smsNotif/emailNotif
                 is the sole authority), so surfacing it here would be
                 misleading. */}
+            {/* 2026-05-28 — PR-C4: Move types row dropped. Same reason —
+                the dispatch filter on moveTypes was retired, so showing
+                the stored array would imply it still affects matching. */}
             <Row label="Dispatch hours"   value={(data.onboardingPreview.dispatchHoursOpen && data.onboardingPreview.dispatchHoursClose)
                                                 ? `${data.onboardingPreview.dispatchHoursOpen} – ${data.onboardingPreview.dispatchHoursClose}` : '—'} />
           </div>

@@ -219,22 +219,33 @@ test('10. Mover preferredHomeSizes=[Studio,1 Bedroom], lead 3 Bedroom → reject
   assert.equal(t.final.firstFailedCode, 'HOME_SIZE_NOT_IN_PREFS');
 });
 
-// ── 11. Avoided move type ───────────────────────────────────────────────
+// ── 11. PR-C4 retirement — avoidMoveTypes no longer rejects ────────────
 
-test('11. Mover avoidMoveTypes=[home], lead 3 Bedroom (derives home) → reject at moveType', () => {
+test('11. PR-C4: avoidMoveTypes=[home] is ignored (filter retired) — match passes', () => {
+  // Before PR-C4 (2026-05-28), avoidMoveTypes=['home'] would reject a
+  // 3 Bedroom lead at the moveType gate. That filter is gone — the
+  // entire moveTypes/avoidMoveTypes read was retired per the
+  // "no hidden backend prefs" principle. Settings (preferredHomeSizes,
+  // distance, pickup/delivery) is now the complete picture.
   const M = mover({
     onboarding: { answers: { moveTypes: ['apartment', 'home'], avoidMoveTypes: ['home'] } },
   });
   const L = lead({ homeSize: '3 Bedroom' });
   const t = assertDashboardMatchesProductionMatcher(L, M);
-  assert.equal(t.final.dashboardMatch, false);
-  assert.equal(t.final.firstFailedGate, 'moveType');
-  assert.equal(t.final.firstFailedCode, 'MOVE_TYPE_IN_AVOIDS');
+  assert.equal(t.final.dashboardMatch, true,
+    'avoidMoveTypes must be ignored after PR-C4 — Settings is the sole dispatch authority');
+  assert.equal(t.gates.find(g => g.gate === 'moveType').code, 'MOVE_TYPE_FILTER_RETIRED');
+  assert.equal(t.gates.find(g => g.gate === 'moveType').pass, true);
 });
 
 // ── 12. PR #30 regression — stale moveTypes no longer drops long-distance ─
 
 test('12. PR #30 regression: stale moveTypes=[apartment,home,office], TX→FL Long Distance → match', () => {
+  // After PR-C4, the moveType gate always passes with code
+  // MOVE_TYPE_FILTER_RETIRED. The PR #30 outcome (TX→FL matches) is
+  // preserved through a different mechanism — instead of "derived='home'
+  // is in prefs", it's "the gate is retired entirely." Either way,
+  // dashboardMatch is true. derivedMoveType evidence is still surfaced.
   const M = mover({
     onboarding: { answers: { moveTypes: ['apartment', 'home', 'office'] } },
   });
@@ -244,9 +255,9 @@ test('12. PR #30 regression: stale moveTypes=[apartment,home,office], TX→FL Lo
   });
   const t = assertDashboardMatchesProductionMatcher(L, M);
   assert.equal(t.final.dashboardMatch, true);
-  assert.equal(t.gates.find(g => g.gate === 'moveType').code, 'MOVE_TYPE_IN_PREFS');
+  assert.equal(t.gates.find(g => g.gate === 'moveType').code, 'MOVE_TYPE_FILTER_RETIRED');
   assert.equal(t.gates.find(g => g.gate === 'moveType').evidence.derived, 'home',
-    'derivedMoveType should be home (from 3 Bedroom), not longDistance');
+    'derivedMoveType is still surfaced as evidence — pure classifier kept alive for the trace');
 });
 
 // ── 13. Phone not verified ──────────────────────────────────────────────
