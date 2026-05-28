@@ -8,6 +8,8 @@ const Transaction = require('../models/Transaction');
 const { logAdminAction } = require('../utils/auditLog');
 const { regenerateCoverageForUser_v2 } = require('../utils/coverageExpansion');
 const { normalizeUSDigits, applyPhoneChange } = require('../utils/phoneVerification');
+const { applyEmailChange } = require('../utils/emailVerification');
+const { sendVerificationEmail } = require('../services/emailService');
 const {
   VALID_STATE_CODES,
   MAX_STATES: MAX_SERVICE_STATES,
@@ -72,6 +74,39 @@ router.put('/:id', auth, async (req, res) => {
         // Either same as existing or empty input — store the normalized form
         // without touching verification state.
         safeBody.phone = newDigits || user.phone;
+      }
+    }
+
+    // ── Email-change invariant ─────────────────────────────────────────────
+    // 2026-05-29 — mirrors the phone-change invariant above.
+    //
+    // Before this fix, a mover who PATCHed a new email kept their previous
+    // `isEmailVerified=true` flag. Email broadcasts (services/emailService.
+    // broadcastLeadEmail) went to the new address even though it was
+    // unverified — and if the new address was a typo, the mover silently
+    // stopped receiving lead alerts. Audit finding 08 R1 / 12 B1.
+    //
+    // applyEmailChange returns an empty object for idempotent re-saves
+    // (same email normalized) so the verification state is preserved.
+    // For actual changes it returns: { email, isEmailVerified=false,
+    // emailVerificationToken (fresh), emailVerificationExpires (+24h) }.
+    //
+    // The verification email itself is sent fire-and-forget after the
+    // save (below) so the HTTP response is not gated on Resend latency,
+    // matching the registration-time pattern in routes/auth.js.
+    let emailChanged = false;
+    let pendingVerificationToken = null;
+    if ('email' in safeBody) {
+      const patch = applyEmailChange(user.email, safeBody.email);
+      if (Object.keys(patch).length > 0) {
+        Object.assign(safeBody, patch);
+        emailChanged = true;
+        pendingVerificationToken = patch.emailVerificationToken;
+      } else {
+        // Idempotent re-save (same email) or empty / invalid input — drop
+        // it from the patch so we don't trigger Mongoose normalization for
+        // no behavioral change.
+        delete safeBody.email;
       }
     }
 
@@ -204,6 +239,19 @@ router.put('/:id', auth, async (req, res) => {
         regenPickup,
         regenDelivery,
       ).catch(err => console.error('[Coverage] regen failed:', err.message));
+    }
+
+    // 2026-05-29 — send fresh verification email if the mover's email was
+    // changed by this PATCH. Fire-and-forget; same posture as the
+    // registration-time send in routes/auth.js. The mover sees an
+    // "verification required" state on next dashboard load via the
+    // existing VerificationBanner (which reads user.isEmailVerified).
+    if (emailChanged && pendingVerificationToken) {
+      sendVerificationEmail({
+        toEmail: user.email,
+        companyName: user.companyName,
+        token: pendingVerificationToken,
+      }).catch(err => console.error('[users.PATCH] sendVerificationEmail failed (non-fatal):', err.message));
     }
 
     res.json(user);
