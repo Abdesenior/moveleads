@@ -14,13 +14,26 @@ import {
   isRealEmail,
 } from '../../utils/leadDisplay';
 
-const STATUSES = ['New', 'Contacted', 'Quoted', 'Booked', 'Lost'];
+// 2026-05-28 — PR-D4: 'Completed' added to the UI status set.
+// Backend PurchasedLead.CRM_STATUSES has always included 'Completed';
+// the route PATCH /api/leads/:id/crm-status accepts it and auto-fires
+// sendReviewRequestEmail() when a lead transitions to that state. The
+// UI was the only thing blocking movers from closing the lifecycle from
+// the dashboard. This array now mirrors the backend enum exactly — the
+// drift-safety test asserts the two stay in lockstep.
+// Position rationale: Completed slots between Booked and Lost in the
+// natural progression (New → Contacted → Quoted → Booked → Completed,
+// with Lost as the alternate terminal state).
+const STATUSES = ['New', 'Contacted', 'Quoted', 'Booked', 'Completed', 'Lost'];
 
 const STATUS_META = {
   New:       { color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
   Contacted: { color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
   Quoted:    { color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
   Booked:    { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+  // Cyan reads as "finalized / successful close" while staying clearly
+  // distinct from Booked's green and Lost's red.
+  Completed: { color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
   Lost:      { color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
 };
 
