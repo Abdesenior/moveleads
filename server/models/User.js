@@ -7,7 +7,14 @@ const UserSchema = new mongoose.Schema({
   dotNumber: { type: String },
   mcNumber: { type: String },
   phone: { type: String },
-  role: { type: String, enum: ['customer', 'admin', 'super_admin'], default: 'customer' },
+  // 'customer' is the historical mover-account role (early codebase used the
+  // word 'customer' to mean "moving company" — a confusing legacy choice we
+  // have not migrated). Production also contains accounts with role='mover'
+  // from out-of-band creation paths (e.g. scripts/restoreWisdomAccount.js
+  // which writes via the raw db.collection driver and bypasses this enum).
+  // Both values denote a mover account; every dispatch/candidate-selection
+  // query MUST accept both via the exported MOVER_ROLES constant below.
+  role: { type: String, enum: ['customer', 'mover', 'admin', 'super_admin'], default: 'customer' },
   balance: { type: Number, default: 0 },
   leadsPurchased: { type: Number, default: 0 },
   autoRechargeThreshold: { type: Number, default: 0 },
@@ -193,4 +200,17 @@ const UserSchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model('user', UserSchema);
+/**
+ * Mover-account role discriminators. Every query that selects mover/dispatch
+ * candidates (broadcastLeadSMS, broadcastLeadEmail, findEligibleMovers,
+ * admin active-mover metrics) MUST consult this set with `{ $in: MOVER_ROLES }`,
+ * NOT a hard-coded `'customer'` literal. The set exists because production
+ * has a mix of legacy 'customer' and newer 'mover' role values; filtering on
+ * 'customer' alone silently drops the 'mover' accounts (the bug that hid the
+ * Alabama staging SMS Claim test from dispatch in 2026-05).
+ */
+const MOVER_ROLES = Object.freeze(['customer', 'mover']);
+
+const User = mongoose.model('user', UserSchema);
+User.MOVER_ROLES = MOVER_ROLES;
+module.exports = User;

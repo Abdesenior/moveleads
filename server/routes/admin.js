@@ -148,7 +148,7 @@ router.get('/stats', [auth, admin], async (req, res) => {
     const todayRevenue = revenueData[0]?.total || 0;
 
     // 2. Total Active Movers (Mover accounts with balance > 0)
-    const activeMovers = await User.countDocuments({ role: 'customer', balance: { $gt: 0 } });
+    const activeMovers = await User.countDocuments({ role: { $in: User.MOVER_ROLES }, balance: { $gt: 0 } });
 
     // 3. Lead Volume (Ingested today vs. Sold today)
     const leadsIngestedToday = await Lead.countDocuments({ createdAt: { $gte: today } });
