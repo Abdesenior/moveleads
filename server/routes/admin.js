@@ -799,6 +799,32 @@ router.post('/leads/:id/rescore', [auth, admin], async (req, res) => {
       before: null, after: { snapshotId: result && result._id ? String(result._id) : null },
       metadata: { reason: req.body?.reason || 'admin manual rescore' },
     });
+
+    // 2026-05-29 — fire the canonical post-approval dispatch orchestrator.
+    //
+    // scoringPipeline.runShadow may flip the lead's distributionDecision
+    // (e.g., system_held → system_approved if validation evidence has
+    // since improved, or system_pending → system_approved on a late re-
+    // evaluation). Before this fix, that transition was silent: the lead
+    // became distributable but no SMS / email / socket broadcast fired,
+    // producing the same class of "silent approved inventory" bug PR #52
+    // fixed for admin.approve.
+    //
+    // dispatchApprovedLead handles both the "no transition" case (the
+    // internal isHiddenFromMoversById fresh-read check returns hidden:true
+    // for non-distributable decisions and the orchestrator no-ops with a
+    // log line) and the "already broadcast" case (per-channel notifiedAt
+    // CAS short-circuits broadcasters). So calling it unconditionally
+    // here is safe and idempotent.
+    //
+    // Fire-and-forget — the HTTP response returns immediately so the admin
+    // UI is not gated on Twilio/SendGrid/socket latency. Same posture as
+    // PR #52 wired for admin.approve.
+    const { dispatchApprovedLead } = require('../services/dispatchOrchestrator');
+    dispatchApprovedLead(req.params.id, { source: 'admin.rescore' }).catch(err =>
+      console.error(`[admin.rescore] dispatch error for ${req.params.id}: ${err.message}`)
+    );
+
     const payload = await buildSnapshotPayload(req.params.id);
     res.json({ ok: true, action: 'rescore', ...payload });
   } catch (err) {
