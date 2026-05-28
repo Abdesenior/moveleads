@@ -14,6 +14,7 @@ const { calculateAuctionPrice } = require('../utils/pricingEngine');
 const pricingEngineSimple = require('./pricingEngineSimple');
 const { sendAdminLeadNotification, broadcastLeadEmail } = require('./emailService');
 const { sendMoverLeadSMS } = require('./smsService');
+const { openClaimWindow } = require('../utils/claimWindow');
 
 // Twilio — used for SMS and warm-transfer calls. Telecom trust (line type,
 // SMS pumping risk, identity match) is handled by services/twilioLookupService
@@ -213,6 +214,53 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     if (!matched.length) return;
     console.log(`[SMS] Broadcasting to: ${matched.map(m => m.companyName || m.phone).join(', ')}`);
 
+    // PR-S5 — SMS Claim Pipeline Phase 4 scaffold. Behind ENABLE_SMS_CLAIM_SCAFFOLD.
+    //
+    // After candidates are finalised but BEFORE any SMS goes out, we open a
+    // claimWindow on the Lead (atomic CAS via utils/claimWindow.openClaimWindow).
+    // The returned token is then woven into each mover's SMS body so the
+    // Phase 5 inbound webhook (PR-S3) can match "SEND <token>" replies to
+    // the exact lead without guessing.
+    //
+    // Flag OFF (default) → claimToken stays null, sendMoverLeadSMS falls back
+    // to the legacy "Claim: moveleads.cloud/login" line, NOTHING is written
+    // to Lead.claimWindow. Production behavior unchanged.
+    //
+    // Flag ON → openClaimWindow:
+    //   - generates a 4-char token (utils/claimToken.generateToken)
+    //   - atomically attaches an `open` claimWindow subdoc IF status is not
+    //     already open/claimed (filter: $nin: ['open', 'claimed'])
+    //   - retries on token collision (unique-sparse index from PR-S2)
+    //   - returns { token, expiresAt } or null
+    //
+    // null return → silently fall back to tokenless broadcast. Possible
+    // causes: lead already has an in-flight window (re-broadcast race),
+    // already-claimed (terminal), or unexpected error inside the helper.
+    // We never block the broadcast on this — SMS dispatch is the operational
+    // priority; Phase 4 token emission is shadow scaffolding.
+    let claimToken = null;
+    if (process.env.ENABLE_SMS_CLAIM_SCAFFOLD === 'true') {
+      try {
+        const recipientIds = matched.map(m => m._id);
+        const opened = await openClaimWindow(lead._id, recipientIds);
+        if (opened && opened.token) {
+          claimToken = opened.token;
+          console.log(
+            `[SMS] claimWindow opened for lead ${lead._id} — token=${claimToken} ` +
+            `expires=${opened.expiresAt.toISOString()} recipients=${recipientIds.length}`
+          );
+        } else {
+          console.log(
+            `[SMS] claimWindow NOT opened for lead ${lead._id} — falling back ` +
+            `to tokenless broadcast (lead may already have open/claimed window).`
+          );
+        }
+      } catch (e) {
+        console.error(`[SMS] openClaimWindow error for lead ${lead._id}: ${e.message}. ` +
+          `Continuing with tokenless broadcast.`);
+      }
+    }
+
     // Per-mover daily cap (TCPA / cost-control). Read the persisted
     // counter on each candidate; if today's count has hit the cap, skip.
     // On send success, bump the counter atomically (resetting it when the
@@ -228,7 +276,7 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
         continue;
       }
 
-      sendMoverLeadSMS(mover.phone, lead)
+      sendMoverLeadSMS(mover.phone, lead, claimToken)
         .then(async (result) => {
           // Only bump the counter on a confirmed send. sendMoverLeadSMS
           // returns { ok: false } on Twilio errors and (legacy) undefined
