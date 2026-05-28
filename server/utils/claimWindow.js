@@ -115,8 +115,39 @@ async function openClaimWindow(leadId, recipientIds = [], opts = {}) {
   return null;
 }
 
+/**
+ * findLeadByClaimToken — disambiguation read for PR-S3 inbound webhook.
+ *
+ * Returns the Lead bearing the given claim token IN ANY STATE (open,
+ * claimed, expired). The inbound claim handler (routes/twilio.js) calls
+ * this AFTER its atomic lead-flip CAS returns null, to disambiguate the
+ * three loser outcomes:
+ *
+ *   - lead not found        → outcome 'rejected_unmatched_token'
+ *   - status === 'claimed'  → outcome 'lost_already_claimed'
+ *   - expiresAt <= now      → outcome 'lost_window_expired'
+ *
+ * Deliberately UNFILTERED — the disambiguation needs to see the state
+ * regardless of status. Filtering by status would collapse the three
+ * loser outcomes back into one and defeat the purpose.
+ *
+ * Cost is one indexed read on the unique-sparse `claimWindow_token_unique`
+ * index from PR-S2 — only paid on the loser path. Happy-path claim does
+ * not call this.
+ *
+ * @param {string} token
+ * @returns {Promise<{ _id, claimWindow } | null>}
+ */
+async function findLeadByClaimToken(token) {
+  if (!token) return null;
+  return Lead.findOne({ 'claimWindow.token': token })
+    .select('_id claimWindow')
+    .lean();
+}
+
 module.exports = {
   openClaimWindow,
+  findLeadByClaimToken,
   MAX_TOKEN_RETRIES,
   DEFAULT_WINDOW_MINUTES,
 };

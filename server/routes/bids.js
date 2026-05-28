@@ -98,6 +98,11 @@ router.post('/:leadId', auth, async (req, res) => {
 });
 
 // ── POST /api/bids/:leadId/buy-now — Instant claim ───────────────────────────
+// Sibling: routes/twilio.js `/sms/inbound` CLAIM branch (PR-S3) replicates
+// this atomic sequence for the SMS-reply claim path. Edits to the financial
+// sequence here should be mirrored there (and vice versa); the two are pinned
+// by their respective lock-in tests (this one's tests live in dealRoom.test
+// + distributionModel.test; the SMS sibling has smsClaimLiveHandler.test).
 router.post('/:leadId/buy-now', auth, async (req, res) => {
   try {
     // Atomic: only one mover can flip status to 'buy_now'.
