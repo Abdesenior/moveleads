@@ -26,6 +26,20 @@
  *   { moverId, receivedAt }   — cooldown checks (last failed attempt window)
  *   { leadId, receivedAt }    — forensics for a specific lead's race
  *   { token }                 — debugging unmatched tokens
+ *   { twilioMessageSid }      — unique sparse (PR-S1) — Twilio webhook
+ *                               idempotency key. Twilio retries non-2xx
+ *                               webhook responses up to 5 times over 24h
+ *                               with the same MessageSid. Without this
+ *                               unique constraint, a transient server
+ *                               error during a successful claim would
+ *                               retry on the same payload and could
+ *                               double-debit the mover. The Phase 5
+ *                               webhook will insert a ClaimAttempt row
+ *                               FIRST (before any balance debit) — the
+ *                               E11000 on this index is the dedup signal.
+ *                               Sparse so existing rows with no MessageSid
+ *                               (none exist in Phase 4, but defensive)
+ *                               don't conflict.
  */
 
 const mongoose = require('mongoose');
@@ -53,6 +67,18 @@ const ClaimAttemptSchema = new mongoose.Schema({
 ClaimAttemptSchema.index({ moverId: 1, receivedAt: -1 });
 ClaimAttemptSchema.index({ leadId: 1, receivedAt: -1 });
 ClaimAttemptSchema.index({ token: 1 });
+// 2026-05-28 — PR-S1: Twilio webhook idempotency key.
+// Unique sparse index on twilioMessageSid. The Phase 5 inbound claim
+// handler must insert a ClaimAttempt row BEFORE attempting any balance
+// debit; on Twilio retry of the same MessageSid this insert throws
+// E11000, which the handler treats as "already processed, no-op."
+// Without this index, a non-2xx response during a successful claim
+// would cause Twilio to retry (5 attempts over 24h) on the same
+// payload and could double-debit the mover.
+ClaimAttemptSchema.index(
+  { twilioMessageSid: 1 },
+  { unique: true, sparse: true, name: 'twilioMessageSid_unique' }
+);
 // TTL — claim attempts are operational signal, not legal record. 90 days
 // matches ValidationLog retention so the admin can correlate claim drama
 // with the validation context that produced it.
