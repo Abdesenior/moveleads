@@ -100,7 +100,7 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     const pickupStateMatchIds = lead.originState
       ? await User.distinct('_id', {
           pickupStates: String(lead.originState).toUpperCase(),
-          role: 'customer',
+          role: { $in: User.MOVER_ROLES },
         })
       : [];
     const originStrictSet = new Set([
@@ -117,12 +117,12 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     const deliveryStateMatchIds = lead.destinationState
       ? await User.distinct('_id', {
           deliveryStates: String(lead.destinationState).toUpperCase(),
-          role: 'customer',
+          role: { $in: User.MOVER_ROLES },
         })
       : [];
     const nationwideIds = await User.distinct('_id', {
       deliversNationwide: true,
-      role: 'customer',
+      role: { $in: User.MOVER_ROLES },
     });
     const destStrictSet = new Set([
       ...deliveryCoverageDestIds.map(String),
@@ -152,7 +152,7 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     // phones never receive a broadcast.
     const candidates = await User.find({
       _id:      { $in: Array.from(unionIds) },
-      role:     'customer',
+      role:     { $in: User.MOVER_ROLES },
       isSuspended:   { $ne: true },
       smsOptOut:     { $ne: true },
       phoneVerified: true,

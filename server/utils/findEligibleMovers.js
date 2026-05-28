@@ -100,7 +100,11 @@ async function findEligibleMovers(leadOriginZip, leadDestinationZip) {
               $expr: {
                 $and: [
                   { $eq: ['$_id', '$$companyId'] },
-                  { $eq: ['$role', 'customer'] }
+                  // Accept both 'customer' (legacy default) and 'mover' (newer
+                  // out-of-band accounts). Filtering on 'customer' alone
+                  // silently drops the 'mover' accounts (see User.MOVER_ROLES
+                  // export). Aggregation $in inside $expr takes an array literal.
+                  { $in: ['$role', ['customer', 'mover']] }
                 ]
               }
             }

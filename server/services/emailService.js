@@ -888,7 +888,7 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
     const pickupStateMatchIds = lead.originState
       ? await User.distinct('_id', {
           pickupStates: String(lead.originState).toUpperCase(),
-          role: 'customer',
+          role: { $in: User.MOVER_ROLES },
         })
       : [];
     const originStrictSet = new Set([
@@ -905,12 +905,12 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
     const deliveryStateMatchIds = lead.destinationState
       ? await User.distinct('_id', {
           deliveryStates: String(lead.destinationState).toUpperCase(),
-          role: 'customer',
+          role: { $in: User.MOVER_ROLES },
         })
       : [];
     const nationwideIds = await User.distinct('_id', {
       deliversNationwide: true,
-      role: 'customer',
+      role: { $in: User.MOVER_ROLES },
     });
     const destStrictSet = new Set([
       ...deliveryCoverageDestIds.map(String),
@@ -934,7 +934,7 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
     //    pickup/delivery fields so the strict matcher can read them.
     const candidates = await User.find({
       _id:             { $in: Array.from(unionIds) },
-      role:            'customer',
+      role:            { $in: User.MOVER_ROLES },
       isSuspended:     { $ne: true },
       isEmailVerified: true,
       email:           { $exists: true, $nin: ['', null] },
