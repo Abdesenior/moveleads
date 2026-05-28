@@ -150,6 +150,10 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     // TCPA / Block E.2: also require smsOptOut !== true and
     // phoneVerified === true so STOP-replied or unverified partner
     // phones never receive a broadcast.
+    // 2026-05-28 — added `balance` and `smsClaim` to the projection. The
+    // per-mover Claim-vs-Alert partition step (below) consults both to
+    // decide which body variant each mover receives. Selecting them here
+    // means one query, no second round-trip per mover.
     const candidates = await User.find({
       _id:      { $in: Array.from(unionIds) },
       role:     { $in: User.MOVER_ROLES },
@@ -157,7 +161,7 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
       smsOptOut:     { $ne: true },
       phoneVerified: true,
       phone:    { $exists: true, $nin: ['', null] },
-    }).select('phone companyName smsNotif emailNotif isSuspended smsOptOut phoneVerified smsCounters maxDistance preferredHomeSizes deliversNationwide pickupStates deliveryStates serviceStates onboarding.answers').lean();
+    }).select('phone companyName smsNotif emailNotif isSuspended smsOptOut phoneVerified smsCounters maxDistance preferredHomeSizes deliversNationwide pickupStates deliveryStates serviceStates onboarding.answers balance smsClaim').lean();
 
     if (!candidates.length) {
       // 2026-05-28 — observability fix. The legacy log line
@@ -244,34 +248,59 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     if (!matched.length) return;
     console.log(`[SMS] Broadcasting to: ${matched.map(m => m.companyName || m.phone).join(', ')}`);
 
-    // PR-S5 — SMS Claim Pipeline Phase 4 scaffold. Behind ENABLE_SMS_CLAIM_SCAFFOLD.
+    // ── PR-S5/S7 — Per-mover SMS Claim eligibility partition ─────────────
     //
-    // After candidates are finalised but BEFORE any SMS goes out, we open a
-    // claimWindow on the Lead (atomic CAS via utils/claimWindow.openClaimWindow).
-    // The returned token is then woven into each mover's SMS body so the
-    // Phase 5 inbound webhook (PR-S3) can match "SEND <token>" replies to
-    // the exact lead without guessing.
+    // ENABLE_SMS_CLAIM_SCAFFOLD is still the master "is SMS Claim feature
+    // live in this environment" switch, but the per-mover decision is no
+    // longer global. Each matched mover is evaluated independently:
     //
-    // Flag OFF (default) → claimToken stays null, sendMoverLeadSMS falls back
-    // to the legacy "Claim: moveleads.cloud/login" line, NOTHING is written
-    // to Lead.claimWindow. Production behavior unchanged.
+    //   isClaimEligible(mover, lead) =
+    //     ENABLE_SMS_CLAIM_SCAFFOLD === 'true'
+    //     && mover.smsClaim?.optInRequested === true   ← per-mover opt-in
+    //     && mover.balance >= lead.buyNowPrice         ← per-mover balance
+    //   // phoneVerified is already enforced by the Mongo hard filter above
+    //   // lead-is-claimable is already enforced by isHiddenFromMovers
     //
-    // Flag ON → openClaimWindow:
-    //   - generates a 4-char token (utils/claimToken.generateToken)
-    //   - atomically attaches an `open` claimWindow subdoc IF status is not
-    //     already open/claimed (filter: $nin: ['open', 'claimed'])
-    //   - retries on token collision (unique-sparse index from PR-S2)
-    //   - returns { token, expiresAt } or null
+    // Movers who qualify get the SMS Claim variant ("Reply SEND <token>
+    // to claim"). Movers who do NOT qualify still get an SMS — they just
+    // get the legacy Alert variant ("Claim: moveleads.cloud/login"). The
+    // partition guarantees:
     //
-    // null return → silently fall back to tokenless broadcast. Possible
-    // causes: lead already has an in-flight window (re-broadcast race),
-    // already-claimed (terminal), or unexpected error inside the helper.
-    // We never block the broadcast on this — SMS dispatch is the operational
-    // priority; Phase 4 token emission is shadow scaffolding.
+    //   - movers without balance never receive a token they cannot use
+    //   - movers who never clicked "Activate Instant Jobs" on the
+    //     SmsClaim dashboard receive normal Alerts (the activation button
+    //     finally gates something operationally — was cosmetic before)
+    //   - claimWindow.broadcastTo only contains real race participants,
+    //     so PR-S6 loser fan-out targets only movers who actually had a
+    //     chance to claim
+    //
+    // When NO mover qualifies (scaffold-off, or all movers ineligible),
+    // openClaimWindow is NOT called and claimToken stays null. Every
+    // mover gets the Alert variant — same fallback as before.
+    //
+    // openClaimWindow null return → claimToken stays null → eligible
+    // movers also get the Alert variant. Defensive fallback (matches the
+    // pre-S7 posture). The broadcast never fails on token absence; SMS
+    // dispatch is the operational priority.
+    const scaffoldEnabled = process.env.ENABLE_SMS_CLAIM_SCAFFOLD === 'true';
+    const isClaimEligible = (mover) =>
+      scaffoldEnabled &&
+      mover.smsClaim && mover.smsClaim.optInRequested === true &&
+      Number(mover.balance || 0) >= Number(lead.buyNowPrice || 0);
+
+    const claimEligibleMovers = matched.filter(isClaimEligible);
+    const alertOnlyMovers     = matched.filter(m => !isClaimEligible(m));
+
+    console.log(
+      `[SMS] mode partition lead=${lead._id} matched=${matched.length} ` +
+      `claim=${claimEligibleMovers.length} alert=${alertOnlyMovers.length} ` +
+      `scaffoldEnabled=${scaffoldEnabled}`
+    );
+
     let claimToken = null;
-    if (process.env.ENABLE_SMS_CLAIM_SCAFFOLD === 'true') {
+    if (claimEligibleMovers.length > 0) {
       try {
-        const recipientIds = matched.map(m => m._id);
+        const recipientIds = claimEligibleMovers.map(m => m._id);
         const opened = await openClaimWindow(lead._id, recipientIds);
         if (opened && opened.token) {
           claimToken = opened.token;
@@ -282,12 +311,12 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
         } else {
           console.log(
             `[SMS] claimWindow NOT opened for lead ${lead._id} — falling back ` +
-            `to tokenless broadcast (lead may already have open/claimed window).`
+            `to Alert variant for all movers (lead may already have open/claimed window).`
           );
         }
       } catch (e) {
         console.error(`[SMS] openClaimWindow error for lead ${lead._id}: ${e.message}. ` +
-          `Continuing with tokenless broadcast.`);
+          `Continuing with Alert variant for all movers.`);
       }
     }
 
@@ -306,7 +335,11 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
         continue;
       }
 
-      sendMoverLeadSMS(mover.phone, lead, claimToken)
+      // Per-mover token resolution: claim-eligible movers get the claim
+      // token (if openClaimWindow succeeded); everyone else gets the
+      // Alert variant (token=null → "Claim: moveleads.cloud/login" CTA).
+      const tokenForThisMover = isClaimEligible(mover) ? claimToken : null;
+      sendMoverLeadSMS(mover.phone, lead, tokenForThisMover)
         .then(async (result) => {
           // Only bump the counter on a confirmed send. sendMoverLeadSMS
           // returns { ok: false } on Twilio errors and (legacy) undefined

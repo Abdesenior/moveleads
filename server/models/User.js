@@ -173,20 +173,33 @@ const UserSchema = new mongoose.Schema({
     },
   },
 
-  // ── SMS Claim / Instant Jobs (preview only) ──────────────────────────
-  // Additive preference layer for a future real-time claim mode. Today this
-  // is PREVIEW ONLY — nothing in the live request path reads these fields.
-  // Normal SMS notifications (smsNotif + alertChannels) are a SEPARATE
-  // system and are unaffected by anything below.
+  // ── SMS Claim / Instant Jobs ─────────────────────────────────────────
+  //
+  // As of 2026-05-28, `smsClaim.optInRequested` IS read at dispatch time
+  // in services/twilioService.broadcastLeadSMS as part of the per-mover
+  // Claim-vs-Alert partition. Movers WITHOUT optInRequested=true (or with
+  // balance < lead.buyNowPrice) receive the Alert variant of the SMS
+  // ("Claim: moveleads.cloud/login") instead of the Claim variant
+  // ("Reply SEND <token> to claim"). Both still get an SMS — the
+  // partition controls which body template and whether they enter the
+  // claimWindow.broadcastTo set.
+  //
+  // The other smsClaim.* fields (maxLeadPrice, residentialOnly,
+  // commercialOptIn, asapOnly, dailyClaimCap) remain "retire-the-read"
+  // — they are NOT consulted at dispatch. They survive in the schema as
+  // mover-side intent the operator may surface later, but no hidden
+  // dispatch filter reads them (see notification-precedence-cleanup
+  // memory + PR-C3/PR-C4 lineage). If a use case returns, expose them in
+  // the Settings UI first; do not silently filter on them.
   //
   // status is server-derived on every GET/PATCH:
   //   'inactive'         — optInRequested === false
   //   'needs_balance'    — optInRequested === true AND balance < recommended
   //   'preview_enabled'  — optInRequested === true AND balance >= recommended
-  // A future live launch will introduce 'eligible_live' once the inbound
-  // webhook + claim window infrastructure is enabled by env flag. Until
-  // then 'preview_enabled' is purely a marker — no SMS body, no token,
-  // no balance deduction, no PII release.
+  // The dashboard UI badge tracks `status`. The enum still says "preview"
+  // because the SmsClaim feature continues to roll out on a controlled
+  // mover cohort — broad marketing enablement is a separate operational
+  // decision.
   smsClaim: {
     status:           { type: String, enum: ['inactive', 'needs_balance', 'preview_enabled'], default: 'inactive' },
     optInRequested:   { type: Boolean, default: false },
