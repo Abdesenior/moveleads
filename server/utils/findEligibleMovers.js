@@ -69,6 +69,27 @@ async function findEligibleMovers(leadOriginZip, leadDestinationZip) {
     },
 
     // Stage 5 — join with users, filtering for balance / suspension / role in one shot
+    //
+    // 2026-05-28 — PR-D7: `receiveLiveTransfers` filter retired.
+    //
+    // Until this PR, an `$eq: ['$receiveLiveTransfers', true]` clause
+    // gated this join. The field was set only by the onboarding wizard
+    // (`routes/onboarding.js:103`) — no Settings UI ever wrote it after
+    // signup. Same shape as PR-C3 (alertChannels) and PR-C4 (moveTypes):
+    // a backend pref that drives dispatch with no mover-facing way to
+    // change it. Per [[no-hidden-backend-prefs]]: backend prefs MUST
+    // be UI-editable or stop being read. Voice routes are currently
+    // unmounted (server.js:98-118), so the read was effectively dormant
+    // in production already — this PR makes the architectural state
+    // explicit by removing the filter clause AND the projection field.
+    //
+    // The schema field stays dormant per the dormant-vs-deprecated
+    // discipline (Mongoose would strip it on .save() if deleted,
+    // silently mutating historical records).
+    //
+    // When voice ships in the future, the next PR decides whether to
+    // re-introduce a filter (with proper Settings UI), retire it
+    // permanently, or replace it with a different opt-in model.
     {
       $lookup: {
         from: 'users',
@@ -79,25 +100,23 @@ async function findEligibleMovers(leadOriginZip, leadDestinationZip) {
               $expr: {
                 $and: [
                   { $eq: ['$_id', '$$companyId'] },
-                   { $eq: ['$role', 'customer'] },
-                   { $eq: ['$receiveLiveTransfers', true] }
-                 ]
-               }
-             }
-           },
-           {
-             $project: {
-               companyName: 1,
-               email: 1,
-               phone: 1,
-               balance: 1,
-               serviceAreas: 1,
-               autoRechargeThreshold: 1,
-               autoRechargeAmount: 1,
-               stripeCustomerId: 1,
-               receiveLiveTransfers: 1
-             }
-           }
+                  { $eq: ['$role', 'customer'] }
+                ]
+              }
+            }
+          },
+          {
+            $project: {
+              companyName: 1,
+              email: 1,
+              phone: 1,
+              balance: 1,
+              serviceAreas: 1,
+              autoRechargeThreshold: 1,
+              autoRechargeAmount: 1,
+              stripeCustomerId: 1
+            }
+          }
         ],
         as: 'userDoc'
       }
