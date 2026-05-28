@@ -10,6 +10,7 @@ const { parseClaimReply } = require('../utils/claimToken');
 const { findLeadByClaimToken } = require('../utils/claimWindow');
 const { moverVisibilityFilter } = require('../utils/leadVisibility');
 const { getIo } = require('../services/socketService');
+const { sendMoverLostClaimSMS } = require('../services/smsService');
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 const MessagingResponse = twilio.twiml.MessagingResponse;
@@ -434,6 +435,75 @@ router.post(
 
         console.log(`[Twilio SMS Inbound] CLAIM won lead=${claimedLead._id} mover=${user._id} price=$${price}`);
         await finalize('won', 'claim succeeded', { leadId: claimedLead._id });
+
+        // ── PR-S6 — loser notification fan-out ───────────────────────────────
+        //
+        // Notify the OTHER recipients of this claimWindow that the lead has
+        // been claimed by someone else and NO charge was made to them. Fires
+        // ONLY on the winner branch (after finalize('won')), AFTER the entire
+        // financial atomic sequence has committed.
+        //
+        // Idempotency: this fan-out is invoked from the winner code path,
+        // which itself is reached only on a fresh ClaimAttempt insert (the
+        // unique-sparse twilioMessageSid index from PR-S1 short-circuits
+        // Twilio retries at the duplicate-MessageSid check, before the
+        // winner code can re-run). So losers are notified exactly once per
+        // claim.
+        //
+        // Side-effect discipline (locked by lock-in tests):
+        //   - NO Lead mutations (Lead.claimWindow already terminal at this
+        //     point — flipped to 'claimed' by the atomic CAS upstream)
+        //   - NO financial writes (no User balance, no PurchasedLead, no
+        //     Transaction)
+        //   - NO additional ClaimAttempt rows (losers are NOT distinct claim
+        //     attempts; they're a notification surface only)
+        //
+        // Failure isolation: each Twilio send is fire-and-forget with its
+        // own .catch. A single loser's send failure does NOT cascade to the
+        // others, does NOT delay the winner TwiML response, and does NOT
+        // surface to the inbound HTTP request.
+        try {
+          const broadcastTo = Array.isArray(claimedLead.claimWindow && claimedLead.claimWindow.broadcastTo)
+            ? claimedLead.claimWindow.broadcastTo
+            : [];
+          // Filter out the winning mover (string-compare on _id so any
+          // ObjectId vs. string identity quirk does not accidentally
+          // re-notify the winner with a lost-claim message).
+          const winnerIdStr = String(user._id);
+          const loserIds = broadcastTo.filter(id => String(id) !== winnerIdStr);
+
+          if (loserIds.length > 0) {
+            // TCPA + dispatch-discipline gates — SAME shape as the outbound
+            // SMS broadcast hard filter in twilioService.js (phoneVerified,
+            // smsOptOut, isSuspended, phone present) + role discriminator
+            // from User.MOVER_ROLES (PR #48). Reuses the same constant so
+            // a future role-set change automatically flows through here.
+            const losers = await User.find({
+              _id:           { $in: loserIds },
+              role:          { $in: User.MOVER_ROLES },
+              isSuspended:   { $ne: true },
+              smsOptOut:     { $ne: true },
+              phoneVerified: true,
+              phone:         { $exists: true, $nin: ['', null] },
+            }).select('_id phone companyName').lean();
+
+            console.log(
+              `[Twilio SMS Inbound] CLAIM loser fan-out — broadcastTo=${broadcastTo.length} ` +
+              `losers=${loserIds.length} eligible=${losers.length} lead=${claimedLead._id}`
+            );
+
+            // Fire-and-forget per-loser. We do NOT await any of these —
+            // the winner TwiML must return immediately. Each send has its
+            // own try/catch inside sendMoverLostClaimSMS.
+            for (const loser of losers) {
+              sendMoverLostClaimSMS(loser.phone).catch(e =>
+                console.error(`[Twilio SMS Inbound] CLAIM loser SMS to ${loser._id} failed (non-fatal): ${e.message}`)
+              );
+            }
+          }
+        } catch (e) {
+          console.error(`[Twilio SMS Inbound] CLAIM loser fan-out failed (non-fatal): ${e.message}`);
+        }
 
         // Confirmation SMS — PII unlocked because the mover paid + owns the lead.
         // Compose first-name + last-initial from customerName; if customerName
