@@ -144,7 +144,11 @@ const LeadSchema = new mongoose.Schema({
     status:      { type: String, enum: ['open', 'claimed', 'expired'] },
     openedAt:    { type: Date },
     expiresAt:   { type: Date },
-    token:       { type: String, trim: true, uppercase: true, index: true, sparse: true },
+    // 2026-05-28 — PR-S2: token index moved to schema level + made
+    // unique-sparse. Index spec is defined at the bottom of this file
+    // (see LeadSchema.index calls) so the uniqueness contract is
+    // explicit + named.
+    token:       { type: String, trim: true, uppercase: true },
     windowMinutes: { type: Number },
     broadcastTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
     offeredTo:   { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
@@ -379,6 +383,44 @@ LeadSchema.index({ status: 1, createdAt: -1 });
 LeadSchema.index(
   { clientSubmissionId: 1 },
   { unique: true, partialFilterExpression: { clientSubmissionId: { $exists: true, $type: 'string' } }, name: 'clientSubmissionId_partial_unique' }
+);
+
+// 2026-05-28 — PR-S2: SMS Claim pipeline pre-flip hardening indexes.
+//
+// (1) Unique sparse index on claimWindow.token.
+//     The Phase 5 inbound webhook will atomically flip a claim window
+//     via Lead.findOneAndUpdate({ 'claimWindow.token': T, 'claimWindow.status': 'open' }, ...).
+//     This MUST be a unique token-per-lead lookup — two leads sharing
+//     a token would make the findOne ambiguous and let the wrong lead
+//     be claimed. The previous inline `index: true, sparse: true` on
+//     the token field was non-unique; PR-S2 replaces it with this
+//     named unique-sparse index.
+//
+//     OPERATIONAL NOTE: production Mongo already has an auto-created
+//     index named `claimWindow.token_1` (anonymous, non-unique) from
+//     the previous inline declaration. Phase 4 has ZERO rows with
+//     this field set, so dropping the old + creating the new is
+//     instant and safe. After this PR deploys, run in Mongo shell:
+//         db.leads.dropIndex('claimWindow.token_1')
+//     and restart the server so Mongoose creates the new named
+//     unique-sparse index on connection.
+//
+// (2) Compound partial index on { claimWindow.status, claimWindow.expiresAt }.
+//     Supports the closeStaleClaimWindows background job (PR-S4) query:
+//         { 'claimWindow.status': 'open', 'claimWindow.expiresAt': { $lt: now } }
+//     Partial filter keeps the index tiny — only leads with an actual
+//     claim window get an index entry. The vast majority of leads have
+//     no claim window in Phase 5 (only instant-dispatch claim leads).
+LeadSchema.index(
+  { 'claimWindow.token': 1 },
+  { unique: true, sparse: true, name: 'claimWindow_token_unique' }
+);
+LeadSchema.index(
+  { 'claimWindow.status': 1, 'claimWindow.expiresAt': 1 },
+  {
+    name: 'claimWindow_status_expiresAt',
+    partialFilterExpression: { 'claimWindow.status': { $exists: true } }
+  }
 );
 
 module.exports = mongoose.model('lead', LeadSchema);
