@@ -185,7 +185,12 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Coverage area redirect notice */}
+      {/* 2026-05-28 — PR-D3: coverage redirect notice rewritten.
+          Prior copy pointed to "Settings → Coverage Areas" (a tab that
+          PR-C1 removed) and framed coverage as "ZIP codes" (movers no
+          longer manage ZIPs manually — CoverageArea is auto-maintained
+          from state preferences). New copy is accurate to the
+          post-PR-C1 Service Areas model and uses a real <Link>. */}
       <div style={{
         display: 'flex', alignItems: 'flex-start', gap: 14,
         padding: '18px 20px', borderRadius: 14,
@@ -197,12 +202,15 @@ export default function Profile() {
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, color: '#15803d', marginBottom: 4 }}>
-            Set your coverage ZIP codes in Settings
+            Service area is configured in Settings
           </div>
           <p style={{ margin: 0, fontSize: 13, color: '#166534', lineHeight: 1.55 }}>
-            Leads are routed based on your <strong>Coverage ZIP codes</strong>, not this profile page.
-            Go to <strong>Settings → Coverage Areas</strong> to add or update the ZIP codes where you want to receive leads.
-            You will only be matched to leads whose origin or destination ZIP code is in your list.
+            Leads are matched by the states you <strong>pick up</strong> and{' '}
+            <strong>deliver</strong> in, plus your distance preference.{' '}
+            <Link to="/dashboard/settings" style={{ color: '#15803d', textDecoration: 'underline', fontWeight: 700 }}>
+              Open Settings → Service Areas
+            </Link>
+            {' '}to set or update your coverage.
           </p>
         </div>
       </div>
