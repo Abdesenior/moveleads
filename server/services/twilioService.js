@@ -286,8 +286,22 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
           // encoded as a single aggregation-pipeline updateOne so the read
           // and write happen atomically. Failures are non-fatal; the cap
           // is best-effort.
+          //
+          // 2026-05-28 — fix: route through the raw collection driver
+          // (User.collection.updateOne) instead of the Mongoose wrapper.
+          // Newer Mongoose versions reject array-form pipelines on
+          // .updateOne() with "Cannot pass an array to query updates unless
+          // updatePipeline option is set" — the helpful guard is meant
+          // to catch accidental array-as-replacement-doc, but our payload
+          // is a deliberate Mongo aggregation pipeline. The raw collection
+          // accepts pipelines natively per the Mongo wire spec. The
+          // pipeline payload itself is unchanged from the original write;
+          // only the call site swaps from User.updateOne → User.collection.updateOne.
+          // Effect: the daily SMS cap counter now actually increments
+          // instead of silently failing on every send (the cap was a
+          // no-op in production until this fix).
           try {
-            await User.updateOne(
+            await User.collection.updateOne(
               { _id: mover._id },
               [
                 {
