@@ -15,10 +15,23 @@ const DOW = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
  *
  * Priority:
  *   1. Suspended users always return false.
- *   2. If `onboarding.answers.alertChannels` is a non-empty array, that's
- *      the source of truth.
- *   3. Otherwise fall back to legacy top-level flags so partners who never
- *      ran the new onboarding still get notified the old way.
+ *   2. Legacy top-level flags are the SOLE source of truth:
+ *        - 'sms'   → user.smsNotif
+ *        - 'email' → user.emailNotif
+ *        - 'call'  → always false (no user-model field; warm transfers
+ *                    bypass this gate anyway — they're gated separately
+ *                    in routes/voice.js)
+ *
+ * 2026-05-28 — PR-C3: alertChannels precedence retired.
+ *   Until this PR, an `onboarding.answers.alertChannels` array took
+ *   precedence over legacy smsNotif/emailNotif. No production UI ever
+ *   wrote that array (the current onboarding wizard does not collect it,
+ *   Settings does not write it), but legacy movers carried over from an
+ *   earlier wizard version had it populated — which silently overrode
+ *   their Settings toggles. Per the "no hidden backend prefs" principle
+ *   (see memory: no-hidden-backend-prefs.md), the read is removed.
+ *   The schema field stays dormant for historical compatibility (Mongoose
+ *   would strip it on .save() if deleted, mutating historical records).
  *
  * @param {Object} user
  * @param {'sms'|'email'|'call'} channel
@@ -27,14 +40,6 @@ const DOW = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 function wantsChannel(user, channel) {
   if (!user) return false;
   if (user.isSuspended === true) return false;
-
-  const arr = user?.onboarding?.answers?.alertChannels;
-  if (Array.isArray(arr) && arr.length > 0) {
-    return arr.includes(channel);
-  }
-
-  // Legacy fallback — no `call` field exists on the user model, so opt-in
-  // calls require the new onboarding answer.
   if (channel === 'sms')   return user.smsNotif === true;
   if (channel === 'email') return user.emailNotif === true;
   return false;

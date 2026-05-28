@@ -14,9 +14,8 @@ import { useToast } from '../../components/ui/Toast';
  * derives status from optInRequested AND current balance vs. the
  * recommended threshold.
  *
- * Normal SMS alerts are a SEPARATE system — controlled by smsNotif /
- * alertChannels in onboarding + settings. This page explains the
- * distinction up front.
+ * Normal SMS alerts are a SEPARATE system — controlled by smsNotif in
+ * Settings. This page explains the distinction up front.
  */
 
 export default function SmsClaim() {
@@ -269,7 +268,10 @@ export default function SmsClaim() {
             <Row label="Coverage radius"  value={data.onboardingPreview.coverageRadius || '—'} />
             <Row label="Coverage mode"    value={data.onboardingPreview.coverageMode || '—'} />
             <Row label="Move types"       value={data.onboardingPreview.moveTypes.join(', ') || '—'} />
-            <Row label="Alert channels"   value={data.onboardingPreview.alertChannels.join(', ') || '—'} />
+            {/* 2026-05-28 — PR-C3: Alert channels row dropped. The field
+                no longer influences dispatch (Settings smsNotif/emailNotif
+                is the sole authority), so surfacing it here would be
+                misleading. */}
             <Row label="Dispatch hours"   value={(data.onboardingPreview.dispatchHoursOpen && data.onboardingPreview.dispatchHoursClose)
                                                 ? `${data.onboardingPreview.dispatchHoursOpen} – ${data.onboardingPreview.dispatchHoursClose}` : '—'} />
           </div>

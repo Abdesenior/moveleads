@@ -327,8 +327,13 @@ function evalAccountStatus(mover) {
 }
 
 function evalSmsChannel(mover) {
-  // wantsChannel() encodes the alertChannels-overrides-legacy precedence.
-  // We also flag smsOptOut as a hard reject (TCPA carrier opt-out).
+  // 2026-05-28 — PR-C3: codes simplified.
+  // Before: SMS_OPTED_IN_VIA_ALERTCHANNELS / _VIA_LEGACY / SMS_NOT_IN_ALERTCHANNELS / SMS_OPTED_OUT_LEGACY.
+  // After:  SMS_OPTED_IN / SMS_OPTED_OUT — since alertChannels no longer
+  //         influences dispatch (PR-C3 retired the precedence in
+  //         dispatchPolicy.wantsChannel), the "via X" distinction is
+  //         meaningless. SMS_HARD_OPT_OUT is preserved — smsOptOut is a
+  //         separate TCPA-grade gate that pre-empts the channel toggle.
   const optedOut = mover?.smsOptOut === true;
   if (optedOut) {
     return {
@@ -336,26 +341,18 @@ function evalSmsChannel(mover) {
       pass: false,
       code: 'SMS_HARD_OPT_OUT',
       reason: 'Mover.smsOptOut=true — SMS dispatch hard-blocked (carrier opt-out / STOP keyword).',
-      evidence: { smsOptOut: true, smsNotif: !!mover?.smsNotif, alertChannels: mover?.onboarding?.answers?.alertChannels || null },
+      evidence: { smsOptOut: true, smsNotif: !!mover?.smsNotif },
     };
   }
   const wants = wantsChannel(mover || {}, 'sms');
-  const alertChannels = mover?.onboarding?.answers?.alertChannels;
-  const usingAlertChannels = Array.isArray(alertChannels) && alertChannels.length > 0;
   return {
     gate: 'smsChannel',
     pass: wants,
-    code: wants
-      ? (usingAlertChannels ? 'SMS_OPTED_IN_VIA_ALERTCHANNELS' : 'SMS_OPTED_IN_VIA_LEGACY')
-      : (usingAlertChannels ? 'SMS_NOT_IN_ALERTCHANNELS' : 'SMS_OPTED_OUT_LEGACY'),
+    code: wants ? 'SMS_OPTED_IN' : 'SMS_OPTED_OUT',
     reason: wants
-      ? (usingAlertChannels
-          ? 'Onboarding.alertChannels includes "sms".'
-          : 'Legacy smsNotif=true.')
-      : (usingAlertChannels
-          ? 'Onboarding.alertChannels does not include "sms" (overrides legacy smsNotif flag).'
-          : 'Legacy smsNotif=false and no alertChannels override.'),
-    evidence: { wantsSms: wants, smsNotif: !!mover?.smsNotif, alertChannels: alertChannels || null, smsOptOut: false },
+      ? 'Mover.smsNotif=true.'
+      : 'Mover.smsNotif=false — SMS dispatch suppressed.',
+    evidence: { wantsSms: wants, smsNotif: !!mover?.smsNotif, smsOptOut: false },
   };
 }
 
@@ -418,6 +415,7 @@ function evalDispatchHours(mover, now) {
 }
 
 function evalEmailChannel(mover) {
+  // 2026-05-28 — PR-C3: same simplification as evalSmsChannel.
   const optedOut = mover?.emailOptOut === true;
   if (optedOut) {
     return {
@@ -425,24 +423,18 @@ function evalEmailChannel(mover) {
       pass: false,
       code: 'EMAIL_HARD_OPT_OUT',
       reason: 'Mover.emailOptOut=true — email dispatch hard-blocked.',
-      evidence: { emailOptOut: true, emailNotif: !!mover?.emailNotif, alertChannels: mover?.onboarding?.answers?.alertChannels || null },
+      evidence: { emailOptOut: true, emailNotif: !!mover?.emailNotif },
     };
   }
   const wants = wantsChannel(mover || {}, 'email');
-  const alertChannels = mover?.onboarding?.answers?.alertChannels;
-  const usingAlertChannels = Array.isArray(alertChannels) && alertChannels.length > 0;
   return {
     gate: 'emailChannel',
     pass: wants,
-    code: wants
-      ? (usingAlertChannels ? 'EMAIL_OPTED_IN_VIA_ALERTCHANNELS' : 'EMAIL_OPTED_IN_VIA_LEGACY')
-      : (usingAlertChannels ? 'EMAIL_NOT_IN_ALERTCHANNELS' : 'EMAIL_OPTED_OUT_LEGACY'),
+    code: wants ? 'EMAIL_OPTED_IN' : 'EMAIL_OPTED_OUT',
     reason: wants
-      ? (usingAlertChannels ? 'Onboarding.alertChannels includes "email".' : 'Legacy emailNotif=true.')
-      : (usingAlertChannels
-          ? 'Onboarding.alertChannels does not include "email" (overrides legacy emailNotif flag).'
-          : 'Legacy emailNotif=false and no alertChannels override.'),
-    evidence: { wantsEmail: wants, emailNotif: !!mover?.emailNotif, alertChannels: alertChannels || null, emailOptOut: false },
+      ? 'Mover.emailNotif=true.'
+      : 'Mover.emailNotif=false — email dispatch suppressed.',
+    evidence: { wantsEmail: wants, emailNotif: !!mover?.emailNotif, emailOptOut: false },
   };
 }
 

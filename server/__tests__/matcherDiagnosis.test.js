@@ -371,20 +371,28 @@ test('21. status=Expired → dashboardMatch false at leadStatus', () => {
   assert.equal(t.final.firstFailedCode, 'STATUS_EXPIRED');
 });
 
-// ── 22. Channel precedence: alertChannels overrides legacy ─────────────
+// ── 22. PR-C3 cleanup: alertChannels NO LONGER overrides legacy ────────
 
-test('22. alertChannels=[email] (no sms) overrides legacy smsNotif=true', () => {
+test('22. alertChannels is ignored after PR-C3 — legacy smsNotif/emailNotif wins', () => {
+  // Before PR-C3 (2026-05-28), an alertChannels=['email'] array would
+  // silently block SMS even with smsNotif=true. That precedence is gone:
+  // wantsChannel reads ONLY the legacy top-level flags now (modulo
+  // isSuspended + opt-outs). This test locks the new behavior in.
   const M = mover({
-    smsNotif: true,
-    emailNotif: false,
-    onboarding: { answers: { alertChannels: ['email'] } },
+    smsNotif: true,            // Settings says: YES, send me SMS
+    emailNotif: false,         // Settings says: NO email
+    onboarding: { answers: { alertChannels: ['email'] } }, // stale field, now ignored
   });
   const L = lead();
   const t = diagnoseMatch(L, M);
-  assert.equal(t.gates.find(g => g.gate === 'smsChannel').code, 'SMS_NOT_IN_ALERTCHANNELS');
-  assert.equal(t.gates.find(g => g.gate === 'emailChannel').code, 'EMAIL_OPTED_IN_VIA_ALERTCHANNELS');
-  assert.equal(t.final.smsEligible, false);
-  assert.equal(t.final.emailEligible, true);
+  // SMS: smsNotif=true wins, alertChannels=['email'] is ignored
+  assert.equal(t.gates.find(g => g.gate === 'smsChannel').code, 'SMS_OPTED_IN');
+  // Email: emailNotif=false wins, alertChannels=['email'] is ignored
+  assert.equal(t.gates.find(g => g.gate === 'emailChannel').code, 'EMAIL_OPTED_OUT');
+  assert.equal(t.final.smsEligible, true,
+    'smsNotif=true must produce SMS-eligible regardless of stale alertChannels');
+  assert.equal(t.final.emailEligible, false,
+    'emailNotif=false must suppress email regardless of stale alertChannels');
 });
 
 // ── 23. Legacy serviceStates fallback ──────────────────────────────────

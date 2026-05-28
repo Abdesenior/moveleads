@@ -64,7 +64,10 @@ function buildReadiness(user, balance, recommended) {
     balanceMet:         Number(balance || 0) >= recommended,
     phoneVerified:      user?.phoneVerified === true,
     smsOptOut:          user?.smsOptOut === true,
-    smsNotifEnabled:    user?.smsNotif === true || (Array.isArray(a.alertChannels) && a.alertChannels.includes('sms')),
+    // 2026-05-28 — PR-C3: alertChannels no longer influences dispatch, so
+    // the readiness checklist mirrors Settings authority — legacy
+    // smsNotif is the sole truth here too.
+    smsNotifEnabled:    user?.smsNotif === true,
     coverageConfigured,
     dispatchHoursConfigured,
     moveTypesConfigured,
@@ -72,13 +75,17 @@ function buildReadiness(user, balance, recommended) {
 }
 
 function buildOnboardingPreview(user) {
+  // 2026-05-28 — PR-C3: `alertChannels` dropped from the preview payload.
+  // After the precedence cleanup, only Settings (smsNotif/emailNotif) is
+  // authoritative for dispatch; surfacing a dormant field here would
+  // re-create the same "hidden backend pref" failure mode the cleanup
+  // was meant to eliminate.
   const a = user?.onboarding?.answers || {};
   return {
     primaryMarket:       a.primaryMarket || '',
     coverageRadius:      a.coverageRadius || '',
     coverageMode:        a.coverageMode || '',
     moveTypes:           Array.isArray(a.moveTypes) ? a.moveTypes : [],
-    alertChannels:       Array.isArray(a.alertChannels) ? a.alertChannels : [],
     dispatchHoursOpen:   a.dispatchHoursOpen || '',
     dispatchHoursClose:  a.dispatchHoursClose || '',
   };
