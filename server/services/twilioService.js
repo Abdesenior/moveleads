@@ -626,20 +626,15 @@ async function verifyLeadPhone(leadId, { testMode = false } = {}) {
       return;
     }
 
-    const { isHiddenFromMoversById } = require('../utils/leadVisibility');
-    const check = await isHiddenFromMoversById(lead._id);
-    if (check.hidden) {
-      console.log(`[leadVisibility] verifyLeadPhone: suppressed broadcasts for ${lead._id} — ${check.reason} (source=${check.source})`);
-    } else {
-      // Reload so downstream guards in the broadcast services see the
-      // post-qualification fields (shadowTier, qualityGateCleared, etc.)
-      // along with the just-saved status/pricing fields.
-      const freshLead = await Lead.findById(lead._id).lean();
-      const leadForBroadcast = freshLead || lead;
-      broadcastLeadSMS(leadForBroadcast);
-      broadcastLeadEmail(leadForBroadcast).catch(() => {});
-      socketService.emitNewLead(leadForBroadcast);
-    }
+    // 2026-05-28 — extracted into a canonical post-approval orchestrator
+    // so the auto-approval path and the admin-approval path
+    // (POST /api/admin/leads/:id/approve) converge on identical dispatch
+    // semantics. Previously the admin path bypassed broadcastLeadSMS /
+    // broadcastLeadEmail / emitNewLead entirely, producing silent-approved
+    // inventory. The orchestrator does the fresh visibility check + Lead
+    // reload + 3-channel fan-out that this block used to do inline.
+    const { dispatchApprovedLead } = require('./dispatchOrchestrator');
+    await dispatchApprovedLead(lead._id, { source: 'verifyLeadPhone' });
 
   } catch (err) {
     console.error(`[PhoneVerify] Unexpected error for lead ${leadId}:`, err.message);

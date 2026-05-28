@@ -717,6 +717,25 @@ router.post('/leads/:id/approve', [auth, admin], async (req, res) => {
       before, after: { adminTierOverride: lead.adminTierOverride, distributionDecision: lead.distributionDecision },
       metadata: { reason: req.body?.reason, note: req.body?.note, requestedTier },
     });
+
+    // 2026-05-28 — fire the canonical post-approval dispatch orchestrator.
+    // Prior to this fix, the admin approve action wrote the right DB state
+    // (distributionDecision='admin_approved' + status upgrade + qualityGate
+    // clear) but skipped the SMS / email / socket fan-out, producing
+    // silent-approved inventory: movers saw the lead only on next refresh,
+    // no SMS Claim, no claimWindow, no realtime push. The orchestrator is
+    // the same helper verifyLeadPhone now uses, so auto-approval and admin
+    // approval converge on identical channels + idempotency semantics.
+    //
+    // Fire-and-forget: the HTTP response returns immediately so the admin
+    // UI is not gated on Twilio/SendGrid/socket latency. The orchestrator
+    // is internally fire-and-forget per channel too, so failures on one
+    // channel do not cascade.
+    const { dispatchApprovedLead } = require('../services/dispatchOrchestrator');
+    dispatchApprovedLead(lead._id, { source: 'admin.approve' }).catch(err =>
+      console.error(`[admin.approve] dispatch error for ${lead._id}: ${err.message}`)
+    );
+
     const payload = await buildSnapshotPayload(lead._id);
     res.json({ ok: true, action: 'approve', ...payload });
   } catch (err) {
