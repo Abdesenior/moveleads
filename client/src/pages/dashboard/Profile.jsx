@@ -1,16 +1,24 @@
 import React, { useState, useContext } from 'react';
-import { Building2, Mail, Hash, Phone, Shield, Lock, Key, Save, MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Building2, Mail, Hash, Shield, Lock, Key, Save, MapPin, Bell } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 
 export default function Profile() {
   const { user, token, API_URL } = useContext(AuthContext);
+  // 2026-05-28 — PR-D2: phone removed from this form.
+  // SMS Alert Phone Number + verification flow is the SOLE authority of
+  // Settings → Profile tab. Editing the same User.phone field from two
+  // separate UIs (Profile here + Settings → Profile tab) had no real-time
+  // sync — last save wins, the other surface shows stale UI until reload.
+  // Phone drives SMS dispatch + Twilio Verify, so the duplication was a
+  // direct trust hit. This page now handles company-identity only
+  // (companyName / DOT / MC / email / password).
   const [formData, setFormData] = useState({
     companyName: user?.companyName || '',
     email: user?.email || '',
     dotNumber: user?.dotNumber || '',
-    mcNumber: user?.mcNumber || '',
-    phone: user?.phone || ''
+    mcNumber: user?.mcNumber || ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -146,11 +154,28 @@ export default function Profile() {
             <label className="input-label">MC Number</label>
             <input type="text" name="mcNumber" value={formData.mcNumber} onChange={handleInput} className="input-field" />
           </div>
-          <div>
-            <label className="input-label">Phone Number</label>
-            <input type="tel" name="phone" value={formData.phone} onChange={handleInput} className="input-field" />
-          </div>
         </div>
+
+        {/* SMS alert phone hint — Settings → Profile is the authoritative
+            surface for this field (it pairs the input with the phone-
+            verification badge + Verify modal). See PR-D2 audit. */}
+        <div style={{
+          marginTop: 20, padding: '12px 14px', borderRadius: 10,
+          background: '#f8fafc', border: '1px solid #e2e8f0',
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          fontSize: 13, color: '#475569', lineHeight: 1.55,
+        }}>
+          <Bell size={15} style={{ marginTop: 2, flexShrink: 0, color: '#64748b' }} />
+          <span>
+            Your <strong>SMS alert phone number</strong> and verification status
+            live in{' '}
+            <Link to="/dashboard/settings" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 700 }}>
+              Settings → Profile
+            </Link>
+            {' '}— the same place you verify the number with Twilio.
+          </span>
+        </div>
+
         <div style={{ marginTop: '24px' }}>
           <button className="primary-btn" onClick={saveProfile} disabled={saving} style={{
             display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center'
