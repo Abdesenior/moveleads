@@ -280,8 +280,15 @@ export default function SmsClaim() {
             <Row label="Dispatch hours"   value={(data.onboardingPreview.dispatchHoursOpen && data.onboardingPreview.dispatchHoursClose)
                                                 ? `${data.onboardingPreview.dispatchHoursOpen} – ${data.onboardingPreview.dispatchHoursClose}` : '—'} />
           </div>
+          {/* 2026-05-28 — PR-D5: link target + label corrected.
+            Prior copy said "Manage in the Onboarding wizard →" but linked
+            to /dashboard/profile (company identity), not the onboarding
+            wizard (which lives in DashboardLayout as a modal). The data
+            shown above (coverage + dispatch hours) is editable in
+            Settings, NOT Profile — so the link now points there and
+            the label matches the destination. */}
           <p style={{ marginTop: 12, fontSize: 12, color: '#71717a' }}>
-            Manage in the <Link to="/dashboard/profile" style={linkSm}>Onboarding wizard →</Link>
+            Edit in <Link to="/dashboard/settings" style={linkSm}>Settings →</Link>
           </p>
         </section>
 
