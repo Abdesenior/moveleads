@@ -171,29 +171,39 @@ function derivedMoveType(lead) {
 }
 
 /**
- * Does this lead match the mover's moveTypes preference (and not their
- * avoidMoveTypes)?
+ * Does this lead match the mover's moveTypes preference?
  *
- * Permissive defaults:
- *   - No moveTypes preference set → match (don't filter on unknown).
- *   - derivedMoveType is null → match (can't classify, don't filter).
+ * 2026-05-28 — PR-C4: filter retired. This function always returns true.
  *
- * @param {Object} user
- * @param {Object} lead
- * @returns {boolean}
+ * Until this PR, `matchesMoveTypes` filtered dispatch using
+ * `onboarding.answers.moveTypes` and `onboarding.answers.avoidMoveTypes`.
+ * No current UI ever wrote those fields (the active onboarding wizard
+ * doesn't collect them, Settings doesn't write them, no admin tool
+ * writes them), but legacy movers carried over from an earlier wizard
+ * version had stale values — which silently filtered their dispatch
+ * with no UI to inspect or change.
+ *
+ * Same shape as the PR-C3 alertChannels retirement. Per the
+ * "no hidden backend prefs" principle (memory: no-hidden-backend-prefs),
+ * backend prefs that drive dispatch must either be UI-editable or stop
+ * being read. moveTypes chose "stop being read."
+ *
+ * The function signature and all call sites (leadMatching.js,
+ * twilioService.js, emailService.js) are preserved on purpose: the
+ * gate stays in the pipeline shape, it just always passes. If a future
+ * product need wants categorical filtering, re-introduce it via a new
+ * explicit Settings field — do NOT resurrect this hidden read.
+ *
+ * Schema fields stay dormant — User.onboarding.answers.moveTypes /
+ * avoidMoveTypes are NOT deleted (Mongoose would strip them on .save()
+ * and silently mutate historical records).
+ *
+ * @param {Object} user  unused
+ * @param {Object} lead  unused
+ * @returns {true}       always
  */
-function matchesMoveTypes(user, lead) {
-  const prefs = user?.onboarding?.answers?.moveTypes;
-  const avoids = user?.onboarding?.answers?.avoidMoveTypes;
-
-  // No preference configured → no filter.
-  if (!Array.isArray(prefs) || prefs.length === 0) return true;
-
-  const derived = derivedMoveType(lead);
-  if (!derived) return true;
-
-  if (Array.isArray(avoids) && avoids.includes(derived)) return false;
-  return prefs.includes(derived);
+function matchesMoveTypes(/* user, lead */) {
+  return true;
 }
 
 module.exports = {

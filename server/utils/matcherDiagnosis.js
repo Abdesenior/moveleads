@@ -269,45 +269,24 @@ function evalHomeSize(lead, mover) {
 }
 
 function evalMoveType(lead, mover) {
-  const prefs = mover?.onboarding?.answers?.moveTypes;
-  const avoids = mover?.onboarding?.answers?.avoidMoveTypes;
+  // 2026-05-28 — PR-C4: gate collapsed. dispatchPolicy.matchesMoveTypes
+  // now always returns true (the categorical moveTypes / avoidMoveTypes
+  // read was retired — see no-hidden-backend-prefs.md). The five prior
+  // codes (MOVE_TYPE_NO_PREFERENCE / _UNCLASSIFIED / _IN_AVOIDS /
+  // _IN_PREFS / _NOT_IN_PREFS) collapse to a single code that's
+  // historically honest: not "no preference," but "filter retired by
+  // architecture policy."
+  //
+  // derivedMoveType is kept as a pure classifier — surfaced in evidence
+  // so the trace still answers "what category did we classify this
+  // lead as?" — useful even though it no longer gates anything.
   const derived = derivedMoveType(lead || {});
-  if (!Array.isArray(prefs) || prefs.length === 0) {
-    return {
-      gate: 'moveType',
-      pass: true,
-      code: 'MOVE_TYPE_NO_PREFERENCE',
-      reason: 'Mover.onboarding.answers.moveTypes is empty — no move-type filter applied.',
-      evidence: { moveTypes: prefs || [], avoidMoveTypes: avoids || [], derived },
-    };
-  }
-  if (!derived) {
-    return {
-      gate: 'moveType',
-      pass: true,
-      code: 'MOVE_TYPE_UNCLASSIFIED',
-      reason: 'Lead cannot be classified into a moveType category — matcher treats this as permissive.',
-      evidence: { moveTypes: prefs, avoidMoveTypes: avoids || [], derived: null, homeSize: lead?.homeSize || null, leadMoveType: lead?.moveType || null },
-    };
-  }
-  if (Array.isArray(avoids) && avoids.includes(derived)) {
-    return {
-      gate: 'moveType',
-      pass: false,
-      code: 'MOVE_TYPE_IN_AVOIDS',
-      reason: `Lead's derived move type '${derived}' is in mover's avoidMoveTypes.`,
-      evidence: { moveTypes: prefs, avoidMoveTypes: avoids, derived },
-    };
-  }
-  const pass = prefs.includes(derived);
   return {
     gate: 'moveType',
-    pass,
-    code: pass ? 'MOVE_TYPE_IN_PREFS' : 'MOVE_TYPE_NOT_IN_PREFS',
-    reason: pass
-      ? `Lead's derived move type '${derived}' is in mover's moveTypes preference.`
-      : `Lead's derived move type '${derived}' is not in mover's moveTypes [${prefs.join(', ')}].`,
-    evidence: { moveTypes: prefs, avoidMoveTypes: avoids || [], derived },
+    pass: true,
+    code: 'MOVE_TYPE_FILTER_RETIRED',
+    reason: 'Move-type categorical filter retired (PR-C4); all leads pass this gate. derivedMoveType is surfaced for evidence only.',
+    evidence: { derived },
   };
 }
 
