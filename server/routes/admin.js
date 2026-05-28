@@ -21,10 +21,11 @@ const ScoringSnapshot = require('../models/ScoringSnapshot');
 const ValidationLog = require('../models/ValidationLog');
 const scoringPipeline = require('../services/scoringPipeline');
 const { computeDistributionStatus, computeDistributionLabel } = require('../utils/distributionStatus');
-const { isHiddenFromMovers, routingMode } = require('../utils/leadVisibility');
+const { isHiddenFromMovers, hiddenReason, routingMode } = require('../utils/leadVisibility');
 const {
   deriveSystemDecision,
   describeSystemDecisionSource,
+  isDistributable,
 } = require('../utils/distributionDecision');
 
 // ── Helpers for bulk import ───────────────────────────────────────────────────
@@ -908,6 +909,147 @@ router.post('/leads/:id/mark-reviewed', [auth, admin], async (req, res) => {
   } catch (err) {
     console.error('[Admin lead.mark-reviewed] error:', err.message);
     res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ── GET /api/admin/leads/:id/distribution-diagnose ──────────────────────────
+//
+// Operational observability endpoint added 2026-05-28 in response to a staging
+// SMS Claim test where a quote-flow Alabama lead appeared in the admin
+// dashboard but no SMS broadcast reached the configured Alabama mover.
+//
+// Admin dashboard visibility is NOT the same as mover distribution
+// eligibility. A lead can show in admin while being blocked from mover
+// broadcast by distributionDecision (system_held / system_pending /
+// system_rejected), the verifyLeadPhone qualification gate
+// (shadowTier=rejected / qualityGateCleared=false / adminTierOverride),
+// or the dedup guard (notifiedAt non-null without force).
+//
+// This endpoint replaces the need for direct Mongo shell access. It is:
+//   - admin-only
+//   - read-only — no Mongo writes, no broadcast triggering, no socket emit
+//   - schema-stable — no fields added or changed
+//   - matcher-independent — does NOT touch findEligibleMovers, dispatchPolicy,
+//     or any mover-side gate. For mover-level diagnostics use
+//     /api/admin/matcher/diagnose?leadId=…&moverId=… (PR #31).
+//
+// Response shape: the raw distribution-relevant fields on the Lead doc,
+// plus derived predicates that reproduce the broadcast-suppression decision
+// tree (qualificationFailed, hiddenFromMovers, distributable,
+// broadcastWouldSuppress, broadcastWouldSuppressBy). The derived predicates
+// reuse the production helpers (isHiddenFromMovers, hiddenReason,
+// isDistributable) so they stay in lockstep with the broadcast path.
+//
+// What it does NOT include:
+//   - candidate counts / mover-eligibility traces  → use /matcher/diagnose
+//   - Twilio send results                          → check Twilio console
+//   - per-mover dispatch hours / smsNotif gates    → /matcher/diagnose
+router.get('/leads/:id/distribution-diagnose', [auth, admin], async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.id)
+      .select(
+        'status distributionDecision distributionDecisionReason ' +
+        'distributionDecisionBy distributionDecisionAt ' +
+        'qualityGateCleared shadowTier structuralBlockers miles ' +
+        'notifiedAt originZip destinationZip originState destinationState ' +
+        'validation claimWindow adminTierOverride'
+      )
+      .lean();
+
+    if (!lead) {
+      return res.status(404).json({ msg: 'Lead not found', leadId: req.params.id });
+    }
+
+    // Defense-in-depth: reuse the production visibility helpers so this
+    // diagnose endpoint never drifts from what broadcastLeadSMS actually
+    // does at twilioService.js:65 (and verifyLeadPhone:587).
+    const hidden = isHiddenFromMovers(lead);
+    const reason = hiddenReason(lead);
+
+    // Reproduce the verifyLeadPhone qualification gate (twilioService.js:464-473).
+    // This is the FIRST broadcast-suppression point in the V5 chain — fires
+    // BEFORE isHiddenFromMovers, with priority: shadowTier=rejected →
+    // qualityGateCleared=false → adminTierOverride.tier=rejected.
+    let qualificationFailed = false;
+    let qualificationReason = null;
+    if (lead.shadowTier === 'rejected') {
+      qualificationFailed = true;
+      qualificationReason = 'shadowTier=rejected';
+    } else if (lead.qualityGateCleared === false) {
+      qualificationFailed = true;
+      qualificationReason = 'qualityGateCleared=false';
+    } else if (lead.adminTierOverride && lead.adminTierOverride.tier === 'rejected') {
+      qualificationFailed = true;
+      qualificationReason = 'adminTierOverride=rejected';
+    }
+
+    // Synthesize the broadcast verdict. Order matches the call chain:
+    //   1. verifyLeadPhone qualificationFailed check (twilioService.js:580)
+    //   2. verifyLeadPhone isHiddenFromMoversById check (twilioService.js:587)
+    //   3. broadcastLeadSMS notifiedAt dedup (twilioService.js:54)
+    //   4. broadcastLeadSMS isHiddenFromMovers defense-in-depth (twilioService.js:65)
+    //
+    // We report the FIRST gate that would fire. notifiedAt-only suppression
+    // is bypassable with force:true (when/if a force endpoint exists); the
+    // others are not bypassable without changing distributionDecision.
+    let broadcastWouldSuppress = false;
+    let broadcastWouldSuppressBy = null;
+    if (qualificationFailed) {
+      broadcastWouldSuppress = true;
+      broadcastWouldSuppressBy = 'qualificationFailed';
+    } else if (hidden) {
+      broadcastWouldSuppress = true;
+      broadcastWouldSuppressBy = 'hiddenFromMovers';
+    } else if (lead.notifiedAt) {
+      broadcastWouldSuppress = true;
+      broadcastWouldSuppressBy = 'notifiedAt';
+    }
+
+    return res.json({
+      // Raw lead state
+      leadId:                     String(lead._id),
+      status:                     lead.status,
+      distributionDecision:       lead.distributionDecision,
+      distributionDecisionReason: lead.distributionDecisionReason || null,
+      distributionDecisionBy:     lead.distributionDecisionBy || null,
+      distributionDecisionAt:     lead.distributionDecisionAt || null,
+      qualityGateCleared:         lead.qualityGateCleared,
+      shadowTier:                 lead.shadowTier || null,
+      structuralBlockers:         Array.isArray(lead.structuralBlockers) ? lead.structuralBlockers : [],
+      miles:                      Number.isFinite(lead.miles) ? lead.miles : null,
+      notifiedAt:                 lead.notifiedAt || null,
+      originZip:                  lead.originZip || null,
+      destinationZip:             lead.destinationZip || null,
+      originState:                lead.originState || null,
+      destinationState:           lead.destinationState || null,
+      validation: {
+        phone:        (lead.validation && lead.validation.phone)       || null,
+        route:        (lead.validation && lead.validation.route)       || null,
+        fraud:        (lead.validation && lead.validation.fraud)       || null,
+        fingerprint:  (lead.validation && lead.validation.fingerprint) || null,
+      },
+      claimWindow: lead.claimWindow ? {
+        status:        lead.claimWindow.status || null,
+        token:         lead.claimWindow.token  || null,
+        openedAt:      lead.claimWindow.openedAt || null,
+        expiresAt:     lead.claimWindow.expiresAt || null,
+        claimedBy:     lead.claimWindow.claimedBy || null,
+        claimedAt:     lead.claimWindow.claimedAt || null,
+        closedReason:  lead.claimWindow.closedReason || null,
+      } : null,
+      adminTierOverride: lead.adminTierOverride || null,
+      // Derived predicates — reproduce the broadcast suppression decision
+      hiddenFromMovers:           hidden,
+      hiddenReason:               reason,
+      distributable:              isDistributable(lead.distributionDecision),
+      qualificationFailed,
+      qualificationReason,
+      broadcastWouldSuppress,
+      broadcastWouldSuppressBy,
+    });
+  } catch (err) {
+    console.error('[Admin lead.distribution-diagnose] error:', err.message);
+    return res.status(500).json({ msg: 'Server error' });
   }
 });
 
