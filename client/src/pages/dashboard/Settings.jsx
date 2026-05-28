@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, AlertTriangle, Save, Trash2, Filter, Star, ExternalLink, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Bell, AlertTriangle, Save, Trash2, Filter, Star, ExternalLink, Globe, ShieldCheck, ShieldAlert, Clock } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import VerifyPhoneModal from '../../components/VerifyPhoneModal';
 import StatePicker from '../../components/StatePicker';
@@ -71,6 +71,23 @@ export default function SettingsPage() {
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('soundEnabled') !== 'false');
   const [saving, setSaving]         = useState(false);
 
+  /* Dispatch Hours — controls when this mover receives SMS broadcasts.
+     Backed by onboarding.answers.{dispatchHoursMode,dispatchHoursOpen,
+     dispatchHoursClose,dispatchDays}. Written via the dedicated
+     PATCH /api/users/me/dispatch-hours endpoint. dispatchPolicy.is-
+     WithinDispatchHours returns permissive 24/7 when mode is unset, so
+     toggling OFF here just clears `dispatchHoursMode`.
+     v1 limitation: evaluation is in UTC (server clock); a future PR-C2b
+     will introduce a per-user timezone field. */
+  const _initialDispatchDays = ['sun','mon','tue','wed','thu','fri','sat'];
+  const [dispatchEnabled, setDispatchEnabled] = useState(false);
+  const [dispatchOpen,    setDispatchOpen]    = useState('09:00');
+  const [dispatchClose,   setDispatchClose]   = useState('17:00');
+  const [dispatchDays,    setDispatchDays]    = useState(_initialDispatchDays);
+  const [dispatchSaving,  setDispatchSaving]  = useState(false);
+  const [dispatchMsg,     setDispatchMsg]     = useState('');
+  const [utcNow,          setUtcNow]          = useState(() => new Date());
+
   /* Service Area — Phase 2 unified pickup/delivery/distance settings.
      Reads from new top-level User fields populated by the Phase 1 backfill
      and onboarding mirrors. The save handler writes pickupStates,
@@ -136,6 +153,41 @@ export default function SettingsPage() {
     }
   };
 
+  /* Dispatch Hours — PATCH /api/users/me/dispatch-hours.
+     Single-purpose endpoint; payload shape mirrors the validator on the
+     server. Sending { enabled: false } clears the gate (24/7 SMS again);
+     { enabled: true, open, close, days } configures the default-mode
+     window. */
+  const saveDispatchHours = async () => {
+    setDispatchSaving(true);
+    setDispatchMsg('');
+    try {
+      const payload = dispatchEnabled
+        ? { enabled: true, open: dispatchOpen, close: dispatchClose, days: dispatchDays }
+        : { enabled: false };
+      const res = await fetch(`${API_URL}/users/me/dispatch-hours`, {
+        method: 'PATCH',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.msg || 'Failed to save');
+      await refreshUser();
+      setDispatchMsg(dispatchEnabled ? 'Dispatch hours saved.' : 'Dispatch hours cleared — SMS alerts are now 24/7.');
+      setTimeout(() => setDispatchMsg(''), 3500);
+    } catch (err) {
+      setDispatchMsg('Failed to save: ' + (err.message || 'unknown error'));
+    } finally {
+      setDispatchSaving(false);
+    }
+  };
+
+  const toggleDispatchDay = (code) => {
+    setDispatchDays(prev =>
+      prev.includes(code) ? prev.filter(d => d !== code) : [...prev, code]
+    );
+  };
+
   /* Danger */
   const [dangerDeleting, setDangerDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -172,8 +224,31 @@ export default function SettingsPage() {
     }
 
     setMoveDistance(user.maxDistance || '');
+
+    // Dispatch hours hydration. Mode === 'default' → toggle ON;
+    // anything else (including null / 'advanced') → toggle OFF.
+    // 'advanced' shape is intentionally not surfaced in v1 (decision A1).
+    const a = user.onboarding?.answers || {};
+    const enabled = a.dispatchHoursMode === 'default';
+    setDispatchEnabled(enabled);
+    if (typeof a.dispatchHoursOpen === 'string')  setDispatchOpen(a.dispatchHoursOpen);
+    if (typeof a.dispatchHoursClose === 'string') setDispatchClose(a.dispatchHoursClose);
+    if (Array.isArray(a.dispatchDays) && a.dispatchDays.length > 0) {
+      setDispatchDays(a.dispatchDays);
+    } else {
+      setDispatchDays(_initialDispatchDays);
+    }
+
     didInit.current = true;
   }, [user?._id]); // eslint-disable-line
+
+  /* Live UTC clock for the dispatch-hours helper line. Ticks once a minute —
+     enough resolution since dispatch hours are stored in minute granularity,
+     and cheap enough to ignore. */
+  useEffect(() => {
+    const id = setInterval(() => setUtcNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   /* Auto-save notifications — skips the initial sync fire */
   useEffect(() => {
@@ -373,6 +448,160 @@ export default function SettingsPage() {
                 <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
                   Changes are saved automatically when you toggle.
                 </p>
+              </div>
+
+              {/* ── Dispatch Hours — SMS-only time window ──────────────────
+                  PR-C2: optional window restricting when this mover
+                  receives SMS lead alerts. OFF (default) = 24/7 SMS,
+                  matching today's behavior for every existing mover.
+                  Email broadcasts intentionally bypass this gate, mirroring
+                  dispatchPolicy.isWithinDispatchHours (which short-circuits
+                  to true for the 'email' and 'socket' channels). */}
+              <div style={{ borderTop: '1px solid #f1f5f9', padding: '20px 24px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+                  <div style={{ minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <Clock size={16} color="#3b82f6" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 2 }}>
+                        Restrict SMS alerts to a time window
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        Off: SMS alerts arrive 24/7. On: only during the hours below. Email alerts are unaffected.
+                      </div>
+                    </div>
+                  </div>
+                  <Toggle on={dispatchEnabled} onChange={setDispatchEnabled} />
+                </div>
+              </div>
+
+              {dispatchEnabled && (
+                <div style={{ padding: '6px 24px 6px 50px' }}>
+                  {/* Open / Close time inputs */}
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 14 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                        From
+                      </label>
+                      <input
+                        type="time"
+                        value={dispatchOpen}
+                        onChange={e => setDispatchOpen(e.target.value)}
+                        style={{
+                          padding: '8px 10px', borderRadius: 8,
+                          border: '1.5px solid #e2e8f0', fontSize: 13,
+                          fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+                          width: 130, outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                        To
+                      </label>
+                      <input
+                        type="time"
+                        value={dispatchClose}
+                        onChange={e => setDispatchClose(e.target.value)}
+                        style={{
+                          padding: '8px 10px', borderRadius: 8,
+                          border: '1.5px solid #e2e8f0', fontSize: 13,
+                          fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+                          width: 130, outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div style={{ alignSelf: 'flex-end', padding: '10px 8px', fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>
+                      UTC
+                    </div>
+                  </div>
+
+                  {/* Day checkboxes */}
+                  <div style={{ marginTop: 16 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                      Days
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {[
+                        { code: 'sun', label: 'Sun' },
+                        { code: 'mon', label: 'Mon' },
+                        { code: 'tue', label: 'Tue' },
+                        { code: 'wed', label: 'Wed' },
+                        { code: 'thu', label: 'Thu' },
+                        { code: 'fri', label: 'Fri' },
+                        { code: 'sat', label: 'Sat' },
+                      ].map(({ code, label }) => {
+                        const active = dispatchDays.includes(code);
+                        return (
+                          <button
+                            key={code}
+                            type="button"
+                            onClick={() => toggleDispatchDay(code)}
+                            style={{
+                              padding: '7px 12px', borderRadius: 8,
+                              border: active ? '1.5px solid #3b82f6' : '1.5px solid #e2e8f0',
+                              background: active ? '#dbeafe' : '#fff',
+                              color: active ? '#1d4ed8' : '#64748b',
+                              fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                              cursor: 'pointer', transition: 'all 0.15s',
+                              minWidth: 52,
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* UTC disclosure — explicit about v1 limitation.
+                      A future PR-C2b adds per-user timezone support; for
+                      now, surface the conversion plainly so movers in
+                      non-UTC zones can do the math. */}
+                  <div style={{
+                    marginTop: 14, padding: '10px 12px', borderRadius: 8,
+                    background: '#fef9c3', border: '1px solid #fde68a',
+                    fontSize: 12, color: '#854d0e', lineHeight: 1.5,
+                  }}>
+                    <strong>Heads up:</strong> hours are evaluated in <strong>UTC</strong>. Right now it's{' '}
+                    <strong style={{ fontFamily: 'ui-monospace, SF Mono, Menlo, monospace' }}>
+                      {String(utcNow.getUTCHours()).padStart(2, '0')}:{String(utcNow.getUTCMinutes()).padStart(2, '0')} UTC
+                    </strong>
+                    {' '}({utcNow.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} your local time).
+                    Convert your intended local window into UTC before saving. Per-timezone support is coming.
+                  </div>
+                </div>
+              )}
+
+              <div style={{ padding: '14px 24px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={saveDispatchHours}
+                  disabled={dispatchSaving || (dispatchEnabled && dispatchDays.length === 0)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '9px 18px', borderRadius: 10, border: 'none',
+                    background: 'linear-gradient(135deg,#3b82f6,#2563eb)',
+                    color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    fontFamily: 'var(--font-heading)',
+                    boxShadow: '0 4px 12px rgba(37,99,235,0.25)',
+                    opacity: (dispatchSaving || (dispatchEnabled && dispatchDays.length === 0)) ? 0.6 : 1,
+                  }}
+                >
+                  <Save size={13} /> {dispatchSaving ? 'Saving…' : 'Save dispatch hours'}
+                </button>
+                {dispatchEnabled && dispatchDays.length === 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#dc2626' }}>
+                    Select at least one day, or turn the toggle off.
+                  </span>
+                )}
+                {dispatchMsg && (
+                  <span style={{
+                    fontSize: 12.5, fontWeight: 700,
+                    color: dispatchMsg.startsWith('Failed') ? '#dc2626' : '#16a34a',
+                  }}>
+                    {dispatchMsg.startsWith('Failed') ? '✕' : '✓'} {dispatchMsg}
+                  </span>
+                )}
               </div>
             </div>
           )}

@@ -132,6 +132,12 @@ app.use('/api/leads',          verifiedGate, require('./routes/leads'));
 // Mount specific user sub-paths BEFORE the generic /api/users so the static
 // /api/users/me/sms-claim wins. Phase B — preview-only Instant Jobs prefs.
 app.use('/api/users/me/sms-claim', verifiedGate, require('./routes/smsClaim'));
+// Dispatch hours editor — mounted BEFORE /api/users so it isn't shadowed
+// by the unified PUT /users/:id handler. Single-purpose endpoint:
+// PATCH /api/users/me/dispatch-hours writes onboarding.answers.{
+// dispatchHoursMode,dispatchHoursOpen,dispatchHoursClose,dispatchDays}.
+// Read path (dispatchPolicy.isWithinDispatchHours) is unchanged.
+app.use('/api/users/me/dispatch-hours', verifiedGate, require('./routes/dispatchHours'));
 // Phone verification — Twilio Verify-backed OTP flow. Mounted before the
 // generic /api/users router so /api/users/me/phone/* paths win. Capability
 // gates SMS alerts + SMS Claim; NOT a dashboard-access gate.
