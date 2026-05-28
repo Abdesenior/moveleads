@@ -263,30 +263,39 @@ export default function SmsClaim() {
           </section>
         )}
 
-        {/* ── Onboarding preview ── */}
+        {/* ── Current alert coverage ──
+            2026-05-28 — coverage source-of-truth fix.
+            Previously this section read user.onboarding.answers.coverageMode
+            / .coverageStates / .primaryMarket / .coverageRadius — legacy
+            onboarding-wizard fields that Settings → Service Areas does NOT
+            write. A mover who configured pickup=AL in Settings would see
+            stale or empty values here even though dispatch matched them
+            correctly. Now reads the canonical fields directly:
+              pickupStates / deliveryStates / deliversNationwide / maxDistance
+            (with dispatch hours unchanged — that's still onboarding.answers,
+            but it's the PR-C2 canonical storage location, intentionally). */}
         <section style={panel}>
-          <h2 style={panelH}>Coverage & alerts (from onboarding)</h2>
+          <h2 style={panelH}>Current alert coverage</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
-            <Row label="Primary market"   value={data.onboardingPreview.primaryMarket || '—'} />
-            <Row label="Coverage radius"  value={data.onboardingPreview.coverageRadius || '—'} />
-            <Row label="Coverage mode"    value={data.onboardingPreview.coverageMode || '—'} />
-            {/* 2026-05-28 — PR-C3: Alert channels row dropped. The field
-                no longer influences dispatch (Settings smsNotif/emailNotif
-                is the sole authority), so surfacing it here would be
-                misleading. */}
-            {/* 2026-05-28 — PR-C4: Move types row dropped. Same reason —
-                the dispatch filter on moveTypes was retired, so showing
-                the stored array would imply it still affects matching. */}
-            <Row label="Dispatch hours"   value={(data.onboardingPreview.dispatchHoursOpen && data.onboardingPreview.dispatchHoursClose)
-                                                ? `${data.onboardingPreview.dispatchHoursOpen} – ${data.onboardingPreview.dispatchHoursClose}` : '—'} />
+            <Row label="Pickup states"
+                 value={formatStateList(data.coveragePreview.pickupStates)} />
+            <Row label="Delivery"
+                 value={data.coveragePreview.deliversNationwide
+                   ? 'Nationwide'
+                   : formatStateList(data.coveragePreview.deliveryStates)} />
+            <Row label="Max distance"
+                 value={data.coveragePreview.maxDistance || '—'} />
+            <Row label="Dispatch hours"
+                 value={(data.coveragePreview.dispatchHoursOpen && data.coveragePreview.dispatchHoursClose)
+                   ? `${data.coveragePreview.dispatchHoursOpen} – ${data.coveragePreview.dispatchHoursClose}`
+                   : '—'} />
           </div>
           {/* 2026-05-28 — PR-D5: link target + label corrected.
             Prior copy said "Manage in the Onboarding wizard →" but linked
             to /dashboard/profile (company identity), not the onboarding
             wizard (which lives in DashboardLayout as a modal). The data
-            shown above (coverage + dispatch hours) is editable in
-            Settings, NOT Profile — so the link now points there and
-            the label matches the destination. */}
+            shown above is editable in Settings, NOT Profile — so the link
+            points there and the label matches the destination. */}
           <p style={{ marginTop: 12, fontSize: 12, color: '#71717a' }}>
             Edit in <Link to="/dashboard/settings" style={linkSm}>Settings →</Link>
           </p>
@@ -342,6 +351,10 @@ function Row({ label, value }) {
 }
 
 function fmt(n) { const v = Number(n) || 0; return v.toLocaleString('en-US', { maximumFractionDigits: 0 }); }
+function formatStateList(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return '—';
+  return arr.join(', ');
+}
 function statusLabel(s) { return s === 'preview_enabled' ? 'Preview enabled' : s === 'needs_balance' ? 'Needs balance' : 'Inactive'; }
 function statusChip(s) {
   const base = { display: 'inline-flex', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700 };

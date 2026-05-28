@@ -47,13 +47,34 @@ async function recommendedBalance() {
 }
 
 function buildReadiness(user, balance, recommended) {
+  // 2026-05-28 — Coverage source-of-truth fix.
+  //
+  // Previously this read `user.onboarding.answers.coverageMode` / `.coverageStates`
+  // / `.additionalMarkets` / `.primaryMarket` — the legacy onboarding-wizard
+  // fields. Settings → Service Areas does NOT write those; it writes the
+  // top-level `pickupStates` / `deliveryStates` / `deliversNationwide` /
+  // `maxDistance` fields (with a structured `onboarding.answers.pickup.*`
+  // mirror, but NOT the flat legacy fields).
+  //
+  // Result before the fix: a mover who configured pickup=AL in Settings
+  // would still see "Coverage area not set" on the SmsClaim readiness
+  // checklist — because the legacy flat fields stayed empty. The dispatch
+  // matcher itself read the canonical fields correctly, so this was a
+  // UI fidelity bug, not a behavior bug.
+  //
+  // Coverage is "configured" iff the mover has at least one pickup state
+  // selected. Delivery coverage can be either a state list OR nationwide;
+  // either alone is fine for "set". We require BOTH legs (pickup + some
+  // form of delivery) so a partially-configured mover is still flagged.
+  const pickupConfigured = Array.isArray(user?.pickupStates) && user.pickupStates.length > 0;
+  const deliveryConfigured = user?.deliversNationwide === true
+    || (Array.isArray(user?.deliveryStates) && user.deliveryStates.length > 0);
+  const coverageConfigured = pickupConfigured && deliveryConfigured;
   const a = user?.onboarding?.answers || {};
-  const coverageConfigured =
-    (a.coverageMode === 'states' && Array.isArray(a.coverageStates?.states) && a.coverageStates.states.length > 0) ||
-    (a.coverageMode === 'nationwide') ||
-    (a.coverageMode === 'same') ||
-    (Array.isArray(a.additionalMarkets) && a.additionalMarkets.length > 0) ||
-    !!a.primaryMarket;
+  // Dispatch hours canonical storage stayed at `onboarding.answers.*`
+  // by intent (PR-C2 chose schema-compat over migration). The PATCH at
+  // /api/users/me/dispatch-hours writes these. So this read is canonical;
+  // unchanged from before.
   const dispatchHoursConfigured =
     !!a.dispatchHoursOpen && !!a.dispatchHoursClose;
   // 2026-05-28 — PR-C4: moveTypesConfigured dropped. The dispatch gate
@@ -75,18 +96,31 @@ function buildReadiness(user, balance, recommended) {
   };
 }
 
-function buildOnboardingPreview(user) {
-  // 2026-05-28 — PR-C3: `alertChannels` dropped from the preview payload.
-  // 2026-05-28 — PR-C4: `moveTypes` dropped from the preview payload too,
-  // for the same reason: the dispatch read was retired, so surfacing the
-  // stored array would imply it still influences dispatch when it doesn't.
+function buildCoveragePreview(user) {
+  // 2026-05-28 — Coverage source-of-truth fix. Replaces the old
+  // buildOnboardingPreview() which read `user.onboarding.answers.coverageMode`
+  // / `.coverageStates` / `.primaryMarket` / `.coverageRadius` — legacy
+  // onboarding-wizard fields that Settings → Service Areas does NOT touch.
+  //
+  // Returns the CURRENT canonical Settings configuration:
+  //   - pickupStates       : array of 2-letter USPS codes
+  //   - deliveryStates     : array of 2-letter USPS codes
+  //   - deliversNationwide : boolean (true → deliveryStates is conventionally empty)
+  //   - maxDistance        : '' | 'Local' | 'Long Distance'
+  //   - dispatchHoursOpen  : 'HH:MM' string (PR-C2 canonical, kept)
+  //   - dispatchHoursClose : 'HH:MM' string (PR-C2 canonical, kept)
+  //
+  // Naming: the response key is `coveragePreview` (not `onboardingPreview`);
+  // the heading on the SmsClaim page is "Current alert coverage" so the
+  // operator sees the truth, not a stale onboarding snapshot.
   const a = user?.onboarding?.answers || {};
   return {
-    primaryMarket:       a.primaryMarket || '',
-    coverageRadius:      a.coverageRadius || '',
-    coverageMode:        a.coverageMode || '',
-    dispatchHoursOpen:   a.dispatchHoursOpen || '',
-    dispatchHoursClose:  a.dispatchHoursClose || '',
+    pickupStates:       Array.isArray(user?.pickupStates) ? user.pickupStates.slice() : [],
+    deliveryStates:     Array.isArray(user?.deliveryStates) ? user.deliveryStates.slice() : [],
+    deliversNationwide: user?.deliversNationwide === true,
+    maxDistance:        user?.maxDistance || '',
+    dispatchHoursOpen:  a.dispatchHoursOpen || '',
+    dispatchHoursClose: a.dispatchHoursClose || '',
   };
 }
 
@@ -119,7 +153,7 @@ router.get('/', async (req, res) => {
     return res.json({
       ...smsClaim,
       readiness:          buildReadiness(user, user.balance, recommended),
-      onboardingPreview:  buildOnboardingPreview(user),
+      coveragePreview:    buildCoveragePreview(user),
       copy: {
         badgeText:       'Preview / Early Access',
         activationLabel: 'Activate Instant Jobs (preview)',
@@ -203,7 +237,7 @@ router.patch('/', async (req, res) => {
     return res.json({
       ...smsClaim,
       readiness:         buildReadiness(updated, updated.balance, recommended),
-      onboardingPreview: buildOnboardingPreview(updated),
+      coveragePreview:   buildCoveragePreview(updated),
     });
   } catch (err) {
     console.error('[SmsClaim] PATCH error', err);

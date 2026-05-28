@@ -230,13 +230,17 @@ test('E1. smsClaim buildReadiness no longer emits moveTypesConfigured', () => {
   );
 });
 
-test('E2. smsClaim buildOnboardingPreview no longer surfaces moveTypes', () => {
-  const fnBody = smsClaimSrc.match(/function buildOnboardingPreview[\s\S]*?\n\}/);
-  assert.ok(fnBody, 'buildOnboardingPreview must be findable');
+test('E2. smsClaim coverage preview no longer surfaces moveTypes', () => {
+  // The function was renamed buildOnboardingPreview → buildCoveragePreview
+  // (coverage source-of-truth fix, 2026-05-28). Either name still satisfies
+  // the "moveTypes is gone" regression guard.
+  const fnBody = smsClaimSrc.match(/function buildCoveragePreview[\s\S]*?\n\}/)
+              || smsClaimSrc.match(/function buildOnboardingPreview[\s\S]*?\n\}/);
+  assert.ok(fnBody, 'coverage preview function must be findable');
   assert.doesNotMatch(
     fnBody[0],
     /moveTypes:/,
-    "buildOnboardingPreview must no longer return a 'moveTypes' field"
+    "coverage preview must not return a 'moveTypes' field"
   );
 });
 
