@@ -160,7 +160,37 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     }).select('phone companyName smsNotif emailNotif isSuspended smsOptOut phoneVerified smsCounters maxDistance preferredHomeSizes deliversNationwide pickupStates deliveryStates serviceStates onboarding.answers').lean();
 
     if (!candidates.length) {
-      console.log('[SMS] No candidates with phone on file');
+      // 2026-05-28 — observability fix. The legacy log line
+      // "[SMS] No candidates with phone on file" conflated FIVE distinct
+      // hard-filter conditions: role mismatch, suspended, smsOptOut, not
+      // phoneVerified, missing/empty phone. During the Alabama staging
+      // investigation, "role mismatch" (a mover with role='mover' vs the
+      // legacy role='customer' filter — PR #48) hid behind the misleading
+      // log for hours. The breakdown below runs ONE projected find() over
+      // the union we already have, bounded cost, only on the failure path.
+      try {
+        const unionDiag = await User.find({ _id: { $in: Array.from(unionIds) } })
+          .select('role isSuspended smsOptOut phoneVerified phone')
+          .lean();
+        const dropped = {
+          role_not_mover:   unionDiag.filter(u => !User.MOVER_ROLES.includes(u.role)).length,
+          suspended:        unionDiag.filter(u => u.isSuspended === true).length,
+          smsOptOut:        unionDiag.filter(u => u.smsOptOut === true).length,
+          phoneNotVerified: unionDiag.filter(u => u.phoneVerified !== true).length,
+          phoneMissing:     unionDiag.filter(u => !u.phone || u.phone === '').length,
+        };
+        console.log(
+          `[SMS] No candidates remain after hard filter for lead ${lead._id}. ` +
+          `unionSize=${unionDiag.length} dropped: ` +
+          `${Object.entries(dropped).map(([k, v]) => `${k}=${v}`).join(' ')} ` +
+          `(counts may overlap for movers failing multiple gates)`
+        );
+      } catch (_e) {
+        // Defensive fallback — diagnostic must NEVER replace the dispatch
+        // behavior. If the projected find() itself errors, fall back to the
+        // legacy single-line log so the operator still sees SOMETHING.
+        console.log('[SMS] No candidates with phone on file');
+      }
       return;
     }
 

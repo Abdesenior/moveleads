@@ -68,7 +68,23 @@ function twilioWebhook(req, res, next) {
     url,
     req.body
   );
-  if (!valid) return res.status(403).send('Forbidden');
+  if (!valid) {
+    // 2026-05-28 — observability fix. The 403 path was previously silent
+    // server-side; signature mismatches only surfaced in the Twilio console
+    // webhook-delivery view. During the Alabama staging investigation the
+    // root cause was a SERVER_URL ↔ webhook-URL host mismatch (api. subdomain
+    // missing from SERVER_URL), and the silent 403 cost real investigation
+    // time. Logging the reconstructed URL makes a future mismatch one
+    // grep away. Signature is truncated to 12 chars so the full secret
+    // material doesn't appear in log aggregations.
+    const sigPreview = (req.headers['x-twilio-signature'] || '').slice(0, 12);
+    console.warn(
+      `[twilioWebhook] signature mismatch — reconstructedUrl=${url} ` +
+      `sigPreview=${sigPreview}… method=${req.method} ` +
+      `(if seen: verify SERVER_URL env matches the Twilio-console webhook URL exactly)`
+    );
+    return res.status(403).send('Forbidden');
+  }
   next();
 }
 
