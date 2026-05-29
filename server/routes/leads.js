@@ -202,28 +202,19 @@ router.get('/', auth, async (req, res) => {
       { $set: { status: 'Expired', auctionStatus: 'expired' } }
     );
 
-    // Ensure every available, unbought lead with a future move date has an active auction.
-    // This catches:
-    //   - 'expired' leads (24h window lapsed but no buyer yet)
-    //   - 'pending' leads (admin-created leads that never got activated)
-    //   - null/undefined auctionStatus (old leads created before auction system)
-    await Lead.updateMany(
-      {
-        auctionStatus: { $nin: ['active', 'sold', 'buy_now'] },
-        status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
-        moveDate: { $gte: new Date() },
-        $or: [
-          { buyers: { $size: 0 } },
-          { buyers: { $exists: false } }
-        ]
-      },
-      {
-        $set: {
-          auctionStatus: 'active',
-          auctionEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
-        }
-      }
-    );
+    // PR-6 (2026-05-29) — the auction-reactivation mutation that USED to
+    // run here ('expired'/'pending'/null auctionStatus → 'active' + 24h
+    // window) was a read-path side effect: it re-promoted leads into the
+    // marketplace without firing the canonical post-approval dispatch
+    // (SMS / email / socket). Movers never got told.
+    //
+    // Moved to jobs/reactivateLeads.js — runs every 5 minutes, atomically
+    // flips eligible leads, and calls dispatchApprovedLead(leadId,
+    // { source: 'cron.reactivate' }) on each one. The eligibility filter
+    // there is byte-identical to the pre-PR-6 filter; the cutover is a
+    // semantic no-op for which leads get reactivated, and adds the
+    // missing broadcast. GET /api/leads is now read-only for this
+    // behavior. Closes HIGH-CONFIDENCE-FIX-PLAN F2.
 
     // Sort by when each lead became visible to movers (distributionDecisionAt),
     // not when the homeowner originally submitted (createdAt). A 21-day-old
