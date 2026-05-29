@@ -444,8 +444,17 @@ router.post('/', [auth, admin], async (req, res) => {
 // sourceCompany). A typo in the admin UI could corrupt the auction state
 // machine or silently re-attribute revenue. Now we only allow a curated
 // set of editable fields.
+//
+// 2026-05-29 — `'status'` removed from the allowlist. Writing status via
+// the lead-edit form bypasses the canonical post-approval orchestrator
+// (PR #52/54/56). If an admin used this surface to flip a held lead to
+// status='READY_FOR_DISTRIBUTION', the lead became distributable but no
+// SMS / email / socket broadcast fired — exactly the silent-inventory
+// bug class the orchestrator wirings were built to close. Admins must
+// now use the dedicated approve/reject routes which both update status
+// AND trigger dispatch via dispatchApprovedLead.
 const ADMIN_LEAD_WRITABLE = [
-  'status', 'buyNowPrice', 'currentBidPrice', 'score', 'grade',
+  'buyNowPrice', 'currentBidPrice', 'score', 'grade',
   'customerName', 'customerPhone', 'customerEmail',
   'originCity', 'originState', 'originZip',
   'destinationCity', 'destinationState', 'destinationZip',
