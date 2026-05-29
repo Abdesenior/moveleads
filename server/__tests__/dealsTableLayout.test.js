@@ -97,12 +97,16 @@ test('A3. The wrap renders a <table className="deals-table">', () => {
 test('A4. The <thead> includes all 7 documented column labels', () => {
   // Pin each column header literal so a copy refactor goes red and
   // requires explicit decision.
+  //
+  // 2026-05-29 (DRX-2) — sortable columns (Route, Move date, Listed,
+  // Now) became <SortableTh label="..." sortKey="..." ... />. The
+  // remaining columns (Size, Was, Action) stayed plain <th>. Accept
+  // either shape so the label invariant survives the evolution.
   for (const label of ['Route', 'Size', 'Move date', 'Listed', 'Was', 'Now', 'Action']) {
-    assert.match(
-      dealsJsxExec,
-      new RegExp(`<th[^>]*>\\s*${label}\\s*</th>`),
-      `Table head must include <th>${label}</th>`
-    );
+    const plain    = new RegExp(`<th[^>]*>\\s*${label}\\s*</th>`).test(dealsJsxExec);
+    const sortable = new RegExp(`<SortableTh\\s+label=['"]${label}['"]`).test(dealsJsxExec);
+    assert.ok(plain || sortable,
+      `Table head must include <th>${label}</th> OR <SortableTh label="${label}" .../>`);
   }
 });
 
@@ -211,12 +215,15 @@ test('C4. Disabled banner appears BEFORE the empty state in source order', () =>
 
 // ── D. Discriminated-union shape for future pack rows ────────────────
 
-test('D1. items is built as filtered.map(lead => ({ type: "lead", lead }))', () => {
-  assert.match(
-    dealsJsxExec,
-    /filtered\.map\(\s*lead\s*=>\s*\(\s*\{\s*type:\s*['"]lead['"]\s*,\s*lead\s*\}\s*\)\s*\)/,
-    'items must be filtered.map(lead => ({ type: "lead", lead })) — discriminated union ready for future packs'
-  );
+test('D1. items wraps each lead in the discriminated-union shape `{ type: "lead", lead }`', () => {
+  // 2026-05-29 (DRX-2) — sort step inserted between filter and the
+  // discriminated-union wrap. items is now derived from `sorted` (which
+  // is filtered + sorted), not from `filtered` directly. Accept either
+  // — the invariant is the union shape, not the upstream variable name.
+  const fromFiltered = /filtered\.map\(\s*lead\s*=>\s*\(\s*\{\s*type:\s*['"]lead['"]\s*,\s*lead\s*\}\s*\)\s*\)/.test(dealsJsxExec);
+  const fromSorted   = /sorted\.map\(\s*lead\s*=>\s*\(\s*\{\s*type:\s*['"]lead['"]\s*,\s*lead\s*\}\s*\)\s*\)/.test(dealsJsxExec);
+  assert.ok(fromFiltered || fromSorted,
+    'items must be (filtered|sorted).map(lead => ({ type: "lead", lead })) — discriminated union ready for future packs');
 });
 
 test('D2. items.map render path has the documented future-pack-ready hook comment', () => {

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Tag, MapPin, Calendar, Home, RefreshCw, AlertCircle, X, CheckCircle, Clock } from 'lucide-react';
+import { Tag, MapPin, Calendar, Home, RefreshCw, AlertCircle, X, CheckCircle, Clock, ChevronUp, ChevronDown } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { toMoverLabel } from '../../utils/tierLabels';
@@ -58,6 +58,23 @@ export default function Deals() {
   // the production confusion where admin/movers thought "lead went missing"
   // after a successful purchase).
   const [lastUnlocked, setLastUnlocked] = useState(null); // { route, price }
+  // DRX-2 (2026-05-29) — filter + sort state.
+  //
+  // All four filters are CLIENT-SIDE over the already-fetched list. The
+  // server response shape and the /api/leads/deals query are unchanged.
+  // Defaults are non-destructive: distanceFilter='all', discountFilter=0
+  // (which is "all" — no minimum), moveDateFilter='all'. With every
+  // filter at its default the page renders identically to DRX-1.
+  //
+  // Sort state matches the server's default order at first paint:
+  // sortKey='listed' + sortDir='desc' renders the leads in
+  // `updatedAt desc` order (same as server). Clicking a column header
+  // toggles direction; clicking a different column resets to desc.
+  const [distanceFilter, setDistanceFilter] = useState('all'); // 'all' | 'local' | 'long'
+  const [discountFilter, setDiscountFilter] = useState(0);     // 0 | 25 | 40 | 60 (min %)
+  const [moveDateFilter, setMoveDateFilter] = useState('all'); // 'all' | 'this_week' | 'this_month' | 'next_month'
+  const [sortKey, setSortKey] = useState('listed');            // 'route' | 'move_date' | 'listed' | 'now'
+  const [sortDir, setSortDir] = useState('desc');              // 'asc' | 'desc'
 
   const fetchDeals = useCallback(async () => {
     setLoading(true);
@@ -137,29 +154,135 @@ export default function Deals() {
     }
   };
 
-  // Filtered list — single text search over city / zip / size today.
-  // DRX-2 adds Distance / Discount / Move date dropdowns; the future
-  // pack-row case will require filtering on item.type as well.
+  // Filtered list — DRX-2 added Distance / Discount / Move date
+  // dropdowns on top of the original text search. All four filters are
+  // CLIENT-SIDE over the already-fetched list (no server query change).
+  //
+  // The future pack-row case will need to filter on item.type as well —
+  // for now we keep the filter step working on Lead docs and then wrap
+  // into the discriminated union below.
   const filtered = useMemo(() => {
-    if (!search) return leads;
-    const s = search.toLowerCase();
-    return leads.filter(l =>
-      (l.originCity || '').toLowerCase().includes(s)
-      || (l.destinationCity || '').toLowerCase().includes(s)
-      || (l.homeSize || '').toLowerCase().includes(s)
-      || (l.originZip || '').toLowerCase().includes(s)
-      || (l.destinationZip || '').toLowerCase().includes(s)
-    );
-  }, [leads, search]);
+    return leads.filter(l => {
+      // Text search — city / state / ZIP / home size.
+      if (search) {
+        const s = search.toLowerCase();
+        const haystack = [
+          l.originCity, l.destinationCity, l.homeSize,
+          l.originZip, l.destinationZip,
+        ].map(v => (v || '').toLowerCase()).join(' ');
+        if (!haystack.includes(s)) return false;
+      }
+
+      // Distance — "Local" or "Long Distance" (canonical Lead.distance
+      // string). Accept legacy 'long_distance' / 'long distance'
+      // case-insensitively too — pre-V5 leads sometimes used the
+      // underscore form.
+      if (distanceFilter !== 'all') {
+        const dist = String(l.distance || '').toLowerCase();
+        if (distanceFilter === 'local' && !dist.startsWith('local')) return false;
+        if (distanceFilter === 'long' && !(dist.startsWith('long') || dist.includes('long distance'))) return false;
+      }
+
+      // Discount — minimum % off. Falls back to the same client-side
+      // derivation DRX-1 already uses on the row component when the
+      // server didn't enrich.
+      if (discountFilter > 0) {
+        const orig  = Number(l.originalPrice) || 0;
+        const price = Number(l.buyNowPrice)   || 0;
+        const pct   = Number.isFinite(Number(l.discountPercent))
+          ? Number(l.discountPercent)
+          : (orig > 0 && price < orig ? Math.round((1 - price / orig) * 100) : 0);
+        if (pct < discountFilter) return false;
+      }
+
+      // Move date — bucket against derived windows. `moveDate` may be
+      // a Date string. Anything beyond the chosen bucket is filtered.
+      if (moveDateFilter !== 'all' && l.moveDate) {
+        const md = new Date(l.moveDate);
+        if (!Number.isNaN(md.getTime())) {
+          const now = new Date();
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (moveDateFilter === 'this_week') {
+            const endOfWeek = new Date(startOfDay.getTime() + 7 * 86400000);
+            if (md < startOfDay || md >= endOfWeek) return false;
+          } else if (moveDateFilter === 'this_month') {
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            if (md < startOfDay || md >= endOfMonth) return false;
+          } else if (moveDateFilter === 'next_month') {
+            const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const startOfMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+            if (md < startOfNextMonth || md >= startOfMonthAfter) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [leads, search, distanceFilter, discountFilter, moveDateFilter]);
+
+  // Sort step — applies after filtering. Default 'listed desc' matches
+  // the server's `updatedAt desc` so first paint is byte-identical to
+  // DRX-1's order. Clicking a sortable column header toggles direction.
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const cmp = (a, b) => {
+      let aV, bV;
+      switch (sortKey) {
+        case 'route':
+          aV = String(a.originCity || '').toLowerCase();
+          bV = String(b.originCity || '').toLowerCase();
+          break;
+        case 'move_date':
+          aV = a.moveDate ? new Date(a.moveDate).getTime() : Number.MAX_SAFE_INTEGER;
+          bV = b.moveDate ? new Date(b.moveDate).getTime() : Number.MAX_SAFE_INTEGER;
+          break;
+        case 'now':
+          aV = Number(a.buyNowPrice) || 0;
+          bV = Number(b.buyNowPrice) || 0;
+          break;
+        case 'listed':
+        default:
+          aV = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+          bV = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          break;
+      }
+      if (aV < bV) return sortDir === 'asc' ? -1 : 1;
+      if (aV > bV) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    };
+    arr.sort(cmp);
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+
+  // Toggle a sortable column. Click same column → flip direction;
+  // click new column → set + default desc.
+  const onSort = useCallback((key) => {
+    setSortKey(prevKey => {
+      if (prevKey === key) {
+        setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        return prevKey;
+      }
+      setSortDir('desc');
+      return key;
+    });
+  }, []);
 
   // Discriminated-union item shape — future-pack-ready. Today every
   // item is { type: 'lead', lead: leadDoc }. A future pack-aware feed
   // will push { type: 'pack', pack: packDoc } items into the same
   // array; the table renders one row per item.
   const items = useMemo(
-    () => filtered.map(lead => ({ type: 'lead', lead })),
-    [filtered]
+    () => sorted.map(lead => ({ type: 'lead', lead })),
+    [sorted]
   );
+
+  // Total + filtered count for the result-count line.
+  const totalCount = leads.length;
+  const filteredCount = filtered.length;
+  const isFiltering = search.length > 0
+    || distanceFilter !== 'all'
+    || discountFilter > 0
+    || moveDateFilter !== 'all';
 
   return (
     <DashboardLayout>
@@ -198,17 +321,52 @@ export default function Deals() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* DRX-2 (2026-05-29) — filter bar.
+          All filters are CLIENT-SIDE over the fetched list. Server
+          query unchanged. Defaults are non-destructive; first paint
+          matches DRX-1 exactly. */}
+      <div className="deals-filter-bar"
+           style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by city, ZIP, or home size…"
-          style={{ flex: 1, minWidth: 220, padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }}
+          data-testid="deals-search-input"
+          style={{ flex: '1 1 220px', minWidth: 200, padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }}
         />
+        <FilterSelect kind="distance" value={distanceFilter} onChange={setDistanceFilter}
+          options={[
+            ['all',   'All distances'],
+            ['local', 'Local'],
+            ['long',  'Long Distance'],
+          ]} />
+        <FilterSelect kind="discount" value={String(discountFilter)} onChange={v => setDiscountFilter(Number(v))}
+          options={[
+            ['0',  'All discounts'],
+            ['25', '≥ 25% off'],
+            ['40', '≥ 40% off'],
+            ['60', '≥ 60% off'],
+          ]} />
+        <FilterSelect kind="moveDate" value={moveDateFilter} onChange={setMoveDateFilter}
+          options={[
+            ['all',         'Any move date'],
+            ['this_week',   'This week'],
+            ['this_month',  'This month'],
+            ['next_month',  'Next month'],
+          ]} />
         <button onClick={fetchDeals} disabled={loading}
           style={{ padding: '10px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', cursor: loading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}>
           <RefreshCw size={14} /> {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
+
+      {/* DRX-2 — result count when any filter is active. Quiet at default. */}
+      {!loading && !error && !featureDisabled && isFiltering && (
+        <div data-testid="deals-result-count"
+             style={{ fontSize: 12, color: '#64748b', marginTop: -8, marginBottom: 10 }}>
+          Showing {filteredCount} of {totalCount} {totalCount === 1 ? 'deal' : 'deals'}
+          {filteredCount < totalCount ? ` · ${totalCount - filteredCount} filtered out` : ''}
+        </div>
+      )}
 
       {error && (
         <div style={{ padding: 14, marginBottom: 14, background: '#fef2f2', color: '#b91c1c', borderRadius: 10, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -245,12 +403,12 @@ export default function Deals() {
           <table className="deals-table">
             <thead>
               <tr>
-                <th>Route</th>
+                <SortableTh label="Route"     sortKey="route"     active={sortKey} dir={sortDir} onSort={onSort} />
                 <th>Size</th>
-                <th>Move date</th>
-                <th>Listed</th>
+                <SortableTh label="Move date" sortKey="move_date" active={sortKey} dir={sortDir} onSort={onSort} />
+                <SortableTh label="Listed"    sortKey="listed"    active={sortKey} dir={sortDir} onSort={onSort} />
                 <th>Was</th>
-                <th>Now</th>
+                <SortableTh label="Now"       sortKey="now"       active={sortKey} dir={sortDir} onSort={onSort} />
                 <th className="col-action-h">Action</th>
               </tr>
             </thead>
@@ -535,6 +693,54 @@ function UnlockConfirmModal({ lead, balance, busy, error, onCancel, onConfirm })
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── DRX-2: filter dropdown ─────────────────────────────────────────────
+ * Native <select> styled to match the toolbar. Native because:
+ *   - smallest dependency footprint
+ *   - mobile-friendly OS pickers
+ *   - accessibility comes for free
+ * The `data-testid` is `deals-filter-${kind}` so behavioral tests can
+ * target each filter unambiguously.
+ * ───────────────────────────────────────────────────────────────────── */
+function FilterSelect({ kind, value, onChange, options }) {
+  return (
+    <select
+      data-testid={`deals-filter-${kind}`}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      style={{
+        padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0',
+        background: '#fff', fontSize: 13, color: '#475569',
+        cursor: 'pointer', minWidth: 140,
+      }}>
+      {options.map(([v, label]) => (
+        <option key={v} value={v}>{label}</option>
+      ))}
+    </select>
+  );
+}
+
+/* ── DRX-2: sortable column header ──────────────────────────────────────
+ * Clickable <th> for the four sortable columns (Route / Move date /
+ * Listed / Now). Renders a chevron indicating active direction. Size /
+ * Was / Action remain plain <th>.
+ * ───────────────────────────────────────────────────────────────────── */
+function SortableTh({ label, sortKey, active, dir, onSort }) {
+  const isActive = active === sortKey;
+  const Chevron = isActive ? (dir === 'asc' ? ChevronUp : ChevronDown) : null;
+  return (
+    <th
+      data-testid={`deals-sort-${sortKey}`}
+      onClick={() => onSort(sortKey)}
+      style={{ cursor: 'pointer', userSelect: 'none' }}
+      aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        {label}
+        {Chevron && <Chevron size={12} color="#475569" />}
+      </span>
+    </th>
   );
 }
 
