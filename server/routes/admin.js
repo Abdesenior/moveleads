@@ -239,6 +239,35 @@ router.post('/users/:id/balance', [auth, admin], async (req, res) => {
 
     console.log(`[Admin] Balance adjusted for ${user.email}: ${parsed >= 0 ? '+' : ''}${parsed} → new balance $${user.balance.toFixed(2)}${note ? ` (${note})` : ''}`);
 
+    // 2026-05-29 — write a Transaction ledger row alongside the balance
+    // mutation so every adjustment is reconcilable. Before this, the
+    // admin balance route was the ONLY balance-write path in the system
+    // without a corresponding Transaction row — every adjustment created
+    // drift between sum(Transaction.amount) and User.balance. Closes
+    // HIGH-CONFIDENCE-FIX-PLAN F1 (3-agent audit convergence).
+    //
+    // The 'Admin Adjustment' Transaction.type was added to the model
+    // enum in this same PR. Description captures who ran the adjustment
+    // and the operator-supplied note for full audit trail. amount is
+    // signed (negative for debits, positive for credits) matching the
+    // existing Stripe Refund/Chargeback conventions.
+    //
+    // Non-fatal: if the Transaction.create fails (e.g., transient DB
+    // hiccup) the balance write already committed and logAdminAction
+    // captured the intent. Logging the failure lets the operator
+    // reconcile manually if the rare case ever fires.
+    try {
+      await Transaction.create({
+        user: user._id,
+        type: 'Admin Adjustment',
+        amount: parsed,
+        description: `Admin balance adjustment by ${req.user.id}${note ? ` — ${note}` : ''}`,
+        status: 'Completed',
+      });
+    } catch (txnErr) {
+      console.error(`[Admin] Balance adjust — Transaction write failed (non-fatal): ${txnErr.message}`);
+    }
+
     logAdminAction({
       actor: req.user.id,
       action: 'balance.adjust',

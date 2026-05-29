@@ -15,6 +15,15 @@ const TransactionSchema = new mongoose.Schema({
       'Stripe Refund',
       'Stripe Chargeback',
       'Lead Refund',
+      // 2026-05-29 — closes ledger drift identified by 3-agent audit
+      // convergence + HIGH-CONFIDENCE-FIX-PLAN F1. Before this, the admin
+      // balance-adjust route (POST /api/admin/users/:id/balance) wrote
+      // $inc balance + logAdminAction but NO Transaction row. Every
+      // adjustment created drift between sum(Transaction.amount) and
+      // User.balance. This is also the manual remediation path for
+      // chargeback overdrafts (see B4-refund-overdraft-investigation.md).
+      // 'Admin Adjustment'    → operator manual balance write
+      'Admin Adjustment',
     ],
     required: true,
   },
