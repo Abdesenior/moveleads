@@ -189,6 +189,11 @@ require('./jobs/onboardingRecovery');
 // PR-S4 — SMS Claim Pipeline pre-flip hardening. Expires stale open
 // claimWindows every 5 min (flag-independent maintenance — see file header).
 require('./jobs/closeStaleClaimWindows');
+// PR-6 — auction reactivation moved out of the read path (was a silent
+// state mutation in GET /api/leads). Runs every 5 min and dispatches
+// each reactivated lead via the canonical orchestrator. See file header
+// for cadence + idempotency rationale.
+require('./jobs/reactivateLeads');
 
 app.use((req, res, next) => {
   res.status(404).json({ msg: 'Route not found' });
