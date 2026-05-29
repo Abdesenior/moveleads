@@ -32,6 +32,12 @@ export default function Deals() {
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [unlockError, setUnlockError] = useState(null);
+  // PR-D1 (2026-05-29) — disambiguate "feature disabled" from "feature enabled
+  // but no inventory right now". Server returns 404 with msg "Deal Room is not
+  // enabled" when ENABLE_DEAL_ROOM is off; that case maps to this flag and
+  // renders a distinct banner. A 200 with an empty array continues to render
+  // the existing "No deals available right now" empty state (UX preserved).
+  const [featureDisabled, setFeatureDisabled] = useState(false);
   // V1.6 — unlock confirmation modal. Click "Unlock" → opens this modal
   // showing lead/price/balance details. The actual purchase happens only
   // after the user clicks "Confirm Unlock".
@@ -51,10 +57,20 @@ export default function Deals() {
         headers: { 'x-auth-token': token },
       });
       if (res.status === 404) {
-        // Feature is gated off on the server — render the empty state, not an error.
+        // PR-D1 — feature is gated off on the server. Render a DISTINCT
+        // "Deal Room temporarily unavailable" banner, NOT the empty state.
+        // The empty state means "feature on, no inventory"; this banner
+        // means "feature off". The two must be visually distinguishable so
+        // movers don't silently see a permanently-empty page if the env
+        // flag is ever misconfigured, and so operators have a single
+        // screenshot that disambiguates the two failure modes.
         setLeads([]);
+        setFeatureDisabled(true);
         return;
       }
+      // 200 → feature is on. Clear any prior disabled state in case the
+      // operator just flipped the flag on between page loads.
+      setFeatureDisabled(false);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setLeads(Array.isArray(json) ? json : []);
@@ -176,8 +192,21 @@ export default function Deals() {
         <div style={{ padding: 14, marginBottom: 14, background: '#fffbeb', color: '#92400e', borderRadius: 10, fontSize: 13 }}>{unlockError}</div>
       )}
 
-      {!loading && !error && filtered.length === 0 && (
-        <div style={{ padding: 48, textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: 16 }}>
+      {/* PR-D1 — distinct banner when ENABLE_DEAL_ROOM=false (server 404).
+          MUST be rendered BEFORE the empty-state branch so the empty state
+          never paints when the feature is off. */}
+      {!loading && !error && featureDisabled && (
+        <div data-testid="deal-room-disabled-banner"
+             style={{ padding: 48, textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: 16, border: '1px dashed #cbd5e1' }}>
+          <AlertCircle size={32} style={{ margin: '0 auto 12px', color: '#94a3b8' }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>Deal Room is currently unavailable</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>This feature is temporarily disabled. Please check back later or contact support if this persists.</div>
+        </div>
+      )}
+
+      {!loading && !error && !featureDisabled && filtered.length === 0 && (
+        <div data-testid="deal-room-empty-state"
+             style={{ padding: 48, textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: 16 }}>
           <Tag size={32} style={{ margin: '0 auto 12px', color: '#cbd5e1' }} />
           <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>No deals available right now</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>Check back soon — new discounted inventory is added regularly.</div>
