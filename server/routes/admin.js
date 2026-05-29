@@ -875,7 +875,12 @@ router.post('/leads/:id/tier-override', [auth, admin], async (req, res) => {
     if (!req.body?.reason || String(req.body.reason).trim().length < 3) {
       return res.status(400).json({ msg: 'reason is required (min 3 chars)' });
     }
-    const before = { adminTierOverride: lead.adminTierOverride || null, qualityGateCleared: lead.qualityGateCleared, status: lead.status };
+    const before = {
+      adminTierOverride: lead.adminTierOverride || null,
+      qualityGateCleared: lead.qualityGateCleared,
+      status: lead.status,
+      distributionDecision: lead.distributionDecision,
+    };
     lead.adminTierOverride = {
       tier: requestedTier,
       reason: String(req.body.reason).slice(0, 500),
@@ -896,13 +901,53 @@ router.post('/leads/:id/tier-override', [auth, admin], async (req, res) => {
       lead.statusHistory = lead.statusHistory || [];
       lead.statusHistory.push({ status: 'READY_FOR_DISTRIBUTION', timestamp: new Date() });
     }
+    // 2026-05-29 (C1 fix) — wire distributionDecision in lockstep with the
+    // tier-override decision. Previously the SET handler wrote
+    // adminTierOverride + qualityGateCleared + (conditional) status but
+    // NOT distributionDecision, leaving a state where the mover-visibility
+    // filter (which reads distributionDecision) could disagree with what
+    // admin just decided. Symmetric with the CLEAR handler below that
+    // calls deriveSystemDecision + writes distributionDecision in one
+    // transition. Also symmetric with admin.approve / admin.reject which
+    // both write admin_approved / admin_rejected respectively.
+    //
+    // tier ≠ 'rejected'  → admin_approved (admin explicitly cleared this lead for distribution)
+    // tier === 'rejected' → admin_rejected (admin explicitly held this lead out)
+    lead.distributionDecision = (requestedTier === 'rejected') ? 'admin_rejected' : 'admin_approved';
+    lead.distributionDecisionBy     = String(req.user.id);
+    lead.distributionDecisionAt     = new Date();
+    lead.distributionDecisionReason = `admin tier-override → ${requestedTier}: ${String(req.body.reason).slice(0, 200)}`;
     await lead.save();
     logAdminAction({
       actor: req.user.id, action: 'lead.tier_override.set',
       targetType: 'lead', targetId: lead._id,
-      before, after: { adminTierOverride: lead.adminTierOverride },
+      before, after: {
+        adminTierOverride: lead.adminTierOverride,
+        distributionDecision: lead.distributionDecision,
+      },
       metadata: { tier: requestedTier, reason: req.body.reason, note: req.body?.note },
     });
+
+    // 2026-05-29 (C1 fix) — fire the canonical post-approval dispatch
+    // orchestrator, same posture as admin.approve / admin.rescore /
+    // admin.tier_override.clear. Previously the SET handler was the LAST
+    // silent-state path: a PENDING_MANUAL_REVIEW lead promoted via
+    // tier-override (non-rejected) became broadcast-eligible (status +
+    // quality + decision all flipped) but no SMS / email / socket fired.
+    // Movers learned passively via feed-poll.
+    //
+    // Calling unconditionally is safe + idempotent:
+    //   - tier='rejected' → fresh-DB visibility check inside the
+    //     orchestrator returns hidden:true → no-op + log line.
+    //   - already-broadcast lead → per-channel notifiedAt CAS in
+    //     broadcastLeadSMS / broadcastLeadEmail short-circuits.
+    // Fire-and-forget so the HTTP response is not gated on Twilio/
+    // SendGrid/socket latency.
+    const { dispatchApprovedLead } = require('../services/dispatchOrchestrator');
+    dispatchApprovedLead(lead._id, { source: 'admin.tier_override.set' }).catch(err =>
+      console.error(`[admin.tier_override.set] dispatch error for ${lead._id}: ${err.message}`)
+    );
+
     const payload = await buildSnapshotPayload(lead._id);
     res.json({ ok: true, action: 'tier-override', ...payload });
   } catch (err) {

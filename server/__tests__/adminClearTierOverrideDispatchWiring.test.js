@@ -171,27 +171,35 @@ test('H1. PR #54 admin.rescore dispatchApprovedLead call unchanged', () => {
   );
 });
 
-// ── I. SET tier-override still NOT wired ───────────────────────────────
+// ── I. SET tier-override is now wired (C1 fix, 2026-05-29) ────────────
 
-test('I1. The SET (POST) tier-override route is INTENTIONALLY NOT wired', () => {
-  // PR #54 verified that tier-override SET does not flip distributionDecision
-  // (it only sets adminTierOverride + qualityGateCleared). A held lead
-  // remains held; visibility filter still suppresses. This PR preserves
-  // that intentional asymmetry: CLEAR (DELETE) re-derives + dispatches
-  // because the verdict actually changes; SET (POST) does not because it
-  // doesn't change distributionDecision.
-  assert.doesNotMatch(
+test('I1. SET (POST) tier-override calls dispatchApprovedLead with source admin.tier_override.set', () => {
+  // 2026-05-29 (C1 fix) — reversed from the original "intentionally not
+  // wired" invariant. The architecture audit (docs/audits/
+  // architecture-final/02-visibility-matrix-and-conflicts.md C1) confirmed
+  // that the prior SET-handler design was a silent-state bug class: a
+  // held lead promoted via tier-override (non-rejected) became broadcast-
+  // eligible by status + quality gates but no SMS/email/socket fired.
+  // Same shape as PR #52 (admin.approve), PR #54 (admin.rescore), PR #56
+  // (admin.tier_override.clear) closed for the OTHER admin write paths.
+  //
+  // C1 fix wires SET symmetrically: write distributionDecision in
+  // lockstep + call dispatchApprovedLead.
+  assert.match(
     setBlock,
-    /dispatchApprovedLead/,
-    'SET tier-override (POST) route must NOT call dispatchApprovedLead — preserves PR #54 invariant'
+    /dispatchApprovedLead\(\s*lead\._id\s*,\s*\{\s*source\s*:\s*['"]admin\.tier_override\.set['"]\s*\}\s*\)/,
+    'SET (POST) tier-override must call dispatchApprovedLead with source admin.tier_override.set (C1 fix)'
   );
 });
 
-test('I2. SET tier-override does NOT write distributionDecision (the invariant that makes I1 correct)', () => {
-  assert.doesNotMatch(
+test('I2. SET tier-override writes distributionDecision in lockstep (admin_approved or admin_rejected)', () => {
+  // 2026-05-29 (C1 fix) — SET now writes distributionDecision via
+  // ternary on requestedTier === 'rejected'. Mirrors admin.approve
+  // (admin_approved) and admin.reject (admin_rejected) behavior.
+  assert.match(
     setBlock,
-    /lead\.distributionDecision\s*=/,
-    'SET tier-override must not write lead.distributionDecision directly — if this changes, I1 must be revisited'
+    /lead\.distributionDecision\s*=\s*\(\s*requestedTier\s*===\s*['"]rejected['"]\s*\)\s*\?\s*['"]admin_rejected['"]\s*:\s*['"]admin_approved['"]/,
+    'SET tier-override must write distributionDecision via ternary (rejected → admin_rejected; else → admin_approved)'
   );
 });
 
