@@ -210,28 +210,57 @@ test('F2. The openClaimWindow call is gated on ENABLE_SMS_CLAIM_SCAFFOLD === "tr
   );
 });
 
-test('F3. openClaimWindow is called with lead._id and recipient IDs from matched movers', () => {
+test('F3. openClaimWindow is called with lead._id and recipient IDs (no PII)', () => {
   // Pin the argument shape so a future refactor doesn't accidentally
   // pass the entire mover objects (PII leak into claimWindow.broadcastTo).
+  //
+  // 2026-05-28 — PR-S5/S7 per-mover Claim eligibility partition narrowed
+  // the recipient pool from `matched` (every mover passing the policy
+  // gates) to `claimEligibleMovers` (additionally requires
+  // scaffoldEnabled + smsClaim.optInRequested + balance ≥ buyNowPrice).
+  // The invariant we lock in here is unchanged:
+  //   * openClaimWindow takes (leadId, ids[])
+  //   * the ids[] is `.map(m => m._id)` over the recipient pool (NOT
+  //     the full mover object — no PII into the claimWindow doc)
+  // The pool variable is allowed to be either `matched` (pre-partition)
+  // or `claimEligibleMovers` (current) so this test survives the
+  // architectural refinement without losing the no-PII guarantee.
   assert.match(
     twilioServiceExec,
     /openClaimWindow\(\s*lead\._id\s*,\s*recipientIds\s*\)/,
-    'openClaimWindow(leadId, recipientIds) — recipientIds is the matched movers _id array, not the full mover objects'
+    'openClaimWindow(leadId, recipientIds) — recipientIds is the recipient-pool _id array, not the full mover objects'
   );
   assert.match(
     twilioServiceExec,
-    /recipientIds\s*=\s*matched\.map\(\s*m\s*=>\s*m\._id\s*\)/,
-    'recipientIds must be matched.map(m => m._id) — IDs only, no PII'
+    /recipientIds\s*=\s*(matched|claimEligibleMovers)\.map\(\s*m\s*=>\s*m\._id\s*\)/,
+    'recipientIds must be (matched|claimEligibleMovers).map(m => m._id) — IDs only, no PII'
   );
 });
 
-test('F4. Token from openClaimWindow is threaded into sendMoverLeadSMS as 3rd arg', () => {
+test('F4. Per-mover token is threaded into sendMoverLeadSMS as 3rd arg', () => {
   // The whole point of opening the window is to put the token in the SMS.
   // If a refactor drops the 3rd arg we'd silently regress.
+  //
+  // 2026-05-28 — PR-S5/S7 per-mover Claim eligibility partition: instead
+  // of passing the same `claimToken` to every recipient, each mover gets
+  // a token-or-null decided by `isClaimEligible(mover)`. The 3rd arg is
+  // now `tokenForThisMover` (resolved per iteration), not the raw
+  // `claimToken`. The invariant preserved: sendMoverLeadSMS is invoked
+  // with (phone, lead, <token-or-null>); a future refactor that drops
+  // the 3rd arg entirely would silently revert to tokenless for ALL
+  // movers and regress the SMS Claim flow.
   assert.match(
     twilioServiceExec,
-    /sendMoverLeadSMS\(\s*mover\.phone\s*,\s*lead\s*,\s*claimToken\s*\)/,
-    'sendMoverLeadSMS must be called with (mover.phone, lead, claimToken) — drop the 3rd arg and the SMS reverts to tokenless silently'
+    /sendMoverLeadSMS\(\s*mover\.phone\s*,\s*lead\s*,\s*(claimToken|tokenForThisMover)\s*\)/,
+    'sendMoverLeadSMS must be called with (mover.phone, lead, <token-or-null>) — drop the 3rd arg and the SMS reverts to tokenless silently'
+  );
+  // Additionally pin the per-mover resolution logic itself: tokenForThisMover
+  // must be derived from isClaimEligible(mover) — claim-eligible get the
+  // token, others get null. This is the PR-S7 partition contract.
+  assert.match(
+    twilioServiceExec,
+    /tokenForThisMover\s*=\s*isClaimEligible\(\s*mover\s*\)\s*\?\s*claimToken\s*:\s*null/,
+    'tokenForThisMover must be `isClaimEligible(mover) ? claimToken : null` — per-mover partition (PR-S7)'
   );
 });
 
@@ -244,21 +273,55 @@ test('F5. broadcastLeadSMS does NOT block the broadcast on openClaimWindow error
     /try\s*\{[\s\S]*?openClaimWindow[\s\S]*?\}\s*catch\s*\(/,
     'openClaimWindow must be wrapped in try/catch'
   );
+  // 2026-05-28 — PR-S7 changed the fallback log copy from "tokenless
+  // broadcast" to "Alert variant" (the partition is now "Claim variant"
+  // vs "Alert variant", not "tokenful" vs "tokenless"). Accept either
+  // wording — the invariant is that there IS a log line documenting the
+  // fallback so operators triaging silent token-missing reports can
+  // find it.
   assert.match(
     twilioServiceExec,
-    /Continuing with tokenless broadcast|falling back to tokenless|tokenless broadcast/i,
+    /Continuing with tokenless broadcast|falling back to tokenless|tokenless broadcast|Alert variant for all movers|falling back\s+to Alert variant/i,
     'The catch/null branch must log a fallback message — operators read for this when triaging silent token-missing reports'
   );
 });
 
 test('F6. Flag-off path leaves claimToken at null (no Lead.claimWindow writes)', () => {
   // Critical: flag-OFF production state. claimToken must stay null from
-  // its initial declaration if the env check fails. The token gets passed
-  // to sendMoverLeadSMS regardless — null token → legacy body branch.
+  // its initial declaration. The token gets passed to sendMoverLeadSMS
+  // regardless — null token → legacy body branch.
+  //
+  // 2026-05-28 — PR-S7 per-mover partition restructured the env-gate.
+  // The flag check now lives in `isClaimEligible(mover)` (consulted per
+  // mover) and the openClaimWindow call is gated on the per-mover-
+  // filtered pool being non-empty. The `let claimToken = null;`
+  // declaration moved a few lines and is now followed by
+  // `if (claimEligibleMovers.length > 0)` (which is false when the env
+  // flag is off, because isClaimEligible short-circuits on
+  // scaffoldEnabled). Net effect is identical: flag-OFF → no mover
+  // passes isClaimEligible → claimEligibleMovers is empty → the
+  // openClaimWindow branch never executes → claimToken stays null.
+  //
+  // We lock in two halves:
+  //   (a) The `let claimToken = null;` declaration exists.
+  //   (b) The openClaimWindow branch is gated on the claim-eligible
+  //       pool being non-empty (which is empty under flag-OFF).
   assert.match(
     twilioServiceExec,
-    /let\s+claimToken\s*=\s*null\s*;\s*if\s*\(\s*process\.env\.ENABLE_SMS_CLAIM_SCAFFOLD/,
-    'claimToken must be declared `let claimToken = null` immediately followed by the env-gated if — keeps the flag-OFF default truly null'
+    /let\s+claimToken\s*=\s*null\s*;/,
+    'claimToken must be declared `let claimToken = null` — flag-OFF default must be truly null'
+  );
+  assert.match(
+    twilioServiceExec,
+    /if\s*\(\s*claimEligibleMovers\.length\s*>\s*0\s*\)\s*\{[\s\S]{0,400}openClaimWindow/,
+    'openClaimWindow branch must be gated on claimEligibleMovers.length > 0 — flag-OFF leaves this empty so claimToken stays null'
+  );
+  // The flag check itself must remain a strict-equal `=== "true"` — F2
+  // already pins that, but re-assert in the per-mover context.
+  assert.match(
+    twilioServiceExec,
+    /scaffoldEnabled\s*&&\s*mover\.smsClaim/,
+    'isClaimEligible must compose scaffoldEnabled && mover.smsClaim — short-circuits on flag-OFF'
   );
 });
 
