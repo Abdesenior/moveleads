@@ -1,27 +1,37 @@
-import { useContext, useEffect, useState, useCallback } from 'react';
+import { useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Tag, MapPin, Calendar, Home, RefreshCw, AlertCircle, X, CheckCircle } from 'lucide-react';
+import { Tag, MapPin, Calendar, Home, RefreshCw, AlertCircle, X, CheckCircle, Clock } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { toMoverLabel } from '../../utils/tierLabels';
+import './Deals.css';
 
 /**
- * Deal Room — secondary discounted inventory (V1).
+ * Deal Room — exchange-style discounted secondary inventory (DRX-1).
  *
  * Mover-facing browse surface. NOT real-time. Pulls inventoryChannel='deal_room'
  * leads from GET /api/leads/deals (env-gated by ENABLE_DEAL_ROOM on the server).
  * Unlock CTA hits the existing POST /api/bids/:leadId/buy-now path — no new
  * money path; same atomic claim + balance debit + PurchasedLead + Transaction
- * as the Live Feed.
+ * as the Live Feed. (PR-D1 + PR-D2 + PR-D3 + scenario tests verified this.)
  *
- * Page intentionally minimal for V1:
- *   - No packs (V2)
- *   - No auctions (V3)
- *   - No filters beyond a basic search input
- *   - No sort options (server sorts by updatedAt desc — most recently moved
- *     to Deal Room appears first, which matches admin intent for "showcase
- *     what was just added")
+ * DRX-1 (2026-05-29) replaces the card grid with a single 7-column table
+ * mirroring LeadFeed.jsx structure: Route / Size / Move date / Listed /
+ * Was / Now / Action. The same JSX serves the desktop table layout and
+ * the mobile stacked-card layout via CSS media queries in Deals.css.
+ *
+ * Future-readiness: the render path iterates an `items` array of shape
+ * `{ type: 'lead' | 'pack', ... }`. Today `items` is always
+ * `leads.map(l => ({ type: 'lead', lead: l }))`. A future PR can add
+ * `type: 'pack'` rows without restructuring this file. See
+ * docs/audits/deal-room-exchange-redesign/00-ux-audit-and-wireframe.md
+ * §2.3 for the planned pack-row shape.
+ *
+ * Surface posture (unchanged from PR-D1/D2/D3):
+ *   - No packs (post-pilot)
+ *   - No auctions (auction infra dormant)
  *   - No socket "new deal" emit — page is poll-on-refresh
+ *   - No coverage filter on /deals — discount-catalog model (documented S4.3)
  */
 
 export default function Deals() {
@@ -127,18 +137,35 @@ export default function Deals() {
     }
   };
 
-  const filtered = !search ? leads : leads.filter(l => {
+  // Filtered list — single text search over city / zip / size today.
+  // DRX-2 adds Distance / Discount / Move date dropdowns; the future
+  // pack-row case will require filtering on item.type as well.
+  const filtered = useMemo(() => {
+    if (!search) return leads;
     const s = search.toLowerCase();
-    return (l.originCity || '').toLowerCase().includes(s)
-        || (l.destinationCity || '').toLowerCase().includes(s)
-        || (l.homeSize || '').toLowerCase().includes(s);
-  });
+    return leads.filter(l =>
+      (l.originCity || '').toLowerCase().includes(s)
+      || (l.destinationCity || '').toLowerCase().includes(s)
+      || (l.homeSize || '').toLowerCase().includes(s)
+      || (l.originZip || '').toLowerCase().includes(s)
+      || (l.destinationZip || '').toLowerCase().includes(s)
+    );
+  }, [leads, search]);
+
+  // Discriminated-union item shape — future-pack-ready. Today every
+  // item is { type: 'lead', lead: leadDoc }. A future pack-aware feed
+  // will push { type: 'pack', pack: packDoc } items into the same
+  // array; the table renders one row per item.
+  const items = useMemo(
+    () => filtered.map(lead => ({ type: 'lead', lead })),
+    [filtered]
+  );
 
   return (
     <DashboardLayout>
       <div style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Tag size={22} color="#d97706" />
+          <Tag size={22} color="#0d9488" />
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>Deal Room</h1>
         </div>
         <p style={{ marginTop: 6, fontSize: 13, color: '#64748b' }}>
@@ -174,7 +201,7 @@ export default function Deals() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search by city or home size…"
+          placeholder="Search by city, ZIP, or home size…"
           style={{ flex: 1, minWidth: 220, padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }}
         />
         <button onClick={fetchDeals} disabled={loading}
@@ -204,7 +231,7 @@ export default function Deals() {
         </div>
       )}
 
-      {!loading && !error && !featureDisabled && filtered.length === 0 && (
+      {!loading && !error && !featureDisabled && items.length === 0 && (
         <div data-testid="deal-room-empty-state"
              style={{ padding: 48, textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: 16 }}>
           <Tag size={32} style={{ margin: '0 auto 12px', color: '#cbd5e1' }} />
@@ -213,9 +240,30 @@ export default function Deals() {
         </div>
       )}
 
-      {!loading && filtered.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
-          {filtered.map(lead => <DealCard key={lead._id} lead={lead} onUnlock={openConfirm} busy={busyId === lead._id} />)}
+      {!loading && !featureDisabled && items.length > 0 && (
+        <div className="deals-table-wrap" data-testid="deals-table-wrap">
+          <table className="deals-table">
+            <thead>
+              <tr>
+                <th>Route</th>
+                <th>Size</th>
+                <th>Move date</th>
+                <th>Listed</th>
+                <th>Was</th>
+                <th>Now</th>
+                <th className="col-action-h">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item =>
+                item.type === 'lead'
+                  ? <DealsLeadRow key={item.lead._id} lead={item.lead}
+                                  busy={busyId === item.lead._id} onUnlock={openConfirm} />
+                  // Future: item.type === 'pack' → <DealsPackRow pack={item.pack} ... />
+                  : null
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -234,6 +282,127 @@ export default function Deals() {
       )}
     </DashboardLayout>
   );
+}
+
+/* ── DRX-1: per-lead table row ──────────────────────────────────────────
+ * Renders one <tr> with the 7-column exchange layout. On mobile (≤700px
+ * via Deals.css media queries) the same <tr> collapses into a stacked
+ * card with route header + meta row + price+CTA block.
+ * ───────────────────────────────────────────────────────────────────── */
+function DealsLeadRow({ lead, busy, onUnlock }) {
+  const price = Number(lead.buyNowPrice) || 0;
+  const original = Number(lead.originalPrice) || 0;
+  const discountPct = lead.discountPercent
+    || (original > 0 && price < original ? Math.round((1 - price / original) * 100) : 0);
+  const hasDiscount = original > price && discountPct > 0;
+
+  const moveDateStr = lead.moveDate
+    ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })
+    : '—';
+
+  const listedStr = timeAgo(lead.updatedAt);
+
+  return (
+    <tr className="deals-row" data-testid="deals-lead-row">
+      {/* Route */}
+      <td className="col-route">
+        <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
+          {fmtRoutePart(lead.originCity, lead.originState)}
+          <span style={{ color: '#cbd5e1', fontWeight: 300, margin: '0 6px' }}>→</span>
+          {fmtRoutePart(lead.destinationCity, lead.destinationState)}
+        </div>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+          {(lead.originZip || '—')} → {(lead.destinationZip || '—')}
+          {lead.distance ? ` · ${lead.distance}` : ''}
+          {Number.isFinite(Number(lead.miles)) && Number(lead.miles) > 0 ? ` · ${lead.miles} mi` : ''}
+        </div>
+      </td>
+
+      {/* Size */}
+      <td className="col-size" style={{ whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#475569', fontSize: 13, fontWeight: 600 }}>
+          <Home size={13} color="#94a3b8" />
+          {lead.homeSize || '—'}
+        </span>
+      </td>
+
+      {/* Move date */}
+      <td className="col-date" style={{ whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#475569', fontSize: 13 }}>
+          <Calendar size={13} color="#94a3b8" />
+          {moveDateStr}
+        </span>
+      </td>
+
+      {/* Listed (hidden on mobile via CSS) */}
+      <td className="col-listed" style={{ whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#94a3b8', fontSize: 13 }}>
+          <Clock size={13} />
+          {listedStr}
+        </span>
+      </td>
+
+      {/* Was — strikethrough original (hidden on mobile, merged into action cell) */}
+      <td className="col-was" style={{ whiteSpace: 'nowrap' }}>
+        {hasDiscount
+          ? <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through', fontVariantNumeric: 'tabular-nums' }}>${original}</span>
+          : <span style={{ fontSize: 13, color: '#cbd5e1' }}>—</span>}
+      </td>
+
+      {/* Now — discounted price + discount badge */}
+      <td className="col-now" style={{ whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>${price}</span>
+          {hasDiscount && (
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#047857' }}>−{discountPct}%</span>
+          )}
+        </div>
+      </td>
+
+      {/* Action — Unlock CTA. On mobile, the price block reappears INSIDE
+          this cell above the button via the .price-unlock-mobile element. */}
+      <td className="col-action" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+        <div className="price-unlock-mobile">
+          <span className="price-now">${price}</span>
+          {hasDiscount && <span className="price-was">${original}</span>}
+          {hasDiscount && <span className="price-discount">−{discountPct}%</span>}
+        </div>
+        <button onClick={() => onUnlock(lead)} disabled={busy} className="deals-cta"
+          style={{
+            padding: '10px 18px', borderRadius: 6, border: 'none',
+            background: busy ? '#cbd5e1' : '#0d9488',
+            color: '#fff', fontWeight: 700, fontSize: 13,
+            cursor: busy ? 'wait' : 'pointer',
+            letterSpacing: 0.2,
+          }}>
+          {busy ? 'Unlocking…' : `Unlock $${price}`}
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+/* ── Helpers ─────────────────────────────────────────────────────────── */
+
+function fmtRoutePart(city, state) {
+  if (!city) return '—';
+  return state ? `${city}, ${state}` : city;
+}
+
+function timeAgo(dateLike) {
+  if (!dateLike) return '—';
+  const then = new Date(dateLike);
+  if (Number.isNaN(then.getTime())) return '—';
+  const sec = Math.max(0, Math.floor((Date.now() - then.getTime()) / 1000));
+  if (sec < 60) return 'just now';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 48) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 14) return `${day}d ago`;
+  const wk = Math.floor(day / 7);
+  return `${wk}w ago`;
 }
 
 /* ── V1.6 — Unlock confirmation modal ───────────────────────────────────────
@@ -382,77 +551,5 @@ function QualityTag({ tone, label }) {
       padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
       background: t.bg, color: t.fg, border: `1px solid ${t.border}`,
     }}>{label}</span>
-  );
-}
-
-function DealCard({ lead, onUnlock, busy }) {
-  const price = Number(lead.buyNowPrice) || 0;
-  const original = Number(lead.originalPrice) || 0;
-  const pct = lead.discountPercent || (original > 0 && price < original ? Math.round((1 - price / original) * 100) : 0);
-
-  const moveDateStr = lead.moveDate
-    ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })
-    : '—';
-
-  return (
-    <div style={{
-      background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #fde68a',
-      boxShadow: '0 2px 8px rgba(245,158,11,0.08)',
-      display: 'flex', flexDirection: 'column', gap: 12,
-    }}>
-      {/* Discount badge top-right */}
-      {pct > 0 && (
-        <div style={{
-          alignSelf: 'flex-end',
-          padding: '4px 10px', borderRadius: 100,
-          background: '#fef3c7', color: '#92400e',
-          fontSize: 11, fontWeight: 800, letterSpacing: 0.5,
-        }}>−{pct}% OFF</div>
-      )}
-
-      {/* Route */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <MapPin size={16} color="#d97706" />
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a' }}>
-            {lead.originCity || '—'} → {lead.destinationCity || '—'}
-          </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-            {lead.distance || '—'} · {lead.miles || 0} mi
-          </div>
-        </div>
-      </div>
-
-      {/* Meta row */}
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: '#475569' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <Home size={12} /> {lead.homeSize || '—'}
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <Calendar size={12} /> {moveDateStr}
-        </span>
-      </div>
-
-      {/* Price + unlock */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 10 }}>
-        <div>
-          {original > price && (
-            <div style={{ fontSize: 11, color: '#94a3b8', textDecoration: 'line-through' }}>${original}</div>
-          )}
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>${price}</div>
-        </div>
-        <button onClick={() => onUnlock(lead)} disabled={busy}
-          style={{
-            padding: '11px 18px', borderRadius: 6, border: 'none',
-            background: busy ? '#cbd5e1' : '#0f766e',
-            color: '#fff', fontWeight: 700, fontSize: 13, cursor: busy ? 'wait' : 'pointer',
-            letterSpacing: 0.2,
-          }}>
-          {busy ? 'Unlocking…' : `Unlock $${price}`}
-        </button>
-      </div>
-    </div>
   );
 }
