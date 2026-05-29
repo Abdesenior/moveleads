@@ -15,6 +15,7 @@ const pricingEngineSimple = require('./pricingEngineSimple');
 const { sendAdminLeadNotification, broadcastLeadEmail } = require('./emailService');
 const { sendMoverLeadSMS } = require('./smsService');
 const { openClaimWindow } = require('../utils/claimWindow');
+const { getSmsStatusCallbackUrl } = require('../utils/twilioStatusCallback');
 
 // Twilio — used for SMS and warm-transfer calls. Telecom trust (line type,
 // SMS pumping risk, identity match) is handled by services/twilioLookupService
@@ -767,7 +768,10 @@ async function sendSpeedToLeadSMS(lead, company) {
     const message = await twilioClient.messages.create({
       body: messageBody,
       from: fromPhone,
-      to: lead.customerPhone
+      to: lead.customerPhone,
+      // PR-5: statusCallback for lifecycle observability — see
+      // utils/twilioStatusCallback.js. No behavior change.
+      statusCallback: getSmsStatusCallbackUrl(),
     });
 
     comm.status = 'Sent';
@@ -843,6 +847,9 @@ async function sendMoverSms(toPhone, leadDetails) {
       body,
       from: fromPhone,
       to: toPhone,
+      // PR-5: statusCallback for lifecycle observability — see
+      // utils/twilioStatusCallback.js. No behavior change.
+      statusCallback: getSmsStatusCallbackUrl(),
     });
     console.log(`[Twilio] Mover SMS sent. SID: ${msg.sid}`);
   } catch (err) {

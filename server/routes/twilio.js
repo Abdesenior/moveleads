@@ -11,6 +11,7 @@ const { findLeadByClaimToken } = require('../utils/claimWindow');
 const { moverVisibilityFilter } = require('../utils/leadVisibility');
 const { getIo } = require('../services/socketService');
 const { sendMoverLostClaimSMS } = require('../services/smsService');
+const SmsDeliveryStatus = require('../models/SmsDeliveryStatus');
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 const MessagingResponse = twilio.twiml.MessagingResponse;
@@ -115,6 +116,110 @@ router.post('/voice/status', (req, res) => {
   console.log(`[Twilio] Status callback — SID: ${CallSid} | Status: ${CallStatus} | To: ${To} | From: ${From} | Duration: ${CallDuration}s`);
   res.sendStatus(204);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PR-5 — Outbound SMS delivery-status webhook.
+// ─────────────────────────────────────────────────────────────────────────────
+// Twilio POSTs to this URL as each outbound message lifecycle event fires:
+//   queued → sending → sent → delivered      (happy path)
+//   queued → sent → undelivered              (carrier-side failure)
+//   queued → failed                           (Twilio-side rejection)
+//
+// Closes the gap between "messages.create() resolved" (Twilio queued it)
+// and "the device actually received / failed / undelivered." Before PR-5
+// the only signal we had was the Promise resolve, which only confirms
+// queuing.
+//
+// Wired via `statusCallback` on every outbound messages.create — see
+// utils/twilioStatusCallback.js (single source of truth for the URL).
+//
+// Mounted parser locally (express.urlencoded) because the global
+// express.json() doesn't parse Twilio's form-encoded bodies. Same posture
+// as /sms/inbound above.
+//
+// Idempotency: upsert by MessageSid. Twilio retries on non-2xx for up to
+// 24 hours; the upsert means a retry of the SAME status update mutates
+// the row in place rather than creating a duplicate. A retry of a
+// SUPERSEDED status (e.g. retry of "queued" after "delivered" arrived)
+// will overwrite the more recent status — Twilio retries are rare and
+// the lifecycle is monotonic, so this is acceptable. If finer-grained
+// status history becomes necessary, future work moves to an append-only
+// model.
+//
+// 204 on success. We deliberately return 204 even on validation errors
+// (missing MessageSid, malformed body) so Twilio doesn't retry forever
+// on a payload it'll never get right — observability MUST NOT push
+// Twilio into an infinite retry loop on garbage input. Persistence
+// errors return 500 (Twilio retries; transient Mongo failure is the
+// case where retries help).
+router.post(
+  '/sms/status',
+  express.urlencoded({ extended: false }),
+  twilioWebhook,
+  async (req, res) => {
+    const body = req.body || {};
+    const messageSid    = (body.MessageSid    || body.SmsSid    || '').trim();
+    const messageStatus = (body.MessageStatus || body.SmsStatus || '').trim();
+    const errorCodeRaw  = body.ErrorCode;
+    const errorMessage  = (body.ErrorMessage  || '').trim() || undefined;
+    const toPhone       = (body.To   || '').trim() || undefined;
+    const fromPhone     = (body.From || '').trim() || undefined;
+
+    if (!messageSid) {
+      // No SID means we cannot upsert. Log + ack so Twilio doesn't retry
+      // an unrecoverable payload. NOT a 500 — see route header.
+      console.warn(
+        `[SmsStatus] missing MessageSid in callback — keys=${Object.keys(body).join(',')}`
+      );
+      return res.sendStatus(204);
+    }
+
+    // ErrorCode is a string like "30003" in Twilio's form-encoded payload.
+    // Parse to a number for filterable storage; null on invalid/absent so
+    // admin queries `{ errorCode: { $exists: true } }` work cleanly.
+    let errorCode;
+    if (errorCodeRaw !== undefined && errorCodeRaw !== '') {
+      const n = parseInt(errorCodeRaw, 10);
+      if (Number.isFinite(n)) errorCode = n;
+    }
+
+    // Build the update payload. $set the mutable fields; $setOnInsert
+    // ensures receivedAt is preserved across retries (the first callback
+    // is the entry point into the lifecycle).
+    const set = {
+      messageStatus: messageStatus || undefined,
+      updatedAt:     new Date(),
+      rawPayload:    body,
+    };
+    if (errorCode !== undefined) set.errorCode    = errorCode;
+    if (errorMessage)            set.errorMessage = errorMessage;
+    if (toPhone)                 set.toPhone      = toPhone;
+    if (fromPhone)               set.fromPhone    = fromPhone;
+
+    try {
+      await SmsDeliveryStatus.updateOne(
+        { messageSid },
+        {
+          $set: set,
+          $setOnInsert: { messageSid, receivedAt: new Date() },
+        },
+        { upsert: true }
+      );
+      console.log(
+        `[SmsStatus] sid=${messageSid} status=${messageStatus || '(none)'} ` +
+        `to=${toPhone || '(none)'} errorCode=${errorCode ?? '-'}`
+      );
+      return res.sendStatus(204);
+    } catch (err) {
+      // Transient Mongo failure — return 500 so Twilio retries (lifecycle
+      // observability matters for failed/undelivered cases). Non-Mongo
+      // errors (e.g. validation) shouldn't happen at this point since
+      // we've already coerced inputs above.
+      console.error(`[SmsStatus] persistence failed for sid=${messageSid}: ${err.message}`);
+      return res.sendStatus(500);
+    }
+  }
+);
 
 /**
  * Inbound SMS webhook — Twilio POSTs every inbound SMS to this URL.
