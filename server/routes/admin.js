@@ -919,6 +919,29 @@ router.delete('/leads/:id/tier-override', [auth, admin], async (req, res) => {
       before, after: { adminTierOverride: null, distributionDecision: lead.distributionDecision },
       metadata: { reason: req.body?.reason || 'admin cleared override' },
     });
+
+    // 2026-05-29 — fire the canonical post-approval dispatch orchestrator.
+    //
+    // Clearing an admin tier-override re-derives distributionDecision via
+    // deriveSystemDecision (line 910). If the prior state was admin_rejected
+    // (or admin_approved that turns out to be system_held on re-derivation)
+    // and the new derived decision is system_approved, the lead becomes
+    // distributable — but no SMS / email / socket broadcast fires. Same
+    // class as the bugs PR #52 (admin.approve) and PR #54 (admin.rescore)
+    // closed. Identified during the launch-readiness silent-state hunt
+    // (finding F-4).
+    //
+    // dispatchApprovedLead handles both the "still not distributable" case
+    // (fresh-DB visibility check no-ops with a log line) and the "already
+    // broadcast" case (per-channel notifiedAt CAS short-circuits broad-
+    // casters). Calling unconditionally here is safe + idempotent. Same
+    // posture as PR #54: fire-and-forget so the HTTP response is not gated
+    // on Twilio/SendGrid/socket latency.
+    const { dispatchApprovedLead } = require('../services/dispatchOrchestrator');
+    dispatchApprovedLead(lead._id, { source: 'admin.tier_override.clear' }).catch(err =>
+      console.error(`[admin.tier_override.clear] dispatch error for ${lead._id}: ${err.message}`)
+    );
+
     const payload = await buildSnapshotPayload(lead._id);
     res.json({ ok: true, action: 'tier-override-clear', ...payload });
   } catch (err) {
