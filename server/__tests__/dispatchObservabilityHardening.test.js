@@ -208,10 +208,14 @@ test('F1. On diagnostic-query failure, falls back to the legacy log line', () =>
 
 test('F2. Function still returns early on no-candidates (behavior unchanged)', () => {
   // The return statement must remain after the diagnostic block — same
-  // early-exit semantics as before.
+  // early-exit semantics as before. PR-4 (2026-05-29) added a
+  // fire-and-forget manifest write between the diagnostic block and the
+  // return; the early-return guarantee is unchanged — relax the regex to
+  // tolerate intervening observability calls but keep the return-early
+  // invariant.
   assert.match(
     twilioSvcExec,
-    /\}\s*\n\s*return;\s*\n\s*\}/,
+    /No candidates remain after hard filter[\s\S]{0,1500}return;\s*\n\s*\}/,
     'No-candidates branch must still `return` early after the breakdown log'
   );
 });

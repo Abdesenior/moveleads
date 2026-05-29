@@ -157,10 +157,19 @@ test('E1. The smsCounters pipeline write is the ONLY smsCounters update site in 
   assert.ok(counterWriteSites.length > 0, 'smsCounters references must exist');
 
   // The only updateOne mentioning smsCounters must be the pipeline one.
-  const updateOneCalls = twilioExec.match(/updateOne\([\s\S]*?(?=updateOne\(|$)/g) || [];
-  const counterUpdates = updateOneCalls.filter(c => /smsCounters/.test(c));
-  assert.equal(counterUpdates.length, 1,
-    `Expected exactly ONE updateOne call referencing smsCounters. Found ${counterUpdates.length}`);
+  // The smsCounters bump uses the raw driver: User.collection.updateOne.
+  // Match THAT specifically (Mongoose-wrapped Lead.updateOne calls added
+  // by PR-4 for the broadcast manifest are an orthogonal, non-counter
+  // path — they must not count against this guard).
+  const counterCalls = twilioExec.match(/User\.collection\.updateOne\(/g) || [];
+  assert.equal(counterCalls.length, 1,
+    `Expected exactly ONE User.collection.updateOne (the smsCounters pipeline bump). ` +
+    `Found ${counterCalls.length}`);
+  // Defense-in-depth: also confirm no parallel Mongoose-wrapped
+  // User.updateOne path touches smsCounters fields.
+  const mongoosePaths = twilioExec.match(/User\.updateOne\([\s\S]{0,400}?smsCounters/g) || [];
+  assert.equal(mongoosePaths.length, 0,
+    `No Mongoose-wrapped User.updateOne may target smsCounters fields. Found ${mongoosePaths.length}`);
 });
 
 // ── F. Scope discipline ────────────────────────────────────────────────

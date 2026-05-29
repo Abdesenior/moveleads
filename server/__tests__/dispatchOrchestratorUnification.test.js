@@ -215,15 +215,40 @@ test('E3. emitNewLead is wrapped in its own try/catch (synchronous call)', () =>
 
 // ── F. Scope discipline ─────────────────────────────────────────────────
 
-test('F1. Orchestrator does NOT write to Lead', () => {
+test('F1. Orchestrator does NOT write to Lead beyond the PR-4 broadcast manifest', () => {
+  // PR-4 (2026-05-29) added persisted broadcast manifest writes —
+  // additive observability ONLY (lastBroadcastAttemptAt,
+  // lastBroadcastSuppressReason). All other Lead writes (lifecycle,
+  // status, distributionDecision, pricing, etc.) remain forbidden.
   for (const forbidden of [
     /Lead\.findOneAndUpdate/,
-    /Lead\.updateOne/,
     /Lead\.updateMany/,
     /\.save\(\)/,
   ]) {
     assert.doesNotMatch(orchExec, forbidden,
       `Orchestrator must not write to Lead (${forbidden})`);
+  }
+  // Lead.updateOne IS allowed, but ONLY for manifest fields. Walk every
+  // updateOne call and confirm each one's $set body only references
+  // lastBroadcast* fields.
+  const updateCalls = orchExec.match(/Lead\.updateOne\([\s\S]*?\)\s*\.catch/g) || [];
+  assert.ok(updateCalls.length > 0,
+    'PR-4 introduced manifest writes — at least one Lead.updateOne should exist');
+  for (const call of updateCalls) {
+    const setMatch = call.match(/\$set\s*:\s*\{([^}]*)\}/);
+    assert.ok(setMatch, `Manifest write must use $set: ${call}`);
+    const fields = setMatch[1].trim();
+    assert.match(fields, /^lastBroadcast[A-Za-z]+\s*:/,
+      `Manifest write may only $set lastBroadcast* fields; saw: ${fields}`);
+    // Defense-in-depth — forbid lifecycle/financial/state field names in
+    // any orchestrator $set even if PR-4-style additive observability
+    // writes are allowed.
+    for (const forbidden of ['status', 'distributionDecision', 'qualityGateCleared',
+        'notifiedAt', 'winnerId', 'finalPrice', 'buyers', 'claimWindow',
+        'buyNowPrice', 'currentBidPrice']) {
+      assert.ok(!fields.includes(forbidden),
+        `Manifest $set must not touch lifecycle field '${forbidden}'; saw: ${fields}`);
+    }
   }
 });
 

@@ -82,6 +82,38 @@ const LeadSchema = new mongoose.Schema({
   // parallel broadcast paths (SMS+email) only flip it once.
   notifiedAt: { type: Date, default: null },
 
+  // ── Broadcast manifest (PR-4, 2026-05-29) ──────────────────────────────
+  // Persisted observability for "why did/didn't this lead dispatch?" so
+  // the answer comes from the app layer, not only Render logs. Closes
+  // HIGH-CONFIDENCE-FIX-PLAN F6. All three fields are ADDITIVE; legacy
+  // leads (and any lead pre-PR-4) simply have them unset, which is
+  // indistinguishable from "no broadcast attempt observed."
+  //
+  // Writers (single sources of truth — do not write from elsewhere):
+  //   lastBroadcastAttemptAt        — dispatchApprovedLead, at fanout time
+  //   lastBroadcastSuppressReason   — dispatchApprovedLead on visibility
+  //                                   suppression (specific reason from
+  //                                   isHiddenFromMoversById), OR
+  //                                   broadcastLeadSMS when the SMS
+  //                                   pipeline matches zero movers
+  //                                   (refined reason: sms_no_coverage /
+  //                                   sms_no_candidates / sms_no_policy_pass).
+  //                                   Cleared by dispatchApprovedLead when
+  //                                   the broadcast is actually proceeding
+  //                                   so a previously-suppressed lead that
+  //                                   later becomes distributable doesn't
+  //                                   keep the stale reason.
+  //   lastBroadcastMatchedCount     — broadcastLeadSMS after policy filter,
+  //                                   always (including 0).
+  //
+  // Reader: GET /api/admin/leads/:id/distribution-diagnose.
+  //
+  // Writes are best-effort (fire-and-forget). A failed manifest write must
+  // NEVER block the dispatch itself — observability cannot regress behavior.
+  lastBroadcastAttemptAt:      { type: Date,   default: null },
+  lastBroadcastSuppressReason: { type: String, default: null, trim: true, maxlength: 200 },
+  lastBroadcastMatchedCount:   { type: Number, default: null },
+
   // ── V5 Lead Quality (Phase 1 — shadow mode) ────────────────────────────
   // All fields below are OPTIONAL and ADDITIVE. Legacy V4 leads will not
   // have them populated; nothing in production reads from them yet. The

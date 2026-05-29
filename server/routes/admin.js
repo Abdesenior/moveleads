@@ -1049,7 +1049,12 @@ router.get('/leads/:id/distribution-diagnose', [auth, admin], async (req, res) =
         'distributionDecisionBy distributionDecisionAt ' +
         'qualityGateCleared shadowTier structuralBlockers miles ' +
         'notifiedAt originZip destinationZip originState destinationState ' +
-        'validation claimWindow adminTierOverride'
+        'validation claimWindow adminTierOverride ' +
+        // PR-4 broadcast manifest — persisted observability for "why
+        // did/didn't this lead dispatch?" Written by dispatchApprovedLead
+        // (attemptAt + visibility-level suppress reason) and broadcastLeadSMS
+        // (matchedCount + sms-level suppress reason).
+        'lastBroadcastAttemptAt lastBroadcastSuppressReason lastBroadcastMatchedCount'
       )
       .lean();
 
@@ -1135,6 +1140,12 @@ router.get('/leads/:id/distribution-diagnose', [auth, admin], async (req, res) =
         closedReason:  lead.claimWindow.closedReason || null,
       } : null,
       adminTierOverride: lead.adminTierOverride || null,
+      // PR-4 broadcast manifest — persisted observability.
+      lastBroadcastAttemptAt:      lead.lastBroadcastAttemptAt || null,
+      lastBroadcastSuppressReason: lead.lastBroadcastSuppressReason || null,
+      lastBroadcastMatchedCount:   Number.isFinite(lead.lastBroadcastMatchedCount)
+        ? lead.lastBroadcastMatchedCount
+        : null,
       // Derived predicates — reproduce the broadcast suppression decision
       hiddenFromMovers:           hidden,
       hiddenReason:               reason,

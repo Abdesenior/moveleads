@@ -76,6 +76,16 @@ async function dispatchApprovedLead(leadOrId, { force = false, source = 'unknown
     return { dispatched: false, reason: 'no_id' };
   }
 
+  // PR-4 broadcast manifest — record that an attempt happened. Best-effort:
+  // a failed write here MUST NOT block dispatch (observability cannot
+  // regress behavior). Single source of truth for lastBroadcastAttemptAt.
+  Lead.updateOne(
+    { _id: id },
+    { $set: { lastBroadcastAttemptAt: new Date() } }
+  ).catch(err =>
+    console.error(`[dispatchApprovedLead] manifest.attemptAt write failed for ${id}: ${err.message}`)
+  );
+
   // Defense-in-depth visibility check using the fresh DB path. If the
   // lead is not distributable at dispatch time, we silently no-op —
   // the per-channel broadcasters would short-circuit on isHiddenFromMovers
@@ -85,6 +95,16 @@ async function dispatchApprovedLead(leadOrId, { force = false, source = 'unknown
     console.log(
       `[dispatchApprovedLead] suppressed for ${id} — ${check.reason} ` +
       `(source=${source})`
+    );
+    // PR-4 — persist the visibility-level suppress reason. This is the
+    // MOST SPECIFIC reason at this layer (e.g. distributionDecision=
+    // system_held). The SMS path's vaguer reasons (sms_no_coverage etc.)
+    // only fire when we reach the broadcaster — which doesn't happen here.
+    Lead.updateOne(
+      { _id: id },
+      { $set: { lastBroadcastSuppressReason: check.reason } }
+    ).catch(err =>
+      console.error(`[dispatchApprovedLead] manifest.suppressReason write failed for ${id}: ${err.message}`)
     );
     return { dispatched: false, reason: check.reason };
   }
@@ -97,6 +117,18 @@ async function dispatchApprovedLead(leadOrId, { force = false, source = 'unknown
     console.warn(`[dispatchApprovedLead] lead ${id} not found (source=${source}); skipping`);
     return { dispatched: false, reason: 'not_found' };
   }
+
+  // PR-4 — proceeding to broadcast. Clear any stale suppress reason from
+  // a previous attempt (e.g. a lead that was system_held last time and is
+  // now admin_approved). We only clear the REASON; matchedCount and
+  // attemptAt are independently maintained by the SMS path and the
+  // attemptAt write above.
+  Lead.updateOne(
+    { _id: id },
+    { $set: { lastBroadcastSuppressReason: null } }
+  ).catch(err =>
+    console.error(`[dispatchApprovedLead] manifest.suppressReason clear failed for ${id}: ${err.message}`)
+  );
 
   console.log(
     `[dispatchApprovedLead] dispatching lead=${id} source=${source} force=${force}`
