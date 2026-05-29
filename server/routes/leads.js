@@ -125,6 +125,14 @@ router.get('/deals', auth, async (req, res) => {
       return { ...l, discountPercent };
     });
 
+    // PR-D3 (2026-05-29) — single happy-path log line so operators can
+    // tell from Render logs whether Deal Room is being hit at all and at
+    // what volume. Quiet on empty ticks would be misleading; include the
+    // mover id + count + the active sort so an operator can correlate
+    // a quiet log with a complaining mover. Pure observability, single
+    // line per request.
+    console.log(`[Deals] mover=${req.user.id} count=${leads.length} sort=updatedAt:-1`);
+
     res.json(leads);
   } catch (err) {
     console.error('[Deals Endpoint] error:', err.message);

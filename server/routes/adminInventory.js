@@ -291,4 +291,119 @@ router.post('/bulk', [auth, admin], async (req, res) => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PR-D3 (2026-05-29) — Deal Room health summary for operators.
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Closes the third half of the observability gap from
+// docs/audits/deal-room-pipeline/07-risks-and-bugs.md R4. Read-only.
+//
+// Purpose: answer the operational questions an admin asks during pilot
+// without joining tables or opening Mongo shell:
+//   - Is Deal Room enabled in this environment?
+//   - How many leads are currently in Deal Room (in any state)?
+//   - How many are sellable right now (passes mover-side filters)?
+//   - How many got sold (status='Purchased')?
+//   - What's the staleness range — oldest and newest by updatedAt?
+//
+// Auth posture: admin-only. Same as the bulk endpoint above so the
+// router-level chain (verifiedGate at mount time + [auth, admin] here)
+// is consistent.
+//
+// Flag posture: this endpoint does NOT 503 when ENABLE_DEAL_ROOM is off.
+// The primary operator use case is "is the flag on or off in this
+// environment?" — answering with 503 defeats that purpose. Instead we
+// always return 200 with `enabled` reflecting the current flag state,
+// and the counts/leads queries run regardless (movers can't see Deal
+// Room when off, but admins should still be able to see the inventory
+// the flag controls).
+//
+// Cost: 4 indexed countDocuments + 2 indexed findOne — bounded constant
+// cost regardless of inventory size. Suitable for occasional admin polls
+// (not for a real-time dashboard ticker — that's out of scope; see the
+// scope discipline note in the test file).
+//
+// Response shape (documented in __tests__/dealRoomObservability.test.js):
+//   {
+//     enabled: boolean,
+//     totalDealRoomLeads:      number,
+//     availableDealRoomLeads:  number,
+//     purchasedDealRoomLeads:  number,
+//     oldest: { leadId, updatedAt, ageDays } | null,
+//     newest: { leadId, updatedAt, ageDays } | null,
+//     generatedAt: ISO 8601 string,
+//   }
+router.get('/deal-room/summary', [auth, admin], async (req, res) => {
+  try {
+    const { isEnabled } = require('../utils/dealRoomFeature');
+    const enabled = isEnabled();
+    const now = new Date();
+
+    // Base filter — every Deal Room lead regardless of lifecycle.
+    const allFilter = { inventoryChannel: 'deal_room' };
+
+    // Sellable subset — same shape as the mover read endpoint
+    // (status + moveDate + distributionDecision). NOT including the
+    // buyers.company self-exclusion (PR-D2) here because that one is
+    // per-mover; an admin summary is identity-agnostic.
+    const availableFilter = {
+      ...allFilter,
+      status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
+      moveDate: { $gte: now },
+      distributionDecision: { $in: ['system_approved', 'admin_approved'] },
+    };
+
+    // Purchased subset — leads that successfully sold from Deal Room
+    // (status flipped to 'Purchased' by /buy-now). Note this lookup is
+    // by current Lead.status; a future refactor that decouples
+    // inventoryChannel from sale state would need to revisit this.
+    const purchasedFilter = {
+      ...allFilter,
+      status: 'Purchased',
+    };
+
+    const [total, available, purchased, oldestArr, newestArr] = await Promise.all([
+      Lead.countDocuments(allFilter),
+      Lead.countDocuments(availableFilter),
+      Lead.countDocuments(purchasedFilter),
+      // Oldest by updatedAt (most stale Deal Room lead).
+      Lead.find(allFilter)
+        .sort({ updatedAt: 1 })
+        .select('_id updatedAt')
+        .limit(1)
+        .lean(),
+      // Newest by updatedAt (most recently touched Deal Room lead).
+      Lead.find(allFilter)
+        .sort({ updatedAt: -1 })
+        .select('_id updatedAt')
+        .limit(1)
+        .lean(),
+    ]);
+
+    function describe(row) {
+      if (!row || !row.updatedAt) return null;
+      const ageMs = now.getTime() - new Date(row.updatedAt).getTime();
+      const ageDays = Math.max(0, Math.round(ageMs / (1000 * 60 * 60 * 24)));
+      return {
+        leadId: String(row._id),
+        updatedAt: new Date(row.updatedAt).toISOString(),
+        ageDays,
+      };
+    }
+
+    return res.json({
+      enabled,
+      totalDealRoomLeads:     total,
+      availableDealRoomLeads: available,
+      purchasedDealRoomLeads: purchased,
+      oldest: describe(oldestArr[0]),
+      newest: describe(newestArr[0]),
+      generatedAt: now.toISOString(),
+    });
+  } catch (err) {
+    console.error('[Admin DealRoomSummary] error:', err.message);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 module.exports = router;
