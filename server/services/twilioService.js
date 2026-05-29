@@ -137,6 +137,12 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     const unionIds = new Set([...legacyCandidateSet, ...strictCandidateSet]);
     if (!unionIds.size) {
       console.log('[SMS] No companies cover this lead (legacy+strict both empty) — no SMS sent');
+      // PR-4 broadcast manifest — record the refined suppress reason for the
+      // SMS pipeline. Most specific reason available at this layer.
+      Lead.updateOne(
+        { _id: lead._id },
+        { $set: { lastBroadcastMatchedCount: 0, lastBroadcastSuppressReason: 'sms_no_coverage' } }
+      ).catch(e => console.error('[SMS] manifest write (no_coverage) failed:', e.message));
       return;
     }
 
@@ -195,6 +201,13 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
         // legacy single-line log so the operator still sees SOMETHING.
         console.log('[SMS] No candidates with phone on file');
       }
+      // PR-4 broadcast manifest — refined reason: union covered the lead
+      // but every member failed a hard filter (role/suspended/smsOptOut/
+      // unverified/phone-missing).
+      Lead.updateOne(
+        { _id: lead._id },
+        { $set: { lastBroadcastMatchedCount: 0, lastBroadcastSuppressReason: 'sms_no_candidates' } }
+      ).catch(e => console.error('[SMS] manifest write (no_candidates) failed:', e.message));
       return;
     }
 
@@ -245,7 +258,24 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     console.log(`[MatchShadow] source=sms lead=${lead._id} candidates=${candidates.length} legacy_pass=${legacyPassCount} strict_pass=${strictPassCount} active=${strictMode ? 'strict' : 'legacy'}`);
 
     console.log(`[SMS] ${unionIds.size} cover this lead (union of legacy+strict), ${candidates.length} candidates after gates, ${matched.length} pass full policy under active mode`);
-    if (!matched.length) return;
+    if (!matched.length) {
+      // PR-4 broadcast manifest — coverage + hard filter passed but the
+      // per-candidate policy (matcher / wantsChannel / dispatch hours /
+      // moveTypes) dropped everyone.
+      Lead.updateOne(
+        { _id: lead._id },
+        { $set: { lastBroadcastMatchedCount: 0, lastBroadcastSuppressReason: 'sms_no_policy_pass' } }
+      ).catch(e => console.error('[SMS] manifest write (no_policy_pass) failed:', e.message));
+      return;
+    }
+    // PR-4 broadcast manifest — record the actual matched count. The SMS
+    // path proceeds from here, so any prior SMS-specific suppress reason
+    // is now stale; clear it. (Visibility-level reasons from the
+    // orchestrator were already cleared when it decided to proceed.)
+    Lead.updateOne(
+      { _id: lead._id },
+      { $set: { lastBroadcastMatchedCount: matched.length, lastBroadcastSuppressReason: null } }
+    ).catch(e => console.error('[SMS] manifest write (matchedCount) failed:', e.message));
     console.log(`[SMS] Broadcasting to: ${matched.map(m => m.companyName || m.phone).join(', ')}`);
 
     // ── PR-S5/S7 — Per-mover SMS Claim eligibility partition ─────────────
