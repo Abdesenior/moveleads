@@ -158,6 +158,10 @@ app.use('/api/admin/partner-research', verifiedGate, require('./routes/admin/par
 // Matcher diagnosis — read-only observability tool. Mounted BEFORE generic
 // /api/admin so /diagnose isn't shadowed by admin.js wildcards.
 app.use('/api/admin/matcher',  verifiedGate, require('./routes/admin/matcherDiagnose'));
+// ClaimAttempt query endpoint — read-only forensics. Closes
+// HIGH-CONFIDENCE-FIX-PLAN F4 (ClaimAttempt had no HTTP read path).
+// Mounted BEFORE generic /api/admin so /claim-attempts wins.
+app.use('/api/admin/claim-attempts', verifiedGate, require('./routes/admin/claimAttempts'));
 // Analytics router — mounted BEFORE generic /api/admin so the specific
 // /quality-analytics, /carrier-analytics, /pricing-v2-analytics paths and
 // /leads/:id/action-timeline get first crack. Falls through to admin.js
