@@ -731,7 +731,18 @@ export default function AdminLeads() {
       if (!res.ok || json.ok === false) throw new Error(json.msg || `HTTP ${res.status}`);
 
       // Refresh the leads list so the new channel state is visible.
-      const refresh = await fetch(`${API_URL}/admin/leads?limit=500`, { headers: { 'x-auth-token': token } });
+      //
+      // 2026-05-29 (C3 fix) — endpoint corrected. The previous URL
+      // `${API_URL}/admin/leads?limit=500` does not exist; the only
+      // collection-level leads endpoint is the (admin branch of)
+      // `GET /api/leads`, which is what the initial fetch on this page
+      // uses (line 597). Pre-C3, every bulk inventory action quietly
+      // 404'd the refresh request, leaving the admin UI staler than
+      // operators thought. The Array.isArray(j.leads) wrapper branch
+      // never fired; the silent 404 just dropped through.
+      //
+      // Closes C3 from docs/audits/architecture-final/02-visibility-matrix-and-conflicts.md.
+      const refresh = await fetch(`${API_URL}/leads`, { headers: { 'x-auth-token': token } });
       if (refresh.ok) {
         const j = await refresh.json();
         if (Array.isArray(j)) setLeads(j);
