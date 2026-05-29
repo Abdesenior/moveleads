@@ -1,4 +1,5 @@
 const twilio = require('twilio');
+const { getSmsStatusCallbackUrl } = require('../utils/twilioStatusCallback');
 
 let _client = null;
 function getClient() {
@@ -51,10 +52,15 @@ async function sendMoverLeadSMS(toPhone, lead, claimToken = null) {
   console.log(`[SMS] Sending to ${e164}…`);
 
   try {
+    // PR-5: statusCallback wires the Twilio Messages lifecycle (queued →
+    // sent → delivered / failed / undelivered) into POST /api/twilio/sms/status.
+    // Pure observability — adding this param does NOT change the message
+    // body, recipient, or send semantics.
     const result = await getClient().messages.create({
       to:   e164,
       from: process.env.TWILIO_PHONE_NUMBER,
       body,
+      statusCallback: getSmsStatusCallbackUrl(),
     });
     console.log(`[SMS] Sent to ${e164} — SID: ${result.sid}`);
     // Returning a truthy value lets callers gate counter bumps on success.
@@ -115,10 +121,12 @@ async function sendMoverLostClaimSMS(toPhone) {
   console.log(`[SMS] Sending lost-claim notice to ${e164}…`);
 
   try {
+    // PR-5: statusCallback for lifecycle observability — see sendMoverLeadSMS.
     const result = await getClient().messages.create({
       to:   e164,
       from: process.env.TWILIO_PHONE_NUMBER,
       body,
+      statusCallback: getSmsStatusCallbackUrl(),
     });
     console.log(`[SMS] Lost-claim sent to ${e164} — SID: ${result.sid}`);
     return { ok: true, sid: result.sid };

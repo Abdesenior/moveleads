@@ -513,16 +513,21 @@ test('J1. routes/bids.js buy-now atomic block is unchanged (sibling invariant)',
     'buy-now broadcastLeadSold call unchanged');
 });
 
-test('J2. routes/twilio.js adds NO new public routes beyond /sms/inbound', () => {
-  // Snapshot the list of router.post calls. Pre-PR-S3 there were:
-  // /voice/incoming, /voice/status, /sms/inbound. PR-S3 must not add any.
+test('J2. routes/twilio.js adds NO unrelated public routes; only the documented set', () => {
+  // Snapshot the list of router.post calls. The accepted set is:
+  //   /voice/incoming, /voice/status       (Twilio voice webhooks)
+  //   /sms/inbound                          (PR-S3 inbound claim/STOP webhook)
+  //   /sms/status                           (PR-5 outbound delivery callback)
+  // Any addition outside this list is out of scope for the SMS Claim
+  // pipeline and must be justified separately.
   const routes = (twilioExec.match(/router\.post\(\s*['"]([^'"]+)['"]/g) || [])
     .map(m => m.match(/['"]([^'"]+)['"]/)[1])
     .sort();
   assert.deepEqual(
     routes,
-    ['/sms/inbound', '/voice/incoming', '/voice/status'],
-    'routes/twilio.js must NOT add new public routes — only extend the existing /sms/inbound handler'
+    ['/sms/inbound', '/sms/status', '/voice/incoming', '/voice/status'],
+    'routes/twilio.js must only contain the documented public route set ' +
+    '(voice webhooks + /sms/inbound (PR-S3) + /sms/status (PR-5))'
   );
 });
 
