@@ -106,6 +106,17 @@ router.get('/deals', auth, async (req, res) => {
       inventoryChannel: 'deal_room',
       status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
       moveDate: { $gte: new Date() },
+      // PR-D2 (2026-05-29) — defense-in-depth self-exclusion. Mirrors the
+      // main feed at /api/leads (mover branch) which has the SAME clause
+      // at leads.js line ~184. Today this is protected by the upstream
+      // admin gate (adminInventory.js refuses move_to_deal_room on leads
+      // with non-empty buyers), but the read-path drift is a latent
+      // landmine: if the admin gate is ever loosened (e.g. operator
+      // allows partial-buyer claim-flow leads into Deal Room), this
+      // clause prevents a mover from seeing their own already-purchased
+      // lead reappear. Additive filter — can only narrow results; no
+      // way for this to surface leads that weren't visible before.
+      'buyers.company': { $ne: req.user.id },
       ...moverVisibilityFilter(),
     };
 
