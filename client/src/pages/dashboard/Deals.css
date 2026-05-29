@@ -1,0 +1,165 @@
+/**
+ * Deals page (DRX-1 — exchange table refactor).
+ *
+ * The desktop layout is a single <table className="deals-table">. The
+ * mobile layout (≤700px) reuses the same JSX and overrides display +
+ * sizing rules so each <tr> becomes a stacked card. Identical pattern
+ * to LeadFeed.css — keeps a single render path for both breakpoints,
+ * avoids JS conditional rendering.
+ *
+ * NOT in this file: pack rows. The .deals-table is structured so a
+ * future <tr className="deals-pack-row"> can slot in without changing
+ * existing rules. See docs/audits/deal-room-exchange-redesign/00-...md
+ * §2.3 for the planned shape.
+ */
+
+.deals-table-wrap {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+}
+
+.deals-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.deals-table > thead > tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.deals-table > thead > tr > th {
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  background: #fafafa;
+  white-space: nowrap;
+}
+
+.deals-table > thead > tr > th.col-action-h {
+  text-align: right;
+}
+
+.deals-table > tbody > tr.deals-row {
+  border-bottom: 1px solid #f8fafc;
+  transition: background 0.12s;
+}
+.deals-table > tbody > tr.deals-row:last-child {
+  border-bottom: none;
+}
+.deals-table > tbody > tr.deals-row:hover {
+  background: #fafbff;
+}
+.deals-table > tbody > tr.deals-row > td {
+  padding: 18px 20px;
+  vertical-align: middle;
+}
+
+/* Mobile-specific helpers (hidden on desktop, shown via the media query
+   block below). */
+.price-unlock-mobile { display: none; }
+
+/* ── Mobile breakpoint — table → stacked card cards ────────────────── */
+@media (max-width: 700px) {
+  .deals-table-wrap {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+    border-radius: 0;
+  }
+  .deals-table,
+  .deals-table > tbody,
+  .deals-table > tbody > tr,
+  .deals-table > tbody > tr > td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+  .deals-table > thead { display: none; }
+
+  .deals-table > tbody > tr.deals-row {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    -webkit-tap-highlight-color: rgba(13, 148, 136, 0.10);
+    overflow: hidden;
+  }
+  .deals-table > tbody > tr.deals-row > td {
+    padding: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  /* Listed column hidden on mobile to save room. */
+  .deals-table > tbody > tr.deals-row > td.col-listed { display: none; }
+
+  /* Size + Date row: inline with a soft separator dot. */
+  .deals-table > tbody > tr.deals-row > td.col-size,
+  .deals-table > tbody > tr.deals-row > td.col-date {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: #475569;
+  }
+  .deals-table > tbody > tr.deals-row > td.col-size { margin-right: 10px; }
+  .deals-table > tbody > tr.deals-row > td.col-date::before {
+    content: "·";
+    margin: 0 10px 0 0;
+    color: #cbd5e1;
+    font-weight: 800;
+    font-size: 14px;
+  }
+
+  /* Price block — collapse "Was / Now" into a single inline row. */
+  .deals-table > tbody > tr.deals-row > td.col-was,
+  .deals-table > tbody > tr.deals-row > td.col-now {
+    display: none;
+  }
+  .deals-table > tbody > tr.deals-row > td.col-action {
+    display: block;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+    text-align: left;
+  }
+  .price-unlock-mobile {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .price-unlock-mobile .price-now {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+  .price-unlock-mobile .price-was {
+    font-size: 13px;
+    color: #94a3b8;
+    text-decoration: line-through;
+    font-variant-numeric: tabular-nums;
+  }
+  .price-unlock-mobile .price-discount {
+    font-size: 12px;
+    font-weight: 700;
+    color: #047857;
+  }
+  .deals-table > tbody > tr.deals-row .deals-cta {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 8px;
+  }
+}

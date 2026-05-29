@@ -199,15 +199,21 @@ test('E1. The disabled banner is gated on featureDisabled', () => {
   );
 });
 
-test('E2. The empty state is gated on !featureDisabled', () => {
+test('E2. The empty state is gated on !featureDisabled + empty render list', () => {
   // Mutual exclusion: empty state ONLY paints when feature is on. If a
   // future contributor drops this guard, the empty state regresses to
   // its pre-PR-D1 (ambiguous) behavior.
-  assert.match(
-    dealsJsxExec,
-    /!loading\s*&&\s*!error\s*&&\s*!featureDisabled\s*&&\s*filtered\.length\s*===\s*0[\s\S]{0,300}deal-room-empty-state/,
-    'Empty state JSX must be gated on `!loading && !error && !featureDisabled && filtered.length === 0`'
-  );
+  //
+  // 2026-05-29 (DRX-1) — render list went from `filtered.length === 0`
+  // (PR-D1) to `items.length === 0` (DRX-1, after the discriminated-
+  // union indirection). The semantic is identical (both mean "nothing
+  // to show"); the variable name changed. Accept either to keep this
+  // invariant meaningful across the refactor.
+  const matched =
+    /!loading\s*&&\s*!error\s*&&\s*!featureDisabled\s*&&\s*items\.length\s*===\s*0[\s\S]{0,300}deal-room-empty-state/.test(dealsJsxExec) ||
+    /!loading\s*&&\s*!error\s*&&\s*!featureDisabled\s*&&\s*filtered\.length\s*===\s*0[\s\S]{0,300}deal-room-empty-state/.test(dealsJsxExec);
+  assert.ok(matched,
+    'Empty state JSX must be gated on `!loading && !error && !featureDisabled && (items.length === 0 || filtered.length === 0)`');
 });
 
 test('E3. The disabled banner branch appears BEFORE the empty state branch in JSX', () => {
@@ -264,12 +270,19 @@ test('F3. The two copy literals are not identical strings', () => {
 
 // ── G. Populated grid still works ─────────────────────────────────────
 
-test('G1. The populated grid still renders on `!loading && filtered.length > 0`', () => {
-  assert.match(
-    dealsJsxExec,
-    /!loading\s*&&\s*filtered\.length\s*>\s*0[\s\S]{0,300}DealCard/,
-    'Populated grid render gate must remain `!loading && filtered.length > 0`'
-  );
+test('G1. The populated render gates on items/filtered being non-empty', () => {
+  // 2026-05-29 (DRX-1) — populated render switched from a card grid
+  // (`!loading && filtered.length > 0` rendering `<DealCard>`) to a
+  // table (`!loading && !featureDisabled && items.length > 0` rendering
+  // `<table className="deals-table">` with `DealsLeadRow` per item).
+  // Accept either shape to keep this invariant meaningful across the
+  // refactor. The semantic — "render the leads when there are leads to
+  // render" — is unchanged.
+  const populatedCard  = /!loading\s*&&\s*filtered\.length\s*>\s*0[\s\S]{0,300}DealCard/.test(dealsJsxExec);
+  const populatedTable = /!loading\s*&&\s*!featureDisabled\s*&&\s*items\.length\s*>\s*0[\s\S]{0,400}deals-table/.test(dealsJsxExec)
+    || /!loading\s*&&\s*items\.length\s*>\s*0[\s\S]{0,400}deals-table/.test(dealsJsxExec);
+  assert.ok(populatedCard || populatedTable,
+    'Populated render must gate on non-empty render list (either pre-DRX-1 card grid OR DRX-1 deals-table)');
 });
 
 // ── H. Scope discipline ───────────────────────────────────────────────
