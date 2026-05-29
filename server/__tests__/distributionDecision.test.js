@@ -221,12 +221,26 @@ const { classifyForBackfill } = require('../scripts/backfillDistributionDecision
   const clearBlock = adminSrc.match(/cleared admin override/);
   assert.ok(clearBlock, 'C.6 admin clear-override block must be locatable');
 
-  // C.7 — admin /tier-override (set) must NOT write distributionDecision.
-  // Decoupling tier from visibility is the Phase 1 semantic correction.
+  // C.7 — admin /tier-override (set) writes distributionDecision in
+  // lockstep with the tier decision (C1 fix, 2026-05-29). Pre-C1, this
+  // test asserted the OPPOSITE — "decoupled from visibility" — which
+  // codified a silent-state bug class. The architecture audit traced
+  // the real failure path (held leads promoted by tier-override never
+  // got broadcast or feed-visible) and C1 wires SET symmetrically with
+  // admin.approve / admin.reject:
+  //   - tier === 'rejected' → distributionDecision = 'admin_rejected'
+  //   - tier !== 'rejected' → distributionDecision = 'admin_approved'
+  // and calls dispatchApprovedLead unconditionally after save.
   const setOverrideBlock = adminSrc.match(/router\.post\(['"]\/leads\/:id\/tier-override['"][\s\S]*?(?=router\.delete\(['"]\/leads\/:id\/tier-override['"])/);
   assert.ok(setOverrideBlock, 'C.7 set-override block must be locatable');
-  assert.ok(!/lead\.distributionDecision\s*=/.test(setOverrideBlock[0]),
-    'C.7 admin /tier-override (set) must NOT write distributionDecision (decoupled from visibility)');
+  assert.ok(
+    /lead\.distributionDecision\s*=\s*\(\s*requestedTier\s*===\s*['"]rejected['"]\s*\)\s*\?\s*['"]admin_rejected['"]\s*:\s*['"]admin_approved['"]/.test(setOverrideBlock[0]),
+    'C.7 admin /tier-override (set) must write distributionDecision via ternary (rejected → admin_rejected; else → admin_approved) [C1 fix]'
+  );
+  assert.ok(
+    /dispatchApprovedLead\(\s*lead\._id\s*,\s*\{\s*source\s*:\s*['"]admin\.tier_override\.set['"]\s*\}\s*\)/.test(setOverrideBlock[0]),
+    'C.7 admin /tier-override (set) must call dispatchApprovedLead with source admin.tier_override.set [C1 fix]'
+  );
 
   // C.8 — admin /mark-reviewed must NOT write distributionDecision.
   const markReviewedBlock = adminSrc.match(/router\.post\(['"]\/leads\/:id\/mark-reviewed['"][\s\S]*?\}\);/);

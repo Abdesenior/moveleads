@@ -168,35 +168,41 @@ test('H1. routes/twilio.js PR-S3 atomic CAS shape unchanged (no leak from this P
   );
 });
 
-// ── I. tier-override NOT wired (audit found this was a false positive) ─
+// ── I. tier-override IS now wired (C1 fix, 2026-05-29) ────────────────
 
-test('I1. tier-override is INTENTIONALLY NOT wired to the orchestrator', () => {
-  // Audit file 06 initially flagged tier-override as a silent-dispatch
-  // bug. Verification of the actual code (this PR's pre-flight check)
-  // showed tier-override does NOT touch distributionDecision; it only
-  // sets adminTierOverride + qualityGateCleared. A lead at
-  // distributionDecision=system_held remains held after tier-override
-  // — the visibility filter still suppresses it. Admin must explicitly
-  // approve to make a held lead distributable.
+test('I1. tier-override is wired to the orchestrator with source admin.tier_override.set', () => {
+  // 2026-05-29 (C1 fix) — reversed from the original "intentionally not
+  // wired" lock-in. The pre-C1 reasoning was: "tier-override does NOT
+  // touch distributionDecision; the visibility filter still suppresses
+  // held leads." The final architecture audit (docs/audits/
+  // architecture-final/02-visibility-matrix-and-conflicts.md) traced the
+  // real path:
   //
-  // This test locks in that decision so a future contributor who reads
-  // the audit and thinks tier-override "should also" dispatch does NOT
-  // wire it. Tier-override is intentionally a label-only action.
-  assert.doesNotMatch(
+  //   PENDING_MANUAL_REVIEW lead (held by Phase 6.8 status-gate)
+  //   → admin clicks "set tier=standard"
+  //   → SET handler upgrades status='READY_FOR_DISTRIBUTION'
+  //     + qualityGateCleared=true
+  //   → distributionDecision still 'system_held' (pre-C1 bug)
+  //   → mover-feed filter still hides it
+  //
+  // The bug was real. C1 closes it by writing distributionDecision in
+  // lockstep (admin_approved when tier ≠ rejected; admin_rejected when
+  // tier === rejected) and calling dispatchApprovedLead — same shape as
+  // admin.approve, admin.rescore, admin.tier_override.clear.
+  assert.match(
     tierOverrideBlock,
-    /dispatchApprovedLead/,
-    'tier-override route must NOT call dispatchApprovedLead — tier change does not flip distributionDecision, so there is no silent-inventory risk to fix'
+    /dispatchApprovedLead\(\s*lead\._id\s*,\s*\{\s*source\s*:\s*['"]admin\.tier_override\.set['"]\s*\}\s*\)/,
+    'tier-override SET must call dispatchApprovedLead with source admin.tier_override.set (C1 fix)'
   );
 });
 
-test('I2. tier-override does NOT write distributionDecision (the property that makes it safe)', () => {
-  // The reason I1 is correct: tier-override deliberately does not flip
-  // distributionDecision. If a future contributor adds a write here,
-  // it WOULD become a silent-dispatch bug and I1 must be revisited.
-  assert.doesNotMatch(
+test('I2. tier-override writes distributionDecision symmetrically with the tier decision', () => {
+  // C1 fix — distributionDecision IS now written: rejected → admin_rejected;
+  // anything else → admin_approved. Symmetric with admin.approve / admin.reject.
+  assert.match(
     tierOverrideBlock,
-    /lead\.distributionDecision\s*=/,
-    'tier-override must not write lead.distributionDecision directly — if this changes, the I1 decision must be revisited'
+    /lead\.distributionDecision\s*=\s*\(\s*requestedTier\s*===\s*['"]rejected['"]\s*\)\s*\?\s*['"]admin_rejected['"]\s*:\s*['"]admin_approved['"]/,
+    'tier-override SET must write distributionDecision via ternary on requestedTier === "rejected"'
   );
 });
 
