@@ -82,13 +82,28 @@ const twilioSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'twilio
   );
   console.log('  ✓ validationPipeline no longer skips scoring when no provider wrote');
 
-  // (8) verifyLeadPhone must reload the lead before passing to broadcasts
-  //     (otherwise per-channel visibility guards see stale ingest-time data)
+  // (8) Phase 6.7 stale-data fix + PR #52 orchestrator unification.
+  //     verifyLeadPhone must NOT pass its in-memory lead document to the
+  //     broadcasters — that would carry stale ingest-time state past the
+  //     scoring/validation writes. The fresh-reload responsibility now
+  //     lives in the canonical orchestrator (services/dispatchOrchestrator.js),
+  //     which verifyLeadPhone delegates to by passing only the lead._id.
+  //
+  //     Two parts to the invariant:
+  //       (a) verifyLeadPhone must invoke dispatchApprovedLead with lead._id
+  //           (NOT the in-memory lead doc — the orchestrator does the reload).
+  //       (b) The orchestrator must do the actual Lead.findById reload before
+  //           fanning out to broadcasters.
   assert.ok(
-    /freshLead\s*=\s*await\s+Lead\.findById/.test(twilioSrc),
-    'verifyLeadPhone must reload the lead before broadcasting (Phase 6.7 stale-data fix)'
+    /dispatchApprovedLead\(\s*lead\._id\s*,\s*\{\s*source\s*:\s*['"]verifyLeadPhone['"]\s*\}/.test(twilioSrc),
+    'verifyLeadPhone must call dispatchApprovedLead(lead._id, { source: "verifyLeadPhone" }) — orchestrator owns the reload (PR #52)'
   );
-  console.log('  ✓ verifyLeadPhone reloads lead before broadcasting');
+  const orchSrc = fs.readFileSync(path.join(__dirname, '..', 'services', 'dispatchOrchestrator.js'), 'utf8');
+  assert.ok(
+    /await\s+Lead\.findById\(\s*id\s*\)\.lean\(\)/.test(orchSrc),
+    'dispatchOrchestrator must reload the lead via Lead.findById(id).lean() before broadcasting (stale-data guard moved here from verifyLeadPhone)'
+  );
+  console.log('  ✓ verifyLeadPhone delegates to orchestrator, which reloads lead before broadcasting (Phase 6.7 + PR #52)');
 
   // (9) Phase 6.8 — verifyLeadPhone must status-gate on scoring outcome.
   //     PENDING_MANUAL_REVIEW for rejected leads, env-independent.

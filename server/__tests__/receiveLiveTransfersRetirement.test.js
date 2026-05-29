@@ -95,13 +95,23 @@ test('A3. findEligibleMovers.js still self-joins on origin → destination Cover
   assert.match(findEligibleExec, /destCoverage/);
 });
 
-test('A4. findEligibleMovers.js still filters users by role===customer (regression guard)', () => {
+test('A4. findEligibleMovers.js still filters users by mover-role set (regression guard)', () => {
   // The role gate stays in place — only the receiveLiveTransfers gate
   // is retired.
+  //
+  // 2026-05-28 (PR #48 "mover role alignment"): the role filter widened
+  // from a single literal `$eq: ['$role', 'customer']` to a multi-value
+  // `$in: ['$role', ['customer', 'mover']]`. Reason: production accounts
+  // were being created with role='mover' but the pipeline filter only
+  // admitted 'customer', silently dropping them from eligibility joins.
+  // The current invariant we lock in here is the existence of a role
+  // filter that admits BOTH the legacy 'customer' role AND the current
+  // 'mover' role. A future contributor who shrinks this back to the
+  // single literal re-introduces the PR #48 bug.
   assert.match(
     findEligibleExec,
-    /\$eq:\s*\[\s*['"]\$role['"],\s*['"]customer['"]\]/,
-    "Role filter `$eq: ['$role', 'customer']` must remain"
+    /\$in\s*:\s*\[\s*['"]\$role['"]\s*,\s*\[\s*['"]customer['"]\s*,\s*['"]mover['"]\s*\]\s*\]/,
+    "Role filter must remain as `$in: ['$role', ['customer', 'mover']]` — admits both legacy and current mover roles (PR #48)"
   );
 });
 

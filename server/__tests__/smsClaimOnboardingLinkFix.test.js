@@ -49,26 +49,35 @@ const smsClaimExec = smsClaimSrc
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/\/\/.*$/gm, '');
 
-// Isolate just the "Coverage & alerts (from onboarding)" section so the
-// assertions are scoped to the footer link we're fixing — there are
-// other Link elements on the page (Settings link, Add Funds link, etc.).
-const sectionMatch = smsClaimExec.match(/Coverage & alerts \(from onboarding\)[\s\S]*?<\/section>/);
+// Isolate the alert-coverage section so the assertions are scoped to
+// the footer link we're fixing — there are other Link elements on the
+// page (Settings link, Add Funds link, etc.).
+//
+// 2026-05-29 — the section heading was originally "Coverage & alerts
+// (from onboarding)" when PR-D5 shipped; a later cleanup (post-PR-C1
+// service-area unification) renamed it to "Current alert coverage" and
+// rewrote the rows to read canonical pickup/delivery/maxDistance fields
+// directly. The PR-D5 invariant (link target + label) is unaffected by
+// the rename; the test is updated to find the renamed section.
+const sectionMatch =
+  smsClaimExec.match(/Current alert coverage[\s\S]*?<\/section>/) ||
+  smsClaimExec.match(/Coverage & alerts \(from onboarding\)[\s\S]*?<\/section>/);
 
 // ── A. Old misleading label gone ────────────────────────────────────────
 
-test('A1. SmsClaim onboarding-preview footer no longer says "Onboarding wizard"', () => {
-  assert.ok(sectionMatch, 'Coverage & alerts section must be findable');
+test('A1. SmsClaim alert-coverage footer no longer says "Onboarding wizard"', () => {
+  assert.ok(sectionMatch, 'Alert-coverage section must be findable');
   assert.doesNotMatch(
     sectionMatch[0],
     /Onboarding wizard/i,
-    'The footer link under the onboarding-preview section must no longer label itself "Onboarding wizard"'
+    'The footer link under the alert-coverage section must no longer label itself "Onboarding wizard"'
   );
 });
 
 // ── B. Link target points to /dashboard/settings, not /dashboard/profile ─
 
-test('B1. The onboarding-preview footer link points to /dashboard/settings', () => {
-  assert.ok(sectionMatch, 'Coverage & alerts section must be findable');
+test('B1. The alert-coverage footer link points to /dashboard/settings', () => {
+  assert.ok(sectionMatch, 'Alert-coverage section must be findable');
   // The section must contain a Link to /dashboard/settings
   assert.match(
     sectionMatch[0],
@@ -77,8 +86,8 @@ test('B1. The onboarding-preview footer link points to /dashboard/settings', () 
   );
 });
 
-test('B2. The onboarding-preview footer no longer points to /dashboard/profile', () => {
-  assert.ok(sectionMatch, 'Coverage & alerts section must be findable');
+test('B2. The alert-coverage footer no longer points to /dashboard/profile', () => {
+  assert.ok(sectionMatch, 'Alert-coverage section must be findable');
   assert.doesNotMatch(
     sectionMatch[0],
     /<Link\s+to=["']\/dashboard\/profile["']/,
@@ -88,8 +97,8 @@ test('B2. The onboarding-preview footer no longer points to /dashboard/profile',
 
 // ── C. New label mentions Settings ──────────────────────────────────────
 
-test('C1. The onboarding-preview footer mentions "Settings"', () => {
-  assert.ok(sectionMatch, 'Coverage & alerts section must be findable');
+test('C1. The alert-coverage footer mentions "Settings"', () => {
+  assert.ok(sectionMatch, 'Alert-coverage section must be findable');
   assert.match(
     sectionMatch[0],
     /Settings/,
@@ -109,21 +118,38 @@ test('D1. SmsClaim.jsx contains the PR-D5 audit-trail comment', () => {
 
 // ── E. Surrounding section preserved ────────────────────────────────────
 
-test('E1. The "Coverage & alerts (from onboarding)" section heading still exists', () => {
-  assert.match(
-    smsClaimSrc,
-    /Coverage & alerts \(from onboarding\)/,
-    'Section heading must be preserved — only the footer link is changed'
-  );
+test('E1. The alert-coverage section heading still exists', () => {
+  // The original PR-D5 heading was "Coverage & alerts (from onboarding)".
+  // Post-PR-C1 service-area unification renamed it to "Current alert
+  // coverage". Accept either — the invariant PR-D5 locked was the
+  // presence of SOME alert-coverage section the footer link sits under.
+  const ok =
+    /Current alert coverage/.test(smsClaimSrc) ||
+    /Coverage & alerts \(from onboarding\)/.test(smsClaimSrc);
+  assert.ok(ok,
+    'Alert-coverage section heading must be preserved (either current "Current alert coverage" or legacy "Coverage & alerts (from onboarding)") — only the footer link is changed by PR-D5');
 });
 
-test('E2. The onboarding preview rows (Primary market / Coverage radius / Coverage mode / Dispatch hours) are still rendered', () => {
-  // These rows are unaffected by this PR — pin their presence as a
-  // regression guard.
-  assert.match(smsClaimSrc, /label="Primary market"/);
-  assert.match(smsClaimSrc, /label="Coverage radius"/);
-  assert.match(smsClaimSrc, /label="Coverage mode"/);
-  assert.match(smsClaimSrc, /label="Dispatch hours"/);
+test('E2. The coverage preview rows (pickup / delivery / max distance / dispatch hours) are still rendered', () => {
+  // 2026-05-29 — the row labels were rewritten when the section moved
+  // from reading onboarding.answers to reading the canonical
+  // pickupStates / deliveryStates / deliversNationwide / maxDistance
+  // fields directly. Accept either the current or the legacy labels
+  // for each row so this test stays meaningful through the rename
+  // without locking the UI to a specific copy.
+  const pairs = [
+    ['Pickup states',      'Primary market'],   // origin coverage
+    ['Delivery',           'Coverage radius'],  // destination coverage
+    ['Max distance',       'Coverage mode'],    // distance gate
+    ['Dispatch hours',     'Dispatch hours'],   // unchanged
+  ];
+  for (const [current, legacy] of pairs) {
+    const ok =
+      new RegExp(`label="${current}"`).test(smsClaimSrc) ||
+      new RegExp(`label="${legacy}"`).test(smsClaimSrc);
+    assert.ok(ok,
+      `Coverage preview row must exist (current="${current}" or legacy="${legacy}")`);
+  }
 });
 
 test('E3. The post-PR-C3/C4 row removals (Alert channels, Move types) stay removed', () => {
