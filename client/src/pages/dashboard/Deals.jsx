@@ -66,13 +66,20 @@ export default function Deals() {
   // (which is "all" — no minimum), moveDateFilter='all'. With every
   // filter at its default the page renders identically to DRX-1.
   //
-  // Sort state matches the server's default order at first paint:
-  // sortKey='listed' + sortDir='desc' renders the leads in
-  // `updatedAt desc` order (same as server). Clicking a column header
-  // toggles direction; clicking a different column resets to desc.
+  // Sort state — default 'listed desc'. "Listed" anchors on Lead.createdAt
+  // (= homeowner submission time), NOT updatedAt. See the platform freshness
+  // rule above `timeAgo` at the bottom of this file. The default sortKey
+  // 'listed' is intentional: movers expect the freshest homeowner requests
+  // at the top, and we never want a stale lead's admin re-pricing to bump
+  // it above genuinely-newer inventory.
   const [distanceFilter, setDistanceFilter] = useState('all'); // 'all' | 'local' | 'long'
   const [discountFilter, setDiscountFilter] = useState(0);     // 0 | 25 | 40 | 60 (min %)
   const [moveDateFilter, setMoveDateFilter] = useState('all'); // 'all' | 'this_week' | 'this_month' | 'next_month'
+  // DEFAULT SORT = 'listed desc' (Recently Listed, freshest first). This is
+  // the expected default — pilot movers must see freshest homeowner requests
+  // at the top of Deal Room. 'listed' anchors on Lead.createdAt; see the
+  // freshness rule near `timeAgo` at the bottom of this file. Do not change
+  // this default without explicit operator approval.
   const [sortKey, setSortKey] = useState('listed');            // 'route' | 'move_date' | 'listed' | 'now'
   const [sortDir, setSortDir] = useState('desc');              // 'asc' | 'desc'
 
@@ -220,9 +227,11 @@ export default function Deals() {
     });
   }, [leads, search, distanceFilter, discountFilter, moveDateFilter]);
 
-  // Sort step — applies after filtering. Default 'listed desc' matches
-  // the server's `updatedAt desc` so first paint is byte-identical to
-  // DRX-1's order. Clicking a sortable column header toggles direction.
+  // Sort step — applies after filtering. Default 'listed desc' = freshest
+  // homeowner submissions first. ANCHORED ON Lead.createdAt — admin
+  // re-pricing or any other write that touches updatedAt must NEVER bump
+  // an older lead above newer inventory in the order presented to the
+  // mover. See the platform freshness rule near `timeAgo` below.
   const sorted = useMemo(() => {
     const arr = [...filtered];
     const cmp = (a, b) => {
@@ -242,8 +251,9 @@ export default function Deals() {
           break;
         case 'listed':
         default:
-          aV = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-          bV = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          // Anchor: createdAt only. updatedAt is NEVER freshness.
+          aV = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bV = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           break;
       }
       if (aV < bV) return sortDir === 'asc' ? -1 : 1;
@@ -394,7 +404,9 @@ export default function Deals() {
              style={{ padding: 48, textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: 16 }}>
           <Tag size={32} style={{ margin: '0 auto 12px', color: '#cbd5e1' }} />
           <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>No deals available right now</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>Check back soon — new discounted inventory is added regularly.</div>
+          {/* Fr6 — curation reassurance. Frames the empty state as
+              "between batches" rather than "nothing exists." */}
+          <div style={{ fontSize: 13, marginTop: 4 }}>We restock as our team curates new inventory.</div>
         </div>
       )}
 
@@ -458,7 +470,10 @@ function DealsLeadRow({ lead, busy, onUnlock }) {
     ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })
     : '—';
 
-  const listedStr = timeAgo(lead.updatedAt);
+  // Freshness anchor = Lead.createdAt (homeowner submission time). NEVER
+  // use updatedAt — admin re-pricing of a Deal Room lead would otherwise
+  // make a 14-day-old lead display as "1m ago" and tank mover trust.
+  const listedStr = timeAgo(lead.createdAt);
 
   return (
     <tr className="deals-row" data-testid="deals-lead-row">
@@ -547,6 +562,24 @@ function fmtRoutePart(city, state) {
   return state ? `${city}, ${state}` : city;
 }
 
+// ── Platform freshness rule (read before editing any "Listed" / age display) ─
+//
+// Freshness is a BUSINESS concept, not a database timestamp. Every mover-facing
+// freshness indicator must answer the same question:
+//
+//     "When did the homeowner submit this request?"
+//
+// Anchor preference, in order:
+//   1. Lead.createdAt              ← homeowner submission moment (default)
+//   2. Lead.distributionDecisionAt ← admin-only / observability surfaces
+//   3. Lead.dealRoomListedAt       ← reserved if/when added
+//
+// Lead.updatedAt is NEVER a freshness signal. It reflects the last DB mutation,
+// which includes admin re-pricing, status flips, and unrelated field edits.
+// Surfacing updatedAt as "Listed X ago" misleads in the trust-positive
+// direction (stale leads look fresh) — the failure mode that poisons
+// marketplace credibility at pilot scale.
+// ──────────────────────────────────────────────────────────────────────────────
 function timeAgo(dateLike) {
   if (!dateLike) return '—';
   const then = new Date(dateLike);

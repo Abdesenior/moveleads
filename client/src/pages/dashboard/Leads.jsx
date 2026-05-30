@@ -11,7 +11,13 @@ import { useNavigate } from 'react-router-dom';
 import TablePagination from '../../components/ui/TablePagination';
 import TableSkeleton from '../../components/ui/TableSkeleton';
 
-/* ── helpers ─────────────────────────────────────────── */
+/* ── helpers ─────────────────────────────────────────────────────────────────
+ *
+ * Platform freshness rule: every mover-facing "Listed X ago" display anchors
+ * on Lead.createdAt (homeowner submission moment). NEVER use updatedAt — admin
+ * re-pricing and unrelated mutations would otherwise make stale leads display
+ * as fresh. See LeadFeed.jsx and Deals.jsx for the canonical rule comment.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const timeAgo = (dateStr) => {
   if (!dateStr) return '—';
   const diff = Date.now() - new Date(dateStr).getTime();

@@ -89,6 +89,23 @@ const LeadSchema = new mongoose.Schema({
   // leads (and any lead pre-PR-4) simply have them unset, which is
   // indistinguishable from "no broadcast attempt observed."
   //
+  // ▲ MOVER-FACING EXPOSURE IS PROHIBITED (Fr5, 2026-05-30) ▲
+  //
+  // These three fields are ADMIN/OBSERVABILITY ONLY. They MUST NOT appear
+  // in any mover-facing API response, client component, email, SMS, or
+  // dashboard surface — directly or transformed (e.g., "Sent to 7 other
+  // movers", "Available to N companies", "Competition level: High").
+  //
+  // Rationale: surfacing competition counts to movers causes immediate
+  // conversion collapse. A mover who sees N>1 disengages — "no point,
+  // someone else got it." A mover who sees N=1 wonders why they're the
+  // only candidate and assumes the lead is low-quality. There is no value
+  // of N that helps; the data must stay admin-only.
+  //
+  // Any PR that adds a read of these fields from a non-admin route, or
+  // includes them in a serialized response sent to the mover dashboard,
+  // MUST be blocked at code review. See: docs/code-review-rules.md.
+  //
   // Writers (single sources of truth — do not write from elsewhere):
   //   lastBroadcastAttemptAt        — dispatchApprovedLead, at fanout time
   //   lastBroadcastSuppressReason   — dispatchApprovedLead on visibility
@@ -106,7 +123,9 @@ const LeadSchema = new mongoose.Schema({
   //   lastBroadcastMatchedCount     — broadcastLeadSMS after policy filter,
   //                                   always (including 0).
   //
-  // Reader: GET /api/admin/leads/:id/distribution-diagnose.
+  // Reader (allowed): GET /api/admin/leads/:id/distribution-diagnose.
+  // Readers (PROHIBITED): any non-admin route, any client component,
+  // any email/SMS template, any mover-facing aggregation.
   //
   // Writes are best-effort (fire-and-forget). A failed manifest write must
   // NEVER block the dispatch itself — observability cannot regress behavior.

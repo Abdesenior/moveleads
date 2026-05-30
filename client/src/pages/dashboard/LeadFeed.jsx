@@ -206,6 +206,21 @@ const fmtDate = (d) => d
   ? new Date(d).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })
   : 'TBD';
 
+// ── Platform freshness rule (read before editing any "Listed" / age display) ─
+//
+// Freshness is a BUSINESS concept, not a database timestamp. Every mover-facing
+// freshness indicator must answer the same question:
+//
+//     "When did the homeowner submit this request?"
+//
+// Anchor preference, in order:
+//   1. Lead.createdAt              ← homeowner submission moment (default)
+//   2. Lead.distributionDecisionAt ← admin-only / observability surfaces
+//   3. Lead.dealRoomListedAt       ← reserved if/when added
+//
+// Lead.updatedAt is NEVER a freshness signal. It reflects the last DB mutation,
+// which includes admin re-pricing, status flips, and unrelated field edits.
+// ──────────────────────────────────────────────────────────────────────────────
 const timeAgo = (d) => {
   if (!d) return '—';
   const diff = Date.now() - new Date(d);
@@ -247,6 +262,12 @@ export default function LeadFeed() {
   const [distFilter, setDistFilter]     = useState('all');
   const [dateFilter, setDateFilter]     = useState('all');
   const [customDate, setCustomDate]     = useState('');
+  // DEFAULT SORT = 'listed' (Recently Listed, descending). This is the
+  // expected default — pilot movers must see freshest homeowner requests
+  // first. Tied to the freshness rule near `timeAgo` above: 'listed' anchors
+  // on Lead.createdAt. Do not change this default without explicit operator
+  // approval; it is the single most influential decision the mover never
+  // makes consciously.
   const [sortBy, setSortBy]             = useState('listed');
   // Server-supplied _matchesPreferences flag drives this. Default to "Matched
   // for you" when the mover has any preferences set; otherwise "All leads".
@@ -503,7 +524,13 @@ export default function LeadFeed() {
       if (sortBy === 'moveDate_desc') return new Date(b.moveDate) - new Date(a.moveDate);
       if (sortBy === 'price_asc')     return (a.buyNowPrice || a.price || 0) - (b.buyNowPrice || b.price || 0);
       if (sortBy === 'price_desc')    return (b.buyNowPrice || b.price || 0) - (a.buyNowPrice || a.price || 0);
-      return 0; // 'listed' = API order preserved
+      // 'listed' (default) — anchor on Lead.createdAt (homeowner submission).
+      // Explicit client sort, NOT trusting server order, so the visible "Listed"
+      // column timestamp matches the row's position regardless of how the
+      // server orders the response. updatedAt is NEVER a freshness signal.
+      const aT = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bT = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bT - aT; // desc: freshest homeowner request first
     });
   }, [visible, sortBy]);
 
@@ -684,6 +711,14 @@ export default function LeadFeed() {
             <div className="empty-icon-box"><ZapOff size={32} /></div>
             <h3>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'No results match your filter' : 'Your markets are active'}</h3>
             <p>{search || distFilter !== 'all' || dateFilter !== 'all' ? 'Try a different search or filter.' : "We'll alert you the moment a verified request matches your setup."}</p>
+            {/* Fr6 — active-monitoring reassurance. Grounds the alert promise
+                so the mover sitting at an empty screen understands the
+                system is continuously checking, not idle. */}
+            {!(search || distFilter !== 'all' || dateFilter !== 'all') && (
+              <p style={{ marginTop: 8, fontSize: 13, color: '#94a3b8' }}>
+                We check continuously — alerts fire within seconds of a verified match.
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -793,12 +828,15 @@ export default function LeadFeed() {
                       <td className="col-listed" style={{ padding: '18px 20px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#94a3b8', fontSize: 13 }}>
                           <Clock size={13} />
-                          {/* "Listed" = when this lead became visible on the mover
-                              dashboard, not when the homeowner submitted. Falls
-                              back to createdAt only for legacy rows that somehow
-                              lack distributionDecisionAt (shouldn't happen for
-                              anything that passes moverVisibilityFilter). */}
-                          {timeAgo(lead.distributionDecisionAt || lead.createdAt)}
+                          {/* Freshness anchor = Lead.createdAt (homeowner
+                              submission time). Mover trust depends on the
+                              displayed age answering "when did the homeowner
+                              ask for help?" — not "when did the dispatcher
+                              decide to show it to me?" Pre-2026-05-30 this
+                              read distributionDecisionAt; the change to
+                              createdAt aligns the entire platform on a single
+                              freshness rule. updatedAt is NEVER used here. */}
+                          {timeAgo(lead.createdAt)}
                         </div>
                       </td>
 
