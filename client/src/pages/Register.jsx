@@ -203,11 +203,16 @@ export default function Register() {
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 28 }}>
             <h3 style={{ fontSize: 18, color: '#fff', marginBottom: 24, fontFamily: 'var(--font-heading)', fontWeight: 700 }}>What you get</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* T5 (2026-05-30) — left rail rewritten for the moving-company
+                  audience. Pre-Phase-1 copy ("Turnkey Booking Platform",
+                  "Sales Funnel Built to Convert", "AI Speed to Call",
+                  "Instant Payments") was written for B2B partners/marketing
+                  agencies and bounced moving operators on day zero. */}
               {[
-                { icon: <CheckCircle2 size={18} />, title: 'Turnkey Booking Platform', desc: 'Customers build their own quotes' },
-                { icon: <Zap size={18} />, title: 'Sales Funnel Built to Convert', desc: 'Scalable funnel for ad campaigns' },
-                { icon: <Clock size={18} />, title: 'AI Speed to Call', desc: 'Instant contact & automated follow-up' },
-                { icon: <ShieldCheck size={18} />, title: 'Instant Payments', desc: 'Stripe integration for direct payouts' }
+                { icon: <CheckCircle2 size={18} />, title: 'Verified moving leads', desc: 'Homeowners in your service area' },
+                { icon: <Zap size={18} />, title: 'Pay only for unlocks', desc: 'No subscription, no contract' },
+                { icon: <Clock size={18} />, title: 'Text + email alerts', desc: 'The moment a matching request comes in' },
+                { icon: <ShieldCheck size={18} />, title: 'Refundable balance', desc: 'If a customer is unreachable, request a refund' }
               ].map((feat, i) => (
                 <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                   <div style={{

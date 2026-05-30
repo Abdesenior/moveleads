@@ -42,12 +42,16 @@ const STEP_MICROCOPY = {
   6: 'Secure payment',
 };
 
+// L5 (2026-05-30) — stage labels rewritten in mover vocabulary.
+// Old labels (Dispatch / Coverage / Alerts / Activate) were engineering
+// verbs that mean nothing to a moving-company owner. New labels match how
+// the operator describes the same steps in plain English.
 const SETUP_STAGES = [
-  { id: 1, label: 'Dispatch' },
-  { id: 2, label: 'Coverage' },
-  { id: 3, label: 'Alerts' },
-  { id: 4, label: 'Activate' }, // shown active when internal step === 5
-  { id: 5, label: 'Payment'  }, // shown active when internal step === 6
+  { id: 1, label: 'Your company'           },
+  { id: 2, label: 'Where you work'         },
+  { id: 3, label: 'How we reach you'       },
+  { id: 4, label: 'Add your first balance' }, // shown active when internal step === 5
+  { id: 5, label: 'Payment'                }, // shown active when internal step === 6
 ];
 
 // Map internal step → visible-stage id (for the stages bar fill). Step 4
@@ -960,7 +964,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         >
           {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-recommended">Includes $50 Free Credits</span>
+            <span className="ow-tier-pill-recommended">Includes $50 bonus</span>
           </div>
           <div className="ow-tier-amount-row">
             <span className="ow-tier-pay">$100</span>
@@ -981,7 +985,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         >
           {tier === 50 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-starter">Limited starter balance</span>
+            <span className="ow-tier-pill-starter">Starter — no bonus included</span>
           </div>
           <div className="ow-tier-amount-row">
             <span className="ow-tier-pay">$50</span>
@@ -994,7 +998,7 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
       {/* One compact trust line — financial reassurance without re-opening
           a card. Reduced from 4 segments to 3 for less reading effort. */}
       <p className="ow-trust-strip">
-        Refundable balance · No subscription · Credits never expire
+        Refundable balance · No subscription · Balance never expires
       </p>
 
       {initErr && (
@@ -1013,8 +1017,8 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
       </p>
 
       <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip} disabled={fetching}>
-        <span>Continue without activating</span>
-        <span className="ow-skip-secondary-sub">Dashboard access stays limited until activation.</span>
+        <span>Browse leads first</span>
+        <span className="ow-skip-secondary-sub">You can add balance when you're ready to buy.</span>
       </button>
     </div>
   );

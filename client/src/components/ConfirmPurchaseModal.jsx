@@ -157,7 +157,7 @@ export default function ConfirmPurchaseModal({
                 <div style={{ fontSize: 12.5, color: '#0f172a', lineHeight: 1.45 }}>
                   {insufficient
                     ? <>You don't have enough balance for this purchase. Add funds to continue.</>
-                    : <>This will deduct <strong>{fmt(price)}</strong> from your balance. Purchases are final and only refundable through the dispute process.</>
+                    : <><strong>{fmt(price)}</strong> will come out of your balance. If the customer is unreachable, you can request a refund from this lead's page.</>
                   }
                 </div>
               </div>
@@ -176,10 +176,13 @@ export default function ConfirmPurchaseModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div style={{
+        {/* Footer — M6 (2026-05-30) mobile QA: buttons wrap to a stacked
+            layout under 480px so the "Confirm purchase – $X" label can't
+            truncate. flexWrap + min-width on each button ensures the dollar
+            amount stays readable on iPhone SE-class screens. */}
+        <div className="cpm-footer" style={{
           padding: '14px 24px 18px', borderTop: '1px solid #f1f5f9',
-          display: 'flex', gap: 10, justifyContent: 'flex-end',
+          display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap',
         }}>
           {raceLost ? (
             <button

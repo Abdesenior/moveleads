@@ -302,8 +302,7 @@ export default function Deals() {
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>Deal Room</h1>
         </div>
         <p style={{ marginTop: 6, fontSize: 13, color: '#64748b' }}>
-          Discounted secondary inventory. These leads are <strong>not real-time</strong>.
-          They've been hand-picked and discounted by our team. Unlock works the same way as Live Leads.
+          Hand-picked leads at a discount. Same unlock as Live Leads — the only difference is these aren't broadcasting right now.
         </p>
       </div>
 

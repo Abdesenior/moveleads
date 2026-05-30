@@ -1727,3 +1727,29 @@
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
 }
 
+/* ── Phase 1 polish PR (2026-05-30) — mobile QA fixes ───────────────────────
+   P2 / M6 / Apple HIG tap-target rules. On phone screens, stack the
+   PurchaseSuccessModal and ConfirmPurchaseModal footers so each CTA is
+   full-width and at least 44px tall. The success modal's Call-Now CTA is
+   the highest-intent action in the entire pilot flow; mobile mover should
+   land on it without thumb-stretching. */
+@media (max-width: 480px) {
+  .psm-footer,
+  .cpm-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .psm-footer > *,
+  .cpm-footer > * {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .psm-call-now {
+    font-size: 16px !important;
+    padding: 14px 22px !important;
+  }
+}
+
