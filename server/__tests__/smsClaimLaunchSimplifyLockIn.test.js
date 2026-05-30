@@ -67,23 +67,37 @@ test('S2.B — Plain-English explanation present', () => {
     /When a lead matches your service area and you have enough balance,\s*we text you[\s\S]{0,80}the lead summary and a claim code\./);
 });
 
-test('S2.C — Example SMS body includes "Reply SEND ABCD to claim it."', () => {
-  assert.match(exec, /Reply SEND ABCD to claim it\./);
+test('S2.C — Example SMS body includes the SEND ABCD claim instruction', () => {
+  // Visual polish PR (2026-05-30) split the line across three styled spans
+  // so SEND ABCD can be rendered as the focal callout (orange + bold +
+  // monospace). The instruction is still verbatim from the spec — just
+  // delivered as three contiguous tokens in the JSX rather than one string.
+  assert.match(exec, /Reply<\/span>/);
+  assert.match(exec, />SEND ABCD</);
+  assert.match(exec, />to claim it\./);
 });
 
 test('S2.D — "What happens after you reply" includes all 4 outcomes', () => {
+  // Visual polish PR (2026-05-30) lifted the bullets into Benefit cards
+  // with a title + description structure. The four outcome sentences
+  // still appear verbatim as descriptions; the "My Leads" emphasis moved
+  // from <strong>My Leads</strong> in a sentence to its own card title.
   assert.match(exec, /The lead price is deducted from your balance\./);
-  assert.match(exec, />My Leads<\/strong>/);
+  assert.match(exec, /title="Added to My Leads"/);
   assert.match(exec, /You receive the customer.{0,5}s contact details\./);
   assert.match(exec, /You can call the customer right away\./);
 });
 
-test('S2.E — Requirements checklist has exactly the 4 spec-listed rows', () => {
-  // We assert each label and that NO other ReadyRow uses an unrelated label.
+test('S2.E — Requirements has exactly the 4 spec-listed rows', () => {
+  // Visual polish PR (2026-05-30) lifted these into RequirementBadge cards
+  // in a 4-column horizontal strip. Labels are simple string literals;
+  // the recommended-balance figure moved into the helper line.
   assert.match(exec, /label="Phone verified"/);
-  assert.match(exec, /label=\{\s*`Enough balance/);   // template literal w/ recommended
-  assert.match(exec, /label="Service areas set"/);
   assert.match(exec, /label="SMS alerts enabled"/);
+  assert.match(exec, /label="Enough balance"/);
+  assert.match(exec, /label="Service areas set"/);
+  // Recommended balance still surfaces (in the helper line now).
+  assert.match(exec, /Recommended \$\$\{fmt\(r\.recommendedBalance\)\}\+/);
   // Legacy rows that were in the prior page must not return.
   assert.doesNotMatch(exec, /label="Coverage area set"/);
   assert.doesNotMatch(exec, /label="Dispatch hours set"/);
@@ -146,11 +160,14 @@ test('S4.B — PR-D5 audit-trail comment preserved (smsClaimOnboardingLinkFix co
   assert.match(src, /PR-D5:\s*link target \+ label corrected/i);
 });
 
-test('S4.C — Coverage rows preserved', () => {
+test('S4.C — Coverage shows only Pickup states + Delivery (2026-05-30 visual polish)', () => {
+  // Visual polish PR — Max distance + Dispatch hours rows were rendering
+  // as "—" when unset, which felt invented. Both removed from the SmsClaim
+  // surface. The backend coveragePreview payload is unchanged.
   assert.match(exec, /label="Pickup states"/);
   assert.match(exec, /label="Delivery"/);
-  assert.match(exec, /label="Max distance"/);
-  assert.match(exec, /label="Dispatch hours"/);
+  assert.doesNotMatch(exec, /label="Max distance"/);
+  assert.doesNotMatch(exec, /label="Dispatch hours"/);
 });
 
 test('S4.D — Footer "Edit in Settings →" preserved', () => {
