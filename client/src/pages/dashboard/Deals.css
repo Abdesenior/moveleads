@@ -101,8 +101,23 @@
     white-space: normal;
   }
 
-  /* Listed column hidden on mobile to save room. */
-  .deals-table > tbody > tr.deals-row > td.col-listed { display: none; }
+  /* Listed column — restored on mobile (Fr3, 2026-05-30). Freshness
+     visibility is non-negotiable on the device pilot movers use. Rendered
+     inline with Size + Date row using the same separator-dot pattern. */
+  .deals-table > tbody > tr.deals-row > td.col-listed {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: #475569;
+  }
+  .deals-table > tbody > tr.deals-row > td.col-listed::before {
+    content: "·";
+    margin: 0 10px 0 0;
+    color: #cbd5e1;
+    font-weight: 800;
+    font-size: 14px;
+  }
 
   /* Size + Date row: inline with a soft separator dot. */
   .deals-table > tbody > tr.deals-row > td.col-size,

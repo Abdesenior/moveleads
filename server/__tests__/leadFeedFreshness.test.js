@@ -88,39 +88,47 @@ test('GET /api/leads sorts by distributionDecisionAt with createdAt tiebreaker',
   );
 });
 
-test('frontend /dashboard/leads "Listed" label reads distributionDecisionAt', () => {
-  const src = fs.readFileSync(
+test('frontend /dashboard/leads "Listed" label reads createdAt (homeowner-submission time)', () => {
+  // 2026-05-30 — Fr2 principle change. Every mover-facing freshness display
+  // must answer "when did the homeowner submit this request?" — anchor on
+  // Lead.createdAt. The previous version of this test locked in
+  // distributionDecisionAt; that anchor is now reserved for admin/observability
+  // surfaces only. See:
+  //   - docs/code-review-rules.md R1
+  //   - the freshness rule comment block above `timeAgo` in LeadFeed.jsx
+  const raw = fs.readFileSync(
     path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'dashboard', 'LeadFeed.jsx'),
     'utf8'
   );
 
-  // The exact display expression. createdAt fallback is required for the
-  // edge case of legacy rows that somehow lack distributionDecisionAt.
-  const goodLabel = /timeAgo\(\s*lead\.distributionDecisionAt\s*\|\|\s*lead\.createdAt\s*\)/;
+  // Strip JS comments before scanning so the rule-explainer comment block
+  // inside the col-listed cell doesn't mask the executable expression.
+  const src = raw
+    .replace(/\/\*[\s\S]*?\*\//g, '')   // block comments
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '') // JSX comments
+    .replace(/\/\/.*$/gm, '');            // line comments
 
-  assert.match(
-    src, goodLabel,
-    'LeadFeed.jsx must display "Listed X ago" using lead.distributionDecisionAt ' +
-    '(with createdAt fallback), so the label reflects when the lead became visible ' +
-    'to movers, not when the homeowner submitted.'
-  );
-
-  // The pre-fix call (createdAt alone) must not be the one used by the
-  // "Listed" cell. We do allow timeAgo(lead.createdAt) to exist elsewhere
-  // in the file (other cells / debug rows), but in the "Listed" cell it
-  // must read distributionDecisionAt.
-  //
-  // Scope: the "Listed" cell uses className="col-listed". Slice a 600-char
-  // window starting at that marker and assert the bad pattern is absent
-  // inside it.
+  // The "Listed" cell must display timeAgo(lead.createdAt). Scope check:
+  // slice a window starting at the col-listed marker.
   const listedCellIdx = src.indexOf('col-listed');
   assert.ok(listedCellIdx > -1, 'expected to find the col-listed cell in LeadFeed.jsx');
   const listedCellWindow = src.slice(listedCellIdx, listedCellIdx + 600);
-  const badLabel = /timeAgo\(\s*lead\.createdAt\s*\)/;
+  const goodLabel = /timeAgo\(\s*lead\.createdAt\s*\)/;
+  assert.match(
+    listedCellWindow, goodLabel,
+    'The "Listed" cell in LeadFeed.jsx must display timeAgo(lead.createdAt) ' +
+    '— the homeowner submission time. updatedAt is never a freshness signal; ' +
+    'distributionDecisionAt is reserved for admin surfaces.'
+  );
+
+  // Conversely: lead.updatedAt must NEVER appear inside the Listed cell.
+  // It is the worst freshness anchor — admin re-pricing makes stale leads
+  // look fresh.
+  const badUpdatedAt = /timeAgo\(\s*lead\.updatedAt/;
   assert.doesNotMatch(
-    listedCellWindow, badLabel,
-    'The "Listed" cell on /dashboard/leads must not display timeAgo(lead.createdAt) alone — ' +
-    'that shows the homeowner-submission time, not the listing time.'
+    listedCellWindow, badUpdatedAt,
+    'The "Listed" cell must NEVER read lead.updatedAt — that surfaces admin ' +
+    're-pricing as freshness and tanks marketplace trust.'
   );
 });
 

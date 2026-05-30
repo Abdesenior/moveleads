@@ -240,18 +240,29 @@ test('F1. Disabled banner copy uses distinct phrasing', () => {
   );
 });
 
-test('F2. Empty state copy is unchanged (UX preservation)', () => {
-  // Pre-PR-D1 copy stays byte-identical so movers familiar with the
-  // page see no surprise.
+test('F2. Empty state copy reinforces active curation (Fr6, 2026-05-30)', () => {
+  // The empty-state headline stays — pre-Fr6 movers expect it.
   assert.match(
     dealsJsxExec,
     /No deals available right now/,
-    'Empty state copy "No deals available right now" must remain (UX preservation)'
+    'Empty state headline "No deals available right now" must remain (UX preservation)'
   );
+  // The sub-copy flipped per Fr6 (trust-focused freshness messaging).
+  // Old: "Check back soon — new discounted inventory is added regularly."
+  // New: "We restock as our team curates new inventory."
+  // The new copy frames the empty state as "between curated batches"
+  // rather than "nothing exists," reinforcing the supply-management /
+  // curation story the operator wants to communicate at pilot scale.
   assert.match(
     dealsJsxExec,
+    /We restock as our team curates new inventory\./,
+    'Empty state sub-copy must reinforce active curation (Fr6)'
+  );
+  // The old generic copy must NOT come back.
+  assert.doesNotMatch(
+    dealsJsxExec,
     /Check back soon — new discounted inventory is added regularly\./,
-    'Empty state sub-copy must remain byte-identical'
+    'Pre-Fr6 generic copy must not be restored'
   );
 });
 
