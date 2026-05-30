@@ -25,7 +25,20 @@ const PlatformSettings = require('../models/PlatformSettings');
  * Auth: server.js mounts under verifiedGate (auth + requireEmailVerified).
  */
 
-const DEFAULT_RECOMMENDED_BALANCE = 500;
+// 2026-05-30 — Lowered from $500 to $200. The prior threshold created
+// activation friction at the first-time-mover stage: a pilot mover with
+// $50 starter + $50 bonus = $100 balance saw the "Enough balance" check
+// fail on the SmsClaim page despite being eligible to claim multiple
+// real leads. $200 covers ~5 average-priced claims in current pricing
+// and stays a meaningful recommendation without blocking opt-in.
+//
+// This is a UI-side recommendation only. The per-claim eligibility check
+// in twilioService.js stays `balance >= buyNowPrice` (per-lead, not
+// against this threshold) — see [twilioService.js eligibility partition].
+//
+// Override via PlatformSettings.config.smsClaim.recommendedBalance if
+// the operator wants a per-environment value.
+const DEFAULT_RECOMMENDED_BALANCE = 200;
 
 const STATUS_INACTIVE         = 'inactive';
 const STATUS_NEEDS_BALANCE    = 'needs_balance';
