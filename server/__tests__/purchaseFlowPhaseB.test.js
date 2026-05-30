@@ -58,7 +58,18 @@ test('A3. ConfirmPurchaseModal renders route + price + balance + balance-after +
   assert.match(confirmModalSrc, /Lead price/,        'must label Lead price');
   assert.match(confirmModalSrc, /Your balance/,      'must label Your balance');
   assert.match(confirmModalSrc, /After purchase/,    'must show balance-after');
-  assert.match(confirmModalSrc, /deduct/i,           'must warn about deduction');
+  // L8 (2026-05-30) — the warning copy was rewritten from
+  // "This will deduct $X from your balance. Purchases are final and only
+  //  refundable through the dispute process."
+  // to
+  // "$X will come out of your balance. If the customer is unreachable,
+  //  you can request a refund from this lead's page."
+  // The financial-impact wording remains; only the phrasing changed.
+  assert.match(
+    confirmModalSrc,
+    /will come out of your balance/,
+    'must warn about the financial impact of the unlock'
+  );
 });
 
 test('A4. Confirm + Cancel buttons present', () => {
@@ -188,35 +199,45 @@ test('D3. Generic error keeps the modal open with the server message', () => {
 // ── E. SuccessModal renamed + deep-link ──────────────────────────────────
 
 test('E1. SuccessModal heading + CTAs match operator spec', () => {
-  // Heading + CTAs now live in the dedicated PurchaseSuccessModal
-  // component (../../components/PurchaseSuccessModal.jsx) — same visual
-  // language as ConfirmPurchaseModal. Read it directly.
+  // 2026-05-30 — Phase 1 polish PR (P2). The post-purchase modal now
+  // leads with a Call-now tel: link as the primary CTA. The earlier
+  // "View full move details" + "Keep browsing leads" pair was demoted
+  // because the post-unlock moment is the moment of highest intent —
+  // pointing at the marketplace instead of the call cost the pilot.
   const successModalSrc = fs.readFileSync(
     path.join(__dirname, '..', '..', 'client', 'src', 'components', 'PurchaseSuccessModal.jsx'),
     'utf8'
   );
   assert.match(successModalSrc, /Lead purchased successfully/,
     'success heading must read "Lead purchased successfully"');
-  assert.match(successModalSrc, />\s*View full move details\s*</,
-    'primary CTA must be "View full move details"');
-  assert.match(successModalSrc, />\s*Keep browsing leads\s*</,
-    'secondary CTA must be "Keep browsing leads"');
-  // Old labels gone from BOTH the page and the new component
+  // Primary CTA = the Call-now tel: anchor (gated on hasContact + phone).
+  assert.match(successModalSrc, /data-testid=["']success-call-now-cta["']/,
+    'primary CTA must be the Call-now tel: link');
+  // "View in My Leads" (was "View full move details") is now secondary.
+  assert.match(successModalSrc, />\s*View in My Leads\s*</,
+    'secondary CTA must read "View in My Leads"');
+  // Tertiary text link reads "Keep browsing" (was "Keep browsing leads").
+  assert.match(successModalSrc, />\s*Keep browsing\s*</,
+    'tertiary action must read "Keep browsing"');
+  // Pre-P2 labels must not return.
   for (const src of [leadFeedSrc, successModalSrc]) {
     assert.ok(!/>\s*Go to My Customers\s*</.test(src),
-      'old "Go to My Customers" CTA must be removed');
+      'pre-2026 "Go to My Customers" CTA must remain removed');
     assert.ok(!/>\s*Continue Feeding\s*</.test(src),
-      'old "Continue Feeding" CTA must be removed');
-    // The earlier intermediate label "View lead details" was replaced
-    // by the operator's preferred "View full move details" in 2026-05-26
+      'pre-2026 "Continue Feeding" CTA must remain removed');
     assert.ok(!/>\s*View lead details\s*</.test(src),
-      'intermediate label "View lead details" must be replaced by "View full move details"');
+      'intermediate label "View lead details" must remain replaced');
+    // Specifically: the pre-P2 "View full move details" + "Keep browsing
+    // leads" wording must not be the rendered label any longer.
+    assert.ok(!/>\s*View full move details\s*</.test(src),
+      'pre-P2 primary CTA "View full move details" must be replaced');
+    assert.ok(!/>\s*Keep browsing leads\s*</.test(src),
+      'pre-P2 tertiary CTA "Keep browsing leads" must read "Keep browsing"');
   }
-  // LeadFeed must NOT define an inline SuccessModal function anymore —
-  // that legacy component was replaced by the imported PurchaseSuccessModal.
+  // LeadFeed must NOT define an inline SuccessModal function anymore.
   assert.ok(!/function\s+SuccessModal\s*\(/.test(leadFeedSrc),
     'inline SuccessModal function must be removed from LeadFeed.jsx');
-  // LeadFeed must import + render the new component
+  // LeadFeed must import + render the new component.
   assert.match(leadFeedSrc, /from\s+['"]\.\.\/\.\.\/components\/PurchaseSuccessModal['"]/,
     'LeadFeed must import PurchaseSuccessModal');
   assert.match(leadFeedSrc, /<PurchaseSuccessModal/,

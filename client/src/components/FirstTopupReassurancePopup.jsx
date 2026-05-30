@@ -66,20 +66,24 @@ export default function FirstTopupReassurancePopup({ onClose }) {
             Your balance is ready
           </h2>
 
+          {/* L11 (2026-05-30) — supply-management copy reworded to lean
+              on "we'll alert you" framing instead of "we recommend waiting."
+              Lead supply is limited; this popup exists to manage expectations
+              without dampening intent. Structure preserved per Correction 2. */}
           <p style={{ margin: '0 0 18px', fontSize: 15, lineHeight: 1.55, color: '#1f2937' }}>
-            We recommend waiting for{' '}
-            <span style={{ color: '#ea580c', fontWeight: 700 }}>fresh new moving leads</span>{' '}
-            entering your market.
+            We'll text and email you the moment a{' '}
+            <span style={{ color: '#ea580c', fontWeight: 700 }}>matching move request</span>{' '}
+            comes in.
           </p>
 
           <p style={{ margin: '0 0 18px', fontSize: 15, lineHeight: 1.55, color: '#1f2937' }}>
-            You'll be notified when{' '}
-            <span style={{ color: '#ea580c', fontWeight: 700 }}>matching opportunities</span>{' '}
-            become available.
+            You can also{' '}
+            <span style={{ color: '#ea580c', fontWeight: 700 }}>browse the marketplace</span>{' '}
+            anytime.
           </p>
 
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#475569' }}>
-            No worries: onboarding lead credits stay{' '}
+            Your balance stays{' '}
             <span style={{ color: '#ea580c', fontWeight: 700 }}>refundable</span>{' '}
             if a lead becomes unreachable.
           </p>

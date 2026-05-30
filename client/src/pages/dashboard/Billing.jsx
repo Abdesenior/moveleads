@@ -169,14 +169,14 @@ export default function Billing() {
           animation: 'blSlideIn 0.4s cubic-bezier(0.16,1,0.3,1)',
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          <CheckCircle size={18} /> Credits added to your account!
+          <CheckCircle size={18} /> Balance updated
         </div>
       )}
 
       {/* Page header */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
-          Billing & Credits
+          Billing
         </h1>
         <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Manage your balance and view transaction history</p>
       </div>
@@ -194,7 +194,7 @@ export default function Billing() {
         <div className="billing-balance-col" style={{ padding: '32px 36px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg,#ea580c,#f59e0b)' }} />
           <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>
-            Available Balance
+            Balance
           </p>
           <div className="billing-balance-amount" style={{
             fontSize: 52, fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)',
@@ -204,12 +204,12 @@ export default function Billing() {
             ${balance.toFixed(2)}
           </div>
           <p className="billing-balance-helper" style={{ display: 'none' }}>
-            Use credits to unlock verified moving leads.
+            Use your balance to unlock verified moving leads.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 20, padding: '4px 10px' }}>
               <Wallet size={12} color="#94a3b8" />
-              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>MoveLeads Credits</span>
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Available now</span>
             </div>
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function Billing() {
         {/* Right: quick top-up */}
         <div className="billing-topup-col" style={{ padding: '32px 36px' }}>
           <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 12px' }}>
-            Quick Top Up
+            Add funds
           </p>
 
           {/* Amount selector pills */}
@@ -268,7 +268,7 @@ export default function Billing() {
             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 22px rgba(234,88,12,0.42)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(234,88,12,0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
           >
-            <Plus size={16} /> Add ${selectedAmount} Credits
+            <Plus size={16} /> Add ${selectedAmount} to balance
           </button>
         </div>
       </div>
@@ -322,7 +322,7 @@ export default function Billing() {
                       <Zap size={22} color="#cbd5e1" />
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>No transactions yet</div>
-                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Add credits to get started</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Add funds to get started</div>
                   </div>
                 </td>
               </tr>
@@ -406,8 +406,8 @@ export default function Billing() {
               <div style={{ position: 'absolute', top: '-30%', right: '-10%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle,rgba(249,115,22,0.15),transparent 70%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ color: '#fff', fontSize: 19, fontWeight: 800, margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>Confirm Top Up</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>You're adding credits to your account</p>
+                  <h2 style={{ color: '#fff', fontSize: 19, fontWeight: 800, margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>Confirm add to balance</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>You're adding funds to your balance</p>
                 </div>
                 <button
                   onClick={() => setConfirmAmount(null)}
@@ -421,9 +421,9 @@ export default function Billing() {
             <div style={{ padding: '26px 30px' }}>
               {/* Amount display */}
               <div style={{ textAlign: 'center', padding: '20px', background: '#f8fafc', borderRadius: 16, marginBottom: 22 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Adding to your account</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Adding to your balance</div>
                 <div style={{ fontSize: 48, fontWeight: 800, color: '#0a192f', fontFamily: 'var(--font-heading)', letterSpacing: -1 }}>${confirmAmount}</div>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>credits</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>added to balance</div>
               </div>
 
               {/* Balance breakdown */}
@@ -534,7 +534,7 @@ function TopUpPaymentModal({ amount, balance, API_URL, token, onClose, onSuccess
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 4px', fontFamily: 'var(--font-heading)' }}>
-                Pay ${amount} — Add Credits
+                Pay ${amount} — add to balance
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, margin: 0 }}>
                 Balance after: ${(balance + amount).toFixed(2)}

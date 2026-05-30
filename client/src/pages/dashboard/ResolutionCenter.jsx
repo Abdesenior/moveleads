@@ -96,14 +96,14 @@ export default function ResolutionCenter() {
               <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
           </div>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>Manage customer feedback</p>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>Refund requests and disputes</p>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {fetchError ? (
             <div style={{ padding: '20px 24px', color: '#dc2626', fontSize: 13 }}>{fetchError}</div>
           ) : complaints.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No complaints found. Great job!</div>
+            <div style={{ padding: 30, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No active refund requests.</div>
           ) : (
             complaints.map(c => (
               <div

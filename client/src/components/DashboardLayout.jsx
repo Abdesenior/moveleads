@@ -14,18 +14,27 @@ import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
 import SidebarTooltip from './SidebarTooltip';
 import '../dashboard.css';
 
+// Sidebar — Phase 1 polish (L1, L2, 2026-05-30).
+//
+// L1: "Resolution" → "Refunds & Disputes" (matches what the page does).
+//     "Widget"     → "Embed a form"        ("widget" is engineering jargon).
+// L2: "Instant Jobs" is HIDDEN until SMS Claim ships its live phase
+//     (parked behind 5 PRs per sms-claim-prelive-hardening). The route
+//     remains mounted (so existing /dashboard/sms-claim URLs still work),
+//     but the nav entry is omitted so a pilot mover does not click into
+//     a preview-only surface on day 1.
 const NAV_ITEMS = [
-  { to: '/dashboard',          end: true,  icon: <LayoutDashboard size={18} />, label: 'Overview'   },
-  { to: '/dashboard/leads',    end: false, icon: <Zap size={18} />,             label: 'Live Leads'  },
-  { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Deal Room'   },
-  { to: '/dashboard/sms-claim',end: false, icon: <BellRing size={18} />,        label: 'Instant Jobs' },
-  { to: '/dashboard/my-leads', end: false, icon: <Briefcase size={18} />,       label: 'My Leads'    },
-  { to: '/dashboard/customers',end: false, icon: <Users size={18} />,           label: 'Customers'   },
-  { to: '/dashboard/billing',  end: false, icon: <CreditCard size={18} />,      label: 'Billing'     },
-  { to: '/dashboard/profile',  end: false, icon: <User size={18} />,            label: 'Profile'     },
-  { to: '/dashboard/settings', end: false, icon: <Settings size={18} />,        label: 'Settings'    },
-  { to: '/dashboard/widget',   end: false, icon: <Code size={18} />,            label: 'Widget'      },
-  { to: '/dashboard/resolution-center', end: false, icon: <MessageSquareWarning size={18} />, label: 'Resolution' },
+  { to: '/dashboard',          end: true,  icon: <LayoutDashboard size={18} />, label: 'Overview'           },
+  { to: '/dashboard/leads',    end: false, icon: <Zap size={18} />,             label: 'Live Leads'         },
+  { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Deal Room'          },
+  // Instant Jobs — intentionally omitted (L2).
+  { to: '/dashboard/my-leads', end: false, icon: <Briefcase size={18} />,       label: 'My Leads'           },
+  { to: '/dashboard/customers',end: false, icon: <Users size={18} />,           label: 'Customers'          },
+  { to: '/dashboard/billing',  end: false, icon: <CreditCard size={18} />,      label: 'Billing'            },
+  { to: '/dashboard/profile',  end: false, icon: <User size={18} />,            label: 'Profile'            },
+  { to: '/dashboard/settings', end: false, icon: <Settings size={18} />,        label: 'Settings'           },
+  { to: '/dashboard/widget',   end: false, icon: <Code size={18} />,            label: 'Embed a form'       },
+  { to: '/dashboard/resolution-center', end: false, icon: <MessageSquareWarning size={18} />, label: 'Refunds & Disputes' },
 ];
 
 export default function DashboardLayout({ children }) {
@@ -307,7 +316,7 @@ export default function DashboardLayout({ children }) {
           <div className="mobile-balance-card">
             <div className="mobile-balance-card-row">
               <div className="mobile-balance-card-text">
-                <span className="mobile-balance-card-label">Available Balance</span>
+                <span className="mobile-balance-card-label">Balance</span>
                 <span className="mobile-balance-card-amount" style={{ color: balanceColor }}>
                   ${balance.toFixed(2)}
                 </span>
@@ -317,7 +326,7 @@ export default function DashboardLayout({ children }) {
                 onClick={() => setSidebarOpen(false)}
                 className="mobile-balance-card-cta"
               >
-                Add balance
+                Add funds
               </Link>
             </div>
           </div>

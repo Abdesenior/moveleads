@@ -78,6 +78,30 @@ function StatusPill({ status }) {
   );
 }
 
+// P3 (2026-05-30) — auto-stamp internal notes with a date marker on save.
+// When the operator saves a note that differs from what they loaded, we
+// prepend "· {Today | Yesterday | Mon May 25}" before the new content.
+// If they edit twice in a single day the previous stamp is replaced, not
+// stacked. No schema change — the stamp lives inside crmNotes text.
+const NOTE_STAMP_RE = /^· (Today|Yesterday|[A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2})\n/;
+function noteStampLabel(d = new Date()) {
+  const now = new Date();
+  const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  if (startOfDay(d) === startOfDay(now)) return 'Today';
+  if (startOfDay(d) === startOfDay(now) - 86400000) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function withAutoStamp(noteText, prevNoteText) {
+  const trimmed = (noteText || '').trim();
+  if (!trimmed) return '';
+  // Strip any prior stamp so we re-apply cleanly (no stacking on same-day edits).
+  const stripped = trimmed.replace(NOTE_STAMP_RE, '');
+  const prevStripped = (prevNoteText || '').replace(NOTE_STAMP_RE, '').trim();
+  // No content change → keep whatever the previous saved form was.
+  if (stripped === prevStripped) return prevNoteText || '';
+  return `· ${noteStampLabel()}\n${stripped}`;
+}
+
 function ExpandedPanel({ purchase, onUpdate }) {
   const [notes, setNotes]   = useState(purchase.crmNotes || '');
   const [status, setStatus] = useState(purchase.crmStatus || 'New');
@@ -89,13 +113,16 @@ function ExpandedPanel({ purchase, onUpdate }) {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const stamped = withAutoStamp(notes, purchase.crmNotes || '');
       const res = await fetch(`${API_URL}/leads/${lead._id}/crm-status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ crmStatus: status, crmNotes: notes }),
+        body: JSON.stringify({ crmStatus: status, crmNotes: stamped }),
       });
       if (res.ok) {
         const updated = await res.json();
+        // Reflect the stamped form locally so subsequent edits stack cleanly.
+        setNotes(updated.crmNotes || stamped);
         onUpdate(purchase._id, updated.crmStatus, updated.crmNotes);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
@@ -183,24 +210,35 @@ function ExpandedPanel({ purchase, onUpdate }) {
               Contact Info
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+              {/* P1 (2026-05-30) — phone wraps in tel: so the mover on
+                  iPhone in the truck can one-tap dial. Strip non-digits
+                  for the href; preserve original display formatting. */}
+              <a
+                href={lead?.customerPhone ? `tel:${String(lead.customerPhone).replace(/[^\d+]/g, '')}` : '#'}
+                data-testid="myleads-call-link"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0', textDecoration: 'none', color: 'inherit' }}
+              >
                 <Phone size={13} color="#94a3b8" />
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{lead?.customerName}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{lead?.customerPhone}</div>
+                  <div style={{ fontSize: 11, color: '#0d9488', fontWeight: 600 }}>{lead?.customerPhone}</div>
                 </div>
-              </div>
+              </a>
               {/* Email row — skipped when the synthetic noemail+ placeholder
                   was injected at ingest. Avoids showing the mover a fake
-                  inbox they'd waste outreach effort on. */}
+                  inbox they'd waste outreach effort on. P1: mailto: link. */}
               {emailToShow && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                <a
+                  href={`mailto:${emailToShow}`}
+                  data-testid="myleads-mail-link"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0', textDecoration: 'none', color: 'inherit' }}
+                >
                   <Mail size={13} color="#94a3b8" />
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emailToShow}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0d9488', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emailToShow}</div>
                     <div style={{ fontSize: 11, color: '#64748b' }}>${purchase.pricePaid?.toFixed(2)} paid</div>
                   </div>
-                </div>
+                </a>
               )}
               {!emailToShow && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
@@ -246,15 +284,20 @@ function ExpandedPanel({ purchase, onUpdate }) {
               <StickyNote size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
               Internal Notes
             </div>
+            {/* M5 (2026-05-30) — textarea sized for one-handed iPhone use.
+                fontSize must be 16px so iOS does NOT auto-zoom on focus.
+                minHeight gives the operator typing in a moving truck a
+                target they can hit without the keyboard covering content. */}
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Called, left voicemail. Quoted $1,500 for 3-bed."
-              rows={2}
+              rows={3}
               style={{
                 width: '100%', boxSizing: 'border-box',
-                padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0',
-                fontSize: 12, fontFamily: 'inherit', resize: 'vertical',
+                padding: '10px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0',
+                fontSize: 16, fontFamily: 'inherit', resize: 'vertical',
+                minHeight: 88,
                 outline: 'none', color: '#0f172a', lineHeight: 1.5,
               }}
               onFocus={e => (e.target.style.borderColor = '#3b82f6')}

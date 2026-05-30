@@ -99,14 +99,14 @@ export default function VerifyPhoneModal({ isOpen, onClose, onSuccess }) {
       case 'no_phone_on_file':       return 'Add a phone number in your profile first.';
       case 'phone_in_use':           return 'This number is already verified on another account. Contact support if this seems wrong.';
       case 'cooldown_active':        return `Please wait ${json.retryAfterSec || 60} seconds before requesting another code.`;
-      case 'daily_limit':            return 'You’ve hit the daily verification limit. Try again tomorrow.';
+      case 'daily_limit':            return 'We’ve sent the limit of codes today. Try again in 24 hours, or call (307) 204-4792 to verify by phone.';
       case 'verify_service_unavailable': return 'Verification service is briefly unavailable. Please try again shortly.';
       case 'invalid_phone_format':   return 'That phone number doesn’t look valid. Update it in your profile and try again.';
       case 'verification_blocked_by_twilio':
         // Twilio Fraud Guard at the service level / geo-permission gap /
         // carrier block. The mover can't self-resolve — needs operator
         // action in Twilio Console. Tell them so they don't burn retries.
-        return 'Verification SMS was blocked by our SMS provider. Please contact support — we’ll get this resolved quickly.';
+        return 'Couldn’t send the code — your carrier may be blocking it. Call (307) 204-4792 and we’ll verify you by phone.';
       case 'invalid_code':           return 'Code didn’t match. Double-check and try again.';
       case 'invalid_code_format':    return 'Enter the full 6-digit code.';
       case 'verification_expired':   return 'Code expired or too many attempts. Send a new code.';

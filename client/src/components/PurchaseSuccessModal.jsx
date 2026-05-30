@@ -138,9 +138,19 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
                 <CheckCircle2 size={12} /> Customer details unlocked
               </div>
               <ContactRow icon={<UserIcon size={14} />} label="Name"  value={lead.customerName} />
-              <ContactRow icon={<PhoneIcon size={14} />} label="Phone" value={lead.customerPhone} mono />
+              {/* P1 (2026-05-30) — phone wraps in tel: + email in mailto:
+                  so the post-unlock moment hands the mover a one-tap call. */}
+              <ContactRow
+                icon={<PhoneIcon size={14} />} label="Phone" value={lead.customerPhone} mono
+                href={lead.customerPhone ? `tel:${String(lead.customerPhone).replace(/[^\d+]/g, '')}` : null}
+                testId="success-call-link"
+              />
               {realEmail && (
-                <ContactRow label="Email" value={realEmail} mono />
+                <ContactRow
+                  label="Email" value={realEmail} mono
+                  href={`mailto:${realEmail}`}
+                  testId="success-mail-link"
+                />
               )}
             </div>
           ) : (
@@ -176,48 +186,66 @@ export default function PurchaseSuccessModal({ lead, onView, onClose }) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{
+        {/* Footer — P2 (2026-05-30) CTA reorder. Primary = "Call now"
+            (tel: link), secondary = "View in My Leads", tertiary text
+            link = "Keep browsing." The post-unlock moment is the moment
+            of highest intent; the system should point at the call, not
+            the marketplace. */}
+        <div className="psm-footer" style={{
           padding: '14px 24px 18px', borderTop: '1px solid #f1f5f9',
-          display: 'flex', gap: 10, justifyContent: 'flex-end',
+          display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap',
         }}>
           <button
             type="button"
             onClick={onClose}
             style={{
-              padding: '11px 18px', borderRadius: 10,
-              border: '1px solid #e2e8f0', background: '#fff',
+              padding: '11px 14px', borderRadius: 10,
+              border: 'none', background: 'transparent',
               color: '#64748b', fontSize: 13, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit',
+              textDecoration: 'underline',
             }}
           >
-            Keep browsing leads
+            Keep browsing
           </button>
           <button
             type="button"
             onClick={onView}
             style={{
-              padding: '11px 22px', borderRadius: 10, border: 'none',
-              background: 'linear-gradient(135deg,#f97316,#ea580c)',
-              color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'var(--font-heading)',
-              boxShadow: '0 4px 12px rgba(234,88,12,0.25)',
+              padding: '11px 18px', borderRadius: 10,
+              border: '1px solid #e2e8f0', background: '#fff',
+              color: '#0f172a', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
-            View full move details
+            View in My Leads
           </button>
+          {hasContact && lead.customerPhone && (
+            <a
+              href={`tel:${String(lead.customerPhone).replace(/[^\d+]/g, '')}`}
+              data-testid="success-call-now-cta"
+              className="psm-call-now"
+              style={{
+                padding: '12px 22px', borderRadius: 10, border: 'none',
+                background: 'linear-gradient(135deg,#16a34a,#15803d)',
+                color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer',
+                fontFamily: 'var(--font-heading)',
+                textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
+                boxShadow: '0 4px 14px rgba(22,163,74,0.30)',
+              }}
+            >
+              <PhoneIcon size={15} /> Call {lead.customerName ? lead.customerName.split(' ')[0] : 'now'}
+            </a>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function ContactRow({ icon, label, value, mono = false }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '6px 0',
-    }}>
+function ContactRow({ icon, label, value, mono = false, href = null, testId = null }) {
+  const inner = (
+    <>
       {icon && (
         <span style={{ color: '#16a34a', display: 'inline-flex', flexShrink: 0 }}>
           {icon}
@@ -228,7 +256,7 @@ function ContactRow({ icon, label, value, mono = false }) {
           {label}
         </div>
         <div style={{
-          fontSize: 14, color: '#0f172a', fontWeight: 700,
+          fontSize: 14, color: href ? '#0d9488' : '#0f172a', fontWeight: 700,
           fontFamily: mono ? 'ui-monospace, SF Mono, Menlo, monospace' : 'inherit',
           letterSpacing: mono ? '-0.01em' : 0,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -236,6 +264,10 @@ function ContactRow({ icon, label, value, mono = false }) {
           {value}
         </div>
       </div>
-    </div>
+    </>
   );
+  const rowStyle = { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', textDecoration: 'none', color: 'inherit' };
+  return href
+    ? <a href={href} data-testid={testId || undefined} style={rowStyle}>{inner}</a>
+    : <div style={rowStyle}>{inner}</div>;
 }

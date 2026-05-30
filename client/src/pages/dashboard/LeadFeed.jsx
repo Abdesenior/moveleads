@@ -705,7 +705,7 @@ export default function LeadFeed() {
 
         {/* ── Table ── */}
         {loading ? (
-          <div className="feed-loading"><div className="spinner" /><span>Scanning for live opportunities…</span></div>
+          <div className="feed-loading"><div className="spinner" /><span>Checking for new leads…</span></div>
         ) : displayedLeads.length === 0 ? (
           <div className="empty-feed">
             <div className="empty-icon-box"><ZapOff size={32} /></div>
@@ -718,6 +718,24 @@ export default function LeadFeed() {
               <p style={{ marginTop: 8, fontSize: 13, color: '#94a3b8' }}>
                 We check continuously — alerts fire within seconds of a verified match.
               </p>
+            )}
+            {/* L10 (2026-05-30) — escape hatch. When the matched feed is
+                empty (and no filter is engaged) the mover should not be
+                stuck at a dead end; offer the All-marketplace tab inline. */}
+            {feedScope === 'matched' && !(search || distFilter !== 'all' || dateFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => { scopeUserPickedRef.current = true; setFeedScope('all'); }}
+                data-testid="empty-feed-browse-all"
+                style={{
+                  marginTop: 14, padding: '8px 14px', borderRadius: 999,
+                  border: '1px solid #e2e8f0', background: '#fff',
+                  color: '#0d9488', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Browse all marketplace leads →
+              </button>
             )}
           </div>
         ) : (
