@@ -230,6 +230,13 @@ router.post(
  * because the global app.use(express.json()) does not parse form bodies.
  */
 const SUPPORT_NUMBER = '+1 (307) 204-4792';
+// SMS Claim winner confirmation — low-balance reminder threshold.
+// When the mover's post-debit balance falls below this, the confirmation
+// SMS appends "Add funds to keep getting SMS claims." instead of the
+// dashboard view link. Tuned to fire roughly when the mover can no
+// longer afford ~2 average-priced claims; conservative on purpose so
+// healthy-balance movers don't see the reminder.
+const SMS_CLAIM_LOW_BALANCE_USD = 100;
 const STOP_KEYWORDS  = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']);
 const START_KEYWORDS = new Set(['START', 'UNSTOP', 'YES']);
 const HELP_KEYWORDS  = new Set(['HELP', 'INFO']);
@@ -636,12 +643,33 @@ router.post(
         const customerLine = lastInitial ? `Customer: ${firstName} ${lastInitial}` : `Customer: ${firstName}`;
         const phoneLine = `Phone: ${claimedLead.customerPhone || 'n/a'}`;
         const head = `MoveLeads: lead claimed! $${price} debited.`;
+        // 2026-05-30 — Balance awareness.
+        //   - Always show the post-debit balance so the mover knows what
+        //     they have left without opening the app.
+        //   - Floor to whole dollars for clean SMS display (price is
+        //     already integer-shaped in production).
+        //   - Conditional reminder ONLY when post-debit balance falls below
+        //     SMS_CLAIM_LOW_BALANCE_USD. Healthy-balance movers don't see
+        //     it — minimum noise.
+        const remaining = Math.max(0, Math.floor(Number(debited.balance) || 0));
+        const balanceLine = `Balance: $${remaining}`;
+        const isLowBalance = remaining < SMS_CLAIM_LOW_BALANCE_USD;
+        const lowBalanceLine = `Add funds to keep getting SMS claims.`;
         const dashLine = `View: moveleads.cloud/dashboard/customers`;
 
-        // 160-char single-segment budget. Drop the dashboard line first if
-        // over budget — PII stays non-negotiable. If still over, slice.
-        let body = `${head}\n${customerLine}\n${phoneLine}\n${dashLine}`;
-        if (body.length > 160) body = `${head}\n${customerLine}\n${phoneLine}`;
+        // 160-char single-segment budget. Composition rule:
+        //   Always keep: head + balance + customer + phone (PII + balance
+        //   awareness are non-negotiable per operator directive).
+        //   Optional tail line:
+        //     - low balance: append the funds reminder
+        //     - healthy:     append the dashboard view link
+        //   If still over budget after composing, slice (last-resort).
+        const tail = isLowBalance ? lowBalanceLine : dashLine;
+        let body = `${head}\n${balanceLine}\n${customerLine}\n${phoneLine}\n${tail}`;
+        if (body.length > 160) {
+          // Drop the optional tail first.
+          body = `${head}\n${balanceLine}\n${customerLine}\n${phoneLine}`;
+        }
         if (body.length > 160) body = body.slice(0, 157) + '...';
         twiml.message(body);
         return res.type('text/xml').send(twiml.toString());
