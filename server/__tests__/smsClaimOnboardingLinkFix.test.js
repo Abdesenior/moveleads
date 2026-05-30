@@ -130,25 +130,31 @@ test('E1. The alert-coverage section heading still exists', () => {
     'Alert-coverage section heading must be preserved (either current "Current alert coverage" or legacy "Coverage & alerts (from onboarding)") — only the footer link is changed by PR-D5');
 });
 
-test('E2. The coverage preview rows (pickup / delivery / max distance / dispatch hours) are still rendered', () => {
-  // 2026-05-29 — the row labels were rewritten when the section moved
-  // from reading onboarding.answers to reading the canonical
-  // pickupStates / deliveryStates / deliversNationwide / maxDistance
-  // fields directly. Accept either the current or the legacy labels
-  // for each row so this test stays meaningful through the rename
-  // without locking the UI to a specific copy.
-  const pairs = [
-    ['Pickup states',      'Primary market'],   // origin coverage
-    ['Delivery',           'Coverage radius'],  // destination coverage
-    ['Max distance',       'Coverage mode'],    // distance gate
-    ['Dispatch hours',     'Dispatch hours'],   // unchanged
-  ];
-  for (const [current, legacy] of pairs) {
-    const ok =
-      new RegExp(`label="${current}"`).test(smsClaimSrc) ||
-      new RegExp(`label="${legacy}"`).test(smsClaimSrc);
-    assert.ok(ok,
-      `Coverage preview row must exist (current="${current}" or legacy="${legacy}")`);
+test('E2. The coverage preview shows only Pickup states + Delivery (2026-05-30 visual polish)', () => {
+  // 2026-05-30 — Visual-polish PR reduced the coverage panel from four rows
+  // (pickup, delivery, max distance, dispatch hours) to TWO (pickup,
+  // delivery). The operator's directive: do not display values that aren't
+  // sourced from real settings — Max distance + Dispatch hours rendered
+  // as "—" when unset, which felt invented. Backend payload + Settings UI
+  // are unchanged; only the SmsClaim surface stopped reading those fields.
+  //
+  // What this test now guarantees:
+  //   - Pickup + Delivery rows are present (the load-bearing SMS coverage)
+  //   - Max distance + Dispatch hours rows are absent
+  //   - Legacy onboarding-wizard labels stay out too (PR-C1 unchanged)
+  const present = ['Pickup states', 'Delivery'];
+  for (const label of present) {
+    assert.ok(
+      new RegExp(`label="${label}"`).test(smsClaimSrc),
+      `Coverage row "${label}" must remain rendered`
+    );
+  }
+  const removed = ['Max distance', 'Dispatch hours', 'Primary market', 'Coverage radius', 'Coverage mode'];
+  for (const label of removed) {
+    assert.ok(
+      !new RegExp(`label="${label}"`).test(smsClaimSrc),
+      `Coverage row "${label}" must not be rendered on the SmsClaim page`
+    );
   }
 });
 

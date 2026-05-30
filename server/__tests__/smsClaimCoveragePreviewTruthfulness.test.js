@@ -232,16 +232,29 @@ test('F2. SmsClaim.jsx renders a "Delivery" row that handles deliversNationwide'
     'Delivery row must read coveragePreview.deliveryStates');
 });
 
-test('F3. SmsClaim.jsx renders a "Max distance" row sourced from coveragePreview.maxDistance', () => {
-  assert.match(uiExec, /label="Max distance"/);
-  assert.match(uiExec, /coveragePreview\.maxDistance/);
+test('F3. SmsClaim.jsx no longer renders a "Max distance" row (2026-05-30 visual polish)', () => {
+  // The prior coverage panel rendered Max distance as "—" when the mover
+  // had not set a distance preference, which the operator flagged as
+  // inventing values. The visual-polish PR removed the row entirely from
+  // the SmsClaim page. The maxDistance field is still emitted by the
+  // backend (coveragePreview.maxDistance) and consumed by Settings — only
+  // the SmsClaim surface no longer reads it.
+  assert.doesNotMatch(uiExec, /label="Max distance"/,
+    'Max distance row must not be rendered on the SmsClaim page');
+  assert.doesNotMatch(uiExec, /coveragePreview\.maxDistance/,
+    'SmsClaim page must not read coveragePreview.maxDistance');
 });
 
-test('F4. SmsClaim.jsx retains the "Dispatch hours" row (PR-C2 canonical)', () => {
-  assert.match(uiExec, /label="Dispatch hours"/,
-    'Dispatch hours row must remain (PR-C2 canonical field unchanged)');
-  assert.match(uiExec, /coveragePreview\.dispatchHoursOpen/);
-  assert.match(uiExec, /coveragePreview\.dispatchHoursClose/);
+test('F4. SmsClaim.jsx no longer renders the "Dispatch hours" row (2026-05-30 visual polish)', () => {
+  // Same rationale as F3 — dispatchHoursOpen/Close render as "—" when not
+  // configured, which the operator flagged. Removed from the SmsClaim
+  // surface. Backend payload + Settings UI are unchanged.
+  assert.doesNotMatch(uiExec, /label="Dispatch hours"/,
+    'Dispatch hours row must not be rendered on the SmsClaim page');
+  assert.doesNotMatch(uiExec, /coveragePreview\.dispatchHoursOpen/,
+    'SmsClaim page must not read coveragePreview.dispatchHoursOpen');
+  assert.doesNotMatch(uiExec, /coveragePreview\.dispatchHoursClose/,
+    'SmsClaim page must not read coveragePreview.dispatchHoursClose');
 });
 
 // ── G. Dropped legacy rows ─────────────────────────────────────────────
