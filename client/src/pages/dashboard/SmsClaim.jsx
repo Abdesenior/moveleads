@@ -91,7 +91,15 @@ export default function SmsClaim() {
   const r = data.readiness;
   const smsAlertsOn = r.smsNotifEnabled && !r.smsOptOut;
   const isOn        = !!data.optInRequested;
-  const canActivate = r.phoneVerified && smsAlertsOn && r.balanceMet && r.coverageConfigured;
+  // 2026-05-30 — Balance is a RECOMMENDATION, not a gate. A mover with
+  // $100 balance can still claim a $42 lead (per-claim eligibility in
+  // twilioService.js is `balance >= buyNowPrice`, not against the UI
+  // recommendation). Gating activation on r.balanceMet meant pilot
+  // movers at $100 saw the toggle disabled despite being eligible to
+  // claim. The "Enough balance" requirement badge still shows amber +
+  // "Add funds →" when under the recommendation — the hint stays, the
+  // block goes away.
+  const canActivate = r.phoneVerified && smsAlertsOn && r.coverageConfigured;
 
   return (
     <DashboardLayout>

@@ -155,4 +155,55 @@ test('W8. Pre-2026-05-30 body shape is gone', () => {
   );
 });
 
+// ── 3. UI: balance is a recommendation, not an activation gate ──────────────
+
+test('U1. canActivate does not gate on r.balanceMet (balance is a recommendation, not a block)', () => {
+  // 2026-05-30 — operator directive: $100 balance should not make the
+  // SmsClaim page feel blocked if the mover can still claim lower-priced
+  // leads. Per-claim eligibility is `balance >= buyNowPrice` in
+  // twilioService.js — the UI recommendation must not pre-empt it.
+  const smsClaimPage = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'dashboard', 'SmsClaim.jsx'),
+    'utf8'
+  );
+  const exec = smsClaimPage
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/\/\/.*$/gm, '');
+
+  // The canActivate composition must not include r.balanceMet.
+  const canActivateLine = exec.match(/const\s+canActivate\s*=\s*[^;]+;/);
+  assert.ok(canActivateLine, 'canActivate declaration must exist');
+  assert.doesNotMatch(
+    canActivateLine[0],
+    /r\.balanceMet/,
+    'canActivate must NOT gate on r.balanceMet — balance is a recommendation, not a block'
+  );
+  // The other three checks must still be there (correct gates).
+  assert.match(canActivateLine[0], /r\.phoneVerified/, 'phoneVerified must remain a gate');
+  assert.match(canActivateLine[0], /smsAlertsOn/,       'smsAlertsOn must remain a gate');
+  assert.match(canActivateLine[0], /r\.coverageConfigured/, 'coverageConfigured must remain a gate');
+});
+
+test('U2. The "Enough balance" requirement badge still surfaces r.balanceMet (the hint stays)', () => {
+  // Removing r.balanceMet from canActivate must NOT remove the amber
+  // badge / "Add funds →" link — the operator wants the recommendation
+  // visible, just not blocking.
+  const smsClaimPage = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'dashboard', 'SmsClaim.jsx'),
+    'utf8'
+  );
+  const exec = smsClaimPage
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/\/\/.*$/gm, '');
+
+  // The Enough balance RequirementBadge must still pass r.balanceMet
+  // into its `ok` prop AND surface the Add-funds action when not met.
+  assert.match(exec, /ok=\{r\.balanceMet\}/,
+    'Enough balance badge must still display amber state from r.balanceMet');
+  assert.match(exec, /!r\.balanceMet[\s\S]{0,80}Add funds/,
+    'Enough balance badge must still show the "Add funds →" action link when under-recommended');
+});
+
 console.log('\nSMS Claim balance-awareness lock-in suite — all assertions passed.');
