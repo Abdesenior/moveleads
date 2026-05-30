@@ -442,6 +442,29 @@ Items worth doing if Phase 1 lands fast and there's time.
 | **Pilot-cohort recruitment email rewrite** | Medium | 30 min | Low | Operator owns; coordinate with phase 1 copy direction |
 | **Fr4** Suppress transient "Reconnecting/Connecting" pill states under 2s (debounce) | Low–Medium (trust) | 20 min | Low — render-layer debounce | Not approved for Phase 1; ship only if Phase 1 lands fast |
 
+### Phase 2 — SMS Claim Beta-removal track (2026-05-30)
+
+Beta tag stays until the two items below close + real pilot usage validates the feature. Operator directive: do not expand scope beyond these two items. Everything else is pilot-validated.
+
+**Priority order (do not reorder without operator approval):**
+
+| # | Item | Effort | Risk | Why now |
+|---|---|---|---|---|
+| 1 | **broadcastTo enforcement on inbound CAS.** Add `'claimWindow.broadcastTo': user._id` to the Stage 3 CAS filter in [routes/twilio.js#L388-L405](../server/routes/twilio.js#L388-L405). Disambiguation branch gets a new outcome `'rejected_not_in_broadcast'`. One lock-in test. | 30 min | Low — additive filter constraint | Closes the only real security gap (token-share / collusion). Required before cohort > 5 movers. |
+| 2 | **Admin metrics endpoint for ClaimAttempt outcomes.** Read-only admin route returning counts grouped by `outcome` over the last N days. Same shape as PR #59 claim-attempts endpoint. No new fields, no schema changes. | 2 hr | None — read-only | Required to operate SMS Claim with daily visibility into win/loss/expire distribution. |
+
+**Beta removal trigger:** both items above shipped + ≥ 2 successful pilot-mover SMS claims observed + ≥ 1 contested-race outcome captured in metrics (lost_already_claimed or lost_window_expired with N>1 broadcastTo). At that point, revisit the chip.
+
+**Explicitly out of Phase 2 scope (validated through pilot usage):**
+- Mover-preference enforcement (maxLeadPrice / dailyClaimCap / residentialOnly / commercialOptIn / asapOnly)
+- Restoring preference controls to the SmsClaim UI
+- Loser-fan-out cost or TCPA monitoring
+- Cron heartbeat metric
+- Refund flow audit specifically for SMS-claim purchases
+- Winner confirmation SMS URL update (`/dashboard/customers` → `/dashboard/my-leads`)
+- "You receive customer details by text and in My Leads" page-copy clarity nit
+- Phone-verification rollout (Twilio Verify 60238 — external workstream)
+
 ## Phase 3 — Post-pilot improvements (after 5-day pilot completes)
 
 Items that should be validated against real mover behavior before shipping.
