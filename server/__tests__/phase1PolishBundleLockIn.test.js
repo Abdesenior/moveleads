@@ -41,13 +41,34 @@ test('L1.B — Sidebar uses "Embed a form" not "Widget"', () => {
   assert.doesNotMatch(dashboardLayout, /label:\s*['"]Widget['"]/, 'sidebar must not use the pre-L1 "Widget" label');
 });
 
-// ─── Agent 1 / L2 — Instant Jobs hidden ──────────────────────────────────────
+// ─── Agent 1 / L2 — SMS Claim sidebar entry (re-exposed as Beta, 2026-05-30) ──
+//
+// The pre-L2 directive hid "Instant Jobs" on the assumption that SMS Claim
+// was preview-only. Runtime evidence (operator-completed claim) disproved
+// that. The entry is now exposed under the more honest label "SMS Claim"
+// with a Beta chip. Legacy label "Instant Jobs" must stay out of NAV_ITEMS.
 
-test('L2 — Instant Jobs nav entry is not present in NAV_ITEMS', () => {
+test('L2.A — Sidebar exposes "SMS Claim" with a beta flag', () => {
+  assert.match(
+    dashboardLayout,
+    /label:\s*['"]SMS Claim['"]\s*,\s*beta:\s*true/,
+    'SMS Claim sidebar entry must be present with beta: true'
+  );
+});
+
+test('L2.B — Legacy "Instant Jobs" label is gone from NAV_ITEMS', () => {
   assert.doesNotMatch(
     dashboardLayout,
     /label:\s*['"]Instant Jobs['"]/,
-    'Instant Jobs sidebar entry must be omitted until SMS Claim ships live'
+    'Legacy "Instant Jobs" label must not return — the new label is "SMS Claim"'
+  );
+});
+
+test('L2.C — Sidebar renders a BETA chip when nav item has beta: true', () => {
+  assert.match(
+    dashboardLayout,
+    /\{beta &&\s*\(?[\s\S]*?nav-beta-chip[\s\S]*?BETA/,
+    'Sidebar render must include a Beta chip rendered when item.beta is true'
   );
 });
 

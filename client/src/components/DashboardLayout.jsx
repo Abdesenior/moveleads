@@ -14,20 +14,22 @@ import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
 import SidebarTooltip from './SidebarTooltip';
 import '../dashboard.css';
 
-// Sidebar — Phase 1 polish (L1, L2, 2026-05-30).
+// Sidebar — Phase 1 polish (L1, L2, 2026-05-30) + SMS Claim re-expose (2026-05-30).
 //
 // L1: "Resolution" → "Refunds & Disputes" (matches what the page does).
 //     "Widget"     → "Embed a form"        ("widget" is engineering jargon).
-// L2: "Instant Jobs" is HIDDEN until SMS Claim ships its live phase
-//     (parked behind 5 PRs per sms-claim-prelive-hardening). The route
-//     remains mounted (so existing /dashboard/sms-claim URLs still work),
-//     but the nav entry is omitted so a pilot mover does not click into
-//     a preview-only surface on day 1.
+//
+// SMS Claim re-expose (2026-05-30): the prior comment hid "Instant Jobs"
+// on the assumption that SMS Claim was preview-only. Runtime evidence
+// (operator-completed claim in production) disproved that — the feature
+// is live. Re-expose with a "Beta" chip so movers can opt in. Renamed
+// "Instant Jobs" → "SMS Claim" so the sidebar label matches the page
+// vocabulary the mover now sees.
 const NAV_ITEMS = [
   { to: '/dashboard',          end: true,  icon: <LayoutDashboard size={18} />, label: 'Overview'           },
   { to: '/dashboard/leads',    end: false, icon: <Zap size={18} />,             label: 'Live Leads'         },
   { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Deal Room'          },
-  // Instant Jobs — intentionally omitted (L2).
+  { to: '/dashboard/sms-claim',end: false, icon: <BellRing size={18} />,        label: 'SMS Claim', beta: true },
   { to: '/dashboard/my-leads', end: false, icon: <Briefcase size={18} />,       label: 'My Leads'           },
   { to: '/dashboard/customers',end: false, icon: <Users size={18} />,           label: 'Customers'          },
   { to: '/dashboard/billing',  end: false, icon: <CreditCard size={18} />,      label: 'Billing'            },
@@ -333,7 +335,7 @@ export default function DashboardLayout({ children }) {
 
           {/* Nav */}
           <nav className="sidebar-nav">
-            {NAV_ITEMS.map(({ to, end, icon, label }) => (
+            {NAV_ITEMS.map(({ to, end, icon, label, beta }) => (
               <SidebarTooltip key={to} label={label} enabled={collapsed}>
                 <NavLink
                   to={to}
@@ -346,6 +348,16 @@ export default function DashboardLayout({ children }) {
                 >
                   {icon}
                   <span className="nav-label">{label}</span>
+                  {beta && (
+                    <span className="nav-beta-chip" style={{
+                      marginLeft: 'auto',
+                      background: '#fff7ed', color: '#9a3412',
+                      border: '1px solid #fdba74',
+                      fontSize: 9, fontWeight: 800,
+                      padding: '1px 6px', borderRadius: 8,
+                      letterSpacing: 0.4, lineHeight: '14px',
+                    }}>BETA</span>
+                  )}
                   {to === '/dashboard/resolution-center' && openComplaints > 0 && (
                     <span className="nav-badge" style={{
                       marginLeft: 'auto',
