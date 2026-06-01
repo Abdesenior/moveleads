@@ -6,6 +6,8 @@ import { X } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
 import PlaceAutocomplete from '../../components/PlaceAutocomplete';
+import VerifyPhoneModal from '../../components/VerifyPhoneModal';
+import { useToast } from '../../components/ui/Toast';
 import './Onboarding.css';
 
 // Single Stripe.js loader memoized at module scope per @stripe/react-stripe-js docs.
@@ -120,8 +122,23 @@ function isValidUSPhone(input) {
 
 export default function OnboardingWizard({ onClose, initialStep }) {
   const { API_URL, refreshUser, user } = useContext(AuthContext);
+  const toast = useToast();
   const navigate = useNavigate();
   const [step, setStep] = useState(initialStep || 1);
+  // 2026-05-30 — Step 3 phone-verify integration. The wizard owns the modal
+  // open/close so the verification flow can be triggered by either the
+  // Continue button (primary) or the inline "Verify now" CTA on the status
+  // card. On modal success → advance to step 4. On modal close (skip) →
+  // soft toast + advance. NEVER blocks progress.
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  // Live phoneVerified snapshot. Re-read from /auth/me after each step-3 save
+  // because applyPhoneChange resets server-side when the number changes; the
+  // AuthContext user may briefly hold the pre-change verified=true state.
+  const [phoneVerified, setPhoneVerified] = useState(!!user?.phoneVerified);
+  // Re-sync from context whenever the user hydrates / refreshUser fires.
+  useEffect(() => {
+    setPhoneVerified(!!user?.phoneVerified);
+  }, [user?.phoneVerified]);
   const [answers, setAnswers] = useState({
     dispatchBase: { input: '', zip: '', city: '', state: '' },
     pickup:       { mode: '', states: [] },
@@ -281,11 +298,90 @@ export default function OnboardingWizard({ onClose, initialStep }) {
       if (step < 3) {
         setStep(step + 1);
       } else if (step === 3) {
-        setStep(4); // → setup-complete celebration
+        // 2026-05-30 — Phone-verify integration.
+        //
+        // After step 3 saves the phone, server-side `applyPhoneChange` will
+        // have RESET phoneVerified=false if the number differs from the
+        // previously-stored value. Fetch /auth/me directly to get the
+        // post-save truth (refreshUser is fire-and-forget and would race
+        // the decision below). Then:
+        //   - phoneVerified=true → advance to step 4 (no modal needed)
+        //   - phoneVerified=false → open VerifyPhoneModal on top of the wizard
+        //                            (modal callbacks own the step transition)
+        // Any failure to read /auth/me is non-blocking: advance to step 4
+        // and the mover can verify later from Settings or SmsClaim.
+        try {
+          const res = await fetch(`${API_URL}/auth/me`, {
+            headers: { 'x-auth-token': localStorage.getItem('token') || '' },
+          });
+          if (res.ok) {
+            const fresh = await res.json();
+            setPhoneVerified(!!fresh.phoneVerified);
+            // Reflect the fresh user into context so the inline card on a
+            // back-navigation reads the right state.
+            if (refreshUser) refreshUser().catch(() => {});
+            if (fresh.phoneVerified === true) {
+              setStep(4);
+            } else {
+              setVerifyOpen(true);
+              // Modal handlers (handleVerifySuccess / handleVerifyClose)
+              // own the step-4 transition.
+            }
+          } else {
+            // Read failure → be permissive, advance.
+            setStep(4);
+          }
+        } catch (_readErr) {
+          // Read failure → be permissive, advance.
+          setStep(4);
+        }
       }
     } catch (err) {
       console.error('[OnboardingWizard] next() failed:', err);
       setSaveError("We couldn't save that step. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Modal success — phoneVerified just flipped true server-side. Refresh
+  // context so downstream surfaces (SmsClaim readiness, ActivationBanner
+  // CTAs) reflect the new state on next render, then advance.
+  function handleVerifySuccess() {
+    setVerifyOpen(false);
+    setPhoneVerified(true);
+    if (refreshUser) refreshUser().catch(() => {});
+    setStep(4);
+  }
+
+  // Modal close (user X'd out / clicked outside / hit Escape). Phone is
+  // already saved server-side from step 3; verification just didn't
+  // complete. NEVER block — advance + soft toast explaining the trade-off.
+  function handleVerifyClose() {
+    setVerifyOpen(false);
+    if (toast && toast.info) {
+      toast.info(
+        'Your phone is saved',
+        "Verify it anytime from Settings → Profile. Text alerts won't fire until your phone is confirmed."
+      );
+    }
+    setStep(4);
+  }
+
+  // Inline "Verify now" CTA on the amber status card. Same flow as Continue,
+  // but stays on step 3 on success so the mover sees the card flip to green.
+  async function handleInlineVerifyClick() {
+    if (saving) return;
+    setSaveError('');
+    setSaving(true);
+    try {
+      // Save first so the modal verifies against the current input.
+      await saveStep(3);
+      if (refreshUser) refreshUser().catch(() => {});
+      setVerifyOpen(true);
+    } catch (err) {
+      console.error('[OnboardingWizard] inline verify failed:', err);
+      setSaveError("We couldn't save your phone number. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -419,7 +515,16 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           <div className="ow-step-anim" key={step}>
             {step === 1 && <ScreenDispatchPickup answers={answers} setAnswer={setAnswer} companyName={user?.companyName} />}
             {step === 2 && <ScreenDeliveryCoverage answers={answers} setAnswer={setAnswer} API_URL={API_URL} />}
-            {step === 3 && <ScreenAlerts answers={answers} setAnswer={setAnswer} userEmail={user?.email} />}
+            {step === 3 && (
+              <ScreenAlerts
+                answers={answers}
+                setAnswer={setAnswer}
+                userEmail={user?.email}
+                phoneVerified={phoneVerified}
+                onVerifyClick={handleInlineVerifyClick}
+                saving={saving}
+              />
+            )}
             {step === 4 && <ScreenSetupComplete answers={answers} onClaim={continueToActivate} />}
             {step === 5 && <ScreenBalance tier={tier} setTier={setTier} onContinue={continueToPayment} onSkip={dismissAndClose} />}
             {step === 6 && intent && <ScreenPayment API_URL={API_URL} tier={tier} intent={intent} onBack={back} onDone={onActivationDone} />}
@@ -450,6 +555,20 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           </div>
         )}
       </div>
+
+      {/* 2026-05-30 — Step 3 phone-verify integration.
+          Mounted at the wizard root so the modal's own backdrop sits ABOVE
+          the wizard's fixed overlay. The component is self-contained and
+          self-cleans body-scroll-lock when closed. Triggered by either the
+          Continue button at step 3 OR the inline "Verify now" CTA on the
+          amber status card. NEVER blocks progress — both close paths
+          (success + skip) advance to step 4 through their respective
+          handlers above. */}
+      <VerifyPhoneModal
+        isOpen={verifyOpen}
+        onClose={handleVerifyClose}
+        onSuccess={handleVerifySuccess}
+      />
     </div>
   );
 }
@@ -727,12 +846,21 @@ function previewMessage(p) {
 }
 
 // ── Step 3: Alerts (phone + SMS + email) ────────────────────────────────────
-function ScreenAlerts({ answers, setAnswer, userEmail }) {
+function ScreenAlerts({ answers, setAnswer, userEmail, phoneVerified, onVerifyClick, saving }) {
   // Show inline phone validation only once the user has typed something —
   // empty field is "incomplete", not "invalid".
   const phoneError = answers.phone && !isValidUSPhone(answers.phone)
     ? 'Please enter a valid US phone number.'
     : '';
+
+  // 2026-05-30 — Verify status card render condition.
+  // Only show the card when there's a valid phone number on file. Empty +
+  // invalid fields don't get a card — the inline validator handles those.
+  // The card has two visual states:
+  //   - phoneVerified=true  → green "Phone confirmed"
+  //   - phoneVerified=false → amber "Confirm your phone… [Verify now →]"
+  const phoneIsValid = !!answers.phone && !phoneError;
+  const showVerifyCard = phoneIsValid;
 
   return (
     <>
@@ -762,6 +890,41 @@ function ScreenAlerts({ answers, setAnswer, userEmail }) {
         />
         {phoneError && (
           <p id="notifPhoneErr" className="ow-input-error" role="alert">{phoneError}</p>
+        )}
+        {showVerifyCard && phoneVerified && (
+          <div
+            className="ow-verify-status ow-verify-status-confirmed"
+            data-testid="onboarding-verify-confirmed"
+            role="status"
+          >
+            <span className="ow-verify-status-icon" aria-hidden="true">✓</span>
+            <div className="ow-verify-status-body">
+              <div className="ow-verify-status-title">Phone confirmed</div>
+              <div className="ow-verify-status-sub">You’re set to receive text alerts.</div>
+            </div>
+          </div>
+        )}
+        {showVerifyCard && !phoneVerified && (
+          <div
+            className="ow-verify-status ow-verify-status-pending"
+            data-testid="onboarding-verify-pending"
+            role="status"
+          >
+            <span className="ow-verify-status-icon" aria-hidden="true">⚠</span>
+            <div className="ow-verify-status-body">
+              <div className="ow-verify-status-title">Confirm your phone to receive text alerts</div>
+              <div className="ow-verify-status-sub">We’ll send you a 6-digit code.</div>
+            </div>
+            <button
+              type="button"
+              className="ow-verify-status-cta"
+              onClick={onVerifyClick}
+              disabled={saving}
+              data-testid="onboarding-verify-inline-cta"
+            >
+              Verify now →
+            </button>
+          </div>
         )}
       </div>
 
@@ -1279,6 +1442,15 @@ function ScreenActivationSuccess({ onDone, answers }) {
         <li>{marketLine}</li>
         <li>Notifications ready for matching requests</li>
       </ul>
+      {/* 2026-05-30 — Informational awareness only. Per operator directive:
+          "a mover finishes onboarding already ready for SMS alerts and
+          understands SMS Claim exists." This is NOT a competing CTA — the
+          primary action stays "View matching opportunities." The line
+          renders quieter than the success list so it reads as a heads-up,
+          not an instruction. */}
+      <p className="ow-success-aside" data-testid="onboarding-success-sms-claim-aside">
+        Reply by text to claim leads instantly — turn on <strong>SMS Claim</strong> from the sidebar. <span className="ow-success-beta">Beta</span>
+      </p>
       <button type="button" className="ow-next" style={{ marginTop: 18 }} onClick={onDone}>
         View matching opportunities →
       </button>
