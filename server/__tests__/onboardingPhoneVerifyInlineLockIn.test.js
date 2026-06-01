@@ -232,20 +232,23 @@ test('H3. Both cards are gated on a valid phone number (no card for empty/invali
   );
 });
 
-// ─── I. Step 7 SMS Claim awareness aside ───────────────────────────────────
+// ─── I. Step 7 SMS Claim heads-up (upgraded to a small card per Decision 3A) ─
 
-test('I1. Step 7 success screen carries the SMS Claim awareness line', () => {
+test('I1. Step 7 success screen carries the SMS Claim heads-up (data-testid preserved)', () => {
+  // 2026-05-30 — the original 1-line aside was upgraded to a small info
+  // card (Decision 3A from the activation-journey audit). The data-testid
+  // is preserved on the new wrapper so this test stays a single place to
+  // assert "the SMS Claim heads-up is on Step 7." The exact copy moved
+  // into a structured card; the activation-journey lock-in suite locks
+  // in the new wording. Here we only assert that the heads-up section is
+  // present with the same identifier.
   assert.match(exec, /data-testid="onboarding-success-sms-claim-aside"/);
-  assert.match(
-    exec,
-    /Reply by text to claim leads instantly[\s\S]{0,40}turn on\s*<strong>SMS Claim<\/strong>[\s\S]{0,40}from the sidebar\./,
-    'Step 7 aside must include the awareness copy'
-  );
 });
 
-test('I2. Step 7 aside renders a Beta chip', () => {
+test('I2. Step 7 heads-up renders a Beta chip', () => {
+  // Same .ow-success-beta class is reused on the new card header.
   assert.match(exec, /className="ow-success-beta"/);
-  assert.match(exec, />\s*Beta\s*<\/span>/);
+  assert.match(exec, />Beta<\/span>/);
 });
 
 test('I3. Step 7 primary CTA "View matching opportunities" is preserved', () => {

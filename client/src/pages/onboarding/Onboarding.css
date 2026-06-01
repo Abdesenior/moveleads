@@ -2184,3 +2184,172 @@
   vertical-align: middle;
 }
 
+/* ── Step 3 alert-channel explainer (2026-05-30) ─────────────────────────
+ *
+ * Three-line "how alerts reach you" list above the phone input. Compact,
+ * informational, no inputs. Reuses the slate / green palette. */
+.ow-alerts-channels {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.ow-alerts-channels-lead {
+  font-size: 13px; font-weight: 600; color: #334155;
+  margin-bottom: 8px;
+}
+.ow-alerts-channels-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 13.5px; color: #475569;
+}
+.ow-alerts-channels-list li {
+  display: flex; align-items: center; gap: 8px;
+}
+.ow-alerts-channels-tick {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 999px; flex-shrink: 0;
+  background: #ecfdf5; color: #16a34a;
+  font-size: 11px; font-weight: 800;
+}
+
+/* ── Step 4 activation-journey block (2026-05-30) ────────────────────────
+ *
+ * "How MoveLeads works" — numbered flow + control-reassurance + trust line.
+ * Lives between the post-setup status checklist and the activation CTA. */
+.ow-journey-block {
+  margin: 28px auto 22px;
+  max-width: 460px;
+}
+.ow-journey-h2 {
+  font-size: 14px; font-weight: 800; color: #334155;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  text-align: center; margin: 0 0 14px;
+}
+.ow-how-it-works {
+  list-style: none; padding: 0; margin: 0 0 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ow-how-it-works-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13.5px; color: #0f172a;
+  text-align: left;
+}
+.ow-how-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 999px; flex-shrink: 0;
+  background: linear-gradient(135deg, #ea580c, #c2410c);
+  color: #fff;
+  font-size: 12px; font-weight: 800;
+}
+.ow-journey-control {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  background: #fff7ed;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  font-size: 13px; color: #78350f; line-height: 1.55;
+  text-align: center;
+}
+.ow-journey-trust {
+  margin: 0;
+  font-size: 12.5px; line-height: 1.55; color: #64748b;
+  text-align: center;
+}
+
+/* ── SMS Claim explainer card — Step 4 + Step 7 (2026-05-30) ─────────────
+ *
+ * Same visual language across both surfaces so the Step 7 reminder feels
+ * like the same idea the mover saw at Step 4. Step 7's card is more
+ * compact (fewer sections). */
+.ow-sms-claim-card {
+  margin: 22px auto 22px;
+  max-width: 460px;
+  padding: 18px 18px 16px;
+  background: #fff;
+  border: 1px solid #fde68a;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  text-align: left;
+}
+.ow-sms-claim-card-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
+.ow-sms-claim-card-title {
+  margin: 0;
+  font-size: 16px; font-weight: 800; color: #0f172a;
+  letter-spacing: -0.01em;
+}
+.ow-sms-claim-card-beta {
+  display: inline-block;
+  padding: 1px 7px; border-radius: 999px;
+  background: #fff7ed; color: #9a3412;
+  border: 1px solid #fdba74;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
+}
+.ow-sms-claim-card-section {
+  margin: 0 0 10px;
+  font-size: 13px; line-height: 1.55; color: #334155;
+}
+.ow-sms-claim-card-section:last-child { margin-bottom: 0; }
+.ow-sms-claim-card-section strong { color: #0f172a; font-weight: 700; }
+.ow-sms-claim-card-benefit {
+  font-size: 13.5px; color: #0f172a;
+}
+.ow-sms-claim-card-optional {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 12px; color: #64748b;
+}
+
+/* Step 7 — smaller card variant. Inherits palette + Beta chip, drops the
+ * extra paragraph spacing and uses a tighter footer. */
+.ow-success-sms-claim-card {
+  margin: 18px auto 0;
+  max-width: 380px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  text-align: left;
+}
+.ow-success-sms-claim-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.ow-success-sms-claim-title {
+  margin: 0;
+  font-size: 14px; font-weight: 800; color: #0f172a;
+  letter-spacing: -0.005em;
+}
+.ow-success-sms-claim-body {
+  margin: 0 0 6px;
+  font-size: 13px; line-height: 1.5; color: #334155;
+}
+.ow-success-sms-claim-body strong { color: #0f172a; font-weight: 700; }
+.ow-success-sms-claim-footer {
+  margin: 0;
+  font-size: 12px; line-height: 1.45; color: #64748b;
+}
+
+/* ── Step 5 wallet framing (2026-05-30) ──────────────────────────────────
+ *
+ * Sits above the activation checklist. Light treatment so it reads as
+ * orientation, not as a sales line. */
+.ow-wallet-framing {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px; line-height: 1.55; color: #334155;
+  text-align: center;
+}
+.ow-wallet-framing strong { color: #0f172a; font-weight: 700; }
+

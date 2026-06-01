@@ -634,8 +634,8 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
   return (
     <>
       <header className="ow-step-header">
-        <h1 className="ow-h1">Enter your main dispatch location</h1>
-        <p className="ow-sub">We'll use this to match move requests near your crew base.</p>
+        <h1 className="ow-h1">Where do your crews start jobs?</h1>
+        <p className="ow-sub">We'll only show you opportunities in the areas you serve.</p>
       </header>
 
       <div className={`ow-field ow-dispatch-input-wrap${baseReady ? ' is-confirmed' : ' is-empty'}`}>
@@ -660,8 +660,12 @@ function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
         </aside>
       )}
 
+      {/* Decision 1A (2026-05-30) — the H1 above already asks the question.
+          Removed the duplicate "Where do your crews start jobs?" section
+          label. Cards (Local / State / Multiple) self-explain as the answer.
+          The locked-state hint stays because it's a contextual prompt, not
+          a duplicate question. */}
       <div className="ow-field" aria-disabled={!baseReady}>
-        <label className="ow-label">Where do your crews start jobs?</label>
         {!baseReady && (
           <p className="ow-cards-hint" role="note">
             Enter your dispatch location first.
@@ -753,7 +757,7 @@ function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
     <>
       <header className="ow-step-header">
         <h1 className="ow-h1">Where can your crews deliver?</h1>
-        <p className="ow-sub">This narrows the long-distance leads we send you.</p>
+        <p className="ow-sub">This helps us send the right local and long-distance opportunities.</p>
       </header>
 
       <div className="ow-field">
@@ -868,6 +872,18 @@ function ScreenAlerts({ answers, setAnswer, userEmail, phoneVerified, onVerifyCl
         <h1 className="ow-h1">How should we send you move opportunities?</h1>
         <p className="ow-sub">Choose how your team should hear about matching requests.</p>
       </header>
+
+      {/* 2026-05-30 — Alert-channel explainer. Sets context BEFORE the mover
+          types their phone: shows the three ways alerts arrive so they
+          understand what the toggles below actually unlock. No new inputs. */}
+      <aside className="ow-alerts-channels" aria-label="How alerts reach you">
+        <div className="ow-alerts-channels-lead">When a matching homeowner requests a quote:</div>
+        <ul className="ow-alerts-channels-list">
+          <li><span className="ow-alerts-channels-tick" aria-hidden="true">✓</span> We'll text you</li>
+          <li><span className="ow-alerts-channels-tick" aria-hidden="true">✓</span> We'll email you</li>
+          <li><span className="ow-alerts-channels-tick" aria-hidden="true">✓</span> You'll see it in your dashboard</li>
+        </ul>
+      </aside>
 
       <div className="ow-field">
         <label className="ow-label" htmlFor="notifPhone">Phone number</label>
@@ -1065,6 +1081,64 @@ function ScreenSetupComplete({ answers, onClaim }) {
         </li>
       </ul>
 
+      {/* 2026-05-30 — "How MoveLeads works" — Decision 2A.
+          Education block lives on Step 4, between status list and activation
+          CTA, so the mover understands the business model BEFORE the balance
+          offer. No new stage, no new settings, no new questions. */}
+      <section className="ow-journey-block">
+        <h2 className="ow-journey-h2">How MoveLeads works</h2>
+        <ol className="ow-how-it-works">
+          <li className="ow-how-it-works-item"><span className="ow-how-num">1</span><span>Homeowner requests a quote</span></li>
+          <li className="ow-how-it-works-item"><span className="ow-how-num">2</span><span>We review the request</span></li>
+          <li className="ow-how-it-works-item"><span className="ow-how-num">3</span><span>Matching movers receive alerts</span></li>
+          <li className="ow-how-it-works-item"><span className="ow-how-num">4</span><span>You unlock or claim the lead</span></li>
+          <li className="ow-how-it-works-item"><span className="ow-how-num">5</span><span>Call the customer</span></li>
+        </ol>
+
+        {/* Control reassurance — surfaces mover agency immediately after
+            the flow so the next thought isn't "am I going to be charged
+            for every alert?" */}
+        <p className="ow-journey-control">
+          You decide which leads are worth pursuing.<br />
+          You're never charged just for receiving alerts.
+        </p>
+
+        {/* Refund-policy trust line. Reduces pre-payment anxiety without
+            promising things the policy doesn't actually deliver. */}
+        <p className="ow-journey-trust">
+          We focus on verified homeowner requests. If a lead qualifies under our refund policy, your balance can be credited back.
+        </p>
+      </section>
+
+      {/* SMS Claim explainer — Decision 2A's main educational lift.
+          Operator-specified order: benefit first, then flow, then the
+          balance requirement, then the "optional" disclaimer. No toggle —
+          opt-in happens on the SmsClaim page; this surface only educates. */}
+      <section className="ow-sms-claim-card" aria-labelledby="ow-sms-claim-title">
+        <div className="ow-sms-claim-card-header">
+          <h3 id="ow-sms-claim-title" className="ow-sms-claim-card-title">Claim leads by text</h3>
+          <span className="ow-sms-claim-card-beta">Beta</span>
+        </div>
+
+        <p className="ow-sms-claim-card-section ow-sms-claim-card-benefit">
+          <strong>The fastest way to grab a matching lead</strong> — no app to open, no dashboard click. The first eligible mover to reply wins.
+        </p>
+
+        <p className="ow-sms-claim-card-section">
+          When a matching lead arrives, we'll text you a claim code.
+          Reply <strong>SEND ABCD</strong> and the lead is assigned to you instantly — customer details land in the same thread, so you can call them right away.
+        </p>
+
+        <p className="ow-sms-claim-card-section">
+          To claim a lead instantly by text, your available balance must be at least the lead price.
+          Example: if a lead costs <strong>$42</strong>, you need at least <strong>$42</strong> available balance to claim it.
+        </p>
+
+        <p className="ow-sms-claim-card-section ow-sms-claim-card-optional">
+          SMS Claim is optional — you can turn it on now or later from the sidebar.
+        </p>
+      </section>
+
       <button type="button" className="ow-activate-cta" onClick={onClaim}>
         Claim your $50 FREE credit
       </button>
@@ -1097,6 +1171,16 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         <h1 className="ow-h1">Ready To Receive Moving Jobs</h1>
         <p className="ow-sub">Your account is prepared and ready to receive verified move requests.</p>
       </header>
+
+      {/* 2026-05-30 — Wallet framing. Resolves the #1 first-time-mover
+          question ("is this a subscription?") before the tier picker.
+          The mover should arrive at the offer understanding what they're
+          funding and that the money stays theirs. */}
+      <p className="ow-wallet-framing">
+        This is your <strong>lead-buying wallet</strong> — not a subscription.
+        You pay only when you unlock or claim a lead.
+        Your balance stays in your account until you use it.
+      </p>
 
       {/* Account-ready vertical checklist — three checkpoints to keep the
           step feeling like a calm onboarding moment, not a sales page. */}
@@ -1158,10 +1242,11 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         </button>
       </div>
 
-      {/* One compact trust line — financial reassurance without re-opening
-          a card. Reduced from 4 segments to 3 for less reading effort. */}
+      {/* 2026-05-30 — Trust strip extended with the per-lead pricing model
+          so the mover finishes reading "this is not a monthly bill" before
+          their eye lands on the CTA. */}
       <p className="ow-trust-strip">
-        Refundable balance · No subscription · Balance never expires
+        Refundable balance · No subscription · Balance never expires · Pay per lead, never per month
       </p>
 
       {initErr && (
@@ -1174,10 +1259,10 @@ function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
         {ctaLabel}
       </button>
 
-      {/* Marketplace realism — small line under CTA, no fake numbers. */}
-      <p className="ow-marketplace-footer" aria-live="off">
-        Movers are currently activating coverage in your market.
-      </p>
+      {/* 2026-05-30 — Removed the marketplace footer
+          ("Movers are currently activating coverage in your market.")
+          per operator directive: if data isn't real, do not show it.
+          The trust strip above already carries the financial reassurance. */}
 
       <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip} disabled={fetching}>
         <span>Browse leads first</span>
@@ -1442,15 +1527,29 @@ function ScreenActivationSuccess({ onDone, answers }) {
         <li>{marketLine}</li>
         <li>Notifications ready for matching requests</li>
       </ul>
-      {/* 2026-05-30 — Informational awareness only. Per operator directive:
-          "a mover finishes onboarding already ready for SMS alerts and
-          understands SMS Claim exists." This is NOT a competing CTA — the
-          primary action stays "View matching opportunities." The line
-          renders quieter than the success list so it reads as a heads-up,
-          not an instruction. */}
-      <p className="ow-success-aside" data-testid="onboarding-success-sms-claim-aside">
-        Reply by text to claim leads instantly — turn on <strong>SMS Claim</strong> from the sidebar. <span className="ow-success-beta">Beta</span>
-      </p>
+      {/* 2026-05-30 — Decision 3A: upgrade the one-line aside to a small
+          info card. Stronger than a footer, smaller than a promotion.
+          Reads as a heads-up that SMS Claim exists + how to enable it.
+          NOT a CTA — the primary action below stays "View matching
+          opportunities →". Card visual reuses the Step 4 SMS Claim card
+          pattern for consistency across the journey. */}
+      <aside
+        className="ow-success-sms-claim-card"
+        data-testid="onboarding-success-sms-claim-aside"
+        aria-label="SMS Claim heads-up"
+      >
+        <div className="ow-success-sms-claim-header">
+          <h3 className="ow-success-sms-claim-title">Claim leads by text</h3>
+          <span className="ow-success-beta">Beta</span>
+        </div>
+        <p className="ow-success-sms-claim-body">
+          When a matching lead comes in, we'll text you a claim code.
+          Reply <strong>SEND</strong> to claim it instantly — first to reply wins.
+        </p>
+        <p className="ow-success-sms-claim-footer">
+          Turn it on anytime from the sidebar.
+        </p>
+      </aside>
       <button type="button" className="ow-next" style={{ marginTop: 18 }} onClick={onDone}>
         View matching opportunities →
       </button>
