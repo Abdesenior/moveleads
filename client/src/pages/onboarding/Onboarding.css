@@ -2104,3 +2104,83 @@
   .ow-setup-fomo { font-size: 12px; padding: 9px 11px; }
 }
 
+/* ── Step 3 phone-verify inline status card (2026-05-30) ─────────────────
+ *
+ * Sits directly below the phone input. Two visual states:
+ *   .ow-verify-status-confirmed → green (phoneVerified=true)
+ *   .ow-verify-status-pending   → amber + CTA (phoneVerified=false)
+ *
+ * The pending state hosts an inline "Verify now →" button that re-opens
+ * the VerifyPhoneModal without forcing the mover through Continue + back.
+ * Layout is row-wise on desktop, stacks on small screens so the CTA stays
+ * tappable. */
+.ow-verify-status {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 10px; padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13.5px; line-height: 1.4;
+}
+.ow-verify-status-confirmed {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+.ow-verify-status-pending {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #78350f;
+  flex-wrap: wrap;
+}
+.ow-verify-status-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 999px; flex-shrink: 0;
+  font-size: 14px; font-weight: 800;
+}
+.ow-verify-status-confirmed .ow-verify-status-icon {
+  background: #16a34a; color: #fff;
+}
+.ow-verify-status-pending .ow-verify-status-icon {
+  background: #f59e0b; color: #fff;
+}
+.ow-verify-status-body {
+  min-width: 0; flex: 1;
+}
+.ow-verify-status-title {
+  font-weight: 700; color: inherit;
+}
+.ow-verify-status-confirmed .ow-verify-status-title { color: #047857; }
+.ow-verify-status-pending   .ow-verify-status-title { color: #92400e; }
+.ow-verify-status-sub {
+  margin-top: 1px; font-size: 12.5px; opacity: 0.8;
+}
+.ow-verify-status-cta {
+  flex-shrink: 0;
+  padding: 8px 14px; border-radius: 8px; border: 0;
+  background: linear-gradient(135deg, #ea580c, #c2410c);
+  color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+}
+.ow-verify-status-cta:hover { filter: brightness(1.04); }
+.ow-verify-status-cta:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Step 7 SMS Claim awareness line (2026-05-30) ────────────────────────
+ *
+ * Quieter than the success list — informational, not a CTA. The primary
+ * action ("View matching opportunities") stays untouched. */
+.ow-success-aside {
+  max-width: 360px; margin: 14px auto 0;
+  text-align: center;
+  font-size: 12.5px; line-height: 1.5; color: #64748b;
+}
+.ow-success-aside strong {
+  color: #0f172a; font-weight: 700;
+}
+.ow-success-beta {
+  display: inline-block;
+  padding: 1px 7px; margin-left: 4px; border-radius: 999px;
+  background: #fff7ed; color: #9a3412;
+  border: 1px solid #fdba74;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.6px;
+  vertical-align: middle;
+}
+
