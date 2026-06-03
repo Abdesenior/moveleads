@@ -24,7 +24,7 @@ import '../dashboard.css';
 const NAV_ITEMS = [
   { to: '/dashboard',          end: true,  icon: <LayoutDashboard size={18} />, label: 'Overview'           },
   { to: '/dashboard/leads',    end: false, icon: <Zap size={18} />,             label: 'Live Leads'         },
-  { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Deal Room'          },
+  { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Discounted Leads'   },
   { to: '/dashboard/my-leads', end: false, icon: <Briefcase size={18} />,       label: 'My Leads'           },
   { to: '/dashboard/customers',end: false, icon: <Users size={18} />,           label: 'Customers'          },
   { to: '/dashboard/billing',  end: false, icon: <CreditCard size={18} />,      label: 'Billing'            },

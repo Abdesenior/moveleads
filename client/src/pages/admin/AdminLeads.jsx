@@ -275,7 +275,7 @@ function InventoryChannelBadge({ lead }) {
   // Monochrome, operational palette. No orange/playful colors.
   const styles = {
     main:      { bg: '#f3f4f6', fg: '#374151', border: '#e5e7eb', label: 'Main' },
-    deal_room: { bg: '#eef2ff', fg: '#3730a3', border: '#c7d2fe', label: 'Deal Room' },
+    deal_room: { bg: '#eef2ff', fg: '#3730a3', border: '#c7d2fe', label: 'Discounted Leads' },
     archived:  { bg: '#f3f4f6', fg: '#6b7280', border: '#d1d5db', label: 'Archived' },
   };
   const s = styles[channel] || styles.main;
@@ -298,7 +298,7 @@ function InventoryChannelBadge({ lead }) {
       }}>{s.label}</span>
       {channel === 'deal_room' && isSold && (
         <span
-          title="This lead was sold from Deal Room and is no longer visible to movers."
+          title="This lead was sold from Discounted Leads and is no longer visible to movers."
           style={{
             padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
             letterSpacing: 0.3, textTransform: 'uppercase',
@@ -319,7 +319,7 @@ function InventoryChannelBadge({ lead }) {
  * ───────────────────────────────────────────────────────────────────────── */
 function BulkResultModal({ result, onClose }) {
   const { action, processed, rejected } = result;
-  const verb = action === 'move_to_deal_room' ? 'Move to Deal Room'
+  const verb = action === 'move_to_deal_room' ? 'Move to Discounted Leads'
              : action === 'archive' ? 'Archive'
              : action === 'restore_to_main' ? 'Restore to Main'
              : action;
@@ -807,7 +807,7 @@ export default function AdminLeads() {
   const submitArchive = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
-    if (!window.confirm(`Archive ${ids.length} lead${ids.length === 1 ? '' : 's'}? They will be hidden from BOTH the Live Feed and the Deal Room. Admin can still see them here.`)) return;
+    if (!window.confirm(`Archive ${ids.length} lead${ids.length === 1 ? '' : 's'}? They will be hidden from BOTH the Live Feed and Discounted Leads. Admin can still see them here.`)) return;
     try { await callInventoryBulk({ leadIds: ids, action: 'archive' }); } catch {}
   };
 
@@ -818,7 +818,7 @@ export default function AdminLeads() {
     const ok = window.confirm(
       `Restore ${ids.length} lead${ids.length === 1 ? '' : 's'} to neutral inventory state?\n\n` +
       `This will:\n` +
-      `  • Remove them from the Deal Room\n` +
+      `  • Remove them from Discounted Leads\n` +
       `  • Restore their original (pre-discount) price\n\n` +
       `This will NOT automatically put them back in the Live Feed. ` +
       `Legacy auction-stamped leads stay hidden from /dashboard/leads ` +
@@ -960,7 +960,7 @@ export default function AdminLeads() {
           title="Inventory channel (where the lead is surfaced)">
           <option value="">All channels</option>
           <option value="main">Main (Live Feed eligible)</option>
-          <option value="deal_room">Deal Room</option>
+          <option value="deal_room">Discounted Leads</option>
           <option value="archived">Archived</option>
           <option value="main_legacy">Eligible (legacy, not in feed)</option>
         </select>
@@ -985,14 +985,14 @@ export default function AdminLeads() {
           <button onClick={() => { setDealModalOpen(true); setBulkError(null); setBulkResult(null); }}
             disabled={bulkBusy}
             style={{ padding: '7px 14px', borderRadius: 4, background: '#2563eb', color: '#fff', border: 'none', fontWeight: 600, fontSize: 12, letterSpacing: 0.2, cursor: bulkBusy ? 'wait' : 'pointer' }}>
-            Move to Deal Room
+            Move to Discounted Leads
           </button>
           <button onClick={submitArchive} disabled={bulkBusy}
             style={{ padding: '7px 14px', borderRadius: 4, background: '#374151', color: '#f1f5f9', border: '1px solid #4b5563', fontWeight: 600, fontSize: 12, letterSpacing: 0.2, cursor: bulkBusy ? 'wait' : 'pointer' }}>
             Archive
           </button>
           <button onClick={submitRestoreToMain} disabled={bulkBusy}
-            title="Removes from Deal Room and restores original price. Does NOT auto-promote to Live Feed."
+            title="Removes from Discounted Leads and restores original price. Does NOT auto-promote to Live Feed."
             style={{ padding: '7px 14px', borderRadius: 4, background: '#374151', color: '#f1f5f9', border: '1px solid #4b5563', fontWeight: 600, fontSize: 12, letterSpacing: 0.2, cursor: bulkBusy ? 'wait' : 'pointer' }}>
             Restore to Main
           </button>
@@ -1022,7 +1022,7 @@ export default function AdminLeads() {
             <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' }}>Inventory action</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
-                Move {selectedIds.size} {selectedIds.size === 1 ? 'lead' : 'leads'} to Deal Room
+                Move {selectedIds.size} {selectedIds.size === 1 ? 'lead' : 'leads'} to Discounted Leads
               </div>
             </div>
             <div style={{ padding: 18 }}>
@@ -1146,7 +1146,7 @@ export default function AdminLeads() {
               const isExpiredOrPurchased = lead.status === 'Expired' || lead.status === 'Purchased';
               const dealIneligible = movePast || isExpiredOrPurchased;
               const ineligibleReason = lead.status === 'Purchased' ? 'Already purchased — inventory cannot change'
-                                     : lead.status === 'Expired' ? 'Lead expired — restore status before moving to Deal Room'
+                                     : lead.status === 'Expired' ? 'Lead expired — restore status before moving to Discounted Leads'
                                      : movePast ? 'Move date has passed — archive instead'
                                      : null;
               return (

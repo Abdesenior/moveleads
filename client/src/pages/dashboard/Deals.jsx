@@ -109,7 +109,7 @@ export default function Deals() {
       const json = await res.json();
       setLeads(Array.isArray(json) ? json : []);
     } catch (err) {
-      setError(err.message || 'Failed to load Deal Room');
+      setError(err.message || 'Failed to load Discounted Leads');
     } finally {
       setLoading(false);
     }
@@ -299,7 +299,7 @@ export default function Deals() {
       <div style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Tag size={22} color="#0d9488" />
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>Deal Room</h1>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>Discounted Leads</h1>
         </div>
         <p style={{ marginTop: 6, fontSize: 13, color: '#64748b' }}>
           Hand-picked leads at a discount. Same unlock as Live Leads — the only difference is these aren't broadcasting right now.
@@ -393,7 +393,7 @@ export default function Deals() {
         <div data-testid="deal-room-disabled-banner"
              style={{ padding: 48, textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: 16, border: '1px dashed #cbd5e1' }}>
           <AlertCircle size={32} style={{ margin: '0 auto 12px', color: '#94a3b8' }} />
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>Deal Room is currently unavailable</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>Discounted Leads is currently unavailable</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>This feature is temporarily disabled. Please check back later or contact support if this persists.</div>
         </div>
       )}
@@ -402,7 +402,7 @@ export default function Deals() {
         <div data-testid="deal-room-empty-state"
              style={{ padding: 48, textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: 16 }}>
           <Tag size={32} style={{ margin: '0 auto 12px', color: '#cbd5e1' }} />
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>No deals available right now</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>No discounted leads available right now</div>
           {/* Fr6 — curation reassurance. Frames the empty state as
               "between batches" rather than "nothing exists." */}
           <div style={{ fontSize: 13, marginTop: 4 }}>We restock as our team curates new inventory.</div>
@@ -630,7 +630,7 @@ function UnlockConfirmModal({ lead, balance, busy, error, onCancel, onConfirm })
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' }}>Confirm purchase</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>Unlock Deal Room lead</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>Unlock discounted lead</div>
           </div>
           <button onClick={onCancel} disabled={busy}
             style={{ background: 'transparent', border: 'none', cursor: busy ? 'wait' : 'pointer', color: '#9ca3af', padding: 4 }}
