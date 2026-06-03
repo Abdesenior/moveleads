@@ -697,7 +697,7 @@ html, body {
   display: flex; gap: 10px; align-items: flex-start;
   border: 1px solid var(--ow-border); border-radius: var(--ow-radius-card);
   background: var(--ow-slate-50);
-  padding: 13px 15px; margin-top: 24px;
+  padding: 13px 15px; margin: 18px 0 20px;
   font-size: 13.5px; color: var(--ow-slate-600); line-height: 1.5;
 }
 .ow-balance-note b { color: var(--ow-slate-900); }
