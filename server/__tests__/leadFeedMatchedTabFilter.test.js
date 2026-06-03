@@ -107,26 +107,29 @@ test('Matched-tab dev invariant logs any filter leak', () => {
   );
 });
 
-test('feedScope promotes to "matched" when user loads with prefs (no stale lock to "all")', () => {
-  // Initial state defaults to 'all' (safe when user is null on first
-  // render) — then a useEffect promotes to 'matched' once the user
-  // object resolves with any preference signal. Required to prevent the
-  // bug where the tab badge shows "Matched (2)" but the filter never
-  // engages because feedScope was locked to 'all' at mount time.
+test('feedScope defaults to "all" (marketplace) with no auto-promotion to "matched"', () => {
+  // Product decision (2026-06-03, feat/leads-marketplace-default): the
+  // marketplace tab ("All marketplace leads") is the landing default for
+  // every mover. The prior useEffect that promoted feedScope 'all' →
+  // 'matched' when the user had preferences was intentionally removed —
+  // "Matched for you" is now opt-in via a click and is never auto-selected.
   assert.match(
     leadFeedSrc,
     /useState\(\s*['"]all['"]\s*\)/,
-    'feedScope should default to "all" (then promote via effect once user loads)'
+    'feedScope must default to "all" (the marketplace tab)'
   );
   assert.match(
     leadFeedSrc,
     /scopeUserPickedRef/,
-    'should track whether the user has manually picked a tab'
+    'should still track whether the user has manually picked a tab'
   );
-  assert.match(
+  // Lock in the removal: there must be NO literal setFeedScope('matched')
+  // (the auto-promotion). The Matched tab is reached only via the dynamic
+  // tab onClick — setFeedScope(tab.id).
+  assert.doesNotMatch(
     leadFeedSrc,
-    /setFeedScope\(['"]matched['"]\)/,
-    'should promote feedScope to "matched" via setter (in useEffect)'
+    /setFeedScope\(\s*['"]matched['"]\s*\)/,
+    'there must be no auto-promotion to "matched" — marketplace is the default'
   );
 });
 
@@ -139,10 +142,11 @@ test('hasPrefs recognizes pickupStates / deliveryStates / deliversNationwide', (
   assert.match(leadFeedSrc, /deliversNationwide/);
 });
 
-test('Tab click marks scope as user-picked (stops the auto-promote effect)', () => {
-  // Once the user has manually chosen a tab, the effect that promotes to
-  // "matched" must NOT clobber that choice on re-render. The ref flip
-  // happens inside the onClick.
+test('Tab click records an explicit user pick via scopeUserPickedRef', () => {
+  // scopeUserPickedRef is flipped to true inside the tab onClick (and the
+  // empty-state "browse all" CTA) to record that the user explicitly chose a
+  // scope. It previously also gated the now-removed auto-promote effect; the
+  // ref is retained for the explicit-pick signal (retirement deferred).
   assert.match(
     leadFeedSrc,
     /onClick=\{[^}]*scopeUserPickedRef\.current\s*=\s*true[^}]*setFeedScope/,
