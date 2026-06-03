@@ -24,12 +24,15 @@ const ANSWER_KEYS = [
   'maxDistance', 'preferredHomeSizes',
   // Step 3 — alerts (also written to top-level User.{phone, smsNotif, emailNotif, receiveLiveTransfers})
   'phone', 'smsNotif', 'emailNotif', 'receiveLiveTransfers',
-  // Legacy fields kept so resuming partners with old answers don't lose data
-  'coveragePreference', 'coveragePreferences',
+  // Legacy fields kept so resuming partners with old answers don't lose data.
+  // 'moveTypes'/'avoidMoveTypes'/'alertChannels' are dormant (their reads were
+  // retired in PR-C3/PR-C4) but stay whitelisted so resuming partners with old
+  // answers don't 400. The 'dispatchHours' Mixed field backs the dormant
+  // 'advanced' per-day mode (the default-mode editor in Settings uses the
+  // sibling open/close/days keys).
   'moveTypes', 'avoidMoveTypes',
-  'alertChannels', 'urgentCallEnabled',
+  'alertChannels',
   'dispatchHoursMode', 'dispatchDays', 'dispatchHoursOpen', 'dispatchHoursClose', 'dispatchHours',
-  'dailyRequestCapacity', 'preferredTiming', 'crewCount',
 ];
 
 // @route   GET /api/onboarding/status

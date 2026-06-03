@@ -155,21 +155,15 @@ const UserSchema = new mongoose.Schema({
       // ── Legacy Step 1 fields (kept for resume back-compat) ──────────────
       primaryMarket:        { type: String, default: '' },           // legacy "Houston, TX" or "77001" free-text
       coverageRadius:       { type: String, default: '' },           // legacy '25'|'50'|'100'|'statewide'|'interstate'
-      coveragePreference:   { type: String, default: '' },           // legacy single-select
-      coveragePreferences:  { type: [String], default: [] },         // legacy multi-select
       additionalMarkets:    { type: [String], default: [] },         // legacy chip list
       moveTypes:            { type: [String], default: [] },         // ['apartment','home','office','longDistance','emergency','packing','laborOnly','storage']
       avoidMoveTypes:       { type: [String], default: [] },
       alertChannels:        { type: [String], default: [] },         // priority-ordered list of 'sms'|'call'|'email'
-      urgentCallEnabled:    { type: Boolean, default: false },
       dispatchHoursMode:    { type: String, default: 'default' },    // 'default' (same hours all days) | 'advanced' (per-day)
       dispatchDays:         { type: [String], default: [] },         // ['mon','tue','wed','thu','fri','sat','sun']
       dispatchHoursOpen:    { type: String, default: '08:00' },      // used in 'default' mode
       dispatchHoursClose:   { type: String, default: '19:00' },      // used in 'default' mode
       dispatchHours:        { type: mongoose.Schema.Types.Mixed, default: {} }, // per-day: { mon: {open,close}, ... } — used in 'advanced'
-      dailyRequestCapacity: { type: String, default: '' },           // '1-3'|'4-7'|'8-15'|'15+'
-      preferredTiming:      { type: [String], default: [] },         // ['sameDay','within7Days','thisMonth','any']
-      crewCount:            { type: String, default: '' },           // '1'|'2-3'|'4-6'|'7+'
     },
   },
 
