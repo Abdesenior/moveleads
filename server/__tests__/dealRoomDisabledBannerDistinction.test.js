@@ -235,8 +235,8 @@ test('F1. Disabled banner copy uses distinct phrasing', () => {
   // triaging a screenshot should be able to tell at a glance.
   assert.match(
     dealsJsxExec,
-    /Deal Room is currently unavailable/,
-    'Disabled banner must say "Deal Room is currently unavailable" (or similar — pin the literal so a copy change requires test update)'
+    /Discounted Leads is currently unavailable/,
+    'Disabled banner must say "Discounted Leads is currently unavailable" (mover-facing "Deal Room" → "Discounted Leads" rename, 2026-06-03)'
   );
 });
 
@@ -244,8 +244,8 @@ test('F2. Empty state copy reinforces active curation (Fr6, 2026-05-30)', () => 
   // The empty-state headline stays — pre-Fr6 movers expect it.
   assert.match(
     dealsJsxExec,
-    /No deals available right now/,
-    'Empty state headline "No deals available right now" must remain (UX preservation)'
+    /No discounted leads available right now/,
+    'Empty state headline "No discounted leads available right now" must remain (UX preservation; "Deal Room" → "Discounted Leads" rename)'
   );
   // The sub-copy flipped per Fr6 (trust-focused freshness messaging).
   // Old: "Check back soon — new discounted inventory is added regularly."
@@ -273,8 +273,8 @@ test('F3. The two copy literals are not identical strings', () => {
   // single constant and accidentally collapses the user-facing
   // distinction.
   assert.notEqual(
-    'Deal Room is currently unavailable',
-    'No deals available right now',
+    'Discounted Leads is currently unavailable',
+    'No discounted leads available right now',
     'The two banner literals must not collapse to a single string — feature-off and feature-empty must remain visually distinct'
   );
 });

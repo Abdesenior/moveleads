@@ -610,11 +610,14 @@ export default function LeadFeed() {
             const matchedCount = leads.filter(l => l._matchesPreferences === true).length;
             const showCount = tab.id === 'matched' && hasPrefs;
             // Purely visual: when the mover has matching leads, draw stronger
-            // attention to the (non-default) Matched tab — a filled orange
-            // star + filled orange count badge that stay noticeable even while
-            // Marketplace is the active tab. No logic / feedScope / matching
-            // change; the strict `_matchesPreferences === true` count above is
-            // untouched.
+            // attention to the (non-default) Matched tab — a Star in the
+            // primary MoveLeads brand orange (#ea580c, same as the logo /
+            // active-nav accent) + a branded count badge that stay noticeable
+            // even while Marketplace is the active tab. The badge keeps the
+            // darker brand-gradient shade (#c2410c) so white text stays
+            // WCAG-AA (5.18:1); #ea580c badge text would be sub-AA. No logic /
+            // feedScope / matching change; the strict
+            // `_matchesPreferences === true` count above is untouched.
             const highlight = showCount && matchedCount > 0;
             return (
               <button
@@ -639,7 +642,7 @@ export default function LeadFeed() {
                 }}
               >
                 {highlight && (
-                  <Star size={13} fill="#c2410c" stroke="#c2410c" aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <Star size={13} fill="#ea580c" stroke="#ea580c" aria-hidden="true" style={{ flexShrink: 0 }} />
                 )}
                 {tab.label}
                 {highlight && (
