@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import {
-  ZapOff, X,
+  ZapOff, X, Star,
   Gavel, Clock, Package, Search, SlidersHorizontal, Zap
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -609,11 +609,19 @@ export default function LeadFeed() {
             // accept any non-falsy value.)
             const matchedCount = leads.filter(l => l._matchesPreferences === true).length;
             const showCount = tab.id === 'matched' && hasPrefs;
+            // Purely visual: when the mover has matching leads, draw stronger
+            // attention to the (non-default) Matched tab — a filled orange
+            // star + filled orange count badge that stay noticeable even while
+            // Marketplace is the active tab. No logic / feedScope / matching
+            // change; the strict `_matchesPreferences === true` count above is
+            // untouched.
+            const highlight = showCount && matchedCount > 0;
             return (
               <button
                 key={tab.id}
                 role="tab"
                 aria-selected={active}
+                aria-label={highlight ? `Matched for you, ${matchedCount} matching ${matchedCount === 1 ? 'lead' : 'leads'}` : undefined}
                 onClick={() => { scopeUserPickedRef.current = true; setFeedScope(tab.id); }}
                 style={{
                   padding: '7px 14px',
@@ -630,13 +638,16 @@ export default function LeadFeed() {
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                 }}
               >
+                {highlight && (
+                  <Star size={13} fill="#c2410c" stroke="#c2410c" aria-hidden="true" style={{ flexShrink: 0 }} />
+                )}
                 {tab.label}
-                {showCount && matchedCount > 0 && (
-                  <span style={{
-                    background: active ? 'rgba(255,106,20,0.12)' : 'rgba(100,116,139,0.16)',
-                    color: active ? '#ea580c' : '#64748b',
+                {highlight && (
+                  <span className="matched-tab-badge" style={{
+                    background: '#c2410c', color: '#fff',
                     fontSize: 11, fontWeight: 800,
                     padding: '1px 7px', borderRadius: 999,
+                    lineHeight: '16px',
                   }}>{matchedCount}</span>
                 )}
               </button>
