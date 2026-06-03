@@ -1735,3 +1735,177 @@ html, body {
   .ow-success-sms-claim-card { margin-inline: 12px; }
 }
 
+/* ============================================================
+   PlaceAutocomplete dropdown + chip (StepLocation)
+   (2026-06-03 — autocomplete styling completion patch)
+   ---
+   The component (client/src/components/PlaceAutocomplete.jsx) ships
+   with ow-place-* classes but the prototype CSS never included rules
+   for them. Without these styles, the suggestion list renders as
+   default browser <ul> bullets and the right-side kind chip ("ZIP" /
+   "City") sits inline against the state code — visible as the
+   "Florence, SCCity" string-mash bug.
+   ============================================================ */
+.ow-place-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* Ensure the modal always has enough vertical room for the autocomplete
+   dropdown to float below the input without being clipped by
+   .ow-modal { overflow: hidden }. The shortest step (Location) has
+   ~170px of content; without this rule the modal would size to ~313px
+   and the floating dropdown would extend beyond it. */
+.ow-body { min-height: 460px; }
+@media (max-width: 640px) {
+  .ow-body { min-height: 0; }
+}
+
+/* Dropdown panel — absolute below the input, full input width. */
+.ow-place-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--ow-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10),
+              0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+/* Single suggestion row — flex with kind chip pushed to the right
+   (this is what stops the "SCCity" mash). */
+.ow-place-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14.5px;
+  color: var(--ow-slate-900);
+  transition: background-color 120ms var(--ow-ease);
+}
+.ow-place-option:hover,
+.ow-place-option.active {
+  background: var(--ow-slate-100);
+}
+
+.ow-place-option-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ow-place-option-zip {
+  font-weight: 700;
+  color: var(--ow-slate-900);
+  font-variant-numeric: tabular-nums;
+}
+.ow-place-option-city {
+  color: var(--ow-slate-700);
+}
+.ow-place-option-state {
+  color: var(--ow-slate-500);
+  font-weight: 600;
+}
+
+/* Right-side kind chip — pushes to the far right, gets a pill chrome.
+   Suggestion shape today: kind ∈ {'zip', 'city'} → label "ZIP" / "City". */
+.ow-place-option-kind {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ow-slate-500);
+  background: var(--ow-slate-100);
+  border: 1px solid var(--ow-slate-200);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+.ow-place-option.active .ow-place-option-kind,
+.ow-place-option:hover .ow-place-option-kind {
+  color: var(--ow-orange-700);
+  background: var(--ow-orange-50);
+  border-color: var(--ow-orange-border);
+}
+
+/* Empty / loading state inside the dropdown box. */
+.ow-place-empty {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--ow-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+  font-size: 13.5px;
+  color: var(--ow-slate-500);
+  text-align: left;
+}
+
+/* Chip mode — shown after a place is selected. Replaces the input
+   with a pill that displays "City, ST · ZIP" and an × clear button. */
+.ow-place-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+.ow-place-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  background: var(--ow-orange-50);
+  border: 1px solid var(--ow-orange-border);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ow-orange-800);
+  max-width: 100%;
+}
+.ow-place-chip-zip {
+  font-weight: 500;
+  color: var(--ow-orange-700);
+  font-variant-numeric: tabular-nums;
+}
+.ow-place-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: rgba(255, 106, 20, 0.14);
+  color: var(--ow-orange-800);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background 120ms var(--ow-ease);
+}
+.ow-place-chip-x:hover {
+  background: rgba(255, 106, 20, 0.24);
+}
+
