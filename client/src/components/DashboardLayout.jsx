@@ -2,8 +2,8 @@ import React, { useEffect, useState, useContext } from 'react';
 import { NavLink, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CreditCard, User, Settings,
-  Menu, X, LogOut, Briefcase, Zap, Code, MessageSquareWarning,
-  BellRing, ChevronLeft, ChevronRight, Tag
+  Menu, X, LogOut, Briefcase, Zap,
+  ChevronLeft, ChevronRight, Tag
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
@@ -14,35 +14,27 @@ import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
 import SidebarTooltip from './SidebarTooltip';
 import '../dashboard.css';
 
-// Sidebar — Phase 1 polish (L1, L2, 2026-05-30) + SMS Claim re-expose (2026-05-30).
+// Sidebar nav.
 //
-// L1: "Resolution" → "Refunds & Disputes" (matches what the page does).
-//     "Widget"     → "Embed a form"        ("widget" is engineering jargon).
-//
-// SMS Claim re-expose (2026-05-30): the prior comment hid "Instant Jobs"
-// on the assumption that SMS Claim was preview-only. Runtime evidence
-// (operator-completed claim in production) disproved that — the feature
-// is live. Re-expose with a "Beta" chip so movers can opt in. Renamed
-// "Instant Jobs" → "SMS Claim" so the sidebar label matches the page
-// vocabulary the mover now sees.
+// Hidden from the menu (2026-06-03): SMS Claim, "Embed a form" (Widget) and
+// "Refunds & Disputes" (Resolution Center). The features are kept — their
+// routes still resolve under /dashboard/* in App.jsx and the pages work — but
+// they are intentionally not surfaced as mover tabs and are reachable by
+// direct URL only. Do not re-add these entries without an explicit ask.
 const NAV_ITEMS = [
   { to: '/dashboard',          end: true,  icon: <LayoutDashboard size={18} />, label: 'Overview'           },
   { to: '/dashboard/leads',    end: false, icon: <Zap size={18} />,             label: 'Live Leads'         },
   { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Deal Room'          },
-  { to: '/dashboard/sms-claim',end: false, icon: <BellRing size={18} />,        label: 'SMS Claim', beta: true },
   { to: '/dashboard/my-leads', end: false, icon: <Briefcase size={18} />,       label: 'My Leads'           },
   { to: '/dashboard/customers',end: false, icon: <Users size={18} />,           label: 'Customers'          },
   { to: '/dashboard/billing',  end: false, icon: <CreditCard size={18} />,      label: 'Billing'            },
   { to: '/dashboard/profile',  end: false, icon: <User size={18} />,            label: 'Profile'            },
   { to: '/dashboard/settings', end: false, icon: <Settings size={18} />,        label: 'Settings'           },
-  { to: '/dashboard/widget',   end: false, icon: <Code size={18} />,            label: 'Embed a form'       },
-  { to: '/dashboard/resolution-center', end: false, icon: <MessageSquareWarning size={18} />, label: 'Refunds & Disputes' },
 ];
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
-  const [openComplaints, setOpenComplaints] = useState(0);
   // Live socket status published by pages that own real-time data (e.g.
   // LeadFeed). null = page doesn't have a live connection; we hide the
   // indicator in that case.
@@ -207,24 +199,6 @@ export default function DashboardLayout({ children }) {
     localStorage.setItem('sidebarCollapsed', String(next));
   };
 
-  // Silently poll for open/in-progress complaints to drive the nav badge
-  useEffect(() => {
-    const fetchBadge = async () => {
-      if (!token || !API_URL) return;
-      try {
-        const res = await fetch(`${API_URL}/complaints`, { headers: { 'x-auth-token': token } });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setOpenComplaints(data.filter(c => c.status === 'Open' || c.status === 'In Progress').length);
-        }
-      } catch { /* silent */ }
-    };
-    fetchBadge();
-    const interval = setInterval(fetchBadge, 60000); // refresh every minute
-    return () => clearInterval(interval);
-  }, [token, API_URL]);
-
   useEffect(() => {
     if (!sidebarOpen) return;
     const onKey = (e) => { if (e.key === 'Escape') setSidebarOpen(false); };
@@ -335,7 +309,7 @@ export default function DashboardLayout({ children }) {
 
           {/* Nav */}
           <nav className="sidebar-nav">
-            {NAV_ITEMS.map(({ to, end, icon, label, beta }) => (
+            {NAV_ITEMS.map(({ to, end, icon, label }) => (
               <SidebarTooltip key={to} label={label} enabled={collapsed}>
                 <NavLink
                   to={to}
@@ -348,28 +322,6 @@ export default function DashboardLayout({ children }) {
                 >
                   {icon}
                   <span className="nav-label">{label}</span>
-                  {beta && (
-                    <span className="nav-beta-chip" style={{
-                      marginLeft: 'auto',
-                      background: '#fff7ed', color: '#9a3412',
-                      border: '1px solid #fdba74',
-                      fontSize: 9, fontWeight: 800,
-                      padding: '1px 6px', borderRadius: 8,
-                      letterSpacing: 0.4, lineHeight: '14px',
-                    }}>BETA</span>
-                  )}
-                  {to === '/dashboard/resolution-center' && openComplaints > 0 && (
-                    <span className="nav-badge" style={{
-                      marginLeft: 'auto',
-                      background: '#ef4444', color: '#fff',
-                      fontSize: 10, fontWeight: 800,
-                      padding: '2px 6px', borderRadius: 10,
-                      minWidth: 18, textAlign: 'center',
-                      lineHeight: '14px',
-                    }}>
-                      {openComplaints}
-                    </span>
-                  )}
                 </NavLink>
               </SidebarTooltip>
             ))}
