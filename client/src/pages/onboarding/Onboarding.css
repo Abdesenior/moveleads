@@ -1290,3 +1290,448 @@ html, body {
 }
 .ow-trust-row svg { color: var(--ow-green); flex: 0 0 auto; }
 
+/* ============================================================
+   v2 wizard scaffolding (2026-06-03 — styling completion patch)
+   ---
+   The prototype CSS above uses .ow-stage + .ow-overlay as its
+   standalone-page scaffolding. The v2 controller wraps with
+   .onboarding-wizard + .ow-blur (kept from v1 for resume back-compat).
+   This block aliases the v2 wrapper names onto the same proven
+   centering/backdrop pattern so the modal renders fixed-overlay over
+   the dashboard, not as a flex-child of the dashboard shell.
+   ============================================================ */
+.onboarding-wizard {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ow-blur {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+}
+
+/* Step transition wrapper. Re-keyed per step in the controller so
+   .ow-step-anim restarts the slide-in each time. Must take full
+   width inside .ow-body so children flow correctly. */
+.ow-step-anim {
+  width: 100%;
+  animation: ow-step-fade-in 280ms var(--ow-ease) both;
+}
+@keyframes ow-step-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Progress bar header wrapper used by the controller (instead of the
+   prototype's .ow-header on the progress row). Mirrors the prototype
+   .ow-progress block geometry. */
+.ow-progress-bar-wrap {
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+/* Footer left-group: back button + save error sit on the left of
+   the global footer; CTA on the right. */
+.ow-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 24px;
+}
+.ow-save-error {
+  font-size: 12.5px;
+  color: var(--ow-danger);
+  line-height: 1.35;
+}
+
+/* CTA spinner — only renders when saving. */
+.ow-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  animation: ow-spin 700ms linear infinite;
+}
+.ow-spinner-on-cta { width: 14px; height: 14px; }
+@keyframes ow-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   v2 Step 7 (Activate) — tier picker cards + primary CTA + skip
+   ---
+   StepActivate.jsx ports v1's tier-v2 class names. The prototype
+   CSS used .ow-offer2* for its own tier picker; these rules give
+   the v2 names matching premium-card treatment.
+   ============================================================ */
+.ow-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0 14px;
+}
+.ow-tier-v2 {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1.5px solid var(--ow-border);
+  border-radius: var(--ow-radius-card);
+  padding: 18px 20px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 160ms var(--ow-ease),
+              box-shadow 160ms var(--ow-ease),
+              transform 160ms var(--ow-ease);
+}
+.ow-tier-v2:hover {
+  border-color: var(--ow-slate-300);
+  transform: translateY(-1px);
+}
+.ow-tier-v2:focus-visible {
+  outline: 2px solid var(--ow-orange);
+  outline-offset: 2px;
+}
+.ow-tier-v2-primary {
+  border-color: var(--ow-orange-border);
+  background: linear-gradient(180deg, #fffaf6 0%, #ffffff 70%);
+}
+.ow-tier-v2.selected {
+  border-color: var(--ow-orange);
+  box-shadow:
+    0 0 0 1px var(--ow-orange),
+    0 12px 28px rgba(255, 106, 20, 0.14);
+}
+.ow-tier-v2-secondary.selected {
+  border-color: var(--ow-slate-700);
+  box-shadow:
+    0 0 0 1px var(--ow-slate-700),
+    0 10px 24px rgba(15, 23, 42, 0.10);
+}
+.ow-tier-badge {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ow-orange-700);
+  background: var(--ow-orange-50);
+  padding: 3px 8px;
+  border-radius: var(--ow-radius-pill);
+}
+.ow-tier-v2-secondary.selected .ow-tier-badge {
+  color: var(--ow-slate-700);
+  background: var(--ow-slate-100);
+}
+.ow-tier-row-pill {
+  margin-bottom: 10px;
+}
+.ow-tier-pill-recommended {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ow-orange-700);
+  background: var(--ow-orange-50);
+  border: 1px solid var(--ow-orange-border);
+  border-radius: var(--ow-radius-pill);
+  padding: 4px 10px;
+}
+.ow-tier-pill-starter {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ow-slate-500);
+  background: var(--ow-slate-100);
+  border: 1px solid var(--ow-slate-200);
+  border-radius: var(--ow-radius-pill);
+  padding: 4px 10px;
+}
+.ow-tier-amount-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 6px 0 8px;
+  flex-wrap: wrap;
+}
+.ow-tier-pay {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ow-slate-900);
+}
+.ow-tier-arrow {
+  font-size: 18px;
+  color: var(--ow-slate-400);
+  font-weight: 700;
+}
+.ow-tier-receive {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ow-orange-700);
+}
+.ow-tier-receive-muted {
+  color: var(--ow-slate-700);
+}
+.ow-tier-support {
+  font-size: 13px;
+  color: var(--ow-slate-500);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+/* Wallet framing copy that precedes the tier picker. */
+.ow-wallet-framing {
+  margin: 8px auto 14px;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ow-slate-600);
+  text-align: center;
+}
+.ow-wallet-framing strong { color: var(--ow-slate-900); font-weight: 700; }
+
+/* Primary CTA on Activate (tier picker) + reuse for "Enable SMS Claim". */
+.ow-activate-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 52px;
+  margin-top: 12px;
+  padding: 0 22px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(255, 106, 20, 0.28);
+  transition: transform 160ms var(--ow-ease),
+              box-shadow 160ms var(--ow-ease);
+}
+.ow-activate-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px rgba(255, 106, 20, 0.36);
+}
+.ow-activate-cta:active { transform: translateY(0); }
+.ow-activate-cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Activate error banner (create-PI failure, etc). */
+.ow-activate-err {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(220, 38, 38, 0.06);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 10px;
+}
+.ow-activate-err-msg {
+  font-size: 13px;
+  color: var(--ow-danger);
+  line-height: 1.45;
+}
+
+/* "Browse leads first" — quiet two-line secondary skip. */
+.ow-activate-skip {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ow-slate-600);
+  text-align: center;
+}
+.ow-activate-skip:hover { color: var(--ow-slate-800); }
+.ow-skip-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  line-height: 1.35;
+}
+.ow-skip-secondary > span:first-child {
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ow-skip-secondary-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ow-slate-400);
+}
+
+/* SMS Claim "I'll enable it later" inline link in the footer. */
+.ow-skip-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ow-slate-500);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 6px 8px;
+}
+.ow-skip-link:hover { color: var(--ow-slate-700); }
+.ow-skip-link:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================
+   v2 Stripe Payment Element wrapper (StepActivate phase B)
+   ============================================================ */
+.ow-pay {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ow-pay-back {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ow-slate-600);
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin: -4px 0 4px;
+  transition: background 160ms var(--ow-ease), color 160ms var(--ow-ease);
+}
+.ow-pay-back:hover {
+  background: var(--ow-slate-100);
+  color: var(--ow-slate-900);
+}
+.ow-pay-back:disabled { opacity: 0.5; cursor: not-allowed; }
+.ow-pay-element-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ow-pay-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ow-slate-400);
+  font-size: 12px;
+  white-space: nowrap;
+  margin: 4px 0;
+}
+.ow-pay-divider::before,
+.ow-pay-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--ow-border);
+}
+
+/* ============================================================
+   v2 Step 1 Welcome — copy column inside the 2-column hero
+   ============================================================ */
+.ow-welcome2-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+}
+
+/* ============================================================
+   v2 Step 8 Success — SMS Claim aside card
+   (PR #79 testid: onboarding-success-sms-claim-aside)
+   ============================================================ */
+.ow-success-sms-claim-card {
+  margin: 18px auto 8px;
+  max-width: 480px;
+  padding: 14px 16px;
+  background: var(--ow-orange-50);
+  border: 1px solid var(--ow-orange-border);
+  border-radius: 14px;
+  text-align: left;
+}
+.ow-success-sms-claim-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.ow-success-sms-claim-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ow-orange-800);
+}
+.ow-success-beta {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ow-orange-700);
+  background: #fff;
+  border: 1px solid var(--ow-orange-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+.ow-success-sms-claim-body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ow-slate-700);
+}
+.ow-success-sms-claim-body strong { color: var(--ow-orange-800); font-weight: 700; }
+.ow-success-sms-claim-footer {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--ow-slate-500);
+}
+
+/* Map labels group — sibling of state paths, no special layout needed
+   but kept here so future label tweaks have a hook. */
+.ow-usmap-labels { pointer-events: none; }
+
+/* ============================================================
+   Mobile: keep the modal full-bleed-sheet behavior the prototype
+   already wires for .ow-overlay. Alias to .onboarding-wizard.
+   ============================================================ */
+@media (max-width: 640px) {
+  .onboarding-wizard {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .ow-modal {
+    width: 100%;
+    max-height: calc(var(--ow-vh, 100dvh) - 12px);
+    border-radius: 16px 16px 0 0;
+  }
+  .ow-tier-v2 { padding: 16px 16px; }
+  .ow-tier-pay,
+  .ow-tier-receive { font-size: 20px; }
+  .ow-success-sms-claim-card { margin-inline: 12px; }
+}
+
