@@ -27,7 +27,7 @@ const ANSWER_KEYS = [
   // Legacy fields kept so resuming partners with old answers don't lose data
   'coveragePreference', 'coveragePreferences',
   'moveTypes', 'avoidMoveTypes',
-  'alertChannels', 'urgentCallEnabled',
+  'alertChannels',
   'dispatchHoursMode', 'dispatchDays', 'dispatchHoursOpen', 'dispatchHoursClose', 'dispatchHours',
   'dailyRequestCapacity', 'preferredTiming', 'crewCount',
 ];

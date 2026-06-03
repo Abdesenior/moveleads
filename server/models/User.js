@@ -161,7 +161,6 @@ const UserSchema = new mongoose.Schema({
       moveTypes:            { type: [String], default: [] },         // ['apartment','home','office','longDistance','emergency','packing','laborOnly','storage']
       avoidMoveTypes:       { type: [String], default: [] },
       alertChannels:        { type: [String], default: [] },         // priority-ordered list of 'sms'|'call'|'email'
-      urgentCallEnabled:    { type: Boolean, default: false },
       dispatchHoursMode:    { type: String, default: 'default' },    // 'default' (same hours all days) | 'advanced' (per-day)
       dispatchDays:         { type: [String], default: [] },         // ['mon','tue','wed','thu','fri','sat','sun']
       dispatchHoursOpen:    { type: String, default: '08:00' },      // used in 'default' mode
