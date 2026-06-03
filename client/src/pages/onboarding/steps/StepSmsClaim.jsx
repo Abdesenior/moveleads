@@ -88,35 +88,37 @@ export default function StepSmsClaim({ ctx }) {
         </p>
       </div>
 
-      <div className="ow-balance-note">
-        <Wallet size={16} style={{ color: 'var(--ow-orange)', flex: '0 0 auto', marginTop: 1 }} />
-        <div>
-          <div>To claim by text, your available balance must cover the lead price.</div>
-          <div className="ow-balance-eg">
-            <span>Lead price <b>$42</b></span>
-            <span className="ow-balance-eg-sep" />
-            <span>Required balance <b>$42</b></span>
-          </div>
-        </div>
-      </div>
-
       <div className="ow-sms-showcase">
         <div className="ow-sms-phone-col">
           <SmsDemo origin={r.origin} dest={r.dest} />
         </div>
 
-        <div className="ow-claim-steps">
-          {STEPS.map((t, i) => {
-            const st = i < active ? 'done' : i === active ? 'active' : 'upcoming';
-            return (
-              <div className={'ow-claim-step ow-claim-step--' + st} key={t}>
-                <span className="ow-claim-num">
-                  {st === 'done' ? <Check size={14} strokeWidth={3} /> : (i + 1)}
-                </span>
-                <span className="ow-claim-text">{t}</span>
+        <div className="ow-sms-right-col">
+          <div className="ow-balance-note">
+            <Wallet size={16} style={{ color: 'var(--ow-orange)', flex: '0 0 auto', marginTop: 1 }} />
+            <div>
+              <div>To claim by text, your available balance must cover the lead price.</div>
+              <div className="ow-balance-eg">
+                <span>Lead price <b>$42</b></span>
+                <span className="ow-balance-eg-sep" />
+                <span>Required balance <b>$42</b></span>
               </div>
-            );
-          })}
+            </div>
+          </div>
+
+          <div className="ow-claim-steps">
+            {STEPS.map((t, i) => {
+              const st = i < active ? 'done' : i === active ? 'active' : 'upcoming';
+              return (
+                <div className={'ow-claim-step ow-claim-step--' + st} key={t}>
+                  <span className="ow-claim-num">
+                    {st === 'done' ? <Check size={14} strokeWidth={3} /> : (i + 1)}
+                  </span>
+                  <span className="ow-claim-text">{t}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

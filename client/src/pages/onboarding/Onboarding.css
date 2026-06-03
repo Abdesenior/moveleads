@@ -697,8 +697,19 @@ html, body {
   display: flex; gap: 10px; align-items: flex-start;
   border: 1px solid var(--ow-border); border-radius: var(--ow-radius-card);
   background: var(--ow-slate-50);
-  padding: 13px 15px; margin: 18px 0 20px;
+  padding: 13px 15px; margin: 0;
   font-size: 13.5px; color: var(--ow-slate-600); line-height: 1.5;
+}
+/* Right column of the SMS Claim showcase — stacks the balance note on top
+   of the claim-step list so the requirement reads BEFORE the steps. The
+   left column keeps the phone mockup. On mobile the grid collapses to
+   one column (existing rule), and this wrapper naturally stacks below
+   the phone with the same internal order. */
+.ow-sms-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-self: start;
 }
 .ow-balance-note b { color: var(--ow-slate-900); }
 .ow-optional { font-size: 12.5px; color: var(--ow-slate-500); margin-top: 12px; text-align: left; }
@@ -1091,7 +1102,7 @@ html, body {
 /* Step 5 — balanced showcase, bigger phone, synced steps, progress dots */
 .ow-sms-showcase {
   display: grid; grid-template-columns: 264px minmax(0, 300px);
-  justify-content: center; gap: 44px; align-items: center; margin-top: 20px;
+  justify-content: center; gap: 44px; align-items: start; margin-top: 20px;
 }
 .ow-sms-phone-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .ow-sms-steps { gap: 6px; }
