@@ -850,3 +850,17 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Matched-tab attention badge — a brief, NON-looping pulse so the count is
+   noticeable when matches exist, even though Marketplace is the default tab.
+   Gated behind prefers-reduced-motion so motion-sensitive users get a static
+   (still high-contrast) badge. The badge fill/color is set inline in JSX. */
+@media (prefers-reduced-motion: no-preference) {
+  .matched-tab-badge {
+    animation: matched-badge-pulse 1.4s ease-out 2;
+  }
+  @keyframes matched-badge-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(194, 65, 12, 0); }
+    25%      { box-shadow: 0 0 0 4px rgba(194, 65, 12, 0.28); }
+  }
+}
