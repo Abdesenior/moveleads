@@ -27,48 +27,52 @@ const verifyPhone        = read('components/VerifyPhoneModal.jsx');
 const resolutionCenter   = read('pages/dashboard/ResolutionCenter.jsx');
 const register           = read('pages/Register.jsx');
 
-// ─── Agent 1 / L1 — Sidebar renames ──────────────────────────────────────────
-
-test('L1.A — Sidebar uses "Refunds & Disputes" not "Resolution"', () => {
-  assert.match(dashboardLayout, /label:\s*['"]Refunds & Disputes['"]/, 'sidebar must label the resolution route "Refunds & Disputes"');
-  // The NAV_ITEMS list must not declare the old "Resolution" label.
-  // (The route path `/dashboard/resolution-center` may remain — only the label changed.)
-  assert.doesNotMatch(dashboardLayout, /label:\s*['"]Resolution['"]/, 'sidebar must not use the pre-L1 "Resolution" label');
-});
-
-test('L1.B — Sidebar uses "Embed a form" not "Widget"', () => {
-  assert.match(dashboardLayout, /label:\s*['"]Embed a form['"]/, 'sidebar must label the widget route "Embed a form"');
-  assert.doesNotMatch(dashboardLayout, /label:\s*['"]Widget['"]/, 'sidebar must not use the pre-L1 "Widget" label');
-});
-
-// ─── Agent 1 / L2 — SMS Claim sidebar entry (re-exposed as Beta, 2026-05-30) ──
+// ─── Agent 1 / L1+L2 — Sidebar tab removal (2026-06-03) ───────────────────────
 //
-// The pre-L2 directive hid "Instant Jobs" on the assumption that SMS Claim
-// was preview-only. Runtime evidence (operator-completed claim) disproved
-// that. The entry is now exposed under the more honest label "SMS Claim"
-// with a Beta chip. Legacy label "Instant Jobs" must stay out of NAV_ITEMS.
+// SUPERSEDES the original L1 renames ("Resolution"→"Refunds & Disputes",
+// "Widget"→"Embed a form") and the L2 SMS Claim re-expose. Per operator
+// direction (hide-tabs PR, 2026-06-03), the SMS Claim, Widget ("Embed a
+// form") and Resolution Center ("Refunds & Disputes") entries were removed
+// from the mover sidebar entirely. The FEATURES are kept — their routes
+// still resolve under /dashboard/* in App.jsx and the pages work — they are
+// just no longer surfaced as nav tabs (reachable by direct URL only).
+//
+// These assertions now lock in the REMOVAL: the labels and routes must not
+// reappear in NAV_ITEMS, and the now-orphaned BETA-chip render must stay
+// gone. App.jsx routing is intentionally NOT asserted here (features live).
 
-test('L2.A — Sidebar exposes "SMS Claim" with a beta flag', () => {
-  assert.match(
-    dashboardLayout,
-    /label:\s*['"]SMS Claim['"]\s*,\s*beta:\s*true/,
-    'SMS Claim sidebar entry must be present with beta: true'
-  );
+test('L1.A — Resolution Center tab removed from sidebar', () => {
+  assert.doesNotMatch(dashboardLayout, /to:\s*['"]\/dashboard\/resolution-center['"]/, 'resolution-center NAV entry must be gone');
+  assert.doesNotMatch(dashboardLayout, /label:\s*['"]Refunds & Disputes['"]/, 'no "Refunds & Disputes" nav label after removal');
+  assert.doesNotMatch(dashboardLayout, /label:\s*['"]Resolution['"]/, 'no legacy "Resolution" nav label either');
+});
+
+test('L1.B — Widget ("Embed a form") tab removed from sidebar', () => {
+  assert.doesNotMatch(dashboardLayout, /to:\s*['"]\/dashboard\/widget['"]/, 'widget NAV entry must be gone');
+  assert.doesNotMatch(dashboardLayout, /label:\s*['"]Embed a form['"]/, 'no "Embed a form" nav label after removal');
+  assert.doesNotMatch(dashboardLayout, /label:\s*['"]Widget['"]/, 'no legacy "Widget" nav label either');
+});
+
+test('L2.A — SMS Claim tab removed from sidebar', () => {
+  assert.doesNotMatch(dashboardLayout, /to:\s*['"]\/dashboard\/sms-claim['"]/, 'sms-claim NAV entry must be gone');
+  assert.doesNotMatch(dashboardLayout, /label:\s*['"]SMS Claim['"]/, 'no "SMS Claim" nav label after removal');
 });
 
 test('L2.B — Legacy "Instant Jobs" label is gone from NAV_ITEMS', () => {
   assert.doesNotMatch(
     dashboardLayout,
     /label:\s*['"]Instant Jobs['"]/,
-    'Legacy "Instant Jobs" label must not return — the new label is "SMS Claim"'
+    'Legacy "Instant Jobs" label must not return'
   );
 });
 
-test('L2.C — Sidebar renders a BETA chip when nav item has beta: true', () => {
-  assert.match(
+test('L2.C — Orphaned BETA chip render is gone from the sidebar', () => {
+  // The beta chip only ever served the SMS Claim tab. With that tab removed,
+  // the `{beta && ...nav-beta-chip...}` render block was cleaned up too.
+  assert.doesNotMatch(
     dashboardLayout,
-    /\{beta &&\s*\(?[\s\S]*?nav-beta-chip[\s\S]*?BETA/,
-    'Sidebar render must include a Beta chip rendered when item.beta is true'
+    /nav-beta-chip/,
+    'the now-orphaned BETA chip markup must not remain after the SMS Claim tab was removed'
   );
 });
 
