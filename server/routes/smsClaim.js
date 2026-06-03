@@ -179,18 +179,21 @@ router.get('/', async (req, res) => {
 });
 
 // ── PATCH /api/users/me/sms-claim ────────────────────────────────────────
-// Body shape (all keys optional; unknown keys rejected):
-//   { optInRequested?: boolean,
-//     maxLeadPrice?:   number  (10..500),
-//     residentialOnly?: boolean,
-//     commercialOptIn?: boolean,
-//     asapOnly?:       boolean,
-//     dailyClaimCap?:  integer (0..100) }
+// Body shape (unknown keys rejected):
+//   { optInRequested?: boolean }
+//
+// 2026-06-03 — the retired SMS Claim prefs (maxLeadPrice, residentialOnly,
+// commercialOptIn, asapOnly, dailyClaimCap) are no longer accepted here.
+// Dispatch only reads `optInRequested` (retire-the-read,
+// sms-claim-prelive-hardening); this narrows the WRITE path to match so the
+// schema can't accumulate prefs that nothing consumes. The schema fields
+// stay defined (dormant) per dormant-vs-deprecated discipline — re-exposing
+// any of them must re-add both the read AND a UI surface.
 //
 // Status is NEVER writable by the client.
 router.patch('/', async (req, res) => {
   const body = req.body || {};
-  const allowed = new Set(['optInRequested', 'maxLeadPrice', 'residentialOnly', 'commercialOptIn', 'asapOnly', 'dailyClaimCap']);
+  const allowed = new Set(['optInRequested']);
 
   // Reject unknown keys early so accidental "status" writes are caught.
   for (const k of Object.keys(body)) {
@@ -204,22 +207,6 @@ router.patch('/', async (req, res) => {
   if ('optInRequested' in body) {
     if (typeof body.optInRequested !== 'boolean') return res.status(400).json({ msg: 'optInRequested must be a boolean' });
     set['smsClaim.optInRequested'] = body.optInRequested;
-  }
-  if ('maxLeadPrice' in body) {
-    const n = Number(body.maxLeadPrice);
-    if (!Number.isFinite(n) || n < 10 || n > 500) return res.status(400).json({ msg: 'maxLeadPrice must be between 10 and 500' });
-    set['smsClaim.maxLeadPrice'] = n;
-  }
-  for (const k of ['residentialOnly', 'commercialOptIn', 'asapOnly']) {
-    if (k in body) {
-      if (typeof body[k] !== 'boolean') return res.status(400).json({ msg: `${k} must be a boolean` });
-      set[`smsClaim.${k}`] = body[k];
-    }
-  }
-  if ('dailyClaimCap' in body) {
-    const n = Number(body.dailyClaimCap);
-    if (!Number.isInteger(n) || n < 0 || n > 100) return res.status(400).json({ msg: 'dailyClaimCap must be an integer 0..100' });
-    set['smsClaim.dailyClaimCap'] = n;
   }
 
   try {

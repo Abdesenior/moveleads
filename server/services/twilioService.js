@@ -150,9 +150,10 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
     // Hydrate candidate movers. Keep the cheap hard filters in Mongo
     // (phone present, not suspended). We deliberately drop the
     // `smsNotif: true` mongo filter — the dispatch-policy helper now
-    // owns the channel decision (alertChannels first, legacy smsNotif
-    // as fallback). Pull onboarding.answers so the helper can read it,
-    // plus the new Phase 1 pickup/delivery fields for the strict matcher.
+    // owns the channel decision (smsNotif is the sole authority since
+    // PR-C3 retired alertChannels). Pull onboarding.answers so the helper
+    // can read it, plus the new Phase 1 pickup/delivery fields for the
+    // strict matcher.
     //
     // TCPA / Block E.2: also require smsOptOut !== true and
     // phoneVerified === true so STOP-replied or unverified partner
@@ -242,7 +243,7 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
       if (!passesActive) return false;
 
       if (!wantsChannel(m, 'sms')) {
-        console.log(`[SMS] Drop ${m.companyName || m._id}: alertChannels does not include 'sms'`);
+        console.log(`[SMS] Drop ${m.companyName || m._id}: smsNotif=false (SMS notifications disabled)`);
         return false;
       }
       if (!isWithinDispatchHours(m, 'sms', now)) {
@@ -250,7 +251,11 @@ async function broadcastLeadSMS(lead, { force = false } = {}) {
         return false;
       }
       if (!matchesMoveTypes(m, lead)) {
-        console.log(`[SMS] Drop ${m.companyName || m._id}: moveTypes does not match lead`);
+        // matchesMoveTypes is intentionally dormant (always true) since PR-C4
+        // retired the move-type filter. This branch cannot fire today; the
+        // call site is kept as a structural placeholder per the retirement
+        // lock-in tests.
+        console.log(`[SMS] Drop ${m.companyName || m._id}: move-type gate (dormant — should not fire)`);
         return false;
       }
       return true;

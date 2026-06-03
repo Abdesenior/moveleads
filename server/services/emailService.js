@@ -968,11 +968,15 @@ async function broadcastLeadEmail(lead, { force = false } = {}) {
       if (!passesActive) return false;
 
       if (!wantsChannel(m, 'email')) {
-        console.log(`[LeadEmail] Drop ${m.companyName || m._id}: alertChannels does not include 'email'`);
+        console.log(`[LeadEmail] Drop ${m.companyName || m._id}: emailNotif=false (email notifications disabled)`);
         return false;
       }
       if (!matchesMoveTypes(m, lead)) {
-        console.log(`[LeadEmail] Drop ${m.companyName || m._id}: moveTypes does not match lead`);
+        // matchesMoveTypes is intentionally dormant (always true) since PR-C4
+        // retired the move-type filter. This branch cannot fire today; the
+        // call site is kept as a structural placeholder per the retirement
+        // lock-in tests.
+        console.log(`[LeadEmail] Drop ${m.companyName || m._id}: move-type gate (dormant — should not fire)`);
         return false;
       }
       return true;
