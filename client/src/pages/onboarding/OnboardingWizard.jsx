@@ -1,118 +1,106 @@
-import { useState, useEffect, useContext, useRef } from 'react';
+/**
+ * OnboardingWizard (v2) — 8-step direct-replacement controller.
+ *
+ * Visible flow:
+ *   1. Welcome         (eyebrow / H1 / 4-icon flow / 3 trust chips)
+ *   2. Location        (company base — production PlaceAutocomplete)
+ *   3. Delivery        (3 mode cards + interactive US map)
+ *   4. Contact         (phone + verify card + email + channel toggles)
+ *   5. SMS Claim       (showcase + footer opt-in via PATCH)
+ *   6. Almost Ready    (interstitial — staggered checklist + bonus tease)
+ *   7. Activate        (tier picker → real Stripe Payment Element)
+ *   8. Success         (personalized checklist + SMS Claim aside)
+ *
+ * Server `onboarding.currentStep` semantics (preserved from v1 for resume
+ * compatibility — the server is unchanged):
+ *
+ *     server step 1 → v2 screen 2 (Location)
+ *     server step 2 → v2 screen 3 (Delivery)
+ *     server step 3 → v2 screen 4 (Contact)
+ *     server step 4 → v2 screen 5 (SMS Claim)
+ *     server step 5 → v2 screen 6 (Almost Ready)
+ *
+ * A returning mover with currentStep=N resumes at the corresponding screen
+ * above — never back to Welcome (1). Welcome is a fresh-mount-only screen.
+ *
+ * Activation, dismissal, and verify flows are unchanged from v1:
+ *   - POST /api/onboarding/save-step           (per-step persistence)
+ *   - POST /api/billing/create-payment-intent  (real Stripe)
+ *   - POST /api/billing/verify-payment-intent  (server-side completion)
+ *   - POST /api/onboarding/dismiss-activation-offer  (browse-first)
+ *   - PATCH /api/users/me/sms-claim             { optInRequested }
+ *   - VerifyPhoneModal (Twilio Verify production component)
+ *
+ * Pickup is auto-derived from delivery (no UI for it):
+ *   derivePickup(deliveryUiMode, deliveryStates, homeState) → {mode, states}
+ */
+
+import { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, ExpressCheckoutElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { X } from 'lucide-react';
+import { X, ArrowRight } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
-import PlaceAutocomplete from '../../components/PlaceAutocomplete';
 import VerifyPhoneModal from '../../components/VerifyPhoneModal';
 import { useToast } from '../../components/ui/Toast';
+import {
+  splitAddress,
+  buildStatesPhrase,
+  buildSmsRoute,
+  derivePickup,
+  mapDeliveryUiToServer,
+} from './personalize';
+import StepWelcome from './steps/StepWelcome';
+import StepLocation from './steps/StepLocation';
+import StepDelivery from './steps/StepDelivery';
+import StepContact from './steps/StepContact';
+import StepSmsClaim from './steps/StepSmsClaim';
+import StepAlmostReady from './steps/StepAlmostReady';
+import StepActivate from './steps/StepActivate';
+import StepSuccess from './steps/StepSuccess';
 import './Onboarding.css';
 
-// Single Stripe.js loader memoized at module scope per @stripe/react-stripe-js docs.
-const stripePromiseSingleton = (() => {
-  let promise = null;
-  return () => {
-    if (promise) return promise;
-    const pubKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-    promise = pubKey ? loadStripe(pubKey) : Promise.resolve(null);
-    return promise;
-  };
-})();
-
-// Internal step state numbering:
-//   1 = Dispatch base + pickup
-//   2 = Delivery coverage
-//   3 = Alerts (phone, SMS, email)
-//   4 = Setup-complete celebration interstitial (no progress bar)
-//   5 = Activate / balance picker (no Stripe call yet)
-//   6 = Secure payment (Stripe Payment Element)
-//   7 = Activation success (no progress bar)
-//
-// The visible progress bar shows 5 stages: Dispatch / Coverage / Alerts /
-// Activate / Payment. Step 4 (setup-complete) and Step 7 (success) hide
-// the progress chrome since they're celebration screens, not configuration.
-const TOTAL_STEPS = 5; // visible progress steps (Dispatch through Payment)
-
-const STEP_MICROCOPY = {
-  1: 'Where your crews are based',
-  2: 'Where you deliver',
-  3: 'How we reach you',
-  4: 'Setup complete',
-  5: 'Activate your account',
-  6: 'Secure payment',
+const SCREENS = {
+  WELCOME:      1,
+  LOCATION:     2,
+  DELIVERY:     3,
+  CONTACT:      4,
+  SMS_CLAIM:    5,
+  ALMOST_READY: 6,
+  ACTIVATE:     7,
+  SUCCESS:      8,
 };
 
-// L5 (2026-05-30) — stage labels rewritten in mover vocabulary.
-// Old labels (Dispatch / Coverage / Alerts / Activate) were engineering
-// verbs that mean nothing to a moving-company owner. New labels match how
-// the operator describes the same steps in plain English.
+const SERVER_TO_SCREEN = {
+  1: SCREENS.LOCATION,
+  2: SCREENS.DELIVERY,
+  3: SCREENS.CONTACT,
+  4: SCREENS.SMS_CLAIM,
+  5: SCREENS.ALMOST_READY,
+};
+
 const SETUP_STAGES = [
   { id: 1, label: 'Your company'           },
   { id: 2, label: 'Where you work'         },
   { id: 3, label: 'How we reach you'       },
-  { id: 4, label: 'Add your first balance' }, // shown active when internal step === 5
-  { id: 5, label: 'Payment'                }, // shown active when internal step === 6
+  { id: 4, label: 'Add your first balance' },
+  { id: 5, label: 'Payment'                },
 ];
 
-// Map internal step → visible-stage id (for the stages bar fill). Step 4
-// (setup-complete) and step 7 (success) are interstitials with no stage.
-const STEP_TO_STAGE = { 1: 1, 2: 2, 3: 3, 5: 4, 6: 5 };
-
-// CTA labels while saveStep is in flight.
-const SAVING_LABEL = {
-  1: 'Saving dispatch area…',
-  2: 'Preparing coverage…',
-  3: 'Saving alerts…',
+const STEP_TO_STAGE = {
+  [SCREENS.LOCATION]:     1,
+  [SCREENS.DELIVERY]:     2,
+  [SCREENS.CONTACT]:      3,
+  [SCREENS.SMS_CLAIM]:    3,
+  [SCREENS.ALMOST_READY]: 3,
+  [SCREENS.ACTIVATE]:     4,
 };
 
-function buildPersona(answers, fallback = {}) {
-  const db = answers.dispatchBase || {};
-  const market = (db.city && db.state)
-    ? `${db.city}, ${db.state}`
-    : (answers.primaryMarket || '').trim() || fallback.market || 'your market';
-  return {
-    market,
-    base: db,
-    pickupMode:   answers.pickup?.mode   || 'near',
-    deliveryMode: answers.delivery?.mode || 'same',
-  };
-}
-
-function stateName(code) {
-  const found = US_STATES.find(s => s.code === code);
-  return found ? found.name : code;
-}
-
-// ── US phone helpers ────────────────────────────────────────────────────────
-// Strip everything that isn't a digit. Drop a leading "1" if a user pastes
-// an E.164-style "+1 555…" so we always end up with exactly the 10 NANP
-// digits before formatting.
 function normalizeUSDigits(input) {
   let d = String(input || '').replace(/\D/g, '');
   if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
   return d.slice(0, 10);
 }
 
-// Format any phone-ish input as a NANP-style "(555) 555-5555" string. Safe
-// to pass partially-typed values through — the user's typing experience is:
-//   ""           → ""
-//   "5"          → "(5"
-//   "555"        → "(555)"
-//   "5555"       → "(555) 5"
-//   "5555555"    → "(555) 555-5"
-//   "5555555555" → "(555) 555-5555"
-function formatUSPhone(input) {
-  const d = normalizeUSDigits(input);
-  if (d.length === 0)  return '';
-  if (d.length <= 3)   return `(${d}`;
-  if (d.length === 3)  return `(${d})`;
-  if (d.length <= 6)   return `(${d.slice(0, 3)}) ${d.slice(3)}`;
-  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
-}
-
-// 10 digits + NANP rules: area code and exchange first digits must be 2-9.
 function isValidUSPhone(input) {
   const d = normalizeUSDigits(input);
   if (d.length !== 10) return false;
@@ -124,66 +112,47 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   const { API_URL, refreshUser, user } = useContext(AuthContext);
   const toast = useToast();
   const navigate = useNavigate();
-  const [step, setStep] = useState(initialStep || 1);
-  // 2026-05-30 — Step 3 phone-verify integration. The wizard owns the modal
-  // open/close so the verification flow can be triggered by either the
-  // Continue button (primary) or the inline "Verify now" CTA on the status
-  // card. On modal success → advance to step 4. On modal close (skip) →
-  // soft toast + advance. NEVER blocks progress.
+
+  // initialStep, when provided, is a v2 SCREENS value (1–8). DashboardLayout
+  // uses SCREENS.ACTIVATE (7) for both the banner-CTA "open activation" path
+  // and the recovery deep-link ?activate=1. The status-load effect below
+  // OVERRIDES this initial pick only when initialStep is null/undefined AND
+  // the server-tracked currentStep is set — i.e. a true mid-wizard resume.
+  const [screen, setScreen] = useState(initialStep || SCREENS.WELCOME);
   const [verifyOpen, setVerifyOpen] = useState(false);
-  // Live phoneVerified snapshot. Re-read from /auth/me after each step-3 save
-  // because applyPhoneChange resets server-side when the number changes; the
-  // AuthContext user may briefly hold the pre-change verified=true state.
   const [phoneVerified, setPhoneVerified] = useState(!!user?.phoneVerified);
-  // Re-sync from context whenever the user hydrates / refreshUser fires.
-  useEffect(() => {
-    setPhoneVerified(!!user?.phoneVerified);
-  }, [user?.phoneVerified]);
-  const [answers, setAnswers] = useState({
-    dispatchBase: { input: '', zip: '', city: '', state: '' },
-    pickup:       { mode: '', states: [] },
-    delivery:     { mode: 'same', states: [] },
-    primaryMarket: '',
-    coverageRadius: '',
-    additionalMarkets: [],
-    phone: user?.phone || '',
-    smsNotif:             user?.smsNotif !== undefined ? !!user.smsNotif : true,
-    emailNotif:           user?.emailNotif !== undefined ? !!user.emailNotif : true,
+
+  const [dispatchBase, setDispatchBase] = useState({ input: '', zip: '', city: '', state: '' });
+  const [deliveryMode, setDeliveryMode]     = useState('');
+  const [deliveryStates, setDeliveryStates] = useState([]);
+
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [channels, setChannels] = useState({
+    text:  user?.smsNotif   !== undefined ? !!user.smsNotif   : true,
+    email: user?.emailNotif !== undefined ? !!user.emailNotif : true,
   });
+
+  const [smsOptIn, setSmsOptIn] = useState(false);
 
   const [tier, setTier] = useState(100);
   const [intent, setIntent] = useState(null);
+
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  // a11y: lock body scroll while the wizard is mounted so the dashboard
-  // underneath can't rubber-band on iOS Safari.
+  const [matchCount, setMatchCount] = useState(null);
+
+  useEffect(() => {
+    setPhoneVerified(!!user?.phoneVerified);
+  }, [user?.phoneVerified]);
+
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // Onboarding is mandatory. ESC only escapes once the user has reached the
-  // offer/activate step (step 5) — earlier steps (data-entry + setup-complete
-  // celebration) cannot be dismissed by keyboard. Mid-payment (step 6) and
-  // success (step 7) also stay non-ESC-dismissable to avoid accidental aborts.
-  useEffect(() => {
-    if (step < 5 || step > 5) return; // ESC only on step 5
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return;
-      dismissAndClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-
-  // Track the visual viewport on mobile so the modal stays sized correctly
-  // when the iOS keyboard opens (keyboard reduces visualViewport.height but
-  // does NOT shrink window.innerHeight — without this, the sticky footer
-  // would slide behind the keyboard). We expose the live height as a CSS
-  // variable so the stylesheet can `calc(var(--ow-vh, 100dvh) - 12px)`.
   useEffect(() => {
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     if (!vv) return;
@@ -200,28 +169,12 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     };
   }, []);
 
-  // Backfill contact fields from the AuthContext user once it hydrates.
-  // The useState initializer above runs synchronously on first mount, when
-  // `user` may still be null (the wizard mounts from DashboardLayout before
-  // /auth/me returns). Email already works because it's passed as a prop and
-  // re-renders pick up the late value. Phone, smsNotif, and emailNotif live
-  // in `answers` state, so they need an effect.
-  // Never overwrites typed input — only fills empty/default fields.
   useEffect(() => {
     if (!user) return;
-    setAnswers(prev => {
-      const next = { ...prev };
-      let changed = false;
-      if (!prev.phone && user.phone) {
-        next.phone = formatUSPhone(user.phone);
-        changed = true;
-      }
-      if (changed) return next;
-      return prev;
-    });
-  }, [user?.phone]);
+    if (!phone && user.phone) setPhone(user.phone);
+    if (!email && user.email) setEmail(user.email);
+  }, [user?.phone, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Restore prior progress on mount
   useEffect(() => {
     let alive = true;
     fetch(`${API_URL}/onboarding/status`, {
@@ -231,52 +184,123 @@ export default function OnboardingWizard({ onClose, initialStep }) {
       .then(data => {
         if (!alive || !data?.onboarding) return;
         const ob = data.onboarding;
-        if (!initialStep && ob.currentStep && ob.currentStep > 0 && ob.currentStep <= TOTAL_STEPS) {
-          setStep(ob.currentStep);
+        const a = ob.answers || {};
+
+        if (a.dispatchBase && a.dispatchBase.zip) setDispatchBase(a.dispatchBase);
+
+        if (a.delivery && typeof a.delivery.mode === 'string') {
+          const ui = a.delivery.mode === 'same' ? 'local'
+            : a.delivery.mode === 'nationwide' ? 'all'
+            : a.delivery.mode === 'states' ? 'some'
+            : '';
+          if (ui) setDeliveryMode(ui);
+          if (Array.isArray(a.delivery.states)) setDeliveryStates(a.delivery.states);
         }
-        if (ob.answers) {
-          const a = ob.answers;
-          setAnswers(prev => ({
-            ...prev,
-            dispatchBase:        (a.dispatchBase && a.dispatchBase.zip) ? a.dispatchBase : prev.dispatchBase,
-            pickup:              (a.pickup   && typeof a.pickup.mode === 'string')   ? { mode: a.pickup.mode,   states: Array.isArray(a.pickup.states)   ? a.pickup.states   : [] } : prev.pickup,
-            delivery:            (a.delivery && typeof a.delivery.mode === 'string') ? { mode: a.delivery.mode, states: Array.isArray(a.delivery.states) ? a.delivery.states : [] } : prev.delivery,
-            primaryMarket:       a.primaryMarket       ?? prev.primaryMarket,
-            coverageRadius:      a.coverageRadius      ?? prev.coverageRadius,
-            additionalMarkets:   a.additionalMarkets   ?? prev.additionalMarkets,
-            phone:                (typeof a.phone === 'string' && a.phone) ? formatUSPhone(a.phone) : prev.phone,
-            smsNotif:             (typeof a.smsNotif === 'boolean') ? a.smsNotif : prev.smsNotif,
-            emailNotif:           (typeof a.emailNotif === 'boolean') ? a.emailNotif : prev.emailNotif,
-          }));
+
+        if (typeof a.phone === 'string' && a.phone) setPhone(a.phone);
+        if (typeof a.smsNotif === 'boolean')   setChannels((c) => ({ ...c, text: a.smsNotif }));
+        if (typeof a.emailNotif === 'boolean') setChannels((c) => ({ ...c, email: a.emailNotif }));
+
+        if (!initialStep && ob.currentStep && SERVER_TO_SCREEN[ob.currentStep]) {
+          setScreen(SERVER_TO_SCREEN[ob.currentStep]);
         }
       })
       .catch(() => {});
     return () => { alive = false; };
   }, [API_URL, initialStep]);
 
-  const setAnswer = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }));
+  const toggleDeliveryState = useCallback((code) => {
+    setDeliveryStates((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  }, []);
 
-  async function saveStep(stepNum) {
+  const setChannel = useCallback((id, on) => {
+    setChannels((prev) => ({ ...prev, [id]: !!on }));
+  }, []);
+
+  const cityState = useMemo(() => {
+    const cityFromBase = dispatchBase.city || '';
+    const stateFromBase = dispatchBase.state || '';
+    const label = cityFromBase && stateFromBase
+      ? `${cityFromBase}, ${stateFromBase}`
+      : (dispatchBase.input || '');
+    const parsed = splitAddress(label);
+    return {
+      city: cityFromBase || parsed.cityName,
+      state: stateFromBase || parsed.stateAbbr,
+      label,
+    };
+  }, [dispatchBase]);
+  const statesPhrase = useMemo(() => buildStatesPhrase(deliveryStates), [deliveryStates]);
+  const smsRoute = useMemo(
+    () => buildSmsRoute({
+      cityName: cityState.city,
+      deliveryStates,
+      deliveryMode,
+    }),
+    [cityState.city, deliveryStates, deliveryMode]
+  );
+
+  const balance = Math.round(user?.balance || 0);
+  const bonusPath = !!user?.onboarding?.bonusClaimedAt || balance >= 150;
+
+  useEffect(() => {
+    if (screen !== SCREENS.SUCCESS) return;
+    if (!cityState.state) return;
+    let alive = true;
+    fetch(`${API_URL}/leads`, {
+      headers: { 'x-auth-token': localStorage.getItem('token') || '' },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!alive || !Array.isArray(data)) return;
+        const codeLc = (cityState.state || '').toLowerCase();
+        const count = data.filter(l => {
+          const o = (l.originCity || '').toLowerCase();
+          const d = (l.destinationCity || '').toLowerCase();
+          if (!codeLc) return false;
+          const rx = new RegExp(`(?:^|[\\s,])${codeLc}(?:$|[\\s,])`);
+          return rx.test(o) || rx.test(d);
+        }).length;
+        setMatchCount(count);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [screen, API_URL, cityState.state]);
+
+  function buildSavePayload(serverStep) {
+    const pickup = derivePickup({
+      deliveryUiMode: deliveryMode,
+      deliveryStates,
+      homeState: dispatchBase.state,
+    });
+    return {
+      step: serverStep,
+      answers: {
+        dispatchBase,
+        primaryMarket: cityState.label || '',
+        pickup,
+        delivery: {
+          mode: mapDeliveryUiToServer(deliveryMode || 'local'),
+          states: deliveryStates,
+        },
+        phone: normalizeUSDigits(phone),
+        smsNotif:   channels.text,
+        emailNotif: channels.email,
+      },
+    };
+  }
+
+  async function saveStep(serverStep) {
+    const body = buildSavePayload(serverStep);
     const res = await fetch(`${API_URL}/onboarding/save-step`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') || '' },
-      body: JSON.stringify({
-        step: stepNum,
-        answers: {
-          dispatchBase: answers.dispatchBase,
-          pickup: answers.pickup,
-          delivery: answers.delivery,
-          primaryMarket: answers.primaryMarket,
-          coverageRadius: answers.coverageRadius,
-          additionalMarkets: answers.additionalMarkets,
-          // Send digits-only so the server / Twilio store a single canonical
-          // shape. The wizard keeps the formatted version in local state for
-          // display; we normalize at the network boundary.
-          phone: normalizeUSDigits(answers.phone),
-          smsNotif: answers.smsNotif,
-          emailNotif: answers.emailNotif,
-        },
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-auth-token': localStorage.getItem('token') || '',
+      },
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
@@ -284,79 +308,29 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
-  async function next() {
+  async function openVerify() {
     if (saving) return;
     setSaveError('');
     setSaving(true);
     try {
-      await saveStep(step);
-      // Onboarding is mandatory until activation. We DO NOT call
-      // /onboarding/complete here — `complete: true` is set server-side only
-      // by applyOnboardingActivationCredit when the user actually claims
-      // the credit. Marking complete after step 3 would let users dismiss
-      // from the offer step and never see onboarding again.
-      if (step < 3) {
-        setStep(step + 1);
-      } else if (step === 3) {
-        // 2026-05-30 — Phone-verify integration.
-        //
-        // After step 3 saves the phone, server-side `applyPhoneChange` will
-        // have RESET phoneVerified=false if the number differs from the
-        // previously-stored value. Fetch /auth/me directly to get the
-        // post-save truth (refreshUser is fire-and-forget and would race
-        // the decision below). Then:
-        //   - phoneVerified=true → advance to step 4 (no modal needed)
-        //   - phoneVerified=false → open VerifyPhoneModal on top of the wizard
-        //                            (modal callbacks own the step transition)
-        // Any failure to read /auth/me is non-blocking: advance to step 4
-        // and the mover can verify later from Settings or SmsClaim.
-        try {
-          const res = await fetch(`${API_URL}/auth/me`, {
-            headers: { 'x-auth-token': localStorage.getItem('token') || '' },
-          });
-          if (res.ok) {
-            const fresh = await res.json();
-            setPhoneVerified(!!fresh.phoneVerified);
-            // Reflect the fresh user into context so the inline card on a
-            // back-navigation reads the right state.
-            if (refreshUser) refreshUser().catch(() => {});
-            if (fresh.phoneVerified === true) {
-              setStep(4);
-            } else {
-              setVerifyOpen(true);
-              // Modal handlers (handleVerifySuccess / handleVerifyClose)
-              // own the step-4 transition.
-            }
-          } else {
-            // Read failure → be permissive, advance.
-            setStep(4);
-          }
-        } catch (_readErr) {
-          // Read failure → be permissive, advance.
-          setStep(4);
-        }
-      }
+      await saveStep(3);
+      if (refreshUser) refreshUser().catch(() => {});
+      setVerifyOpen(true);
     } catch (err) {
-      console.error('[OnboardingWizard] next() failed:', err);
-      setSaveError("We couldn't save that step. Check your connection and try again.");
+      console.error('[OnboardingWizard] inline verify save failed:', err);
+      setSaveError("We couldn't save your phone number. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  // Modal success — phoneVerified just flipped true server-side. Refresh
-  // context so downstream surfaces (SmsClaim readiness, ActivationBanner
-  // CTAs) reflect the new state on next render, then advance.
   function handleVerifySuccess() {
     setVerifyOpen(false);
     setPhoneVerified(true);
     if (refreshUser) refreshUser().catch(() => {});
-    setStep(4);
+    setScreen(SCREENS.SMS_CLAIM);
   }
 
-  // Modal close (user X'd out / clicked outside / hit Escape). Phone is
-  // already saved server-side from step 3; verification just didn't
-  // complete. NEVER block — advance + soft toast explaining the trade-off.
   function handleVerifyClose() {
     setVerifyOpen(false);
     if (toast && toast.info) {
@@ -365,50 +339,40 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         "Verify it anytime from Settings → Profile. Text alerts won't fire until your phone is confirmed."
       );
     }
-    setStep(4);
+    setScreen(SCREENS.SMS_CLAIM);
   }
 
-  // Inline "Verify now" CTA on the amber status card. Same flow as Continue,
-  // but stays on step 3 on success so the mover sees the card flip to green.
-  async function handleInlineVerifyClick() {
-    if (saving) return;
-    setSaveError('');
-    setSaving(true);
+  async function patchSmsClaim(optInRequested) {
     try {
-      // Save first so the modal verifies against the current input.
-      await saveStep(3);
-      if (refreshUser) refreshUser().catch(() => {});
-      setVerifyOpen(true);
+      await fetch(`${API_URL}/users/me/sms-claim`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': localStorage.getItem('token') || '',
+        },
+        body: JSON.stringify({ optInRequested }),
+      });
     } catch (err) {
-      console.error('[OnboardingWizard] inline verify failed:', err);
-      setSaveError("We couldn't save your phone number. Check your connection and try again.");
+      console.error('[OnboardingWizard] sms-claim patch failed:', err);
+    }
+  }
+
+  async function chooseSms(optIn) {
+    if (saving) return;
+    setSaving(true);
+    setSmsOptIn(optIn);
+    try {
+      await patchSmsClaim(optIn);
+      try { await saveStep(5); } catch (err) {
+        console.error('[OnboardingWizard] saveStep(5) failed:', err);
+      }
+      setScreen(SCREENS.ALMOST_READY);
     } finally {
       setSaving(false);
     }
   }
 
-  function back() {
-    if (saving) return;
-    if (step > 1 && step <= TOTAL_STEPS + 1) {
-      // Stepping back from Payment (6) to Activate (5) drops the in-flight
-      // intent so the next continue triggers a fresh PaymentIntent.
-      if (step === 6) setIntent(null);
-      // Setup-complete (4) is a celebration — back jumps to Alerts (3).
-      setStep(step - 1);
-    }
-  }
-
-  // Setup-complete → Activate transition. Persist currentStep=5 so a
-  // dismissal here (or a logout) resumes at the offer step on next login.
-  // Step 5 is the only step where the user is allowed to dismiss the
-  // wizard, and we want them to come back exactly there.
-  async function continueToActivate() {
-    try { await saveStep(5); } catch (err) { console.error('[OnboardingWizard] saveStep(5) failed:', err); }
-    setStep(5);
-  }
-
-  // Step 5 → Step 6 transition. Fetch a PaymentIntent for the chosen tier.
-  async function continueToPayment() {
+  async function onCreateIntent(currentTier) {
     try {
       const res = await fetch(`${API_URL}/billing/create-payment-intent`, {
         method: 'POST',
@@ -416,14 +380,13 @@ export default function OnboardingWizard({ onClose, initialStep }) {
           'Content-Type': 'application/json',
           'x-auth-token': localStorage.getItem('token') || '',
         },
-        body: JSON.stringify({ amount: tier, source: 'onboarding_activation' }),
+        body: JSON.stringify({ amount: currentTier, source: 'onboarding_activation' }),
       });
       const data = await res.json();
       if (!res.ok || !data?.clientSecret) {
         return { ok: false, msg: data?.msg || `Could not start payment (status ${res.status}).` };
       }
       setIntent(data);
-      setStep(6);
       return { ok: true };
     } catch (err) {
       console.error('[Activation] create-payment-intent threw', err);
@@ -431,29 +394,24 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     }
   }
 
-  // Mandatory-onboarding dismissal. The user has reached the offer/activate
-  // step (step 5) and chosen to defer activation. We do NOT call
-  // /onboarding/skip (which would stamp `complete: true`) — onboarding stays
-  // formally incomplete so the ActivationBanner keeps prompting.
-  //
-  // We DO stamp `activationOfferDismissedAt` so the DashboardLayout
-  // auto-mount effect stops re-opening the wizard on every login.
-  // Re-engagement happens through the banner CTA (explicit user intent),
-  // not by auto-popping the modal in their face every page load.
-  async function dismissAndClose() {
+  async function onPaid() {
+    if (refreshUser) await refreshUser();
+    setScreen(SCREENS.SUCCESS);
+  }
+
+  async function onBrowseFirst() {
     try {
       await fetch(`${API_URL}/onboarding/dismiss-activation-offer`, {
         method: 'POST',
-        headers: { 'x-auth-token': localStorage.getItem('token') || '', 'Content-Type': 'application/json' },
+        headers: {
+          'x-auth-token': localStorage.getItem('token') || '',
+          'Content-Type': 'application/json',
+        },
       });
-    } catch (_err) { /* non-blocking — banner still works either way */ }
+    } catch { /* non-blocking — banner still works */ }
     if (refreshUser) await refreshUser();
-    onClose && onClose();
-  }
-
-  async function onActivationDone() {
-    if (refreshUser) await refreshUser();
-    setStep(7);
+    if (onClose) onClose();
+    navigate('/dashboard/leads');
   }
 
   async function closeAfterSuccess() {
@@ -462,108 +420,301 @@ export default function OnboardingWizard({ onClose, initialStep }) {
     navigate('/dashboard/leads');
   }
 
-  const stepMicro = STEP_MICROCOPY[step] || '';
-  // Global footer is shown only on configurable steps (1..3). All later
-  // steps drive themselves with internal CTAs.
-  const showFooter = step <= 3;
-  // Progress chrome hidden on celebration steps (4 setup-complete, 7 success).
-  const visibleStage = STEP_TO_STAGE[step];
+  async function advance() {
+    if (saving) return;
+    setSaveError('');
+
+    if (screen === SCREENS.WELCOME) {
+      setScreen(SCREENS.LOCATION);
+      return;
+    }
+
+    if (screen === SCREENS.LOCATION) {
+      if (!dispatchBase.zip) return;
+      setSaving(true);
+      try {
+        await saveStep(1);
+        setScreen(SCREENS.DELIVERY);
+      } catch (err) {
+        console.error('[OnboardingWizard] saveStep(1) failed:', err);
+        setSaveError("We couldn't save that step. Check your connection and try again.");
+      } finally { setSaving(false); }
+      return;
+    }
+
+    if (screen === SCREENS.DELIVERY) {
+      if (!deliveryMode) return;
+      if (deliveryMode === 'some' && deliveryStates.length === 0) return;
+      setSaving(true);
+      try {
+        await saveStep(2);
+        setScreen(SCREENS.CONTACT);
+      } catch (err) {
+        console.error('[OnboardingWizard] saveStep(2) failed:', err);
+        setSaveError("We couldn't save that step. Check your connection and try again.");
+      } finally { setSaving(false); }
+      return;
+    }
+
+    if (screen === SCREENS.CONTACT) {
+      if (!isValidUSPhone(phone)) return;
+      setSaving(true);
+      try {
+        await saveStep(3);
+        try {
+          const res = await fetch(`${API_URL}/auth/me`, {
+            headers: { 'x-auth-token': localStorage.getItem('token') || '' },
+          });
+          if (res.ok) {
+            const fresh = await res.json();
+            setPhoneVerified(!!fresh.phoneVerified);
+            if (refreshUser) refreshUser().catch(() => {});
+            if (fresh.phoneVerified === true) {
+              setScreen(SCREENS.SMS_CLAIM);
+            } else {
+              setVerifyOpen(true);
+            }
+          } else {
+            setScreen(SCREENS.SMS_CLAIM);
+          }
+        } catch {
+          setScreen(SCREENS.SMS_CLAIM);
+        }
+      } catch (err) {
+        console.error('[OnboardingWizard] saveStep(3) failed:', err);
+        setSaveError("We couldn't save that step. Check your connection and try again.");
+      } finally { setSaving(false); }
+      return;
+    }
+
+    if (screen === SCREENS.ALMOST_READY) {
+      try { await saveStep(5); } catch (err) {
+        console.error('[OnboardingWizard] saveStep(5) failed:', err);
+      }
+      setScreen(SCREENS.ACTIVATE);
+      return;
+    }
+  }
+
+  function back() {
+    if (saving) return;
+    const order = [
+      SCREENS.WELCOME, SCREENS.LOCATION, SCREENS.DELIVERY,
+      SCREENS.CONTACT, SCREENS.SMS_CLAIM, SCREENS.ALMOST_READY,
+      SCREENS.ACTIVATE,
+    ];
+    const i = order.indexOf(screen);
+    if (i > 0) {
+      if (screen === SCREENS.ACTIVATE) setIntent(null);
+      setScreen(order[i - 1]);
+    }
+  }
+
+  const showFooter =
+    screen === SCREENS.WELCOME ||
+    screen === SCREENS.LOCATION ||
+    screen === SCREENS.DELIVERY ||
+    screen === SCREENS.CONTACT ||
+    screen === SCREENS.SMS_CLAIM ||
+    screen === SCREENS.ALMOST_READY;
+
+  const visibleStage = STEP_TO_STAGE[screen];
   const showProgress = !!visibleStage;
 
-  let nextLabel = 'Continue →';
-  if (saving && SAVING_LABEL[step]) nextLabel = SAVING_LABEL[step];
-  else if (step === 3) nextLabel = 'Continue →';
+  function footerForScreen() {
+    if (screen === SCREENS.WELCOME) {
+      return {
+        nextLabel: 'Get started →',
+        canAdvance: true,
+        showBack: false,
+      };
+    }
+    if (screen === SCREENS.LOCATION) {
+      return {
+        nextLabel: saving ? 'Saving…' : 'Continue →',
+        canAdvance: !!dispatchBase.zip,
+        showBack: true,
+      };
+    }
+    if (screen === SCREENS.DELIVERY) {
+      const ready = !!deliveryMode &&
+        (deliveryMode !== 'some' || deliveryStates.length > 0);
+      return {
+        nextLabel: saving ? 'Saving…' : 'Continue →',
+        canAdvance: ready,
+        showBack: true,
+      };
+    }
+    if (screen === SCREENS.CONTACT) {
+      return {
+        nextLabel: saving ? 'Saving…' : 'Continue →',
+        canAdvance: isValidUSPhone(phone),
+        showBack: true,
+      };
+    }
+    if (screen === SCREENS.SMS_CLAIM) {
+      return null;
+    }
+    if (screen === SCREENS.ALMOST_READY) {
+      return {
+        nextLabel: 'Continue →',
+        canAdvance: true,
+        showBack: true,
+      };
+    }
+    return null;
+  }
+
+  const footer = showFooter ? footerForScreen() : null;
+
+  const ctx = {
+    API_URL,
+    dispatchBase, setDispatchBase,
+    cityName: cityState.city,
+    stateAbbr: cityState.state,
+    deliveryMode, setDeliveryMode,
+    deliveryStates, toggleDeliveryState,
+    statesPhrase,
+    phone, setPhone,
+    email, setEmail,
+    phoneVerified,
+    channels, setChannel,
+    openVerify,
+    smsRoute,
+    smsEnabled: smsOptIn,
+    smsChosen: true,
+    chooseSms,
+    tier, setTier,
+    intent, setIntent,
+    onCreateIntent,
+    onBrowseFirst,
+    onPaid,
+    bonusPath,
+    balance,
+    marketLabel: cityState.label || 'your market',
+    matchCount,
+    onDone: closeAfterSuccess,
+  };
 
   return (
-    <div className="onboarding-wizard" role="dialog" aria-label="Partner activation setup">
+    <div className="onboarding-wizard" role="dialog" aria-label="MoveLeads onboarding">
       <div className="ow-blur" />
       <div className="ow-modal" style={{ position: 'relative' }}>
-        {/* X button only appears once the user reaches step 5 (offer/activate).
-            Earlier steps are mandatory — no dismiss surface. */}
-        {step === 5 && <button
-          type="button"
-          className="ow-close"
-          aria-label="Close"
-          onClick={dismissAndClose}
-          style={{
-            position: 'absolute', top: 14, right: 14,
-            width: 44, height: 44, borderRadius: 12,
-            background: 'rgba(15,23,42,0.06)', border: 'none',
-            color: 'rgba(15,23,42,0.7)', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 2,
-          }}
-        >
-          <X size={18} />
-        </button>}
+        {screen === SCREENS.ACTIVATE && (
+          <button
+            type="button"
+            className="ow-close"
+            aria-label="Close"
+            onClick={onBrowseFirst}
+            style={{
+              position: 'absolute', top: 14, right: 14,
+              width: 44, height: 44, borderRadius: 12,
+              background: 'rgba(15,23,42,0.06)', border: 'none',
+              color: 'rgba(15,23,42,0.7)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 2,
+            }}
+          >
+            <X size={18} />
+          </button>
+        )}
+
         {showProgress && (
           <div
-            className="ow-header"
+            className="ow-progress-bar-wrap"
             role="progressbar"
             aria-valuemin={1}
-            aria-valuemax={TOTAL_STEPS}
+            aria-valuemax={SETUP_STAGES.length}
             aria-valuenow={visibleStage}
-            aria-label={`Step ${visibleStage} of ${TOTAL_STEPS}: ${stepMicro}`}
+            aria-label={`Step ${visibleStage} of ${SETUP_STAGES.length}`}
           >
             <div className="ow-progress">
-              <div className="ow-progress-fill" style={{ width: `${(visibleStage / TOTAL_STEPS) * 100}%` }} />
+              <div
+                className="ow-progress-fill"
+                style={{ width: `${(visibleStage / SETUP_STAGES.length) * 100}%` }}
+              />
             </div>
           </div>
         )}
 
         <div className="ow-body">
-          <div className="ow-step-anim" key={step}>
-            {step === 1 && <ScreenDispatchPickup answers={answers} setAnswer={setAnswer} companyName={user?.companyName} />}
-            {step === 2 && <ScreenDeliveryCoverage answers={answers} setAnswer={setAnswer} API_URL={API_URL} />}
-            {step === 3 && (
-              <ScreenAlerts
-                answers={answers}
-                setAnswer={setAnswer}
-                userEmail={user?.email}
-                phoneVerified={phoneVerified}
-                onVerifyClick={handleInlineVerifyClick}
-                saving={saving}
-              />
-            )}
-            {step === 4 && <ScreenSetupComplete answers={answers} onClaim={continueToActivate} />}
-            {step === 5 && <ScreenBalance tier={tier} setTier={setTier} onContinue={continueToPayment} onSkip={dismissAndClose} />}
-            {step === 6 && intent && <ScreenPayment API_URL={API_URL} tier={tier} intent={intent} onBack={back} onDone={onActivationDone} />}
-            {step === 7 && <ScreenActivationSuccess onDone={closeAfterSuccess} answers={answers} />}
+          <div className="ow-step-anim" key={screen}>
+            {screen === SCREENS.WELCOME      && <StepWelcome ctx={ctx} />}
+            {screen === SCREENS.LOCATION     && <StepLocation ctx={ctx} />}
+            {screen === SCREENS.DELIVERY     && <StepDelivery ctx={ctx} />}
+            {screen === SCREENS.CONTACT      && <StepContact ctx={ctx} />}
+            {screen === SCREENS.SMS_CLAIM    && <StepSmsClaim ctx={ctx} />}
+            {screen === SCREENS.ALMOST_READY && <StepAlmostReady ctx={ctx} />}
+            {screen === SCREENS.ACTIVATE     && <StepActivate ctx={ctx} />}
+            {screen === SCREENS.SUCCESS      && <StepSuccess ctx={ctx} />}
           </div>
         </div>
 
-        {showFooter && (
+        {footer && (
           <div className="ow-footer">
             <div className="ow-footer-left">
-              {step > 1 && (
-                <button className="ow-back" onClick={back} type="button" disabled={saving}>← Back</button>
+              {footer.showBack && (
+                <button
+                  type="button"
+                  className="ow-back"
+                  onClick={back}
+                  disabled={saving}
+                >
+                  ← Back
+                </button>
               )}
               {saveError && (
                 <span className="ow-save-error" role="alert">{saveError}</span>
               )}
             </div>
+            {screen === SCREENS.SMS_CLAIM ? null : (
+              <button
+                type="button"
+                className="ow-next"
+                onClick={advance}
+                disabled={saving || !footer.canAdvance}
+                aria-busy={saving}
+              >
+                {saving && <span className="ow-spinner ow-spinner-on-cta" aria-hidden="true" />}
+                <span>{footer.nextLabel}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {screen === SCREENS.SMS_CLAIM && (
+          <div className="ow-footer">
+            <div className="ow-footer-left">
+              <button
+                type="button"
+                className="ow-back"
+                onClick={back}
+                disabled={saving}
+              >
+                ← Back
+              </button>
+              <button
+                type="button"
+                className="ow-skip-link"
+                onClick={() => chooseSms(false)}
+                disabled={saving}
+              >
+                I'll enable it later
+              </button>
+            </div>
             <button
-              className="ow-next"
-              onClick={next}
               type="button"
-              disabled={saving || !isStepValid(step, answers)}
-              aria-busy={saving}
+              className="ow-next"
+              onClick={() => chooseSms(true)}
+              disabled={saving}
             >
-              {saving && <span className="ow-spinner ow-spinner-on-cta" aria-hidden="true" />}
-              <span>{nextLabel}</span>
+              <span>Enable SMS Claim</span>
+              <ArrowRight size={16} />
             </button>
           </div>
         )}
       </div>
 
-      {/* 2026-05-30 — Step 3 phone-verify integration.
-          Mounted at the wizard root so the modal's own backdrop sits ABOVE
-          the wizard's fixed overlay. The component is self-contained and
-          self-cleans body-scroll-lock when closed. Triggered by either the
-          Continue button at step 3 OR the inline "Verify now" CTA on the
-          amber status card. NEVER blocks progress — both close paths
-          (success + skip) advance to step 4 through their respective
-          handlers above. */}
       <VerifyPhoneModal
         isOpen={verifyOpen}
         onClose={handleVerifyClose}
@@ -573,986 +724,4 @@ export default function OnboardingWizard({ onClose, initialStep }) {
   );
 }
 
-function isStepValid(step, a) {
-  if (step === 1) {
-    if (!a.dispatchBase || !a.dispatchBase.zip) return false;
-    if (!a.pickup?.mode) return false;
-    if (a.pickup?.mode === 'states' && !(a.pickup.states && a.pickup.states.length)) return false;
-    return true;
-  }
-  if (step === 2) {
-    if (a.delivery?.mode === 'states' && !(a.delivery.states && a.delivery.states.length)) return false;
-    return true;
-  }
-  if (step === 3) {
-    return isValidUSPhone(a.phone);
-  }
-  return true;
-}
-
-// ── Step 1: Dispatch base + pickup ──────────────────────────────────────────
-function ScreenDispatchPickup({ answers, setAnswer, companyName }) {
-  const dispatchBase = answers.dispatchBase || {};
-  const pickup       = answers.pickup   || { mode: '', states: [] };
-  const baseReady    = !!dispatchBase.zip;
-
-  // Distinguishes "user has explicitly picked a coverage mode" from
-  // "schema default landed here". On first arrival no card should look
-  // active; on resume (where the user already advanced past step 1) the
-  // saved selection should reappear. We treat a saved mode as explicit
-  // only if a dispatch base is also set — that's the lifecycle order.
-  const [modeUserPicked, setModeUserPicked] = useState(
-    () => !!(answers.pickup && answers.pickup.mode && answers.dispatchBase && answers.dispatchBase.zip)
-  );
-
-  function setPickupMode(mode) {
-    if (!baseReady) return;
-    setModeUserPicked(true);
-    const next = { ...pickup, mode };
-    if (mode === 'states' && (!next.states || next.states.length === 0) && dispatchBase.state) {
-      next.states = [dispatchBase.state];
-    }
-    setAnswer('pickup', next);
-  }
-
-  const PICKUP_OPTIONS = [
-    { id: 'near',   label: 'Local around my base',   desc: 'Nearby pickups around your base.' },
-    { id: 'state',  label: 'Anywhere in my state',   desc: dispatchBase.state ? `Pickups across ${stateName(dispatchBase.state)}.` : 'Pickups across your state.' },
-    { id: 'states', label: 'Multiple states',        desc: 'Pick the states your crews cover.' },
-  ];
-
-  // Subtle rotating placeholder examples so the input clearly signals
-  // "type a city or ZIP." Pauses on focus to avoid distracting the user.
-  const PLACEHOLDER_EXAMPLES = ['Houston, TX', 'Dallas, TX', '77001', 'Phoenix, AZ', '90001'];
-  const [placeholderIdx, setPlaceholderIdx] = useState(0);
-  useEffect(() => {
-    if (baseReady) return;
-    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDER_EXAMPLES.length), 2200);
-    return () => clearInterval(t);
-  }, [baseReady]);
-
-  return (
-    <>
-      <header className="ow-step-header">
-        <h1 className="ow-h1">Where do your crews start jobs?</h1>
-        <p className="ow-sub">We'll only show you opportunities in the areas you serve.</p>
-      </header>
-
-      <div className={`ow-field ow-dispatch-input-wrap${baseReady ? ' is-confirmed' : ' is-empty'}`}>
-        <PlaceAutocomplete
-          id="dispatchBaseInput"
-          value={baseReady ? dispatchBase : null}
-          onSelect={(p) => setAnswer('dispatchBase', { input: p.label, zip: p.zip, city: p.city, state: p.state })}
-          onClear={() => { setAnswer('dispatchBase', { input: '', zip: '', city: '', state: '' }); setModeUserPicked(false); }}
-          placeholder={`e.g. ${PLACEHOLDER_EXAMPLES[placeholderIdx]}`}
-          ariaLabel="Search dispatch base"
-          autoFocus={!baseReady}
-        />
-      </div>
-
-      {baseReady && (
-        <aside className="ow-market-open" role="note">
-          <span className="ow-market-open-dot" aria-hidden="true" />
-          <div>
-            <div className="ow-market-open-title">Dispatch base confirmed</div>
-            <div className="ow-market-open-body">We're currently onboarding movers in your area.</div>
-          </div>
-        </aside>
-      )}
-
-      {/* Decision 1A (2026-05-30) — the H1 above already asks the question.
-          Removed the duplicate "Where do your crews start jobs?" section
-          label. Cards (Local / State / Multiple) self-explain as the answer.
-          The locked-state hint stays because it's a contextual prompt, not
-          a duplicate question. */}
-      <div className="ow-field" aria-disabled={!baseReady}>
-        {!baseReady && (
-          <p className="ow-cards-hint" role="note">
-            Enter your dispatch location first.
-          </p>
-        )}
-        <div className={`ow-cards${!baseReady ? ' is-disabled' : ''}`}>
-          {PICKUP_OPTIONS.map(opt => {
-            const active = baseReady && modeUserPicked && pickup.mode === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                className={`ow-card${active ? ' active' : ''}`}
-                onClick={() => setPickupMode(opt.id)}
-                aria-pressed={active}
-                disabled={!baseReady}
-                tabIndex={baseReady ? 0 : -1}
-              >
-                <div className="ow-card-row">
-                  <div>
-                    <div className="ow-card-title">{opt.label}</div>
-                    <div className="ow-card-desc">{opt.desc}</div>
-                  </div>
-                  {active && <span className="ow-card-check">✓</span>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        {pickup.mode === 'states' && modeUserPicked && baseReady && (
-          <p className="ow-states-note" role="note">
-            You can add more operating states later in Settings → Service Areas.
-          </p>
-        )}
-      </div>
-    </>
-  );
-}
-
-// ── Step 2: Delivery coverage ───────────────────────────────────────────────
-function ScreenDeliveryCoverage({ answers, setAnswer, API_URL }) {
-  const dispatchBase = answers.dispatchBase || {};
-  const pickup       = answers.pickup   || { mode: 'near', states: [] };
-  const delivery     = answers.delivery || { mode: 'same', states: [] };
-  const [preview, setPreview] = useState(null);
-  const [previewing, setPreviewing] = useState(false);
-
-  useEffect(() => {
-    if (!dispatchBase.zip) { setPreview(null); return; }
-    setPreviewing(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(`${API_URL}/onboarding/preview-coverage-v2`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-auth-token': localStorage.getItem('token') || '',
-          },
-          body: JSON.stringify({ dispatchBase, pickup, delivery }),
-        });
-        setPreview(await res.json());
-      } catch {
-        setPreview({ ok: false, msg: 'Preview unavailable.' });
-      } finally {
-        setPreviewing(false);
-      }
-    }, 400);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API_URL, dispatchBase.zip, pickup.mode, pickup.states.join(','), delivery.mode, delivery.states.join(',')]);
-
-  // Same pattern as Step 1 pickup — picking "Multiple states" defaults to
-  // the dispatch base state and points the user to Settings for expansion.
-  function setDeliveryMode(mode) {
-    const next = { ...delivery, mode };
-    if (mode === 'states' && (!next.states || next.states.length === 0) && dispatchBase.state) {
-      next.states = [dispatchBase.state];
-    }
-    setAnswer('delivery', next);
-  }
-
-  const DELIVERY_OPTIONS = [
-    { id: 'same',       label: 'Same as pickup',  desc: 'Local moves only.' },
-    { id: 'states',     label: 'Multiple states', desc: 'Pick states you deliver to.' },
-    { id: 'nationwide', label: 'Nationwide',      desc: 'Long-distance across the U.S.' },
-  ];
-
-  return (
-    <>
-      <header className="ow-step-header">
-        <h1 className="ow-h1">Where can your crews deliver?</h1>
-        <p className="ow-sub">This helps us send the right local and long-distance opportunities.</p>
-      </header>
-
-      <div className="ow-field">
-        <div className="ow-cards">
-          {DELIVERY_OPTIONS.map(opt => {
-            const active = delivery.mode === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                className={`ow-card${active ? ' active' : ''}`}
-                onClick={() => setDeliveryMode(opt.id)}
-                aria-pressed={active}
-              >
-                <div className="ow-card-row">
-                  <div>
-                    <div className="ow-card-title">{opt.label}</div>
-                    <div className="ow-card-desc">{opt.desc}</div>
-                  </div>
-                  {active && <span className="ow-card-check">✓</span>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        {delivery.mode === 'states' && (
-          <p className="ow-states-note" role="note">
-            You can add more operating states later in Settings → Service Areas.
-          </p>
-        )}
-      </div>
-
-      {/* Hide the live state-to-state preview when the user picks "Multiple
-          states" — the settings note above already tells them they can
-          expand later, and showing only their auto-defaulted home state
-          here would read as confusing or misleading. */}
-      {delivery.mode !== 'states' && (previewing || preview) && (
-        <div className={`ow-coverage-preview${preview && preview.ok === false ? ' err' : ''}`} role="status" aria-live="polite">
-          {previewing && (
-            <>
-              <span className="ow-spinner" />
-              <span>Checking coverage…</span>
-            </>
-          )}
-          {!previewing && preview?.ok && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="ow-coverage-preview-dot" aria-hidden="true" />
-              <span>{previewMessage(preview)}</span>
-            </div>
-          )}
-          {!previewing && preview && preview.ok === false && (
-            <span>{preview.msg || 'Could not resolve service area.'}</span>
-          )}
-        </div>
-      )}
-    </>
-  );
-}
-
-function previewMessage(p) {
-  const baseCity = p.base?.city || 'Your dispatch';
-  const baseState = p.base?.state || '';
-  const baseLabel = baseState ? `${baseCity}, ${baseState}` : baseCity;
-  const pmode = p.pickup?.mode;
-  const dmode = p.delivery?.mode;
-
-  if (p.nationwide) {
-    return <span><strong>{baseLabel}</strong> pickup · <strong>Nationwide</strong> delivery</span>;
-  }
-  if (pmode === 'near' && dmode === 'same') {
-    return <span><strong>{baseLabel}</strong> dispatch area ready</span>;
-  }
-  if (pmode === 'state' && dmode === 'same') {
-    return <span><strong>{stateName(baseState)}</strong> pickup + delivery ready</span>;
-  }
-  if (pmode === 'states' && dmode === 'same') {
-    const list = (p.pickup.states || []).map(stateName).join(' · ');
-    return <span><strong>{list || 'Multi-state'}</strong> pickup + delivery ready</span>;
-  }
-  if (dmode === 'states') {
-    const pLabel = pmode === 'near'
-      ? baseLabel
-      : pmode === 'state'
-        ? stateName(baseState)
-        : (p.pickup.states || []).map(stateName).join(' · ');
-    const dLabel = (p.delivery.states || []).map(stateName).join(' · ');
-    return <span><strong>{pLabel}</strong> → <strong>{dLabel}</strong></span>;
-  }
-  return <span>Coverage ready</span>;
-}
-
-// ── Step 3: Alerts (phone + SMS + email) ────────────────────────────────────
-function ScreenAlerts({ answers, setAnswer, userEmail, phoneVerified, onVerifyClick, saving }) {
-  // Show inline phone validation only once the user has typed something —
-  // empty field is "incomplete", not "invalid".
-  const phoneError = answers.phone && !isValidUSPhone(answers.phone)
-    ? 'Please enter a valid US phone number.'
-    : '';
-
-  // 2026-05-30 — Verify status card render condition.
-  // Only show the card when there's a valid phone number on file. Empty +
-  // invalid fields don't get a card — the inline validator handles those.
-  // The card has two visual states:
-  //   - phoneVerified=true  → green "Phone confirmed"
-  //   - phoneVerified=false → amber "Confirm your phone… [Verify now →]"
-  const phoneIsValid = !!answers.phone && !phoneError;
-  const showVerifyCard = phoneIsValid;
-
-  return (
-    <>
-      <header className="ow-step-header">
-        <h1 className="ow-h1">How should we send you move opportunities?</h1>
-        <p className="ow-sub">Choose how your team should hear about matching requests.</p>
-      </header>
-
-      {/* 2026-05-30 — Alert-channel explainer. Sets context BEFORE the mover
-          types their phone: shows the three ways alerts arrive so they
-          understand what the toggles below actually unlock. No new inputs. */}
-      <aside className="ow-alerts-channels" aria-label="How alerts reach you">
-        <div className="ow-alerts-channels-lead">When a matching homeowner requests a quote:</div>
-        <ul className="ow-alerts-channels-list">
-          <li><span className="ow-alerts-channels-tick" aria-hidden="true">✓</span> We'll text you</li>
-          <li><span className="ow-alerts-channels-tick" aria-hidden="true">✓</span> We'll email you</li>
-          <li><span className="ow-alerts-channels-tick" aria-hidden="true">✓</span> You'll see it in your dashboard</li>
-        </ul>
-      </aside>
-
-      <div className="ow-field">
-        <label className="ow-label" htmlFor="notifPhone">Phone number</label>
-        <input
-          id="notifPhone"
-          type="tel"
-          className={`ow-input${phoneError ? ' ow-input-err' : ''}`}
-          placeholder="(555) 555-5555"
-          // Defensive: re-run formatUSPhone on every render so a state value
-          // that ever slips through unformatted (legacy save, server-side
-          // normalization, etc.) still displays as "(555) 555-5555".
-          value={formatUSPhone(answers.phone || '')}
-          onChange={e => setAnswer('phone', formatUSPhone(e.target.value))}
-          onBlur={e => setAnswer('phone', formatUSPhone(e.target.value))}
-          autoComplete="tel"
-          inputMode="numeric"
-          maxLength={14}
-          aria-invalid={!!phoneError}
-          aria-describedby={phoneError ? 'notifPhoneErr' : undefined}
-        />
-        {phoneError && (
-          <p id="notifPhoneErr" className="ow-input-error" role="alert">{phoneError}</p>
-        )}
-        {showVerifyCard && phoneVerified && (
-          <div
-            className="ow-verify-status ow-verify-status-confirmed"
-            data-testid="onboarding-verify-confirmed"
-            role="status"
-          >
-            <span className="ow-verify-status-icon" aria-hidden="true">✓</span>
-            <div className="ow-verify-status-body">
-              <div className="ow-verify-status-title">Phone confirmed</div>
-              <div className="ow-verify-status-sub">You’re set to receive text alerts.</div>
-            </div>
-          </div>
-        )}
-        {showVerifyCard && !phoneVerified && (
-          <div
-            className="ow-verify-status ow-verify-status-pending"
-            data-testid="onboarding-verify-pending"
-            role="status"
-          >
-            <span className="ow-verify-status-icon" aria-hidden="true">⚠</span>
-            <div className="ow-verify-status-body">
-              <div className="ow-verify-status-title">Confirm your phone to receive text alerts</div>
-              <div className="ow-verify-status-sub">We’ll send you a 6-digit code.</div>
-            </div>
-            <button
-              type="button"
-              className="ow-verify-status-cta"
-              onClick={onVerifyClick}
-              disabled={saving}
-              data-testid="onboarding-verify-inline-cta"
-            >
-              Verify now →
-            </button>
-          </div>
-        )}
-      </div>
-
-      {userEmail && (
-        <div className="ow-field">
-          <label className="ow-label">Email address</label>
-          <div className="ow-readonly-input" aria-label={`Account email: ${userEmail}`}>
-            <span>{userEmail}</span>
-            <span className="ow-readonly-tag">Account email</span>
-          </div>
-        </div>
-      )}
-
-      <p className="ow-contact-notice">
-        You can update your phone number and email anytime from Settings.
-      </p>
-
-
-      <div className="ow-field">
-        <button
-          type="button"
-          className={`ow-toggle${answers.smsNotif ? ' active' : ''}`}
-          onClick={() => setAnswer('smsNotif', !answers.smsNotif)}
-          aria-pressed={!!answers.smsNotif}
-        >
-          <span className="ow-toggle-track" />
-          <span className="ow-toggle-label">Text me matching move requests</span>
-        </button>
-      </div>
-
-      <div className="ow-field">
-        <button
-          type="button"
-          className={`ow-toggle${answers.emailNotif ? ' active' : ''}`}
-          onClick={() => setAnswer('emailNotif', !answers.emailNotif)}
-          aria-pressed={!!answers.emailNotif}
-        >
-          <span className="ow-toggle-track" />
-          <span className="ow-toggle-label">Email me matching move requests</span>
-        </button>
-      </div>
-    </>
-  );
-}
-
-// ── Step 4: Setup-complete interstitial ─────────────────────────────────────
-//
-// Two phases:
-//   'loading' → progressive checklist that ticks off setup tasks (~4s total).
-//               No CTA, no skip — feels like the system is doing real work.
-//   'ready'   → vertical status checkpoints + "Claim your $50 FREE credit"
-//               primary CTA + "Continue without activating" secondary.
-//
-// The /onboarding/complete API call already fired before this screen
-// mounted (next() in the wizard handler runs it on the 3 → 4 transition),
-// so the loading phase is purely a UX moment to legitimize the answers
-// the user just gave.
-function ScreenSetupComplete({ answers, onClaim }) {
-  const persona = buildPersona(answers || {});
-  const market = persona.market !== 'your market' ? persona.market : 'your service area';
-
-  const enabledChannels = [];
-  if (answers.smsNotif) enabledChannels.push('SMS');
-  if (answers.emailNotif) enabledChannels.push('Email');
-  const alertsBody = enabledChannels.length
-    ? `${enabledChannels.join(' · ')} alerts prepared`
-    : 'In-dashboard alerts prepared';
-
-  const [phase, setPhase] = useState('loading'); // 'loading' | 'ready'
-  const [done, setDone] = useState(0);
-
-  const setupItems = [
-    'Setting up your dispatch account',
-    `Saving your service area · ${market}`,
-    'Preparing lead alerts',
-    'Matching your coverage preferences',
-    'Finalizing your dashboard',
-  ];
-
-  useEffect(() => {
-    // ~700ms per tick, ~3.5s total + 700ms hold before the reveal.
-    const ticks = [700, 1400, 2100, 2800, 3500];
-    const timers = ticks.map((ms, i) => setTimeout(() => setDone(i + 1), ms));
-    timers.push(setTimeout(() => setPhase('ready'), 4200));
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  if (phase === 'loading') {
-    return (
-      <div className="ow-setup-loading">
-        <h1 className="ow-h1">Setting up your account</h1>
-        <p className="ow-sub">A moment while we configure everything based on your answers.</p>
-        <ul className="ow-processing-list">
-          {setupItems.map((label, i) => {
-            const isDone = i < done;
-            const isLoading = i === done;
-            return (
-              <li key={i} className={`ow-processing-item${isDone ? ' done' : ''}${isLoading ? ' loading' : ''}`}>
-                <span className="ow-processing-icon">
-                  {isDone ? '✓' : isLoading ? <span className="ow-spinner" /> : ''}
-                </span>
-                <span className="ow-processing-label">{label}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    );
-  }
-
-  return (
-    <div className="ow-setup-complete">
-      <div className="ow-success-icon ow-success-icon-lg" aria-hidden="true">✓</div>
-      <h1 className="ow-h1">Your dispatch setup is ready</h1>
-      <p className="ow-sub">Your service area, alerts, and dashboard are now prepared.</p>
-
-      <ul className="ow-status-list">
-        <li className="ow-status-item">
-          <span className="ow-status-check" aria-hidden="true">✓</span>
-          <div className="ow-status-text">
-            <div className="ow-status-label">Service area saved</div>
-            <div className="ow-status-value">{market}</div>
-          </div>
-        </li>
-        <li className="ow-status-item">
-          <span className="ow-status-check" aria-hidden="true">✓</span>
-          <div className="ow-status-text">
-            <div className="ow-status-label">Alerts ready</div>
-            <div className="ow-status-value">{alertsBody}</div>
-          </div>
-        </li>
-        <li className="ow-status-item">
-          <span className="ow-status-check" aria-hidden="true">✓</span>
-          <div className="ow-status-text">
-            <div className="ow-status-label">Dashboard prepared</div>
-            <div className="ow-status-value">Ready for matching move opportunities</div>
-          </div>
-        </li>
-      </ul>
-
-      {/* 2026-05-30 — "How MoveLeads works" — Decision 2A.
-          Education block lives on Step 4, between status list and activation
-          CTA, so the mover understands the business model BEFORE the balance
-          offer. No new stage, no new settings, no new questions. */}
-      <section className="ow-journey-block">
-        <h2 className="ow-journey-h2">How MoveLeads works</h2>
-        <ol className="ow-how-it-works">
-          <li className="ow-how-it-works-item"><span className="ow-how-num">1</span><span>Homeowner requests a quote</span></li>
-          <li className="ow-how-it-works-item"><span className="ow-how-num">2</span><span>We review the request</span></li>
-          <li className="ow-how-it-works-item"><span className="ow-how-num">3</span><span>Matching movers receive alerts</span></li>
-          <li className="ow-how-it-works-item"><span className="ow-how-num">4</span><span>You unlock or claim the lead</span></li>
-          <li className="ow-how-it-works-item"><span className="ow-how-num">5</span><span>Call the customer</span></li>
-        </ol>
-
-        {/* Control reassurance — surfaces mover agency immediately after
-            the flow so the next thought isn't "am I going to be charged
-            for every alert?" */}
-        <p className="ow-journey-control">
-          You decide which leads are worth pursuing.<br />
-          You're never charged just for receiving alerts.
-        </p>
-
-        {/* Refund-policy trust line. Reduces pre-payment anxiety without
-            promising things the policy doesn't actually deliver. */}
-        <p className="ow-journey-trust">
-          We focus on verified homeowner requests. If a lead qualifies under our refund policy, your balance can be credited back.
-        </p>
-      </section>
-
-      {/* SMS Claim explainer — Decision 2A's main educational lift.
-          Operator-specified order: benefit first, then flow, then the
-          balance requirement, then the "optional" disclaimer. No toggle —
-          opt-in happens on the SmsClaim page; this surface only educates. */}
-      <section className="ow-sms-claim-card" aria-labelledby="ow-sms-claim-title">
-        <div className="ow-sms-claim-card-header">
-          <h3 id="ow-sms-claim-title" className="ow-sms-claim-card-title">Claim leads by text</h3>
-          <span className="ow-sms-claim-card-beta">Beta</span>
-        </div>
-
-        <p className="ow-sms-claim-card-section ow-sms-claim-card-benefit">
-          <strong>The fastest way to grab a matching lead</strong> — no app to open, no dashboard click. The first eligible mover to reply wins.
-        </p>
-
-        <p className="ow-sms-claim-card-section">
-          When a matching lead arrives, we'll text you a claim code.
-          Reply <strong>SEND ABCD</strong> and the lead is assigned to you instantly — customer details land in the same thread, so you can call them right away.
-        </p>
-
-        <p className="ow-sms-claim-card-section">
-          To claim a lead instantly by text, your available balance must be at least the lead price.
-          Example: if a lead costs <strong>$42</strong>, you need at least <strong>$42</strong> available balance to claim it.
-        </p>
-
-        <p className="ow-sms-claim-card-section ow-sms-claim-card-optional">
-          SMS Claim is optional — you can turn it on now or later from the sidebar.
-        </p>
-      </section>
-
-      <button type="button" className="ow-activate-cta" onClick={onClaim}>
-        Claim your $50 FREE credit
-      </button>
-    </div>
-  );
-}
-
-// ── Step 5: Activate (balance picker only) ──────────────────────────────────
-function ScreenBalance({ tier, setTier, onContinue, onSkip }) {
-  const [fetching, setFetching] = useState(false);
-  const [initErr, setInitErr] = useState('');
-
-  const ctaLabel = fetching
-    ? 'Preparing secure payment…'
-    : tier === 100 ? 'Claim Your $150 Balance' : 'Activate $50 Starter Balance';
-
-  async function handleContinue() {
-    setFetching(true);
-    setInitErr('');
-    const res = await onContinue();
-    if (!res?.ok) {
-      setInitErr(res?.msg || 'Could not start payment.');
-      setFetching(false);
-    }
-  }
-
-  return (
-    <div className="ow-choose">
-      <header className="ow-step-header">
-        <h1 className="ow-h1">Ready To Receive Moving Jobs</h1>
-        <p className="ow-sub">Your account is prepared and ready to receive verified move requests.</p>
-      </header>
-
-      {/* 2026-05-30 — Wallet framing. Resolves the #1 first-time-mover
-          question ("is this a subscription?") before the tier picker.
-          The mover should arrive at the offer understanding what they're
-          funding and that the money stays theirs. */}
-      <p className="ow-wallet-framing">
-        This is your <strong>lead-buying wallet</strong> — not a subscription.
-        You pay only when you unlock or claim a lead.
-        Your balance stays in your account until you use it.
-      </p>
-
-      {/* Account-ready vertical checklist — three checkpoints to keep the
-          step feeling like a calm onboarding moment, not a sales page. */}
-      <ul className="ow-account-ready" aria-label="Account ready checklist">
-        <li className="ow-account-ready-item">
-          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
-          <span>Coverage area activated</span>
-        </li>
-        <li className="ow-account-ready-item">
-          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
-          <span>Lead alerts prepared</span>
-        </li>
-        <li className="ow-account-ready-item">
-          <span className="ow-account-ready-check" aria-hidden="true">✓</span>
-          <span>Ready for move requests</span>
-        </li>
-      </ul>
-
-      <div className="ow-tiers">
-        <button
-          type="button"
-          className={`ow-tier-v2 ow-tier-v2-primary${tier === 100 ? ' selected' : ''}`}
-          role="radio"
-          aria-checked={tier === 100}
-          aria-label="Pay $100 and receive $150 balance"
-          onClick={() => setTier(100)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(100); } }}
-        >
-          {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
-          <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-recommended">Includes $50 bonus</span>
-          </div>
-          <div className="ow-tier-amount-row">
-            <span className="ow-tier-pay">$100</span>
-            <span className="ow-tier-arrow">→</span>
-            <span className="ow-tier-receive">$150 balance</span>
-          </div>
-          <div className="ow-tier-support">Unlock verified homeowner move requests.</div>
-        </button>
-
-        <button
-          type="button"
-          className={`ow-tier-v2 ow-tier-v2-secondary${tier === 50 ? ' selected' : ''}`}
-          role="radio"
-          aria-checked={tier === 50}
-          aria-label="Pay $50 and receive $50 starter balance"
-          onClick={() => setTier(50)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTier(50); } }}
-        >
-          {tier === 50 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
-          <div className="ow-tier-row-pill">
-            <span className="ow-tier-pill-starter">Starter — no bonus included</span>
-          </div>
-          <div className="ow-tier-amount-row">
-            <span className="ow-tier-pay">$50</span>
-            <span className="ow-tier-arrow">→</span>
-            <span className="ow-tier-receive ow-tier-receive-muted">$50 balance</span>
-          </div>
-        </button>
-      </div>
-
-      {/* 2026-05-30 — Trust strip extended with the per-lead pricing model
-          so the mover finishes reading "this is not a monthly bill" before
-          their eye lands on the CTA. */}
-      <p className="ow-trust-strip">
-        Refundable balance · No subscription · Balance never expires · Pay per lead, never per month
-      </p>
-
-      {initErr && (
-        <div className="ow-activate-err" role="alert" aria-live="polite">
-          <div className="ow-activate-err-msg">{initErr}</div>
-        </div>
-      )}
-
-      <button type="button" className="ow-activate-cta" onClick={handleContinue} disabled={fetching}>
-        {ctaLabel}
-      </button>
-
-      {/* 2026-05-30 — Removed the marketplace footer
-          ("Movers are currently activating coverage in your market.")
-          per operator directive: if data isn't real, do not show it.
-          The trust strip above already carries the financial reassurance. */}
-
-      <button type="button" className="ow-activate-skip ow-skip-secondary" onClick={onSkip} disabled={fetching}>
-        <span>Browse leads first</span>
-        <span className="ow-skip-secondary-sub">You can add balance when you're ready to buy.</span>
-      </button>
-    </div>
-  );
-}
-
-// ── Step 6: Secure payment (Stripe Payment Element) ─────────────────────────
-function ScreenPayment({ API_URL, tier, intent, onBack, onDone }) {
-  return (
-    <Elements
-      key={intent.clientSecret}
-      stripe={stripePromiseSingleton()}
-      options={{
-        clientSecret: intent.clientSecret,
-        appearance: {
-          theme: 'stripe',
-          variables: {
-            colorPrimary: '#ff6a14',
-            colorText: '#0f172a',
-            colorBackground: '#ffffff',
-            colorDanger: '#dc2626',
-            fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
-            borderRadius: '10px',
-            spacingUnit: '4px',
-          },
-        },
-      }}
-    >
-      <ActivationPaymentForm
-        API_URL={API_URL}
-        tier={tier}
-        intent={intent}
-        onBack={onBack}
-        onDone={onDone}
-      />
-    </Elements>
-  );
-}
-
-function ActivationPaymentForm({ API_URL, tier, intent, onBack, onDone }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const { refreshUser } = useContext(AuthContext);
-  const [submitting, setSubmitting] = useState(false);
-  const [paymentErr, setPaymentErr] = useState('');
-  const [elementReady, setElementReady] = useState(false);
-  // Set true once the ExpressCheckoutElement reports at least one eligible
-  // wallet (Apple Pay / Google Pay / Link). Drives the "or pay with card"
-  // divider — only shown when the wallet row actually rendered something.
-  const [hasExpressMethods, setHasExpressMethods] = useState(false);
-
-  const ctaLabel = submitting
-    ? 'Processing payment…'
-    : tier === 100
-      ? `Pay $100 and activate $${intent.totalCredits} balance →`
-      : `Pay $${tier} and activate balance →`;
-
-  // Shared confirmation handler — used by both the card form submit and the
-  // ExpressCheckoutElement onConfirm. stripe.confirmPayment with elements
-  // automatically uses whichever method the user chose (card or wallet).
-  async function confirmAndComplete() {
-    setPaymentErr('');
-    setSubmitting(true);
-    try {
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/dashboard/leads?onboarding=success`,
-        },
-        redirect: 'if_required',
-      });
-      if (error) {
-        console.error('[Activation] confirmPayment error', error);
-        setPaymentErr(error.message || 'Payment could not be completed.');
-        setSubmitting(false);
-        return;
-      }
-      if (paymentIntent && paymentIntent.status === 'succeeded') {
-        try {
-          await fetch(`${API_URL}/billing/verify-payment-intent`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-auth-token': localStorage.getItem('token') || '',
-            },
-            body: JSON.stringify({ paymentIntentId: paymentIntent.id }),
-          });
-        } catch (verifyErr) {
-          console.error('[Activation] verify failed (webhook will catch up):', verifyErr);
-        }
-        if (refreshUser) await refreshUser();
-        if (onDone) onDone();
-        return;
-      }
-      setPaymentErr(`Payment ended in unexpected status: ${paymentIntent?.status || 'unknown'}.`);
-      setSubmitting(false);
-    } catch (err) {
-      console.error('[Activation] confirmPayment threw', err);
-      setPaymentErr(err?.message || 'Unexpected error during payment.');
-      setSubmitting(false);
-    }
-  }
-
-  function handlePay(e) {
-    e.preventDefault();
-    if (!stripe || !elements || submitting) return;
-    confirmAndComplete();
-  }
-
-  // ExpressCheckoutElement event — fires when the user taps an Apple Pay /
-  // Google Pay / Link button. We delegate to the same confirm flow.
-  function handleExpressConfirm() {
-    if (!stripe || !elements || submitting) return;
-    confirmAndComplete();
-  }
-
-  // onReady reports which express methods are eligible for this user/device.
-  // Hide the divider entirely when the row would render empty.
-  //
-  // Console logging here is intentional and useful in production — the
-  // shape `event.availablePaymentMethods` is the single source of truth
-  // for "did Stripe deem Apple Pay / Google Pay eligible for this
-  // browser+device+domain+PI?". If applePay/googlePay show as undefined or
-  // false here while the buttons are forced visible (see options below),
-  // the gap is in Stripe Dashboard / domain registration, not in our code.
-  function handleExpressReady(event) {
-    const methods = event?.availablePaymentMethods;
-    // eslint-disable-next-line no-console
-    console.log('[ExpressCheckout] onReady — availablePaymentMethods:', methods, 'full event:', event);
-    setHasExpressMethods(!!methods && Object.keys(methods).length > 0);
-  }
-
-  return (
-    <form className="ow-pay" onSubmit={handlePay}>
-      <button type="button" className="ow-pay-back" onClick={onBack} disabled={submitting}>
-        ← Change balance
-      </button>
-
-      <header className="ow-step-header">
-        <h1 className="ow-h1">Secure payment</h1>
-        <p className="ow-sub">
-          {tier === 100
-            ? `You'll be charged $100 — your $${intent.totalCredits} balance will be added immediately after payment.`
-            : `You'll be charged $${tier} — your $${tier} balance will be added immediately after payment.`}
-        </p>
-      </header>
-
-      <div className="ow-pay-element-wrap">
-        {/* Express wallets (Apple Pay / Google Pay / Link). Renders nothing
-            on browsers/devices that don't support any of them — the
-            PaymentElement below stays the only payment surface in that case. */}
-        <ExpressCheckoutElement
-          onConfirm={handleExpressConfirm}
-          onReady={handleExpressReady}
-          options={{
-            buttonHeight: 48,
-            buttonTheme: { applePay: 'black', googlePay: 'black' },
-            layout: { maxColumns: 2, maxRows: 2 },
-            // Force Apple Pay / Google Pay buttons to render. Stripe's
-            // default 'auto' silently hides them when domain/account/
-            // device eligibility checks fail — which makes diagnosing the
-            // root cause hard. With 'always':
-            //   - If buttons render but tapping fails → Apple Pay domain
-            //     not verified in Stripe Dashboard, OR live-mode method
-            //     not enabled for the account.
-            //   - If buttons render and tap works → eligibility is fine,
-            //     'auto' was a false negative from older browsers.
-            //   - If buttons still don't render → SDK / HTTPS / publishable
-            //     key issue (check console for stripe.js errors).
-            // Link stays on 'auto' since it has no domain-verification
-            // dependency and Stripe's heuristic for Link is reliable.
-            paymentMethods: {
-              applePay: 'always',
-              googlePay: 'always',
-              link: 'auto',
-            },
-          }}
-        />
-        {hasExpressMethods && (
-          <div className="ow-pay-divider" aria-hidden="true">
-            <span>or pay with card</span>
-          </div>
-        )}
-        <PaymentElement
-          options={{ layout: 'tabs' }}
-          onReady={() => setElementReady(true)}
-        />
-      </div>
-
-      {paymentErr && (
-        <div className="ow-activate-err" role="alert" aria-live="polite">
-          <div className="ow-activate-err-msg">{paymentErr}</div>
-        </div>
-      )}
-
-      <button
-        type="submit"
-        className="ow-activate-cta"
-        disabled={!stripe || !elements || !elementReady || submitting}
-      >
-        {ctaLabel}
-      </button>
-    </form>
-  );
-}
-
-// ── Step 7: Activation success (terminal) ───────────────────────────────────
-function ScreenActivationSuccess({ onDone, answers }) {
-  const { API_URL, user } = useContext(AuthContext);
-  const persona = buildPersona(answers || {});
-
-  const balance = Math.round(user?.balance || 0);
-  const isBonusPath = !!user?.onboarding?.bonusClaimedAt || balance >= 150;
-  const headline = isBonusPath ? 'Your $150 balance is active' : `Your $${balance || 50} balance is active`;
-  const stateLabel = (persona.market || '').trim();
-  const stateRecord = US_STATES.find(s => s.name.toLowerCase() === stateLabel.toLowerCase());
-  const stateCode = stateRecord?.code || '';
-  const [matchCount, setMatchCount] = useState(null);
-
-  useEffect(() => {
-    if (!stateLabel || stateLabel === 'your market') return;
-    let alive = true;
-    fetch(`${API_URL}/leads`, {
-      headers: { 'x-auth-token': localStorage.getItem('token') || '' },
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!alive || !Array.isArray(data)) return;
-        const nameLc = stateLabel.toLowerCase();
-        const codeLc = stateCode.toLowerCase();
-        const count = data.filter(l => {
-          const o = (l.originCity || '').toLowerCase();
-          const d = (l.destinationCity || '').toLowerCase();
-          return (
-            (nameLc && (o.includes(nameLc) || d.includes(nameLc))) ||
-            (codeLc && (o.match(new RegExp(`(?:^|[\\s,])${codeLc}(?:$|[\\s,])`)) || d.match(new RegExp(`(?:^|[\\s,])${codeLc}(?:$|[\\s,])`))))
-          );
-        }).length;
-        setMatchCount(count);
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [API_URL, stateLabel, stateCode]);
-
-  const marketLine = matchCount && matchCount > 0
-    ? `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${persona.market}`
-    : (persona.market !== 'your market'
-        ? `Routing enabled for ${persona.market}`
-        : 'Routing enabled');
-
-  return (
-    <div className="ow-success">
-      <div className="ow-success-icon">✓</div>
-      <h1 className="ow-h1">{headline}</h1>
-      <ul className="ow-success-list">
-        {isBonusPath
-          ? <li>Onboarding bonus applied: <strong>+$50</strong></li>
-          : <li>Starter balance activated</li>}
-        <li>{marketLine}</li>
-        <li>Notifications ready for matching requests</li>
-      </ul>
-      {/* 2026-05-30 — Decision 3A: upgrade the one-line aside to a small
-          info card. Stronger than a footer, smaller than a promotion.
-          Reads as a heads-up that SMS Claim exists + how to enable it.
-          NOT a CTA — the primary action below stays "View matching
-          opportunities →". Card visual reuses the Step 4 SMS Claim card
-          pattern for consistency across the journey. */}
-      <aside
-        className="ow-success-sms-claim-card"
-        data-testid="onboarding-success-sms-claim-aside"
-        aria-label="SMS Claim heads-up"
-      >
-        <div className="ow-success-sms-claim-header">
-          <h3 className="ow-success-sms-claim-title">Claim leads by text</h3>
-          <span className="ow-success-beta">Beta</span>
-        </div>
-        <p className="ow-success-sms-claim-body">
-          When a matching lead comes in, we'll text you a claim code.
-          Reply <strong>SEND</strong> to claim it instantly — first to reply wins.
-        </p>
-        <p className="ow-success-sms-claim-footer">
-          Turn it on anytime from the sidebar.
-        </p>
-      </aside>
-      <button type="button" className="ow-next" style={{ marginTop: 18 }} onClick={onDone}>
-        View matching opportunities →
-      </button>
-    </div>
-  );
-}
+export { SETUP_STAGES };

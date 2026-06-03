@@ -118,13 +118,13 @@ export default function DashboardLayout({ children }) {
 
   const dismissFirstTopupPopup = () => setShowFirstTopupPopup(false);
 
-  // Banner CTA → reopen wizard at the balance picker (internal step 5 in the
-  // current wizard: Dispatch=1, Coverage=2, Alerts=3, SetupComplete=4 [skipped
-  // when re-entering after dismissal], Activate=5, Payment=6, Success=7).
-  // Payment (step 6) is only reached after the user picks a tier and a fresh
-  // PaymentIntent is created.
+  // Banner CTA → reopen wizard at the Activate screen (v2 SCREENS.ACTIVATE = 7).
+  // v2 wizard's 8-screen model: Welcome=1, Location=2, Delivery=3, Contact=4,
+  // SmsClaim=5, AlmostReady=6, Activate=7, Success=8. The Activate screen
+  // renders the tier picker; payment is its second phase, reached after the
+  // mover picks a tier and a fresh PaymentIntent is created.
   const openActivation = () => {
-    setWizardInitialStep(5);
+    setWizardInitialStep(7);
     setShowWizard(true);
   };
 
@@ -159,22 +159,27 @@ export default function DashboardLayout({ children }) {
     if (user.role === 'admin' || user.role === 'super_admin') return;
 
     if (onboardingParam === 'resume') {
-      // Mid-wizard abandoner: reopen at saved step (or 1 if missing). Clamp
-      // to the [1, 6] range (the wizard saves currentStep up to 6 for the
-      // Payment phase). If they already completed setup, drop them on the
-      // balance picker (step 5).
-      const savedStep = user.onboarding?.currentStep || 1;
-      const clamped = Math.min(Math.max(savedStep, 1), 6);
-      const target = !user.onboarding?.complete ? clamped : 5;
+      // Mid-wizard abandoner: map the saved server-tracked currentStep into
+      // the v2 8-screen model and drop the mover at the corresponding screen.
+      //   server 1 → Location (2)
+      //   server 2 → Delivery (3)
+      //   server 3 → Contact  (4)
+      //   server 4 → SmsClaim (5)
+      //   server 5 → AlmostReady (6)
+      // Anything outside that range → start at Welcome (1). If onboarding is
+      // already marked complete, drop them on Activate (7).
+      const SERVER_TO_V2 = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6 };
+      const savedStep = user.onboarding?.currentStep || 0;
+      const mapped = SERVER_TO_V2[savedStep] || 1;
+      const target = !user.onboarding?.complete ? mapped : 7;
       setWizardInitialStep(target);
       setShowWizard(true);
       params.delete('onboarding');
       const qs = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
     } else if (activateParam === '1') {
-      // Post-skip recovery: open the balance picker (step 5). Payment (step 6)
-      // is reached only after the user picks a tier and a fresh PI is created.
-      setWizardInitialStep(5);
+      // Post-skip recovery: open the Activate screen (v2 SCREENS.ACTIVATE = 7).
+      setWizardInitialStep(7);
       setShowWizard(true);
       params.delete('activate');
       const qs = params.toString();

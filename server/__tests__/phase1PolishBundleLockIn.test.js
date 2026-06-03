@@ -19,6 +19,10 @@ const billing            = read('pages/dashboard/Billing.jsx');
 const deals              = read('pages/dashboard/Deals.jsx');
 const leadFeed           = read('pages/dashboard/LeadFeed.jsx');
 const onboardingWizard   = read('pages/onboarding/OnboardingWizard.jsx');
+// Onboarding v2 (2026-06-03) split copy across step components.
+// Activate-screen assertions read from StepActivate.jsx where the tier
+// picker + trust strip + browse-first secondary CTA now live.
+const stepActivate       = read('pages/onboarding/steps/StepActivate.jsx');
 const confirmPurchase    = read('components/ConfirmPurchaseModal.jsx');
 const purchaseSuccess    = read('components/PurchaseSuccessModal.jsx');
 const myLeads            = read('pages/dashboard/MyLeads.jsx');
@@ -137,27 +141,27 @@ test('L5 — Onboarding SETUP_STAGES use mover-language labels', () => {
 // ─── Agent 1 / L6 — Onboarding step 5 pill copy + bonus framing ─────────────
 
 test('L6.A — $50 tier pill no longer ambiguous "Limited"', () => {
-  assert.doesNotMatch(onboardingWizard, />Limited starter balance</);
-  assert.match(onboardingWizard, />Starter — no bonus included</);
+  assert.doesNotMatch(stepActivate, />Limited starter balance</);
+  assert.match(stepActivate, />Starter — no bonus included</);
 });
 
 test('L6.B — $100 tier pill uses "bonus" instead of "Free Credits"', () => {
-  assert.match(onboardingWizard, />Includes \$50 bonus</);
-  assert.doesNotMatch(onboardingWizard, />Includes \$50 Free Credits</);
+  assert.match(stepActivate, />Includes \$50 bonus</);
+  assert.doesNotMatch(stepActivate, />Includes \$50 Free Credits</);
 });
 
 test('L6.C — Onboarding trust strip says "Balance never expires"', () => {
-  assert.match(onboardingWizard, /Balance never expires/);
-  assert.doesNotMatch(onboardingWizard, /Credits never expire/);
+  assert.match(stepActivate, /Balance never expires/);
+  assert.doesNotMatch(stepActivate, /Credits never expire/);
 });
 
 // ─── Agent 1 / L7 — Onboarding skip link ────────────────────────────────────
 
 test('L7 — Skip link reads "Browse leads first" not "Continue without activating"', () => {
-  assert.match(onboardingWizard, />Browse leads first</);
-  assert.match(onboardingWizard, /You can add balance when you're ready to buy\./);
-  assert.doesNotMatch(onboardingWizard, />Continue without activating</);
-  assert.doesNotMatch(onboardingWizard, /Dashboard access stays limited until activation/);
+  assert.match(stepActivate, />Browse leads first</);
+  assert.match(stepActivate, /You can add balance when you're ready to buy\./);
+  assert.doesNotMatch(stepActivate, />Continue without activating</);
+  assert.doesNotMatch(stepActivate, /Dashboard access stays limited until activation/);
 });
 
 // ─── Agent 1 / L8 — ConfirmPurchaseModal warning ────────────────────────────

@@ -1,2355 +1,1292 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* ============================================================
+   MoveLeads Onboarding — design tokens + component styles
+   Faithful translation of the senior-designer spec sheet.
+   Swap --ow-font and the token block to match brand exactly.
+   ============================================================ */
 
-/* All styles scoped under .onboarding-wizard so they don't leak.
-   z-index: 13000 sits above the mobile sidebar-toggle (12000 in
-   dashboard.css) and the sidebar-backdrop (11900) so the wizard never
-   gets covered by the hamburger button on small screens.
+:root {
+  /* Brand — orange */
+  --ow-orange: #ff6a14;       /* Brand-600 */
+  --ow-orange-700: #ea580c;   /* hover, active text */
+  --ow-orange-600: #ea580c;
+  --ow-orange-800: #c2410c;   /* gradient end */
+  --ow-orange-50: #fff7ed;    /* tinted bg */
+  --ow-orange-200: #fdba74;   /* chip border */
+  --ow-orange-soft: #fff7ed;
+  --ow-orange-border: #fdba74;
 
-   Flex centering + safe padding: the modal sits in the visual middle
-   of the viewport (premium SaaS onboarding/checkout pattern), with
-   16px gutter so the rounded corners always have breathing room from
-   the screen edges. */
-.onboarding-wizard {
-  position: fixed; inset: 0; z-index: 13000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Success — green */
+  --ow-green: #16a34a;        /* Green-600 verified icon */
+  --ow-green-500: #22c55e;    /* success icon gradient start */
+  --ow-green-soft: #ecfdf5;   /* Green-50 */
+  --ow-green-border: #a7f3d0; /* Green-200 */
+  --ow-green-700: #047857;    /* verified title text */
+
+  /* Pending — amber */
+  --ow-amber: #f59e0b;        /* Amber-500 */
+  --ow-amber-soft: #fffbeb;   /* Amber-50 */
+  --ow-amber-border: #fde68a; /* Amber-200 */
+  --ow-amber-800: #92400e;    /* pending title */
+
+  /* Danger — red */
+  --ow-red: #ef4444;
+  --ow-red-700: #b91c1c;
+  --ow-red-50: #fff5f5;
+
+  /* Slate neutral ramp */
+  --ow-slate-50:  #f8fafc;    /* Bg-light */
+  --ow-slate-100: #f1f5f9;    /* Border-soft */
+  --ow-slate-200: #e2e8f0;    /* Border */
+  --ow-slate-300: #cbd5e1;
+  --ow-slate-400: #94a3b8;    /* Text-400 placeholder */
+  --ow-slate-500: #64748b;    /* Text-500 muted/labels */
+  --ow-slate-600: #475569;    /* Text-600 subtitles */
+  --ow-slate-700: #334155;    /* Text-700 body */
+  --ow-slate-900: #0f172a;    /* Text-900 headings */
+
+  --ow-navy: #0c1322;     /* phone mockup body */
+
+  /* Surfaces */
+  --ow-surface: #ffffff;
+  --ow-footer-bg: #f8fafc;
+  --ow-border: #e2e8f0;
+
+  /* Radii */
+  --ow-radius-modal: 20px;
+  --ow-radius-card: 12px;
+  --ow-radius-pill: 999px;
+
+  /* Shadow */
+  --ow-shadow-modal: 0 30px 80px rgba(0, 0, 0, 0.32);
+  --ow-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  /* Type */
+  --ow-font: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --ow-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, 'Menlo', monospace;
+
+  /* Motion */
+  --ow-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ow-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* viewport unit set by JS (keyboard-aware) */
+  --ow-vh: 100vh;
 }
 
-/* US-state autocomplete dropdown for the primary-market input on Step 1.
-   Sits inside the modal (no portal/body mount), so no z-index dance. */
-.ow-state-field {
-  position: relative;
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--ow-font);
+  color: var(--ow-slate-900);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
-.ow-state-dropdown {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 4px;
+
+/* ============================================================
+   Stage — faux app behind the modal
+   ============================================================ */
+.ow-stage {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #eef2f7 0%, rgba(238,242,247,0) 60%),
+    radial-gradient(900px 500px at 0% 110%, #eaf0f6 0%, rgba(234,240,246,0) 55%),
+    #e9edf2;
+  overflow: hidden;
+}
+/* faint dashboard suggestion */
+.ow-faux {
   position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 5;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
-  max-height: 280px;
-  overflow-y: auto;
+  inset: 0;
+  opacity: 0.5;
+  filter: blur(2px);
+  pointer-events: none;
 }
-.ow-state-option {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+.ow-faux-side {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 230px;
+  background: #fbfcfe; border-right: 1px solid var(--ow-slate-200);
 }
-.ow-state-option.active,
-.ow-state-option:hover {
-  background: rgba(255, 106, 20, 0.08);
+.ow-faux-bar {
+  position: absolute; left: 0; right: 0; top: 0; height: 60px;
+  background: #ffffff; border-bottom: 1px solid var(--ow-slate-200);
 }
-.ow-state-name {
-  font-size: 14px; font-weight: 600; color: #0f172a;
-  letter-spacing: -0.005em;
+.ow-faux-block {
+  position: absolute; background: #ffffff;
+  border: 1px solid var(--ow-slate-200); border-radius: 14px;
 }
-.ow-state-code {
-  font-family: var(--font-heading);
-  font-size: 11px; font-weight: 800; color: #94a3b8;
-  letter-spacing: 0.06em;
-}
-.ow-state-option.active .ow-state-code,
-.ow-state-option:hover .ow-state-code {
-  color: #ea580c;
-}
-
-.ow-blur {
-  position: absolute; inset: 0;
+.ow-overlay {
+  position: fixed; inset: 0;
   background: rgba(15, 23, 42, 0.34);
   backdrop-filter: blur(22px) saturate(130%);
   -webkit-backdrop-filter: blur(22px) saturate(130%);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  z-index: 10;
 }
 
+/* ============================================================
+   Modal frame (consistent chrome for all 7 screens)
+   ============================================================ */
 .ow-modal {
   position: relative;
-  /* Narrower frame so the modal feels intentionally framed for the content
-     density inside, rather than a giant card with empty horizontal sides.
-     820px sits inside the 760-900px SaaS-onboarding range. */
-  width: min(820px, 100%);
-
-  /* Adaptive height: min-height keeps a premium baseline so very short steps
-     (success / setup-complete) don't look like a tiny card, but stays low
-     enough that short content doesn't leave an oversized empty bottom zone.
-     max-height bounds tall steps (Step 5 activation) at 90vh / 800px so the
-     wizard's flex centering keeps it visually middle even when content
-     would otherwise stretch the modal full-height. */
-  min-height: 380px;
-  max-height: min(800px, 90vh);
-
-  margin: 0; /* viewport centering handled by .onboarding-wizard flex */
-  background: #fff;
-  border-radius: 20px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
+  width: 720px;
+  max-width: 100%;
+  background: var(--ow-surface);
+  border-radius: var(--ow-radius-modal);
+  box-shadow: var(--ow-shadow-modal);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  display: flex; flex-direction: column;
-  transition: width 220ms ease;
+  max-height: calc(var(--ow-vh) - 48px);
+  animation: ow-modal-in 360ms var(--ow-ease) both;
+}
+@keyframes ow-modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
 }
 
-/* Activation step (Payment Element) needs a wider canvas for the
-   two-column layout. Only step 7 receives this modifier — the setup
-   steps stay at 880px so their proportions don't change. */
-.ow-modal.ow-modal-wide {
-  width: min(1100px, calc(100vw - 32px));
-}
-
-/* Header is now just the slim progress bar — labels removed entirely so
-   the form gets every spare pixel above the fold on mobile. */
-.ow-header {
-  flex: 0 0 auto;
-}
+/* progress */
 .ow-progress {
-  height: 3px; background: #e9eef5;
-  position: relative;
+  height: 3px; width: 100%;
+  background: var(--ow-slate-200);
+  flex: 0 0 auto;
 }
 .ow-progress-fill {
-  height: 100%; background: linear-gradient(90deg, #ff6a14, #fb923c);
-  transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  height: 100%;
+  background: linear-gradient(90deg, var(--ow-orange), var(--ow-orange-800));
+  border-radius: 0 3px 3px 0;
+  transition: width 420ms var(--ow-ease);
 }
 
-/* Setup-status tracker (5 stages, stable height across steps) */
-.ow-stages {
-  display: flex; align-items: center; gap: 6px;
-  padding: 10px 28px 12px;
-  border-bottom: 1px solid #f1f5f9;
-  overflow-x: auto;
+/* close (Step 6 only) */
+.ow-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer;
+  background: var(--ow-slate-100);
+  color: var(--ow-slate-700);
+  border-radius: 12px;
+  z-index: 5;
+  transition: background 160ms var(--ow-ease);
 }
-.ow-stage {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 6px;
-  border-radius: 999px;
-  font-size: 12px; font-weight: 700;
-  border: 1px solid transparent;
-  white-space: nowrap;
-  transition: background 200ms ease, border-color 200ms ease, color 200ms ease;
-}
-.ow-stage-dot {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  font-size: 11px; font-weight: 800;
-  flex-shrink: 0;
-}
-.ow-stage-done {
-  background: rgba(34, 197, 94, 0.10);
-  border-color: rgba(34, 197, 94, 0.30);
-  color: #15803d;
-}
-.ow-stage-done .ow-stage-dot { background: #22c55e; color: #fff; }
-.ow-stage-active {
-  background: rgba(255, 106, 20, 0.10);
-  border-color: rgba(255, 106, 20, 0.32);
-  color: #ea580c;
-}
-.ow-stage-active .ow-stage-dot { background: #ff6a14; color: #fff; }
-.ow-stage-future {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #94a3b8;
-}
-.ow-stage-future .ow-stage-dot { background: #e2e8f0; color: #94a3b8; }
+.ow-close:hover { background: var(--ow-slate-200); }
 
-/* Step content column. Universal across all onboarding steps:
-   - max-width 560px gives the focused single-column SaaS-onboarding feel
-     (Stripe / Linear / Ramp / Brex range)
-   - margin: 0 auto centers horizontally inside the body
-   - top-anchored (no flex centering) so the title baseline is always at
-     the same vertical offset from the modal top regardless of how much
-     content lives below it. Vertical balance is achieved by the modal's
-     adaptive min-height/max-height shrink-wrap, not by pushing the title
-     down. */
-.ow-step-anim {
-  animation: owStepIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  max-width: 560px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-/* "You can configure additional states later from your dashboard
-   settings." — replaces the inline state typeahead when the user picks
-   "Multiple states" on Step 1 / Step 2. Quiet, informative, not a
-   blocker. */
-.ow-states-note {
-  margin: 10px 0 0;
-  padding: 9px 12px;
-  background: #f8fafc;
-  border: 1px solid #e6ecf2;
-  border-radius: 10px;
-  font-size: 12.5px; font-weight: 500;
-  color: #475569;
-  line-height: 1.45;
-  display: flex; align-items: center; gap: 8px;
-}
-.ow-states-note::before {
-  content: "ⓘ";
-  flex-shrink: 0;
-  color: #94a3b8;
-  font-size: 13px; font-weight: 700;
-}
-@keyframes owStepIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Inline micro-feedback under multi-select fields */
-.ow-feedback {
-  margin: 8px 0 0;
-  font-size: 12.5px;
-  color: #15803d;
-  font-weight: 600;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.ow-feedback::before {
-  content: "●";
-  color: #22c55e;
-  font-size: 8px;
-  margin-right: 2px;
-}
-
+/* body */
 .ow-body {
   flex: 1 1 auto;
-  min-height: 0;
-  /* Locked top spacing: every step's title starts at exactly this offset
-     from the modal's top border. */
-  padding: 50px 28px 20px;
   overflow-y: auto;
+  padding: 50px 28px 20px;
 }
+.ow-content {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.ow-content--wide { max-width: 720px; }
 
+/* step header lock */
+.ow-header { min-height: 72px; }
 .ow-h1 {
-  font-size: 24px; font-weight: 800; letter-spacing: -0.02em;
-  color: #0f172a; margin: 0 0 4px; line-height: 1.22;
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+  text-wrap: balance;
 }
 .ow-sub {
-  font-size: 14.5px; color: #475569; line-height: 1.5; margin: 0 0 16px;
-}
-
-/* Stable step header — locks the title + subtitle into a fixed-height
-   container so the H1 baseline and the start-of-content baseline are
-   identical across every step. Steps that don't use the wrapper (the
-   loading interstitial, success screen, payment back-link layout) are
-   intentional exceptions. */
-.ow-step-header {
-  min-height: 72px;
-  margin-bottom: 16px;
-  display: flex; flex-direction: column;
-}
-.ow-step-header .ow-h1 { margin: 0 0 4px; }
-.ow-step-header .ow-sub { margin: 0; }
-
-.ow-field { display: block; margin-bottom: 14px; }
-.ow-label {
-  display: block; font-size: 13px; font-weight: 700; color: #0f172a;
-  margin-bottom: 8px; letter-spacing: -0.005em;
-}
-.ow-input {
-  width: 100%; height: 48px; padding: 0 14px;
-  border: 1.5px solid #e2e8f0; border-radius: 12px;
-  font-size: 15px; font-weight: 500; color: #0f172a;
-  background: #fff;
-  outline: none; transition: border-color 160ms ease;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-.ow-input:focus { border-color: #ff6a14; }
-.ow-input.ow-input-err {
-  border-color: #ef4444;
-  background: #fff5f5;
-}
-.ow-input.ow-input-err:focus { border-color: #dc2626; }
-.ow-input-error {
-  margin: 6px 0 0;
-  font-size: 12.5px; font-weight: 600;
-  color: #b91c1c;
-  display: flex; align-items: center; gap: 6px;
-}
-.ow-input-error::before {
-  content: "!";
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; flex-shrink: 0;
-  border-radius: 50%;
-  background: #fee2e2;
-  color: #b91c1c;
-  font-size: 10px; font-weight: 800;
-}
-
-.ow-cards {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
-}
-.ow-card {
-  padding: 14px 16px;
-  border: 1.5px solid #e2e8f0; border-radius: 12px;
-  background: #fff; cursor: pointer; text-align: left;
-  font-family: inherit; font-size: 14px; font-weight: 600; color: #0f172a;
-  transition: border-color 160ms ease, background 160ms ease;
-}
-.ow-card:hover { border-color: rgba(255, 106, 20, 0.45); }
-.ow-card.active {
-  border-color: #ff6a14; background: rgba(255, 106, 20, 0.06);
-}
-.ow-card-row {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
-}
-.ow-card-check {
-  flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: #ff6a14; color: #fff;
-  font-size: 12px; font-weight: 800;
-  margin-top: 1px;
-}
-.ow-label-hint {
-  color: #94a3b8; font-weight: 500; font-size: 12px;
-  margin-left: 4px;
-}
-.ow-greeting {
-  margin: 0 0 14px;
-  padding: 12px 14px;
-  background: linear-gradient(180deg, rgba(255,106,20,0.06), rgba(255,106,20,0.02));
-  border: 1px solid rgba(255, 106, 20, 0.18);
-  border-radius: 12px;
-  font-size: 14px; line-height: 1.45; color: #334155; font-weight: 500;
-}
-
-.ow-chips {
-  display: flex; flex-wrap: wrap; gap: 8px;
-}
-.ow-chip {
-  padding: 8px 14px; border-radius: 999px;
-  border: 1.5px solid #e2e8f0; background: #fff;
-  font-family: inherit; font-size: 13px; font-weight: 600; color: #0f172a;
-  cursor: pointer; transition: all 160ms ease;
-}
-.ow-chip:hover { border-color: rgba(255, 106, 20, 0.4); }
-.ow-chip.active {
-  border-color: #ff6a14; background: rgba(255, 106, 20, 0.08);
-  color: #ea580c;
-}
-
-.ow-toggle {
-  display: inline-flex; align-items: center; gap: 10px;
-  cursor: pointer; user-select: none;
-  background: none; border: none; padding: 0;
-  font-family: inherit;
-}
-.ow-toggle-track {
-  width: 44px; height: 26px; border-radius: 999px;
-  background: #cbd5e1; position: relative;
-  transition: background 160ms ease;
-  display: inline-block;
-}
-.ow-toggle-track::after {
-  content: ""; position: absolute; top: 2px; left: 2px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  transition: transform 160ms ease;
-}
-.ow-toggle.active .ow-toggle-track { background: #ff6a14; }
-.ow-toggle.active .ow-toggle-track::after { transform: translateX(18px); }
-
-.ow-footer {
-  flex: 0 0 auto;
-  padding: 18px 28px;
-  border-top: 1px solid #e2e8f0;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: #f8fafc;
-}
-.ow-footer-left {
-  display: flex; align-items: center; gap: 16px;
-  min-width: 0;
-}
-.ow-skip-link {
-  background: none; border: none; padding: 8px 0;
-  font-family: inherit;
-  font-size: 13px; font-weight: 700;
-  color: #475569;
-  cursor: pointer;
-  letter-spacing: -0.005em;
-  border-bottom: 1px dotted transparent;
-  transition: color 160ms ease, border-color 160ms ease;
-}
-.ow-skip-link:hover {
-  color: #ea580c;
-  border-bottom-color: rgba(234, 88, 12, 0.5);
-}
-@media (max-width: 600px) {
-  .ow-footer-left { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .ow-skip-link { font-size: 12px; padding: 4px 0; }
-}
-.ow-back {
-  background: none; border: none;
-  color: #475569; font-size: 14px; font-weight: 600;
-  cursor: pointer; padding: 8px 0;
-  font-family: inherit;
-}
-.ow-back:hover { color: #0f172a; }
-.ow-next {
-  background: #ff6a14; color: #fff;
-  border: none; height: 48px; padding: 0 22px;
-  border-radius: 12px;
-  font-family: inherit; font-size: 15px; font-weight: 800; letter-spacing: -0.005em;
-  cursor: pointer;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 10px 26px rgba(255, 106, 20, 0.28);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-  display: inline-flex; align-items: center; gap: 8px;
-}
-.ow-next:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 1px 0 rgba(255,255,255,0.22) inset, 0 14px 32px rgba(255, 106, 20, 0.36);
-}
-.ow-next:disabled {
-  background: #e2e8f0; color: #94a3b8; cursor: not-allowed; box-shadow: none;
-}
-
-/* Activation screen — light theme, native to onboarding modal */
-.ow-activate-pill {
-  display: inline-flex; align-items: center;
-  background: rgba(255, 106, 20, 0.10);
-  border: 1px solid rgba(255, 106, 20, 0.3);
-  color: #c2410c;
-  font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 5px 11px; border-radius: 999px;
-  margin-bottom: 18px;
-}
-.ow-activate-bonus {
-  display: inline-flex; align-items: flex-start; gap: 8px;
-  margin-bottom: 4px;
-}
-.ow-activate-bonus-currency {
-  font-size: 24px; font-weight: 700; color: #ff6a14;
-  margin-top: 6px;
-}
-.ow-activate-bonus-num {
-  font-size: 64px; font-weight: 900; color: #ff6a14;
-  line-height: 1; letter-spacing: -0.04em;
-}
-.ow-activate-bonus-tag {
-  align-self: center; margin-top: 6px;
-  background: linear-gradient(180deg, #fb923c, #f97316);
-  color: #fff;
-  font-size: 11px; font-weight: 800; letter-spacing: 0.12em;
-  padding: 5px 9px; border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(249, 115, 22, 0.35);
-}
-.ow-activate-label { color: #475569; font-size: 17px; font-weight: 600; margin: 0 0 4px; }
-.ow-activate-plus { color: #64748b; font-size: 13px; font-weight: 500; margin: 0 0 22px; }
-.ow-activate-cta {
-  width: 100%; height: 52px;
-  background: #ff6a14; color: #fff;
-  border: none; border-radius: 12px;
-  font-family: inherit; font-size: 15.5px; font-weight: 800; letter-spacing: -0.005em;
-  cursor: pointer;
-  box-shadow: 0 10px 26px rgba(255, 106, 20, 0.32);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-}
-.ow-activate-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(255, 106, 20, 0.42); }
-.ow-activate-cta:disabled { opacity: 0.7; cursor: wait; }
-.ow-activate-trust {
-  display: flex; flex-wrap: wrap; gap: 8px;
-  margin-top: 14px; justify-content: center;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.04em; text-transform: uppercase;
-}
-.ow-activate-urgency {
-  display: inline-flex; align-items: center; gap: 8px;
-  margin-top: 16px;
-  font-size: 13px; color: #fdba74; font-weight: 600;
-}
-.ow-activate-urgency-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: #ff6a14;
-  animation: owSoftPulse 2s ease-in-out infinite;
-}
-@keyframes owSoftPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(1.3); }
-}
-
-/* Personalized recap tagline shown above the recap card on Step 5 */
-.ow-summary-tagline {
-  margin: 0 0 12px;
-  padding: 10px 14px;
-  background: rgba(255, 106, 20, 0.06);
-  border: 1px solid rgba(255, 106, 20, 0.18);
-  border-radius: 12px;
-  font-size: 13.5px; line-height: 1.45; color: #334155;
-}
-.ow-summary-tagline strong { color: #ea580c; font-weight: 800; }
-
-/* Setup summary split */
-.ow-summary-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
-.ow-summary-recap {
-  background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 14px; padding: 18px;
-}
-.ow-summary-recap-h {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #94a3b8; margin: 0 0 10px;
-}
-.ow-summary-recap-row {
-  display: flex; justify-content: space-between; gap: 12px;
-  padding: 6px 0;
-  font-size: 14px;
-}
-.ow-summary-recap-row + .ow-summary-recap-row { border-top: 1px solid #eef2f7; }
-.ow-summary-recap-label { color: #64748b; }
-.ow-summary-recap-value { color: #0f172a; font-weight: 600; text-align: right; }
-
-@media (min-width: 720px) {
-  .ow-summary-grid { grid-template-columns: 1fr 1fr; }
-}
-
-@media (max-width: 600px) {
-  /* Near-fullscreen sheet on mobile. Tighter wizard gutter so the modal
-     still reads as the active layer; max-height tracks --ow-vh from the
-     visualViewport listener so the iOS keyboard never covers the CTA. */
-  .onboarding-wizard { padding: 8px; }
-  .ow-modal {
-    width: 100%;
-    min-height: auto;
-    max-height: calc(var(--ow-vh, 100dvh) - 16px);
-    border-radius: 14px;
-    overflow-x: hidden;
-  }
-  .ow-h1 { font-size: 21px; }
-  .ow-sub { font-size: 14px; margin-bottom: 14px; }
-  .ow-step-header { min-height: 78px; margin-bottom: 14px; }
-  .ow-step-header .ow-sub { margin: 0; }
-  /* On mobile the modal already fills the viewport — release the desktop
-     560px column cap so content uses the full width naturally. */
-  .ow-step-anim {
-    max-width: none;
-  }
-  .ow-field { margin-bottom: 12px; }
-  .ow-states-note { font-size: 12px; padding: 8px 11px; }
-  .ow-cards { grid-template-columns: 1fr; gap: 8px; }
-  /* Same locked top spacing rhythm as desktop, just tighter side padding. */
-  .ow-body { padding: 18px 16px 16px; }
-
-  /* iOS Safari auto-zooms any focused input/textarea/select with computed
-     font-size below 16px. Bumping inputs to 16px on mobile blocks the
-     zoom-in (which is what makes users feel they have to "zoom out"). */
-  .ow-input, .ow-state-ms-inputwrap input, .ow-place-wrap input { font-size: 16px; }
-
-  /* Ultra-minimal progress chrome on mobile — slim bar only. */
-  .ow-progress { height: 2.5px; }
-
-  /* Sticky footer so the primary CTA stays in thumb reach as content scrolls. */
-  .ow-footer {
-    position: sticky;
-    bottom: 0;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  }
-
-  /* 44px minimum tap targets on touch */
-  .ow-back, .ow-skip-link, .ow-activate-skip { min-height: 44px; display: inline-flex; align-items: center; }
-  .ow-chip { min-height: 36px; padding-top: 9px; padding-bottom: 9px; }
-
-  /* Activation step — tighter on mobile */
-  .ow-activate-cta { height: 50px; font-size: 15px; }
-  .ow-trust-panel { padding: 9px 12px; }
-  .ow-trust-panel-list { column-gap: 14px; row-gap: 3px; font-size: 11.5px; }
-
-  /* Sticky primary CTAs on mobile — pin the activate / claim button to the
-     bottom of the scroll container so it never slips below the fold. The
-     skip-secondary stays inline below it (user must scroll a bit to see it,
-     which is fine — soft-skip should be a deliberate action, not equal-weight). */
-  .ow-choose .ow-activate-cta,
-  .ow-setup-complete .ow-activate-cta {
-    position: sticky;
-    bottom: calc(8px + env(safe-area-inset-bottom));
-    z-index: 5;
-  }
-  .ow-choose,
-  .ow-setup-complete {
-    padding-bottom: 4px;
-  }
-
-  /* Confirmation step — tighter on mobile. Full available width since the
-     modal itself is already narrow; centered max-width comes off so the
-     column matches the modal. */
-  .ow-setup-complete { padding: 6px 0 4px; max-width: none; }
-  .ow-setup-complete .ow-h1 { font-size: 20px; }
-  .ow-setup-complete .ow-sub { font-size: 13.5px; margin-bottom: 12px; }
-  .ow-success-icon-lg { width: 50px; height: 50px; font-size: 24px; }
-  .ow-status-list { gap: 5px; margin-bottom: 12px; }
-  .ow-status-item { padding: 8px 11px; gap: 9px; }
-  .ow-status-check { width: 18px; height: 18px; font-size: 10px; }
-  .ow-status-label { font-size: 12.5px; }
-  .ow-status-value { font-size: 12px; }
-  .ow-setup-loading { padding: 10px 0 6px; }
-  .ow-setup-loading .ow-h1 { font-size: 21px; }
-  .ow-setup-loading .ow-sub { font-size: 13.5px; margin-bottom: 14px; }
-}
-
-/* ── Reassurance line ─────────────────────────────────────────────────── */
-.ow-reassurance {
-  margin: 14px 0 0;
-  font-size: 12.5px; color: #94a3b8;
-  display: inline-flex; align-items: center; gap: 6px;
-  font-weight: 500;
-}
-.ow-reassurance::before {
-  content: "ⓘ"; color: #cbd5e1; font-weight: 700; font-size: 13px;
-}
-
-.ow-helper {
-  margin: 6px 0 0;
-  font-size: 12px; color: #94a3b8; font-weight: 500;
-}
-
-/* ── Chip checkmark (selected state) ──────────────────────────────────── */
-.ow-chip-check {
-  margin-right: 4px;
-  color: #ea580c;
-  font-weight: 800;
-}
-.ow-chip.active { padding-left: 12px; }
-
-/* ── Multi-city chip input (Step 1) ───────────────────────────────────── */
-.ow-chip-input {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  min-height: 48px; padding: 6px 10px;
-  border: 1.5px solid #e2e8f0; border-radius: 12px;
-  background: #fff;
-  transition: border-color 160ms ease;
-  cursor: text;
-}
-.ow-chip-input:focus-within { border-color: #ff6a14; }
-.ow-input-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(255, 106, 20, 0.08);
-  color: #ea580c;
-  border: 1px solid rgba(255, 106, 20, 0.32);
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 13px; font-weight: 600;
-}
-.ow-input-chip-x {
-  background: none; border: none; padding: 0;
-  color: #ea580c; cursor: pointer;
-  font-size: 16px; line-height: 1; font-weight: 800;
-  font-family: inherit;
-}
-.ow-input-chip-x:hover { color: #c2410c; }
-.ow-chip-input-text {
-  flex: 1; min-width: 120px; height: 36px;
-  border: none; outline: none; background: transparent;
-  font-family: inherit; font-size: 14px; font-weight: 500;
-  color: #0f172a;
-}
-
-/* ── Time range (Step 3) ──────────────────────────────────────────────── */
-.ow-time-range {
-  display: flex; align-items: center; gap: 10px;
-}
-.ow-time-input {
-  width: 140px;
-  font-variant-numeric: tabular-nums;
-}
-.ow-time-sep { color: #64748b; font-size: 14px; font-weight: 600; }
-
-/* ── Processing screen (Step 6) ───────────────────────────────────────── */
-.ow-processing {
-  padding: 20px 0 24px;
-}
-.ow-processing-list {
-  list-style: none; padding: 0; margin: 22px 0 0;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.ow-processing-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
-  background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 14.5px; font-weight: 500; color: #64748b;
-  transition: all 200ms ease;
-}
-.ow-processing-item.loading {
-  border-color: rgba(255, 106, 20, 0.35);
-  background: rgba(255, 106, 20, 0.04);
-  color: #0f172a;
-}
-.ow-processing-item.done {
-  border-color: rgba(34, 197, 94, 0.35);
-  background: rgba(34, 197, 94, 0.04);
-  color: #0f172a; font-weight: 600;
-}
-.ow-processing-icon {
-  width: 24px; height: 24px; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-}
-.ow-processing-item.done .ow-processing-icon {
-  background: #22c55e; color: #fff; font-weight: 800; font-size: 13px;
-}
-.ow-processing-item.loading .ow-processing-icon {
-  background: rgba(255, 106, 20, 0.12);
-}
-.ow-processing-label { flex: 1; }
-.ow-spinner {
-  width: 14px; height: 14px;
-  border: 2px solid rgba(255, 106, 20, 0.25);
-  border-top-color: #ff6a14;
-  border-radius: 50%;
-  animation: owSpin 0.8s linear infinite;
-}
-@keyframes owSpin { to { transform: rotate(360deg); } }
-
-/* ── Activation step (Step 7) — full-width activation card ───────────── */
-.ow-activate { padding: 8px 0 12px; }
-.ow-activate-h1 {
-  font-size: 26px; font-weight: 800; letter-spacing: -0.02em;
-  color: #0f172a; margin: 0 0 8px; line-height: 1.2;
-}
-.ow-activate-sub {
-  font-size: 15px; color: #475569; line-height: 1.5; margin: 0 0 22px;
-}
-.ow-activate-card {
-  background: linear-gradient(180deg, #fffaf6 0%, #fff 100%);
-  color: #0f172a;
-  padding: 26px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 106, 20, 0.18);
-  box-shadow: 0 12px 30px rgba(255, 106, 20, 0.08);
-  margin: 0;
-}
-.ow-activate-summary {
-  margin: 18px 0 16px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.ow-activate-summary-row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  font-size: 14px; color: #475569; font-weight: 500;
-}
-.ow-activate-summary-pay {
-  color: #0f172a;
-  font-weight: 700; font-size: 18px;
-  letter-spacing: -0.005em;
-}
-.ow-activate-summary-receive {
-  color: #ff6a14;
-  font-weight: 800; font-size: 22px;
-  letter-spacing: -0.01em;
-}
-/* Promoted: trust bullets sit between testimonial and CTA, sentence case,
-   darker text + brand-colored checks. Higher visual weight at the moment of
-   payment than the previous footer-chrome treatment. */
-.ow-activate-trust {
-  list-style: none; padding: 0; margin: 14px 0 14px;
-  display: flex; flex-wrap: wrap; gap: 8px 16px;
-  font-size: 12.5px;
-  color: #475569;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-}
-.ow-activate-trust li {
-  display: inline-flex; align-items: center;
-}
-.ow-activate-trust li::before {
-  content: "✓";
-  color: #16a34a;
-  margin-right: 6px;
-  font-weight: 800;
-  font-size: 13px;
-}
-.ow-activate-skip {
-  display: block; margin: 16px auto 0;
-  background: none; border: none;
-  color: #64748b; font-size: 13.5px; font-weight: 500;
-  cursor: pointer; text-align: center;
-  font-family: inherit;
-}
-.ow-activate-skip:hover { color: #0f172a; }
-
-/* ── Success screen (Step 8) ──────────────────────────────────────────── */
-.ow-success {
-  text-align: center;
-  padding: 28px 0 12px;
-}
-.ow-success-icon {
-  width: 64px; height: 64px;
-  margin: 0 auto 20px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #22c55e, #16a34a);
-  color: #fff;
-  font-size: 32px; font-weight: 800;
-  display: grid; place-items: center;
-  box-shadow: 0 14px 32px rgba(34, 197, 94, 0.35);
-}
-.ow-success-list {
-  list-style: none; padding: 0; margin: 18px auto 0; max-width: 360px;
-  display: flex; flex-direction: column; gap: 8px;
-  font-size: 14.5px; color: #475569;
-  text-align: left;
-}
-.ow-success-list li {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px;
-  background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 10px;
-}
-.ow-success-list li::before {
-  content: "✓"; color: #22c55e; font-weight: 800; flex-shrink: 0;
-}
-.ow-success-list strong { color: #ea580c; font-weight: 800; }
-
-/* ── Stripe Embedded Checkout mount + loading overlay ────────────────── */
-.ow-stripe-wrap {
-  position: relative;
-  min-height: 420px;
-}
-.ow-stripe-mount {
-  min-height: 420px;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
-.ow-stripe-loading {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px;
-  background: #f8fafc;
-  border-radius: 14px;
-  z-index: 1;
-  animation: owFadeIn 180ms ease;
-}
-.ow-stripe-loading .ow-spinner {
-  width: 22px; height: 22px;
-  border-width: 3px;
-}
-.ow-stripe-loading-text {
-  font-size: 13px; color: #475569; font-weight: 600;
-  letter-spacing: -0.005em;
-}
-@keyframes owFadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-/* Single testimonial — sits above trust bullets at point of payment */
-.ow-testimonial {
-  margin: 14px 0 12px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  display: flex; flex-direction: column; gap: 8px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-}
-.ow-testimonial-stars {
-  color: #f59e0b;
-  font-size: 13px;
-  letter-spacing: 2px;
-  line-height: 1;
-}
-.ow-testimonial-quote {
   margin: 0;
   font-size: 14.5px;
+  font-weight: 400;
+  color: var(--ow-slate-500);
   line-height: 1.5;
-  color: #0f172a;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  font-style: normal;
-}
-.ow-testimonial-attr {
-  display: flex; align-items: baseline; gap: 8px;
-  font-size: 12.5px;
-}
-.ow-testimonial-name { color: #0f172a; font-weight: 800; }
-.ow-testimonial-co  { color: #64748b; font-weight: 500; }
-
-/* Activation error — actionable, not a dead end */
-.ow-activate-err {
-  margin: 12px 0;
-  padding: 14px 16px;
-  background: rgba(220, 38, 38, 0.06);
-  border: 1px solid rgba(220, 38, 38, 0.22);
-  border-radius: 12px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.ow-activate-err-msg {
-  color: #b91c1c;
-  font-size: 13.5px; font-weight: 600;
-  line-height: 1.4;
-}
-.ow-activate-err-actions {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-}
-.ow-activate-err-retry {
-  background: #b91c1c; color: #fff; border: none;
-  height: 36px; padding: 0 14px;
-  border-radius: 10px;
-  font-family: inherit; font-size: 13px; font-weight: 800;
-  cursor: pointer;
-}
-.ow-activate-err-retry:hover { background: #991b1b; }
-.ow-activate-err-link {
-  color: #b91c1c;
-  font-size: 12.5px; font-weight: 700;
-  text-decoration: none;
-}
-.ow-activate-err-link:hover { text-decoration: underline; }
-
-/* ── Activation tier picker (primary $100 + secondary $50) ─────────────── */
-.ow-tier {
-  cursor: pointer;
-  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
-}
-.ow-tier:focus-visible {
-  outline: 2px solid #ff6a14;
-  outline-offset: 2px;
+  text-wrap: pretty;
 }
 
-/* Primary card extends ow-activate-card (visual dominance) */
-.ow-tier-primary {
-  position: relative;
-}
-.ow-tier-primary.selected {
-  border-color: rgba(255, 106, 20, 0.55);
-  box-shadow: 0 16px 36px rgba(255, 106, 20, 0.18);
-}
-.ow-tier-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px;
-}
-.ow-tier-head .ow-activate-pill {
-  margin-bottom: 0;
-}
-.ow-tier-radio {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  border: 2px solid #cbd5e1;
-  background: #fff;
-  position: relative;
-  flex-shrink: 0;
-  transition: border-color 160ms ease;
-}
-.ow-tier.selected .ow-tier-radio {
-  border-color: #ff6a14;
-}
-.ow-tier.selected .ow-tier-radio::after {
-  content: "";
-  position: absolute; inset: 3px;
-  border-radius: 50%;
-  background: #ff6a14;
-}
-
-/* Secondary card — flat, smaller, lower visual weight */
-.ow-tier-secondary {
-  margin-top: 12px;
-  padding: 14px 18px;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  background: #fff;
-}
-.ow-tier-secondary:hover { border-color: rgba(255, 106, 20, 0.35); }
-.ow-tier-secondary.selected {
-  border-color: #ff6a14;
-  background: rgba(255, 106, 20, 0.04);
-}
-.ow-tier-secondary-row {
-  display: flex; align-items: center; gap: 14px;
-}
-.ow-tier-secondary-text { flex: 1; min-width: 0; }
-.ow-tier-secondary-h {
-  font-size: 14.5px; font-weight: 800; color: #0f172a;
-  letter-spacing: -0.005em;
-}
-.ow-tier-secondary-sub {
-  font-size: 12.5px; color: #64748b; font-weight: 500;
-  margin-top: 2px;
-}
-.ow-tier-secondary-price {
-  font-family: var(--font-heading);
-  font-size: 18px; font-weight: 800; color: #0f172a;
-  letter-spacing: -0.02em;
-}
-
-/* Move the CTA below both tiers */
-.ow-activate .ow-activate-cta {
-  margin-top: 16px;
-}
-.ow-activate .ow-activate-trust {
-  margin-top: 10px;
-}
-
-/* ── Dispatch hours: mode tabs + per-day rows ────────────────────────── */
-.ow-mode-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 10px;
-}
-.ow-mode-tabs {
-  display: inline-flex;
-  background: #f1f5f9;
-  border-radius: 10px;
-  padding: 3px;
-}
-.ow-mode-tab {
-  background: none; border: none;
-  padding: 6px 12px; border-radius: 8px;
-  font-family: inherit; font-size: 12.5px; font-weight: 700;
-  color: #64748b; cursor: pointer;
-  transition: all 160ms ease;
-}
-.ow-mode-tab.active {
-  background: #fff; color: #ea580c;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-}
-.ow-perday {
-  display: flex; flex-direction: column; gap: 8px;
-}
-.ow-perday-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px;
-  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
-}
-.ow-perday-label {
-  width: 42px; flex-shrink: 0;
-  font-size: 13px; font-weight: 700; color: #0f172a;
-}
-.ow-perday-row .ow-time-input { width: 120px; }
-
-@media (max-width: 600px) {
-  .ow-perday-row { flex-wrap: wrap; }
-  .ow-perday-row .ow-time-input { width: calc(50% - 22px); }
-}
-
-/* ── Processing transition (post-completion CTA) ─────────────────────── */
-.ow-processing-transition {
-  text-align: center;
-  padding: 26px 0 12px;
-}
-.ow-success-icon-sm {
-  width: 56px; height: 56px;
-  font-size: 28px;
-  margin: 0 auto 16px;
-}
-.ow-error-icon {
-  width: 56px; height: 56px;
-  margin: 0 auto 16px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #f97316, #ea580c);
-  color: #fff;
-  font-size: 28px; font-weight: 800;
-  display: grid; place-items: center;
-  box-shadow: 0 14px 32px rgba(234, 88, 12, 0.32);
-}
-
-/* ── Step 3 — Live Phone Transfers callout ────────────────────────────── */
-.ow-live-transfer-field {
-  background: #fafbfc;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 14px 16px;
-}
-.ow-live-transfer-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 14px;
-}
-.ow-live-transfer-head > div:first-child { flex: 1; min-width: 0; }
-.ow-live-transfer-title {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 14.5px; font-weight: 800; color: #0f172a;
-  letter-spacing: -0.005em;
-}
-.ow-live-transfer-pill {
-  display: inline-flex; align-items: center;
-  background: #dcfce7;
-  color: #15803d;
-  font-size: 11px; font-weight: 800;
-  padding: 3px 9px;
-  border-radius: 999px;
-  letter-spacing: 0.02em;
-}
-.ow-live-transfer-copy {
-  margin: 6px 0 0;
-  font-size: 13px; color: #475569; line-height: 1.5; font-weight: 500;
-}
-.ow-live-transfer-warn {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 10px;
-  font-size: 12px; font-weight: 600; color: #92400e;
-  line-height: 1.5;
-}
-
-/* ── Step 1 — Place autocomplete (city/ZIP) ───────────────────────────── */
-.ow-place-wrap { position: relative; }
-.ow-place-dropdown {
-  list-style: none; padding: 4px; margin: 4px 0 0;
-  position: absolute; top: 100%; left: 0; right: 0;
-  z-index: 5;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
-  max-height: 320px;
-  overflow-y: auto;
-}
-.ow-place-option {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  min-height: 44px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-.ow-place-option.active,
-.ow-place-option:hover { background: rgba(255, 106, 20, 0.08); }
-.ow-place-option-label { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
-.ow-place-option-zip   { font-family: var(--font-heading); font-weight: 800; color: #0f172a; font-size: 14px; }
-.ow-place-option-city  { color: #0f172a; font-weight: 600; font-size: 14px; }
-.ow-place-option-state { color: #64748b; font-weight: 600; font-size: 14px; }
-.ow-place-option-kind {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #94a3b8;
-  background: #f1f5f9;
-  padding: 2px 7px;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-.ow-place-option.active .ow-place-option-kind {
-  background: rgba(255, 106, 20, 0.16); color: #ea580c;
-}
-.ow-place-empty {
-  margin-top: 6px;
-  padding: 10px 12px;
-  font-size: 13px; color: #64748b; font-weight: 500;
-}
-
-/* Selected place chip (replaces the input once user picks) */
-.ow-place-chip-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ow-place-chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255, 106, 20, 0.10);
-  color: #ea580c;
-  border: 1px solid rgba(255, 106, 20, 0.32);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 14px; font-weight: 700;
-  letter-spacing: -0.005em;
-  min-height: 44px;
-}
-.ow-place-chip-zip {
-  font-family: var(--font-heading);
-  font-weight: 800; font-size: 12px;
-  color: #c2410c;
-}
-.ow-place-chip-x {
-  background: none; border: none; padding: 0 0 0 4px;
-  color: #ea580c; cursor: pointer;
-  font-size: 18px; font-weight: 800; line-height: 1;
-  font-family: inherit;
-}
-.ow-place-chip-x:hover { color: #c2410c; }
-
-/* ── Step 1 — State multi-select ──────────────────────────────────────── */
-.ow-state-ms {
-  display: flex; flex-direction: column; gap: 8px;
-}
-.ow-state-ms-chips {
-  display: flex; flex-wrap: wrap; gap: 6px;
-}
-.ow-state-ms-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(255, 106, 20, 0.08);
-  color: #ea580c;
-  border: 1px solid rgba(255, 106, 20, 0.30);
-  border-radius: 999px;
-  padding: 5px 12px;
-  font-size: 13px; font-weight: 700;
-  min-height: 32px;
-}
-.ow-state-ms-chip-x {
-  background: none; border: none; padding: 0;
-  color: #ea580c; cursor: pointer;
-  font-size: 16px; font-weight: 800; line-height: 1;
-  font-family: inherit;
-}
-.ow-state-ms-inputwrap { position: relative; }
-.ow-state-ms-dropdown {
-  list-style: none; padding: 4px; margin: 4px 0 0;
-  position: absolute; top: 100%; left: 0; right: 0;
-  z-index: 5;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
-  max-height: 280px;
-  overflow-y: auto;
-}
-.ow-state-ms-option {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 12px;
-  min-height: 44px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-.ow-state-ms-option.active,
-.ow-state-ms-option:hover { background: rgba(255, 106, 20, 0.08); }
-.ow-state-ms-option-name { font-size: 14px; font-weight: 600; color: #0f172a; }
-.ow-state-ms-option-code {
-  font-family: var(--font-heading);
-  font-size: 11px; font-weight: 800; color: #94a3b8;
-  letter-spacing: 0.06em;
-}
-
-/* ── Mobile polish for Step 1 controls ────────────────────────────────── */
-@media (max-width: 600px) {
-  .ow-place-dropdown,
-  .ow-state-ms-dropdown { max-height: 240px; }
-  .ow-place-chip { width: 100%; justify-content: space-between; }
-}
-
-/* ── Step 1 — radius cards + live coverage preview pill ──────────────── */
-.ow-radius-cards {
-  /* 5 options: 2-col on desktop wraps cleanly, single col on mobile */
-  grid-template-columns: repeat(2, 1fr);
-}
-@media (min-width: 720px) {
-  .ow-radius-cards { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 600px) {
-  .ow-radius-cards { grid-template-columns: 1fr; }
-}
-
-.ow-coverage-preview {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 9px 14px;
-  margin-top: -4px;
-  background: linear-gradient(180deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02));
-  border: 1px solid rgba(34, 197, 94, 0.28);
-  border-radius: 10px;
-  font-size: 12.5px; font-weight: 600; color: #15803d;
-  letter-spacing: -0.005em;
-  animation: owFadeIn 180ms ease;
-  max-width: 100%;
-}
-.ow-coverage-preview strong { color: #166534; font-weight: 800; }
-.ow-coverage-preview.err {
-  background: linear-gradient(180deg, rgba(220,38,38,0.06), rgba(220,38,38,0.02));
-  border-color: rgba(220, 38, 38, 0.28);
-  color: #b91c1c;
-}
-.ow-coverage-preview.err strong { color: #991b1b; }
-.ow-coverage-preview-dot {
-  flex-shrink: 0;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
-  animation: owSoftPulse 2s ease-in-out infinite;
-}
-.ow-coverage-preview .ow-spinner {
-  width: 14px; height: 14px;
-  border: 2px solid rgba(34, 197, 94, 0.25);
-  border-top-color: #22c55e;
-}
-
-/* ── Step 7a — Choose your activation balance ─────────────────────────── */
-.ow-choose {
-  display: flex; flex-direction: column; gap: 12px;
-}
-
-/* FOMO scarcity notice — operational tone, soft orange-tinted callout. */
-.ow-fomo {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 12px 14px;
-  background: linear-gradient(180deg, rgba(255,106,20,0.08), rgba(255,106,20,0.02));
-  border: 1px solid rgba(255, 106, 20, 0.22);
-  border-radius: 12px;
-  font-size: 13px; line-height: 1.5; color: #475569; font-weight: 500;
-}
-.ow-fomo strong { color: #ea580c; font-weight: 800; }
-.ow-fomo-dot {
-  flex-shrink: 0;
-  margin-top: 6px;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: #ff6a14;
-  box-shadow: 0 0 0 4px rgba(255, 106, 20, 0.18);
-}
-
-/* "Most partners start here" supporting label inside the primary tier head */
-.ow-pay-tier-supporting {
-  font-size: 11.5px; font-weight: 600; color: #94a3b8;
-  letter-spacing: -0.005em;
-  flex: 1;
-  margin: 0 8px;
-}
-
-/* ── Step 7a v2 — premium balance picker ───────────────────────────────── */
-.ow-choose-heading {
-  margin: 4px 0 -2px;
-  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #94a3b8;
-}
-
-.ow-tiers {
-  display: flex; flex-direction: column; gap: 10px;
-}
-
-/* Card base — full-width clickable button (drops the radio circle UI). */
-.ow-tier-v2 {
-  position: relative;
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: #fff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 12px 16px;
-  cursor: pointer;
-  font-family: inherit;
-  transition:
-    border-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background 180ms ease,
-    box-shadow 200ms ease,
-    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.ow-tier-v2:hover {
-  border-color: rgba(255, 106, 20, 0.45);
-  transform: translateY(-1px);
-}
-.ow-tier-v2:focus-visible {
-  outline: 2px solid #ff6a14;
-  outline-offset: 2px;
-}
-
-/* Selected — strong orange border, soft tint, lifted shadow. */
-.ow-tier-v2.selected {
-  border-color: #ff6a14;
-  background: rgba(255, 106, 20, 0.05);
-  box-shadow: 0 10px 28px rgba(255, 106, 20, 0.18);
-  transform: translateY(-1px);
-}
-
-/* Primary $100 card gets cream gradient + bigger presence when selected. */
-.ow-tier-v2-primary {
-  padding: 14px 16px 16px;
-}
-.ow-tier-v2-primary.selected {
-  background: linear-gradient(180deg, #fff7ed 0%, #fffaf6 100%);
-  border-color: rgba(255, 106, 20, 0.6);
-  box-shadow: 0 14px 34px rgba(255, 106, 20, 0.22);
-}
-
-/* Secondary $50 card — lighter resting state, less emphasis. */
-.ow-tier-v2-secondary {
-  background: #fafbfc;
-  border-color: #eef2f7;
-}
-.ow-tier-v2-secondary:hover {
-  background: #fff;
-  border-color: rgba(255, 106, 20, 0.35);
-}
-.ow-tier-v2-secondary.selected {
-  background: rgba(255, 106, 20, 0.04);
-  border-color: #ff6a14;
-  box-shadow: 0 8px 22px rgba(255, 106, 20, 0.14);
-}
-
-/* Selected badge in the top-right of the active card. */
-.ow-tier-badge {
-  position: absolute;
-  top: 12px; right: 12px;
-  display: inline-flex; align-items: center;
-  background: #ff6a14;
-  color: #fff;
-  font-size: 11px; font-weight: 800;
-  letter-spacing: 0.02em;
-  padding: 4px 9px;
-  border-radius: 999px;
-  box-shadow: 0 4px 10px rgba(255, 106, 20, 0.32);
-  animation: owBadgeIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-@keyframes owBadgeIn {
-  from { opacity: 0; transform: translateY(-2px) scale(0.92); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
-}
-
-/* Recommended / Starter pill row */
-.ow-tier-row-pill {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 8px;
-  padding-right: 92px; /* leave room for the selected badge */
-}
-.ow-tier-pill-recommended {
-  display: inline-flex; align-items: center;
-  background: rgba(255, 106, 20, 0.12);
-  border: 1px solid rgba(255, 106, 20, 0.32);
-  color: #c2410c;
-  font-size: 10.5px; font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-.ow-tier-pill-starter {
-  display: inline-flex; align-items: center;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
-  font-size: 10.5px; font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-.ow-tier-supporting {
-  font-size: 12px; font-weight: 600; color: #94a3b8;
-  letter-spacing: -0.005em;
-}
-
-/* Amount row — strong hierarchy on the receive amount. */
-.ow-tier-amount-row {
-  display: flex; align-items: baseline; gap: 10px;
-  margin-bottom: 4px;
-}
-.ow-tier-pay {
-  font-family: var(--font-heading);
-  font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
-  color: #0f172a;
-}
-.ow-tier-arrow {
-  font-size: 16px; color: #cbd5e1; font-weight: 700;
-}
-.ow-tier-receive {
-  font-family: var(--font-heading);
-  font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
-  color: #ea580c;
-}
-.ow-tier-receive-muted {
-  color: #475569;
-}
-.ow-tier-v2-primary .ow-tier-receive {
-  font-size: 23px;
-}
-
-/* Bonus line below the amount */
-.ow-tier-bonus-line {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 600; color: #ea580c;
-}
-.ow-tier-bonus-line.muted {
-  color: #94a3b8; font-weight: 500;
-}
-.ow-tier-bonus-tag {
-  display: inline-flex; align-items: center;
-  background: linear-gradient(180deg, #fb923c, #f97316);
-  color: #fff;
-  font-size: 11px; font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 3px 8px;
-  border-radius: 6px;
-  box-shadow: 0 4px 10px rgba(249, 115, 22, 0.32);
-}
-
-/* Trust panel — single compact row on desktop, 2x2 on small screens.
-   Title hidden on desktop to save vertical space (the bullets carry meaning
-   on their own); kept for screen readers. */
-.ow-trust-panel {
-  margin-top: 2px;
-  padding: 10px 14px;
-  background: linear-gradient(180deg, #fff8f3 0%, #ffffff 100%);
-  border: 1px solid #fde0c6;
-  border-radius: 12px;
-}
-.ow-trust-panel-title {
-  position: absolute;
-  width: 1px; height: 1px; padding: 0;
-  margin: -1px; overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap; border: 0;
-}
-.ow-trust-panel-list {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap;
-  column-gap: 18px; row-gap: 4px;
-  font-size: 12px; font-weight: 600; color: #475569;
-}
-.ow-trust-panel-list li {
-  display: inline-flex; align-items: center;
-  letter-spacing: -0.005em;
-}
-.ow-trust-panel-list li::before {
-  content: "✓";
-  color: #16a34a;
-  font-weight: 800;
-  font-size: 12px;
-  margin-right: 5px;
-}
-
-/* Secondary action — stacked label + microcopy under the primary CTA. Lighter
-   visual weight than the activate CTA so it never competes for attention.
-   Tight margin-top brings "Continue without activating" closer to the CTA
-   (or marketplace footer line) so there's no awkward dead zone below. */
-.ow-skip-secondary {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 4px 0;
-  margin-top: 8px;
-  text-align: center;
-  background: none; border: none;
-  font-family: inherit;
-  cursor: pointer;
-  color: #94a3b8;
-  opacity: 0.92;
-  transition: color 160ms ease, opacity 160ms ease;
-}
-.ow-skip-secondary > span:first-child {
-  font-size: 12.5px; font-weight: 600;
-  color: inherit;
-}
-.ow-skip-secondary-sub {
-  font-size: 11.5px; font-weight: 500;
-  color: #cbd5e1;
-}
-.ow-skip-secondary:hover { color: #475569; opacity: 1; }
-.ow-skip-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Tighten Step 5 (balance) vertical rhythm. Smaller gap pulls the CTA
-   closer to the offer cards. */
-.ow-choose { gap: 10px; }
-.ow-choose .ow-fomo {
-  padding: 10px 12px;
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-.ow-choose .ow-activate-cta { margin-top: 4px; }
-
-/* ── Activation step — account-ready checklist ───────────────────────────
-   Vertical list at the top of Step 5 reinforcing "your account is already
-   set up" before the offer reveal. Compact, premium, mobile-first. */
-.ow-account-ready {
-  list-style: none;
-  margin: 0 0 4px;
-  padding: 12px 14px;
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.06), rgba(34, 197, 94, 0.01));
-  border: 1px solid rgba(34, 197, 94, 0.20);
-  border-radius: 12px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: 14px; row-gap: 6px;
-}
-.ow-account-ready-item {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 600; color: #15803d;
-  letter-spacing: -0.005em;
-}
-.ow-account-ready-check {
-  flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: #22c55e;
-  color: #ffffff;
-  font-size: 10px; font-weight: 800;
-  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.28);
-}
-
-/* ── Activation step — primary tier resting glow ─────────────────────────
-   Make the recommended $150 plan feel pre-selected even before the user
-   clicks. Gentle amber halo in the resting state, stronger when selected. */
-.ow-tier-v2-primary {
-  box-shadow: 0 4px 14px rgba(255, 106, 20, 0.10);
-}
-.ow-tier-v2-primary:not(.selected) {
-  border-color: rgba(255, 106, 20, 0.32);
-  background: linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
-}
-
-/* Primary tier supporting line — single short reason on the recommended
-   card. Replaces the old "$50 FREE / onboarding credit included" stack so
-   the offer reads as one focused beat instead of two. Only used on the
-   primary $100 card; the secondary card has no support line by design. */
-.ow-tier-support {
-  font-size: 12.5px; font-weight: 700;
-  color: #ea580c;
-  letter-spacing: -0.005em;
-  line-height: 1.4;
-}
-
-/* ── Activation step — compact trust strip + marketplace footer ──────────
-   Two thin lines that fold the financial reassurance + marketplace realism
-   into the activation step without taking another card-sized block. */
-.ow-trust-strip {
-  margin: 6px 0 2px;
-  font-size: 11.5px; font-weight: 600;
-  color: #94a3b8;
-  text-align: center;
-  letter-spacing: -0.005em;
-}
-.ow-marketplace-footer {
-  margin: 6px 0 0;
-  font-size: 11.5px; font-weight: 500;
-  color: #94a3b8;
-  text-align: center;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  align-self: center;
-}
-.ow-marketplace-footer::before {
-  content: "";
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #ff6a14;
-  box-shadow: 0 0 0 3px rgba(255, 106, 20, 0.16);
-  animation: owSoftPulse 2.4s ease-in-out infinite;
-}
-
-@media (max-width: 600px) {
-  /* Tier cards on mobile — already compact; just tighten further. */
-  .ow-tier-v2 { padding: 11px 14px; }
-  .ow-tier-v2-primary { padding: 12px 14px 14px; }
-  .ow-tier-row-pill { flex-wrap: wrap; padding-right: 76px; margin-bottom: 6px; }
-  .ow-tier-pay, .ow-tier-receive { font-size: 18px; }
-  .ow-tier-v2-primary .ow-tier-receive { font-size: 20px; }
-  .ow-tier-amount-row { gap: 8px; margin-bottom: 3px; }
-  .ow-tier-bonus-line { font-size: 12px; }
-  .ow-tier-badge { top: 9px; right: 9px; font-size: 10px; padding: 3px 7px; }
-
-  /* Account-ready collapses to single column on phones so each line reads
-     naturally without being squished. */
-  .ow-account-ready { grid-template-columns: 1fr; column-gap: 0; row-gap: 5px; padding: 10px 12px; }
-  .ow-account-ready-item { font-size: 12.5px; }
-  .ow-tier-support { font-size: 12px; }
-  .ow-trust-strip, .ow-marketplace-footer { font-size: 11px; }
-}
-
-/* ── Step 7b — Complete secure payment ────────────────────────────────── */
-.ow-pay {
-  display: flex; flex-direction: column; gap: 14px;
-}
-.ow-pay-back {
-  align-self: flex-start;
-  background: none; border: none; padding: 4px 0;
-  font-family: inherit;
-  font-size: 13px; font-weight: 700;
-  color: #64748b; cursor: pointer;
-  letter-spacing: -0.005em;
-  transition: color 160ms ease;
-  margin-bottom: 4px;
-}
-.ow-pay-back:hover:not(:disabled) { color: #ea580c; }
-.ow-pay-back:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.ow-pay-summary {
+/* footer */
+.ow-footer {
+  flex: 0 0 auto;
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(180deg, rgba(255, 106, 20, 0.06), rgba(255, 106, 20, 0.02));
-  border: 1px solid rgba(255, 106, 20, 0.18);
+  padding: 18px 28px;
+  background: var(--ow-footer-bg);
+  border-top: 1px solid var(--ow-border);
+}
+.ow-footer-right { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.ow-back {
+  border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 500;
+  color: var(--ow-slate-600);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 4px;
+  transition: color 160ms var(--ow-ease);
+}
+.ow-back:hover { color: var(--ow-slate-900); }
+.ow-skip {
+  border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 500;
+  color: var(--ow-slate-500);
+  white-space: nowrap;
+  padding: 8px 4px;
+  transition: color 160ms var(--ow-ease);
+}
+.ow-skip:hover { color: var(--ow-slate-700); }
+
+/* primary CTA */
+.ow-next {
+  border: none; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
   border-radius: 12px;
+  padding: 0 22px; height: 48px;
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 10px 26px rgba(255, 106, 20, 0.28);
+  transition: transform 160ms var(--ow-ease), box-shadow 160ms var(--ow-ease), opacity 160ms var(--ow-ease);
 }
-.ow-pay-summary-label {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #94a3b8;
+.ow-next:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(255, 106, 20, 0.36); }
+.ow-next:active { transform: translateY(0); }
+.ow-next:disabled {
+  opacity: 0.45; cursor: not-allowed;
+  box-shadow: none; transform: none;
 }
-.ow-pay-summary-value {
-  font-family: var(--font-heading);
-  font-size: 16px; font-weight: 800; letter-spacing: -0.01em;
-  color: #0f172a;
+.ow-next--block { width: 100%; justify-content: center; height: 50px; }
+
+/* ============================================================
+   Step 1 — Welcome
+   ============================================================ */
+.ow-welcome {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 36px;
+  align-items: center;
+}
+.ow-eyebrow {
+  display: inline-block;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ow-orange);
+  margin-bottom: 14px;
+  white-space: nowrap;
+}
+.ow-welcome .ow-h1 { font-size: 28px; margin-bottom: 10px; }
+.ow-welcome .ow-sub { font-size: 15px; max-width: 38ch; }
+.ow-pills { display: flex; flex-direction: column; gap: 9px; margin-top: 22px; }
+.ow-pill {
+  display: inline-flex; align-items: center; gap: 9px;
+  align-self: flex-start;
+  white-space: nowrap;
+  background: var(--ow-slate-100);
+  color: var(--ow-slate-700);
+  font-size: 13px; font-weight: 600;
+  padding: 8px 14px 8px 11px;
+  border-radius: var(--ow-radius-pill);
+}
+.ow-pill-check {
+  width: 18px; height: 18px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--ow-green); color: #fff;
+}
+.ow-hero {
+  width: 100%; aspect-ratio: 1 / 1;
+  display: flex; align-items: center; justify-content: center;
+}
+/* hero animation */
+.ow-hero-route {
+  stroke-dasharray: 320; stroke-dashoffset: 320;
+  animation: ow-hero-draw 1200ms var(--ow-ease) 200ms forwards;
+}
+@keyframes ow-hero-draw { to { stroke-dashoffset: 0; } }
+.ow-hero-dest { opacity: 0; transform-box: fill-box; transform-origin: center; animation: ow-hero-pop 360ms var(--ow-overshoot) 1300ms forwards; }
+.ow-hero-dest-ring {
+  opacity: 0; transform-box: fill-box; transform-origin: center;
+  animation: ow-hero-ring 1800ms ease-out 1500ms infinite;
+}
+@keyframes ow-hero-ring {
+  0% { opacity: 0.7; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(3); }
+}
+.ow-hero-truck { opacity: 0; transform-box: fill-box; transform-origin: center; animation: ow-hero-pop 360ms var(--ow-overshoot) 100ms forwards; }
+@keyframes ow-hero-pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .ow-hero-route { stroke-dashoffset: 0; }
+  .ow-hero-dest, .ow-hero-truck { opacity: 1; }
 }
 
-.ow-pay-tier {
-  cursor: pointer;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 14px 16px;
+/* ============================================================
+   Inputs / fields
+   ============================================================ */
+.ow-label {
+  display: block;
+  font-size: 13px; font-weight: 600;
+  color: var(--ow-slate-700);
+  margin: 0 0 8px;
+}
+.ow-field { position: relative; margin-bottom: 4px; }
+.ow-input-wrap { position: relative; }
+.ow-input-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--ow-slate-400); pointer-events: none;
+  display: flex;
+}
+.ow-input {
+  width: 100%; height: 52px;
+  font: inherit; font-size: 16px;
+  color: var(--ow-slate-900);
   background: #fff;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  border: 1.5px solid var(--ow-slate-200);
+  border-radius: var(--ow-radius-card);
+  padding: 0 16px 0 42px;
+  transition: border-color 160ms var(--ow-ease), box-shadow 160ms var(--ow-ease);
 }
-.ow-pay-tier:hover { border-color: rgba(255, 106, 20, 0.45); }
-.ow-pay-tier:focus-visible { outline: 2px solid #ff6a14; outline-offset: 2px; }
-.ow-pay-tier.selected {
-  border-color: #ff6a14;
-  background: rgba(255, 106, 20, 0.05);
-  box-shadow: 0 4px 14px rgba(255, 106, 20, 0.12);
+.ow-input::placeholder { color: var(--ow-slate-400); }
+.ow-input:focus {
+  outline: none;
+  border-color: var(--ow-orange);
+  box-shadow: 0 0 0 3px rgba(255, 106, 20, 0.14);
 }
-.ow-pay-tier-primary.selected {
-  background: linear-gradient(180deg, #fff7ed 0%, #fffaf6 100%);
-  border-color: rgba(255, 106, 20, 0.55);
-  box-shadow: 0 8px 22px rgba(255, 106, 20, 0.16);
-}
-
-.ow-pay-tier-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; margin-bottom: 8px;
-}
-.ow-pay-tier-head .ow-activate-pill { margin: 0; }
-.ow-pay-tier-label {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-.ow-pay-tier-amount {
-  font-size: 15px; color: #475569; font-weight: 600;
-  margin-bottom: 4px;
-}
-.ow-pay-tier-amount strong {
-  font-family: var(--font-heading);
-  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
-  color: #0f172a; margin-right: 6px;
-}
-.ow-pay-tier-bonus {
-  font-size: 12.5px; font-weight: 600; color: #ea580c;
-}
-.ow-pay-tier-bonus.muted { color: #94a3b8; font-weight: 500; }
-
-.ow-pay-trust {
-  margin-top: 10px;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.ow-pay-element-wrap {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 14px 16px;
-  min-height: 240px;
-  display: flex; flex-direction: column; gap: 14px;
-}
-
-/* Divider between ExpressCheckoutElement and PaymentElement.
-   Only rendered when ExpressCheckoutElement reported eligible wallets. */
-.ow-pay-divider {
-  display: flex; align-items: center; gap: 10px;
-  margin: 2px 0;
-  font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #94a3b8;
-}
-.ow-pay-divider::before,
-.ow-pay-divider::after {
-  content: "";
-  flex: 1; height: 1px;
-  background: #e2e8f0;
-}
-.ow-pay-divider span { white-space: nowrap; }
-
-.ow-pay-loading {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 320px;
-  color: #475569;
-  font-size: 14px; font-weight: 600;
-}
-
-.ow-pay-init-error {
-  margin: 18px 0;
-  padding: 14px 16px;
-  background: rgba(220, 38, 38, 0.06);
-  border: 1px solid rgba(220, 38, 38, 0.22);
-  border-radius: 12px;
-}
-
-/* ── 5-step flow: lighter, mover-native polish ──────────────────────────── */
-
-/* Soft "Hi {company} —" line above H1 (replaces the old boxed greeting). */
-.ow-hello {
-  margin: 0 0 6px;
-  font-size: 13px; font-weight: 600; color: #94a3b8;
-  letter-spacing: -0.005em;
-}
-
-/* Card title + desc — pulled out of inline styles so we can tone down weight
-   and keep a single place to adjust hierarchy. */
-.ow-card-title {
-  font-size: 14px; font-weight: 700; color: #0f172a;
-  letter-spacing: -0.005em;
-}
-.ow-card-desc {
-  font-size: 12.5px; font-weight: 500; color: #64748b;
-  margin-top: 3px; line-height: 1.4;
-}
-
-/* Card hover/selected — softer than the previous loud orange tint. */
-.ow-card { transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
-.ow-card:hover:not(:disabled) {
-  border-color: rgba(255, 106, 20, 0.30);
-  background: #fafbfc;
-}
-.ow-card.active {
-  border-color: #ff6a14;
-  background: rgba(255, 106, 20, 0.04);
-  box-shadow: 0 6px 16px rgba(255, 106, 20, 0.08);
-  transform: translateY(-1px);
-}
-.ow-card:disabled { background: #f8fafc; }
-
-/* Toggle inline label — used in Step 3 SMS toggle. */
-.ow-toggle-label {
-  font-size: 14px; font-weight: 600; color: #0f172a;
-  letter-spacing: -0.005em;
-}
-
-/* Read-only field display (Step 3 email) — looks like an input but isn't. */
 .ow-readonly-input {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
-  width: 100%; height: 48px; padding: 0 14px;
-  border: 1.5px solid #e2e8f0; border-radius: 12px;
-  background: #f8fafc;
-  font-size: 15px; font-weight: 500; color: #334155;
-  box-sizing: border-box;
+  height: 52px; padding: 0 14px 0 16px;
+  background: var(--ow-slate-50);
+  border: 1.5px solid var(--ow-slate-200);
+  border-radius: var(--ow-radius-card);
+  color: var(--ow-slate-600); font-size: 15px;
 }
 .ow-readonly-tag {
-  flex-shrink: 0;
-  padding: 3px 8px; border-radius: 999px;
-  background: #e2e8f0;
-  color: #64748b;
-  font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em;
   text-transform: uppercase;
-}
-
-/* Save-error message in the footer (sits next to the Back button). */
-.ow-save-error {
-  font-size: 12.5px; font-weight: 600; color: #b91c1c;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding-left: 4px;
-}
-.ow-save-error::before {
-  content: "!"; display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; border-radius: 50%;
-  background: #fee2e2; color: #b91c1c; font-size: 10px; font-weight: 800;
-}
-
-/* Small spinner that sits inside a primary CTA (replaces the green-tinted
-   one used in the coverage preview pill). */
-.ow-spinner-on-cta {
-  display: inline-block;
-  width: 14px; height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.45);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: owSpin 0.8s linear infinite;
-  margin-right: 4px;
-}
-
-/* Step 4 — phase 'loading' (system pretends to set up the account). */
-.ow-setup-loading {
-  padding: 16px 0 12px;
-  width: 100%;
-  max-width: 520px;
-  margin: 0 auto;
-}
-.ow-setup-loading .ow-h1 { text-align: center; margin-bottom: 6px; }
-.ow-setup-loading .ow-sub { text-align: center; max-width: 460px; margin: 0 auto 18px; }
-.ow-setup-loading .ow-processing-list { margin-top: 0; }
-
-/* Step 4 — phase 'ready' (vertical status list + claim CTA).
-   Constrains the headline, checklist, CTA, and secondary action to a
-   single centered column so the user has one clear focal point — no
-   stretching the CTA across the full 880px modal. */
-.ow-setup-complete {
-  text-align: center;
-  padding: 8px 0 4px;
-  display: flex; flex-direction: column; align-items: stretch;
-  width: 100%;
-  max-width: 460px;
-  margin: 0 auto;
-}
-.ow-setup-complete .ow-success-icon { margin: 0 auto 10px; }
-.ow-success-icon-lg {
-  width: 56px; height: 56px;
-  font-size: 28px;
-  box-shadow: 0 10px 24px rgba(34, 197, 94, 0.24);
-}
-.ow-setup-complete .ow-h1 {
-  font-size: 22px;
-  margin-bottom: 4px;
-  letter-spacing: -0.02em;
-}
-.ow-setup-complete .ow-sub {
-  font-size: 14px;
-  margin: 0 auto 12px;
-  line-height: 1.5;
-  color: #475569;
-}
-
-/* Vertical status checkpoint list — same width as the surrounding column. */
-.ow-status-list {
-  list-style: none; padding: 0;
-  width: 100%;
-  margin: 0 0 12px;
-  display: flex; flex-direction: column; gap: 5px;
-}
-.ow-status-item {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 9px 12px;
-  background: #f8fafc;
-  border: 1px solid #e6ecf2;
-  border-radius: 10px;
-  text-align: left;
-}
-.ow-status-check {
-  flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px;
-  margin-top: 1px;
-  border-radius: 50%;
-  background: #22c55e;
-  color: #ffffff;
-  font-size: 11px; font-weight: 800;
-  box-shadow: 0 2px 5px rgba(34, 197, 94, 0.26);
-}
-.ow-status-text { flex: 1; min-width: 0; }
-.ow-status-label {
-  font-size: 13px; font-weight: 800; color: #0f172a;
-  letter-spacing: -0.005em;
-}
-.ow-status-value {
-  font-size: 12.5px; font-weight: 500; color: #64748b;
-  margin-top: 1px;
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-/* CTA shares the same constrained column width — full-width inside the
-   centered 460px wrapper, NOT the full modal width. */
-.ow-setup-complete .ow-activate-cta {
-  width: 100%;
-  max-width: none;
-}
-.ow-setup-complete .ow-activate-skip { margin-top: 8px; }
-
-/* "You can update phone/email anytime in Settings" notice on the Alerts step. */
-.ow-contact-notice {
-  margin: -4px 0 18px;
-  padding: 10px 12px;
-  font-size: 12.5px; font-weight: 500;
-  color: #475569;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  display: inline-flex; align-items: center; gap: 8px;
-  line-height: 1.4;
-}
-.ow-contact-notice::before {
-  content: "ⓘ";
-  flex-shrink: 0;
-  color: #94a3b8;
-  font-size: 13px; font-weight: 700;
-}
-
-/* (Old .ow-milestone-grid mobile rules removed — confirmation now uses the
-   vertical .ow-status-list which is single-column at every breakpoint.) */
-
-/* Step 1 dispatch-base input — primary action of the screen.
-   Subtle glow on focus to draw attention; soft pulse before the user
-   has entered a location, then settles into a confirmed-state border
-   once a place is selected. */
-.ow-dispatch-input-wrap {
-  position: relative;
-}
-.ow-dispatch-input-wrap.is-empty .ow-input:not(:focus) {
-  box-shadow: 0 0 0 0 rgba(255, 106, 20, 0);
-  animation: owDispatchPulse 2.4s ease-in-out infinite;
-}
-.ow-dispatch-input-wrap.is-empty .ow-input:focus {
-  border-color: #ff6a14;
-  box-shadow: 0 0 0 4px rgba(255, 106, 20, 0.18);
-  animation: none;
-}
-.ow-dispatch-input-wrap.is-confirmed .ow-input {
-  animation: none;
-}
-@keyframes owDispatchPulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(255, 106, 20, 0); }
-  50%     { box-shadow: 0 0 0 5px rgba(255, 106, 20, 0.10); }
-}
-
-/* Helper hint shown next to the disabled coverage cards before the
-   user has entered a dispatch base. */
-.ow-cards-hint {
-  margin: 0 0 10px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: -0.005em;
-}
-
-/* Muted state for the coverage cards before a location is set.
-   Kills the orange "active" treatment and dims the whole group
-   so it reads as "not yet available". */
-.ow-cards.is-disabled {
-  opacity: 0.5;
-  filter: grayscale(0.3);
-  pointer-events: none;
-  transition: opacity 0.25s ease, filter 0.25s ease;
-}
-.ow-cards.is-disabled .ow-card {
-  cursor: not-allowed;
-}
-.ow-cards {
-  transition: opacity 0.25s ease, filter 0.25s ease;
-}
-
-/* "Your market is open" reassurance — small, premium, no fake numbers.
-   Shown after the user picks a dispatch base on Step 1. */
-.ow-market-open {
-  display: flex; align-items: flex-start; gap: 10px;
-  margin: -2px 0 18px;
-  padding: 10px 12px;
-  background: linear-gradient(180deg, rgba(34,197,94,0.06), rgba(34,197,94,0.01));
-  border: 1px solid rgba(34, 197, 94, 0.20);
-  border-radius: 12px;
-}
-.ow-market-open-dot {
-  flex-shrink: 0; margin-top: 6px;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
-  animation: owSoftPulse 2.4s ease-in-out infinite;
-}
-.ow-market-open-title {
-  font-size: 13.5px; font-weight: 800; color: #15803d;
-  letter-spacing: -0.005em;
-}
-.ow-market-open-body {
-  margin-top: 2px;
-  font-size: 12.5px; font-weight: 500; color: #475569; line-height: 1.45;
-}
-
-/* ── Legacy classes (.ow-setup-fomo, .ow-progression-chip, .ow-section) ──
-   kept so any in-flight wizard session loaded from a stale build can still
-   render. The current 5-step flow does not use them. Safe to delete in a
-   follow-up cleanup pass. */
-
-/* Setup-phase FOMO note (Step 1). Lighter than the activation .ow-fomo so it
-   doesn't out-shout the dispatch-base input. */
-.ow-setup-fomo {
-  display: flex; align-items: flex-start; gap: 10px;
-  margin: 0 0 18px;
-  padding: 10px 12px;
-  background: linear-gradient(180deg, rgba(255,106,20,0.05), rgba(255,106,20,0.01));
-  border: 1px solid rgba(255, 106, 20, 0.16);
-  border-radius: 10px;
-  font-size: 12.5px; line-height: 1.45; color: #475569; font-weight: 500;
-}
-.ow-setup-fomo-dot {
-  flex-shrink: 0;
-  margin-top: 6px;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #ff6a14;
-  box-shadow: 0 0 0 3px rgba(255, 106, 20, 0.16);
-}
-
-/* Progression chips at the top of Step 2 — "✓ Dispatch base · Houston, TX". */
-.ow-progression-row {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin: 0 0 18px;
-}
-.ow-progression-chip {
-  display: inline-flex; align-items: center;
+  white-space: nowrap;
+  color: var(--ow-slate-500);
+  background: var(--ow-slate-100);
+  border-radius: var(--ow-radius-pill);
   padding: 5px 10px;
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.26);
-  border-radius: 999px;
-  font-size: 12px; font-weight: 700; color: #15803d;
-  letter-spacing: -0.005em;
 }
 
-/* Section divider used inside Step 3 (Preferences + Alerts merge). */
-.ow-section {
-  margin: 0 0 18px;
-  padding: 16px 16px 4px;
+/* autocomplete dropdown */
+.ow-autocomplete {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+  background: #fff; border: 1px solid var(--ow-border);
+  border-radius: var(--ow-radius-card);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  overflow: hidden; z-index: 20;
+}
+.ow-ac-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; cursor: pointer; font-size: 14.5px;
+  color: var(--ow-slate-700);
+}
+.ow-ac-item:hover, .ow-ac-item--active { background: var(--ow-slate-50); }
+.ow-ac-item svg { color: var(--ow-slate-400); }
+
+/* divider with label */
+.ow-divider {
+  display: flex; align-items: center; gap: 14px;
+  margin: 26px 0 16px;
+  color: var(--ow-slate-400);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.ow-divider::before, .ow-divider::after {
+  content: ""; height: 1px; flex: 1; background: var(--ow-border);
+}
+
+/* ============================================================
+   Option cards (pickup mode, delivery mode)
+   ============================================================ */
+.ow-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.ow-card {
+  position: relative;
+  text-align: left;
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border: 1.5px solid var(--ow-slate-200);
+  border-radius: var(--ow-radius-card);
+  padding: 16px 14px;
+  cursor: pointer;
+  transition: border-color 160ms var(--ow-ease), box-shadow 160ms var(--ow-ease), background 160ms var(--ow-ease);
+  font: inherit;
 }
-.ow-section-h {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #94a3b8; margin: 0 0 12px;
+.ow-card:hover { border-color: var(--ow-slate-300); }
+.ow-card:focus-visible { outline: 2px solid var(--ow-orange); outline-offset: 2px; }
+.ow-card--active {
+  border-color: var(--ow-orange);
+  background: var(--ow-orange-soft);
+  box-shadow: 0 0 0 1px var(--ow-orange);
 }
-.ow-section .ow-field:last-child { margin-bottom: 8px; }
+.ow-card-title {
+  display: block; font-size: 15px; font-weight: 700; color: var(--ow-slate-900);
+  margin-bottom: 4px;
+}
+.ow-card-desc { display: block; font-size: 12.5px; color: var(--ow-slate-500); line-height: 1.4; }
+.ow-card-check {
+  position: absolute; top: 12px; right: 12px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--ow-orange); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transform: scale(0.6);
+  transition: opacity 160ms var(--ow-ease), transform 160ms var(--ow-overshoot);
+}
+.ow-card--active .ow-card-check { opacity: 1; transform: scale(1); }
 
-/* Stronger selected-card state — adds soft tint + lift in addition to the
-   existing border-color change. Applies to all .ow-card.active states. */
-.ow-card.active {
-  box-shadow: 0 8px 18px rgba(255, 106, 20, 0.10);
-  transform: translateY(-1px);
+/* ============================================================
+   Reveal / reassurance asides
+   ============================================================ */
+.ow-reveal { animation: ow-reveal 240ms var(--ow-ease) both; }
+@keyframes ow-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.ow-confirm-aside {
+  display: flex; gap: 11px; align-items: flex-start;
+  background: var(--ow-green-soft);
+  border: 1px solid var(--ow-green-border);
+  border-radius: var(--ow-radius-card);
+  padding: 13px 15px;
+  margin-top: 16px;
+}
+.ow-confirm-aside .ow-aside-icon { color: var(--ow-green); flex: 0 0 auto; margin-top: 1px; }
+.ow-aside-title { font-size: 14px; font-weight: 700; color: var(--ow-green-700); margin: 0 0 2px; }
+.ow-aside-text { font-size: 13px; color: #3f6b4e; margin: 0; line-height: 1.45; }
+
+.ow-reassure {
+  background: var(--ow-orange-50);
+  border: 1px solid var(--ow-orange-200);
+  border-radius: var(--ow-radius-card);
+  padding: 13px 16px;
+  margin-top: 18px;
+  font-size: 13.5px; font-weight: 500; color: var(--ow-orange-800);
+  line-height: 1.5;
 }
 
-@media (max-width: 600px) {
-  .ow-section { padding: 14px 14px 2px; }
-  .ow-progression-chip { font-size: 11.5px; padding: 4px 9px; }
-  .ow-setup-fomo { font-size: 12px; padding: 9px 11px; }
+/* ============================================================
+   Step 3 — coverage map
+   ============================================================ */
+.ow-coverage-map {
+  margin-top: 22px;
+  background: var(--ow-slate-50);
+  border: 1px solid var(--ow-border);
+  border-radius: 16px;
+  padding: 22px 18px 16px;
+}
+.ow-coverage-caption {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 13.5px; font-weight: 500;
+  color: var(--ow-slate-600);
+}
+.ow-lane-label {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 0 auto;
+  background: #fff; border: 1px solid var(--ow-border);
+  border-radius: var(--ow-radius-pill);
+  padding: 7px 14px;
+  font-size: 13px; font-weight: 600; color: var(--ow-slate-700);
+  box-shadow: var(--ow-shadow-card);
 }
 
-/* ── Step 3 phone-verify inline status card (2026-05-30) ─────────────────
- *
- * Sits directly below the phone input. Two visual states:
- *   .ow-verify-status-confirmed → green (phoneVerified=true)
- *   .ow-verify-status-pending   → amber + CTA (phoneVerified=false)
- *
- * The pending state hosts an inline "Verify now →" button that re-opens
- * the VerifyPhoneModal without forcing the mover through Continue + back.
- * Layout is row-wise on desktop, stacks on small screens so the CTA stays
- * tappable. */
+/* hex tiles */
+.ow-hex { transition: fill 320ms var(--ow-ease), stroke 320ms var(--ow-ease); cursor: inherit; }
+.ow-hex-label { font-size: 9px; font-weight: 800; fill: var(--ow-slate-400); pointer-events: none; transition: fill 320ms var(--ow-ease); }
+.ow-hex-label--on { fill: var(--ow-orange-700); }
+.ow-lane {
+  fill: none; stroke: var(--ow-orange); stroke-width: 2;
+  stroke-linecap: round;
+}
+.ow-lane--draw {
+  stroke-dasharray: 600; stroke-dashoffset: 600;
+  animation: ow-lane-draw 620ms var(--ow-ease) forwards;
+}
+@keyframes ow-lane-draw { to { stroke-dashoffset: 0; } }
+
+/* ============================================================
+   Step 4 — verify status + toggles
+   ============================================================ */
 .ow-verify-status {
-  display: flex; align-items: center; gap: 12px;
-  margin-top: 10px; padding: 12px 14px;
-  border-radius: 12px;
-  font-size: 13.5px; line-height: 1.4;
+  display: flex; gap: 12px; align-items: center;
+  border-radius: var(--ow-radius-card);
+  padding: 13px 15px;
+  margin-top: 14px;
 }
-.ow-verify-status-confirmed {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #065f46;
+.ow-verify-status--confirmed {
+  background: var(--ow-green-soft); border: 1px solid var(--ow-green-border);
 }
-.ow-verify-status-pending {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #78350f;
-  flex-wrap: wrap;
+.ow-verify-status--pending {
+  background: var(--ow-amber-soft); border: 1px solid var(--ow-amber-border);
 }
-.ow-verify-status-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border-radius: 999px; flex-shrink: 0;
-  font-size: 14px; font-weight: 800;
+.ow-vs-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.ow-verify-status--confirmed .ow-vs-icon { background: var(--ow-green); color: #fff; }
+.ow-verify-status--pending .ow-vs-icon { background: var(--ow-amber); color: #fff; }
+.ow-vs-body { flex: 1 1 auto; }
+.ow-vs-title { font-size: 14px; font-weight: 700; margin: 0; }
+.ow-verify-status--confirmed .ow-vs-title { color: var(--ow-green-700); }
+.ow-verify-status--pending .ow-vs-title { color: var(--ow-amber-800); }
+.ow-vs-text { font-size: 13px; margin: 1px 0 0; color: var(--ow-slate-600); }
+.ow-verify-btn {
+  border: 1px solid var(--ow-amber-border); background: #fff; color: var(--ow-amber-800);
+  font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  border-radius: 9px; padding: 9px 14px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background 160ms var(--ow-ease);
 }
-.ow-verify-status-confirmed .ow-verify-status-icon {
-  background: #16a34a; color: #fff;
-}
-.ow-verify-status-pending .ow-verify-status-icon {
-  background: #f59e0b; color: #fff;
-}
-.ow-verify-status-body {
-  min-width: 0; flex: 1;
-}
-.ow-verify-status-title {
-  font-weight: 700; color: inherit;
-}
-.ow-verify-status-confirmed .ow-verify-status-title { color: #047857; }
-.ow-verify-status-pending   .ow-verify-status-title { color: #92400e; }
-.ow-verify-status-sub {
-  margin-top: 1px; font-size: 12.5px; opacity: 0.8;
-}
-.ow-verify-status-cta {
-  flex-shrink: 0;
-  padding: 8px 14px; border-radius: 8px; border: 0;
-  background: linear-gradient(135deg, #ea580c, #c2410c);
-  color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
-  font-family: inherit;
-}
-.ow-verify-status-cta:hover { filter: brightness(1.04); }
-.ow-verify-status-cta:disabled { opacity: 0.6; cursor: not-allowed; }
+.ow-verify-btn:hover { background: var(--ow-amber-soft); }
 
-/* ── Step 7 SMS Claim awareness line (2026-05-30) ────────────────────────
- *
- * Quieter than the success list — informational, not a CTA. The primary
- * action ("View matching opportunities") stays untouched. */
-.ow-success-aside {
-  max-width: 360px; margin: 14px auto 0;
+.ow-toggle-group {
+  border: 1px solid var(--ow-border);
+  border-radius: var(--ow-radius-card);
+  overflow: hidden;
+}
+.ow-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 15px 16px;
+}
+.ow-toggle-row + .ow-toggle-row { border-top: 1px solid var(--ow-border); }
+.ow-toggle-label { display: flex; flex-direction: column; }
+.ow-toggle-name { font-size: 14.5px; font-weight: 600; color: var(--ow-slate-900); }
+.ow-toggle-hint { font-size: 12.5px; color: var(--ow-slate-500); margin-top: 1px; }
+.ow-toggle {
+  position: relative; width: 46px; height: 28px; border-radius: var(--ow-radius-pill);
+  border: none; cursor: pointer; padding: 0;
+  background: var(--ow-slate-300);
+  transition: background 200ms var(--ow-ease);
+  flex: 0 0 auto;
+}
+.ow-toggle[data-on="true"] { background: var(--ow-green); }
+.ow-toggle-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.22);
+  transition: transform 200ms var(--ow-overshoot);
+}
+.ow-toggle[data-on="true"] .ow-toggle-knob { transform: translateX(18px); }
+
+/* ============================================================
+   Verify modal
+   ============================================================ */
+.ow-vmodal-overlay {
+  position: absolute; inset: 0; z-index: 30;
+  background: rgba(15, 23, 42, 0.30);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: ow-fade 180ms var(--ow-ease) both;
+}
+@keyframes ow-fade { from { opacity: 0; } to { opacity: 1; } }
+.ow-vmodal {
+  width: 420px; max-width: 100%;
+  background: #fff; border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.28);
+  padding: 28px 26px 24px;
   text-align: center;
-  font-size: 12.5px; line-height: 1.5; color: #64748b;
+  animation: ow-vmodal-in 240ms var(--ow-overshoot) both;
 }
-.ow-success-aside strong {
-  color: #0f172a; font-weight: 700;
+@keyframes ow-vmodal-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: none; }
 }
-.ow-success-beta {
+.ow-vmodal-icon {
+  width: 56px; height: 56px; border-radius: 16px;
+  margin: 0 auto 16px;
+  background: var(--ow-orange-soft); color: var(--ow-orange);
+  display: flex; align-items: center; justify-content: center;
+}
+.ow-vmodal-title { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 6px; }
+.ow-vmodal-sub { font-size: 14px; color: var(--ow-slate-500); margin: 0 0 20px; line-height: 1.5; }
+.ow-code-inputs { display: flex; gap: 9px; justify-content: center; margin-bottom: 18px; }
+.ow-code-box {
+  width: 46px; height: 56px; text-align: center;
+  font-size: 22px; font-weight: 700; font-family: var(--ow-mono);
+  border: 1.5px solid var(--ow-slate-200); border-radius: 12px;
+  color: var(--ow-slate-900);
+}
+.ow-code-box:focus { outline: none; border-color: var(--ow-orange); box-shadow: 0 0 0 3px rgba(255,106,20,0.14); }
+.ow-vmodal-foot { display: flex; flex-direction: column; gap: 12px; }
+.ow-vmodal-link {
+  font-size: 13px; color: var(--ow-slate-500); text-decoration: none;
+}
+.ow-vmodal-link:hover { color: var(--ow-slate-700); text-decoration: underline; }
+.ow-vmodal-success { padding: 14px 0 8px; }
+.ow-vmodal-success-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  margin: 0 auto 14px;
+  background: var(--ow-green); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  animation: ow-check-pop 420ms var(--ow-overshoot) both;
+  box-shadow: 0 0 0 0 rgba(22,163,74,0.4);
+}
+@keyframes ow-check-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ============================================================
+   Step 5 — SMS Claim showcase
+   ============================================================ */
+.ow-beta {
   display: inline-block;
-  padding: 1px 7px; margin-left: 4px; border-radius: 999px;
-  background: #fff7ed; color: #9a3412;
-  border: 1px solid #fdba74;
-  font-size: 9.5px; font-weight: 800; letter-spacing: 0.6px;
-  vertical-align: middle;
-}
-
-/* ── Step 3 alert-channel explainer (2026-05-30) ─────────────────────────
- *
- * Three-line "how alerts reach you" list above the phone input. Compact,
- * informational, no inputs. Reuses the slate / green palette. */
-.ow-alerts-channels {
-  margin: 0 0 18px;
-  padding: 12px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-}
-.ow-alerts-channels-lead {
-  font-size: 13px; font-weight: 600; color: #334155;
-  margin-bottom: 8px;
-}
-.ow-alerts-channels-list {
-  list-style: none; padding: 0; margin: 0;
-  display: flex; flex-direction: column; gap: 6px;
-  font-size: 13.5px; color: #475569;
-}
-.ow-alerts-channels-list li {
-  display: flex; align-items: center; gap: 8px;
-}
-.ow-alerts-channels-tick {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; border-radius: 999px; flex-shrink: 0;
-  background: #ecfdf5; color: #16a34a;
-  font-size: 11px; font-weight: 800;
-}
-
-/* ── Step 4 activation-journey block (2026-05-30) ────────────────────────
- *
- * "How MoveLeads works" — numbered flow + control-reassurance + trust line.
- * Lives between the post-setup status checklist and the activation CTA. */
-.ow-journey-block {
-  margin: 28px auto 22px;
-  max-width: 460px;
-}
-.ow-journey-h2 {
-  font-size: 14px; font-weight: 800; color: #334155;
-  text-transform: uppercase; letter-spacing: 0.6px;
-  text-align: center; margin: 0 0 14px;
-}
-.ow-how-it-works {
-  list-style: none; padding: 0; margin: 0 0 16px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.ow-how-it-works-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 13.5px; color: #0f172a;
-  text-align: left;
-}
-.ow-how-num {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: 999px; flex-shrink: 0;
-  background: linear-gradient(135deg, #ea580c, #c2410c);
-  color: #fff;
-  font-size: 12px; font-weight: 800;
-}
-.ow-journey-control {
-  margin: 0 0 12px;
-  padding: 12px 14px;
-  background: #fff7ed;
-  border: 1px solid #fde68a;
-  border-radius: 10px;
-  font-size: 13px; color: #78350f; line-height: 1.55;
-  text-align: center;
-}
-.ow-journey-trust {
-  margin: 0;
-  font-size: 12.5px; line-height: 1.55; color: #64748b;
-  text-align: center;
-}
-
-/* ── SMS Claim explainer card — Step 4 + Step 7 (2026-05-30) ─────────────
- *
- * Same visual language across both surfaces so the Step 7 reminder feels
- * like the same idea the mover saw at Step 4. Step 7's card is more
- * compact (fewer sections). */
-.ow-sms-claim-card {
-  margin: 22px auto 22px;
-  max-width: 460px;
-  padding: 18px 18px 16px;
-  background: #fff;
-  border: 1px solid #fde68a;
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
-  text-align: left;
-}
-.ow-sms-claim-card-header {
-  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ow-orange); background: var(--ow-orange-soft);
+  border: 1px solid var(--ow-orange-border);
+  border-radius: 6px; padding: 4px 8px;
   margin-bottom: 12px;
 }
-.ow-sms-claim-card-title {
-  margin: 0;
-  font-size: 16px; font-weight: 800; color: #0f172a;
-  letter-spacing: -0.01em;
+.ow-sms-showcase {
+  display: grid; grid-template-columns: 230px 1fr;
+  gap: 32px; align-items: center;
+  margin-top: 22px;
 }
-.ow-sms-claim-card-beta {
-  display: inline-block;
-  padding: 1px 7px; border-radius: 999px;
-  background: #fff7ed; color: #9a3412;
-  border: 1px solid #fdba74;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
+.ow-phone-mock {
+  background: var(--ow-navy);
+  border-radius: 26px;
+  padding: 16px 14px;
+  border: 1px solid #1c2738;
+  box-shadow: 0 20px 50px rgba(12,19,34,0.35);
 }
-.ow-sms-claim-card-section {
-  margin: 0 0 10px;
-  font-size: 13px; line-height: 1.55; color: #334155;
+.ow-phone-notch {
+  width: 64px; height: 5px; border-radius: 999px; background: #2a3650;
+  margin: 2px auto 14px;
 }
-.ow-sms-claim-card-section:last-child { margin-bottom: 0; }
-.ow-sms-claim-card-section strong { color: #0f172a; font-weight: 700; }
-.ow-sms-claim-card-benefit {
-  font-size: 13.5px; color: #0f172a;
+.ow-phone-hdr {
+  display: flex; align-items: center; gap: 9px; padding: 0 4px 12px;
+  border-bottom: 1px solid #1c2738; margin-bottom: 12px;
 }
-.ow-sms-claim-card-optional {
-  margin-top: 12px; padding-top: 10px;
-  border-top: 1px dashed #e2e8f0;
-  font-size: 12px; color: #64748b;
+.ow-phone-avatar {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 13px;
+}
+.ow-phone-name { color: #e8edf6; font-size: 13px; font-weight: 700; }
+.ow-phone-time { color: #6b7890; font-size: 11px; }
+.ow-sms-bubble {
+  background: #1a2435; color: #d7e0ee;
+  border-radius: 14px 14px 14px 4px;
+  padding: 11px 13px; font-size: 13px; line-height: 1.5;
+  max-width: 90%;
+}
+.ow-sms-bubble .ow-sms-meta { color: #8d9bb4; font-size: 11.5px; }
+.ow-sms-bubble strong { color: #fff; }
+.ow-sms-price { color: #7ee2a8; font-weight: 700; }
+.ow-sms-reply {
+  display: flex; justify-content: flex-end; margin-top: 12px;
+}
+.ow-send-callout {
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
+  color: #fff; font-family: var(--ow-mono);
+  white-space: nowrap;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 9px 15px; border-radius: 14px 14px 4px 14px;
+  box-shadow: 0 6px 16px rgba(255,106,20,0.4);
+}
+.ow-sms-steps { display: flex; flex-direction: column; gap: 18px; }
+.ow-sms-steps-title { font-size: 13px; font-weight: 700; color: var(--ow-slate-500); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 2px; }
+.ow-sms-step { display: flex; gap: 13px; align-items: flex-start; }
+.ow-sms-icon {
+  width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto;
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 10px rgba(255,106,20,0.28);
+}
+.ow-sms-step-text { font-size: 14px; color: var(--ow-slate-700); line-height: 1.45; padding-top: 7px; }
+.ow-sms-step-text b { color: var(--ow-slate-900); font-weight: 700; }
+.ow-balance-note {
+  display: flex; gap: 10px; align-items: flex-start;
+  border: 1px solid var(--ow-border); border-radius: var(--ow-radius-card);
+  background: var(--ow-slate-50);
+  padding: 13px 15px; margin-top: 24px;
+  font-size: 13.5px; color: var(--ow-slate-600); line-height: 1.5;
+}
+.ow-balance-note b { color: var(--ow-slate-900); }
+.ow-optional { font-size: 12.5px; color: var(--ow-slate-500); margin-top: 12px; text-align: left; }
+
+/* ============================================================
+   Step 6 — Activate / tiers / stripe
+   ============================================================ */
+.ow-tiers { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.ow-tier {
+  position: relative; text-align: left; width: 100%;
+  background: #fff; border: 1.5px solid var(--ow-slate-200);
+  border-radius: 14px; padding: 18px 18px; cursor: pointer; font: inherit;
+  transition: border-color 160ms var(--ow-ease), box-shadow 160ms var(--ow-ease), background 160ms var(--ow-ease);
+}
+.ow-tier:hover { border-color: var(--ow-slate-300); }
+.ow-tier--recommended { border-color: var(--ow-orange-border); }
+.ow-tier--active {
+  border-color: var(--ow-orange); background: var(--ow-orange-soft);
+  box-shadow: 0 0 0 1px var(--ow-orange);
+}
+.ow-tier-flag {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ow-orange); margin-bottom: 6px; display: block;
+}
+.ow-tier--starter .ow-tier-flag { color: var(--ow-slate-400); }
+.ow-tier-pill {
+  display: inline-block; font-size: 11.5px; font-weight: 700;
+  white-space: nowrap;
+  color: var(--ow-green-700); background: var(--ow-green-soft); border: 1px solid var(--ow-green-border);
+  border-radius: var(--ow-radius-pill); padding: 3px 10px; margin-bottom: 10px;
+}
+.ow-tier-pill--muted { color: var(--ow-slate-500); background: var(--ow-slate-100); border-color: var(--ow-slate-200); }
+.ow-tier-math {
+  display: flex; align-items: baseline; gap: 10px;
+  white-space: nowrap;
+  font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--ow-slate-900);
+}
+.ow-tier-math .ow-arrow { color: var(--ow-slate-400); font-size: 18px; }
+.ow-tier-math .ow-final { color: var(--ow-orange-600); }
+.ow-tier-desc { font-size: 13px; color: var(--ow-slate-500); margin-top: 7px; }
+.ow-tier-check {
+  position: absolute; top: 16px; right: 16px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: var(--ow-orange);
+  opacity: 0; transform: translateY(-2px);
+  transition: opacity 160ms var(--ow-ease), transform 160ms var(--ow-ease);
+}
+.ow-tier--active .ow-tier-check { opacity: 1; transform: none; }
+
+.ow-trust-strip {
+  text-align: center; margin: 20px 0 18px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--ow-slate-500); line-height: 1.8;
+}
+.ow-trust-strip span { white-space: nowrap; }
+.ow-trust-dot { color: var(--ow-slate-300); margin: 0 8px; }
+.ow-activate-skip {
+  display: block; width: 100%; text-align: center; margin-top: 14px;
+  border: none; background: none; cursor: pointer; font: inherit;
+  font-size: 13.5px; font-weight: 500; color: var(--ow-slate-500);
+  padding: 8px;
+}
+.ow-activate-skip:hover { color: var(--ow-slate-700); }
+
+/* stripe (state 2) */
+.ow-change-balance {
+  border: none; background: none; cursor: pointer; font: inherit;
+  font-size: 13.5px; font-weight: 600; color: var(--ow-slate-600);
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 0 14px;
+}
+.ow-change-balance:hover { color: var(--ow-slate-900); }
+.ow-pay-line { font-size: 15px; font-weight: 600; color: var(--ow-slate-900); margin: 0 0 16px; }
+.ow-pay-line b { color: var(--ow-orange-600); }
+.ow-stripe {
+  border: 1px solid var(--ow-border); border-radius: 14px;
+  padding: 18px; background: #fff;
+}
+.ow-express-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.ow-express-btn {
+  height: 44px; border-radius: 9px; border: none; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 700;
+  white-space: nowrap;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity 160ms var(--ow-ease);
+}
+.ow-express-btn:hover { opacity: 0.9; }
+.ow-express-btn--apple { background: #000; color: #fff; }
+.ow-express-btn--google { background: #fff; color: #3c4043; border: 1px solid var(--ow-slate-300); }
+.ow-express-btn--link { background: #00d66f; color: #062b1a; }
+.ow-stripe-divider {
+  display: flex; align-items: center; gap: 12px; margin: 16px 0;
+  color: var(--ow-slate-400); font-size: 12px; white-space: nowrap;
+}
+.ow-stripe-divider::before, .ow-stripe-divider::after { content: ""; height: 1px; flex: 1; background: var(--ow-border); }
+/* Prototype's fake card-form selectors removed — real Stripe PaymentElement
+   renders its own DOM and styling. The .ow-card-form / .ow-cf-* classes
+   from the prototype handoff are intentionally not present. */
+
+/* ============================================================
+   Step 7 — Success
+   ============================================================ */
+.ow-success { text-align: center; padding: 8px 0 4px; }
+.ow-success-icon {
+  position: relative; z-index: 2;
+  width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 22px;
+  background: linear-gradient(180deg, #22c55e, var(--ow-green));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 10px rgba(22,163,74,0.10), 0 12px 28px rgba(22,163,74,0.28);
+  animation: ow-success-pop 350ms var(--ow-overshoot) both;
+}
+@keyframes ow-success-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.ow-success .ow-h1 { font-size: 26px; }
+.ow-success-list {
+  display: inline-flex; flex-direction: column; gap: 10px;
+  text-align: left; margin: 22px auto 20px;
+  background: var(--ow-slate-50); border: 1px solid var(--ow-border);
+  border-radius: 14px; padding: 16px 20px;
+}
+.ow-success-item {
+  display: flex; align-items: center; gap: 11px;
+  font-size: 14.5px; font-weight: 500; color: var(--ow-slate-700);
+  opacity: 0; transform: translateY(6px);
+}
+.ow-success-item--in { animation: ow-reveal 320ms var(--ow-ease) forwards; }
+.ow-success-check {
+  width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--ow-green); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.ow-sms-claim-card {
+  text-align: left; max-width: 420px; margin: 0 auto 8px;
+  background: #fff; border: 1px solid var(--ow-border); border-radius: 14px;
+  padding: 16px 18px;
+}
+.ow-sms-claim-head {
+  display: flex; align-items: center; gap: 9px; margin-bottom: 8px;
+}
+.ow-sms-claim-title { font-size: 14.5px; font-weight: 700; color: var(--ow-slate-900); white-space: nowrap; }
+.ow-sms-claim-icon { color: var(--ow-orange); display: flex; }
+.ow-sms-claim-beta {
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ow-orange); background: var(--ow-orange-soft); border: 1px solid var(--ow-orange-border);
+  border-radius: 5px; padding: 2px 6px;
+}
+.ow-sms-claim-text { font-size: 13px; color: var(--ow-slate-600); line-height: 1.55; margin: 0; }
+.ow-sms-claim-text b { color: var(--ow-slate-900); }
+
+/* confetti */
+.ow-confetti { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 1; }
+.ow-particle {
+  position: absolute; width: 8px; height: 8px; border-radius: 2px;
+  opacity: 0;
+}
+.ow-particle--go { animation: ow-particle-fall 800ms var(--ow-ease) forwards; }
+@keyframes ow-particle-fall {
+  0%   { opacity: 1; transform: translate(0,0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), 80px) rotate(var(--dr)) scale(0.7); }
 }
 
-/* Step 7 — smaller card variant. Inherits palette + Beta chip, drops the
- * extra paragraph spacing and uses a tighter footer. */
-.ow-success-sms-claim-card {
-  margin: 18px auto 0;
-  max-width: 380px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #fde68a;
-  border-radius: 12px;
-  text-align: left;
-}
-.ow-success-sms-claim-header {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 8px;
-}
-.ow-success-sms-claim-title {
-  margin: 0;
-  font-size: 14px; font-weight: 800; color: #0f172a;
-  letter-spacing: -0.005em;
-}
-.ow-success-sms-claim-body {
-  margin: 0 0 6px;
-  font-size: 13px; line-height: 1.5; color: #334155;
-}
-.ow-success-sms-claim-body strong { color: #0f172a; font-weight: 700; }
-.ow-success-sms-claim-footer {
-  margin: 0;
-  font-size: 12px; line-height: 1.45; color: #64748b;
+/* ============================================================
+   Responsive — mobile sheet
+   ============================================================ */
+@media (max-width: 640px) {
+  .ow-overlay { padding: 0; align-items: flex-end; }
+  .ow-modal {
+    width: 100%;
+    max-height: calc(var(--ow-vh) - 16px);
+    border-radius: 18px 18px 0 0;
+    animation: ow-sheet-in 320ms var(--ow-ease) both;
+  }
+  @keyframes ow-sheet-in {
+    from { transform: translateY(40px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+  .ow-body { padding: 28px 18px 16px; }
+
+  /* Step 1 — hero above headline */
+  .ow-welcome { grid-template-columns: 1fr; gap: 8px; }
+  .ow-hero { order: -1; width: 56%; margin: 0 auto 6px; aspect-ratio: 1/1; }
+  .ow-welcome .ow-h1 { font-size: 24px; }
+
+  /* cards stack */
+  .ow-cards { grid-template-columns: 1fr; }
+
+  /* SMS showcase stacks */
+  .ow-sms-showcase { grid-template-columns: 1fr; gap: 22px; justify-items: center; }
+  .ow-phone-mock { width: 220px; }
+  .ow-sms-steps { width: 100%; }
+
+  /* footer stacks: primary on top */
+  .ow-footer {
+    flex-direction: column-reverse; align-items: stretch; gap: 10px;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  }
+  .ow-footer-right { flex-direction: column-reverse; align-items: stretch; gap: 10px; margin-left: 0; }
+  .ow-footer-right .ow-next { width: 100%; justify-content: center; }
+  .ow-skip, .ow-back { text-align: center; }
+  .ow-back { order: 2; }
+
+  /* verify + payment as bottom sheets */
+  .ow-vmodal-overlay { align-items: flex-end; padding: 0; }
+  .ow-vmodal { width: 100%; border-radius: 18px 18px 0 0; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+
+  .ow-tier-math { font-size: 21px; }
+  .ow-express-row { grid-template-columns: 1fr; }
 }
 
-/* ── Step 5 wallet framing (2026-05-30) ──────────────────────────────────
- *
- * Sits above the activation checklist. Light treatment so it reads as
- * orientation, not as a sales line. */
-.ow-wallet-framing {
-  margin: 0 0 18px;
-  padding: 12px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 13px; line-height: 1.55; color: #334155;
-  text-align: center;
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
-.ow-wallet-framing strong { color: #0f172a; font-weight: 700; }
+
+/* ============================================================
+   V2 — simplified architecture components
+   ============================================================ */
+.ow-helper { font-size: 13px; color: var(--ow-slate-500); margin: 14px 0 0; }
+
+/* Step 1 — welcome v2 (value flow) */
+.ow-welcome2 {
+  display: grid; grid-template-columns: 1fr 264px; gap: 40px; align-items: center;
+}
+.ow-welcome2 .ow-h1 { font-size: 27px; margin-bottom: 10px; }
+.ow-welcome2 .ow-sub { font-size: 14.5px; max-width: 42ch; }
+.ow-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.ow-chip {
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  background: var(--ow-green-soft); color: var(--ow-green-700);
+  border: 1px solid var(--ow-green-border);
+  font-size: 12.5px; font-weight: 600;
+  padding: 6px 12px 6px 10px; border-radius: var(--ow-radius-pill);
+}
+.ow-chip svg { color: var(--ow-green); }
+
+.ow-flow { display: flex; flex-direction: column; }
+.ow-flow-node {
+  position: relative; display: flex; align-items: center; gap: 13px;
+  padding-bottom: 15px;
+  opacity: 0; transform: translateY(8px);
+  animation: ow-reveal 420ms var(--ow-ease) forwards;
+}
+.ow-flow-node:last-child { padding-bottom: 0; }
+.ow-flow-icon {
+  width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ow-orange-50); color: var(--ow-orange);
+  border: 1.5px solid var(--ow-orange-200);
+}
+.ow-flow-label { font-size: 13.5px; font-weight: 600; color: var(--ow-slate-700); }
+.ow-flow-line {
+  position: absolute; left: 18px; top: 38px; bottom: -3px; width: 2px;
+  background: var(--ow-orange-200); border-radius: 2px;
+}
+
+/* autocomplete zip */
+.ow-ac-item span:first-of-type { flex: 1; }
+.ow-ac-zip { font-family: var(--ow-mono); font-size: 12.5px; color: var(--ow-slate-400); }
+
+/* Step 3 — state chips */
+.ow-state-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ow-state-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  background: #fff; color: var(--ow-slate-600);
+  border: 1.5px solid var(--ow-slate-200); border-radius: var(--ow-radius-pill);
+  padding: 7px 13px; transition: all 160ms var(--ow-ease);
+}
+.ow-state-chip:hover { border-color: var(--ow-slate-300); }
+.ow-state-chip.on {
+  background: var(--ow-orange-50); color: var(--ow-orange-800);
+  border-color: var(--ow-orange); 
+}
+.ow-state-chip svg { color: var(--ow-orange); }
+
+/* Step 4 — mini explain */
+.ow-mini-explain { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.ow-mini-explain li {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13.5px; color: var(--ow-slate-600);
+}
+.ow-mini-explain li svg { color: var(--ow-green); flex: 0 0 auto; }
+
+/* Step 5 — animated thread */
+.ow-phone-thread { display: flex; flex-direction: column; gap: 10px; min-height: 184px; }
+.ow-pop { animation: ow-pop-in 280ms var(--ow-overshoot) both; }
+@keyframes ow-pop-in { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+.ow-sms-claimed {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(34,197,94,0.16); color: #7ee2a8;
+  border: 1px solid rgba(34,197,94,0.3);
+  font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 12px;
+}
+.ow-call-callout {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #fff; color: var(--ow-navy);
+  font-size: 13px; font-weight: 700; padding: 9px 15px;
+  border-radius: 14px 14px 4px 14px; box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
+/* Step 6 — offers */
+.ow-offer {
+  position: relative; background: #fff;
+  border: 1.5px solid var(--ow-slate-200); border-radius: 16px;
+  padding: 18px 20px; margin-bottom: 12px;
+}
+.ow-offer--recommended { border-color: var(--ow-orange); box-shadow: 0 0 0 1px var(--ow-orange), 0 12px 28px rgba(255,106,20,0.12); }
+.ow-offer-flag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ow-orange-700); margin-bottom: 10px;
+}
+.ow-offer-flag svg { color: var(--ow-orange); }
+.ow-offer-math {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: nowrap; white-space: nowrap;
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--ow-slate-900);
+}
+.ow-offer-math svg { color: var(--ow-slate-400); }
+.ow-offer-final { color: var(--ow-orange-700); }
+.ow-offer-bonus {
+  display: inline-block; margin-top: 8px;
+  font-size: 12px; font-weight: 700; color: var(--ow-green-700);
+  background: var(--ow-green-soft); border: 1px solid var(--ow-green-border);
+  border-radius: var(--ow-radius-pill); padding: 3px 11px;
+}
+.ow-offer--recommended .ow-next { margin-top: 16px; }
+.ow-btn-ghost {
+  border: 1.5px solid var(--ow-slate-300); background: #fff; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 700; color: var(--ow-slate-700);
+  border-radius: 12px; height: 46px; padding: 0 18px;
+  transition: all 160ms var(--ow-ease);
+}
+.ow-btn-ghost:hover { border-color: var(--ow-slate-400); background: var(--ow-slate-50); }
+.ow-btn-ghost--block { display: block; width: 100%; margin-top: 12px; }
+.ow-activate-reason {
+  font-size: 13px; color: var(--ow-slate-500); line-height: 1.55;
+  text-align: center; margin: 20px 0 6px; max-width: 46ch; margin-left: auto; margin-right: auto;
+}
+
+/* Step 7 — calm success */
+.ow-success-icon--calm {
+  animation: ow-success-pop 350ms var(--ow-overshoot) both;
+  box-shadow: 0 0 0 8px rgba(22,163,74,0.08), 0 10px 24px rgba(22,163,74,0.22);
+}
+.ow-success-check--soft { background: var(--ow-slate-400); }
+
+/* ---- mobile (v2) ---- */
+@media (max-width: 640px) {
+  .ow-welcome2 { grid-template-columns: 1fr; gap: 22px; }
+  .ow-flow { order: 2; }
+  .ow-offer-math { font-size: 20px; }
+}
+
+/* ============================================================
+   V2 — final polish
+   ============================================================ */
+/* Step 3 — clearer map interactivity + summary */
+.ow-map-hint {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 12px; font-weight: 700; color: var(--ow-slate-500);
+  background: #fff; border: 1px solid var(--ow-border); border-radius: var(--ow-radius-pill);
+  padding: 5px 11px; margin: 0 auto 12px; 
+}
+.ow-coverage-map { display: flex; flex-direction: column; align-items: center; }
+.ow-coverage-map > svg { width: 100%; }
+.ow-hex-g--clickable { cursor: pointer; }
+.ow-hex-g--clickable .ow-hex {
+  transition: fill 200ms var(--ow-ease), stroke 200ms var(--ow-ease), transform 140ms var(--ow-ease);
+  transform-box: fill-box; transform-origin: center;
+}
+.ow-hex-g--clickable:hover .ow-hex { transform: scale(1.12); filter: brightness(0.97); }
+.ow-coverage-summary {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 14px; padding: 11px 15px;
+  background: var(--ow-orange-50); border: 1px solid var(--ow-orange-200);
+  border-radius: var(--ow-radius-card);
+}
+.ow-coverage-summary-label {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ow-orange-700);
+}
+.ow-coverage-summary-value { font-size: 14px; font-weight: 700; color: var(--ow-slate-900); }
+
+/* Step 5 — balanced showcase, bigger phone, synced steps, progress dots */
+.ow-sms-showcase {
+  display: grid; grid-template-columns: 264px minmax(0, 300px);
+  justify-content: center; gap: 44px; align-items: center; margin-top: 20px;
+}
+.ow-sms-phone-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.ow-sms-steps { gap: 6px; }
+.ow-phone-mock { width: 264px; }
+.ow-phone-thread { min-height: 196px; }
+.ow-demo-dots { display: flex; gap: 7px; }
+.ow-demo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ow-slate-200); transition: all 220ms var(--ow-ease); }
+.ow-demo-dot.on { background: var(--ow-orange); transform: scale(1.25); }
+.ow-sms-step {
+  display: flex; gap: 12px; align-items: center;
+  padding: 11px 13px; border-radius: 12px;
+  transition: background 240ms var(--ow-ease), opacity 240ms var(--ow-ease);
+  opacity: 0.5;
+}
+.ow-sms-step--active { opacity: 1; background: var(--ow-orange-50); }
+.ow-sms-icon {
+  width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto;
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 10px rgba(255,106,20,0.28);
+}
+.ow-sms-step-text { font-size: 14.5px; font-weight: 600; color: var(--ow-slate-800); line-height: 1.35; }
+.ow-balance-eg { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 13px; color: var(--ow-slate-600); }
+.ow-balance-eg b { color: var(--ow-slate-900); }
+.ow-balance-eg-sep { width: 1px; height: 14px; background: var(--ow-slate-300); }
+
+/* Step 6 — reassurance under recommended */
+.ow-offer-reassure {
+  font-size: 13px; color: var(--ow-slate-500); line-height: 1.5;
+  margin: -2px 4px 16px; text-align: center;
+}
+
+@media (max-width: 640px) {
+  .ow-sms-showcase { grid-template-columns: 1fr; gap: 22px; justify-items: center; }
+  .ow-sms-phone-col { width: 100%; }
+  .ow-phone-mock { width: 240px; }
+  .ow-sms-steps { width: 100%; }
+}
+
+/* Step 3 — real interactive US map */
+.ow-usmap { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.ow-usmap-svg { width: 100%; height: auto; display: block; max-height: 340px; }
+.ow-usmap-state { stroke-width: 0.75; outline: none; }
+.ow-usmap-state.is-clickable { cursor: pointer; }
+.ow-usmap-label { font-size: 13px; font-weight: 700; pointer-events: none; }
+.ow-usmap-loading, .ow-usmap-fallback {
+  width: 100%; min-height: 150px; display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 24px; color: var(--ow-slate-500); font-size: 13px;
+}
+/* chips are the mobile tap-fallback; map handles desktop selection */
+.ow-state-chips--mobile { margin-top: 14px; }
+@media (min-width: 641px) { .ow-state-chips--mobile { display: none; } }
+
+/* delivery cards — title only */
+.ow-card--titleonly { display: flex; align-items: center; min-height: 56px; }
+.ow-card--titleonly .ow-card-title { margin-bottom: 0; }
+
+/* Step 5 — call screen + slower scroll thread */
+.ow-call-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; min-height: 196px; padding: 24px 12px;
+}
+.ow-call-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(180deg, #2a3650, #1a2435); color: #e8edf6;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 800; letter-spacing: 0.02em; margin-bottom: 4px;
+}
+.ow-call-name { color: #e8edf6; font-size: 16px; font-weight: 700; }
+.ow-call-status { color: #7ee2a8; font-size: 13px; font-weight: 600; }
+.ow-call-action {
+  margin-top: 12px; width: 46px; height: 46px; border-radius: 50%;
+  background: #16a34a; color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(22,163,74,0.4);
+  animation: ow-call-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ow-call-pulse { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.08); } }
+.ow-phone-thread { scroll-behavior: smooth; overflow: hidden; }
+/* static phone — full journey shown at once, no scroll, no min-height cap */
+.ow-phone-thread--static { overflow: visible; min-height: 0; }
+
+/* numbered, progressively-highlighted explanation steps */
+.ow-claim-steps { display: flex; flex-direction: column; gap: 4px; }
+.ow-claim-step {
+  display: flex; align-items: center; gap: 13px;
+  padding: 12px 14px; border-radius: 12px;
+  border: 1px solid transparent;
+  transition: background 280ms var(--ow-ease), border-color 280ms var(--ow-ease), opacity 280ms var(--ow-ease);
+}
+.ow-claim-num {
+  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;
+  transition: background 280ms var(--ow-ease), color 280ms var(--ow-ease);
+}
+.ow-claim-text { font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+
+.ow-claim-step--upcoming { opacity: 0.55; }
+.ow-claim-step--upcoming .ow-claim-num { background: var(--ow-slate-100); color: var(--ow-slate-400); }
+.ow-claim-step--upcoming .ow-claim-text { color: var(--ow-slate-500); }
+
+.ow-claim-step--active { background: var(--ow-orange-50); border-color: var(--ow-orange-200); }
+.ow-claim-step--active .ow-claim-num { background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800)); color: #fff; box-shadow: 0 4px 10px rgba(255,106,20,0.3); }
+.ow-claim-step--active .ow-claim-text { color: var(--ow-slate-900); }
+
+.ow-claim-step--done .ow-claim-num { background: var(--ow-green-soft); color: var(--ow-green-700); border: 1px solid var(--ow-green-border); }
+.ow-claim-step--done .ow-claim-text { color: var(--ow-slate-600); }
+
+/* Step 6 — almost ready (setup confirmation) */
+.ow-setup-list {
+  display: flex; flex-direction: column; gap: 12px;
+  max-width: 360px; margin: 6px auto 0;
+}
+.ow-setup-item {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 15px; font-weight: 600; color: var(--ow-slate-700);
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 320ms var(--ow-ease), transform 320ms var(--ow-ease);
+}
+.ow-setup-item.is-in { opacity: 1; transform: none; }
+.ow-setup-check {
+  width: 26px; height: 26px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--ow-green); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.ow-credit {
+  display: flex; align-items: flex-start; gap: 13px;
+  max-width: 420px; margin: 26px auto 0;
+  background: var(--ow-orange-50); border: 1px solid var(--ow-orange-200);
+  border-radius: 14px; padding: 16px 18px;
+  opacity: 0; transform: translateY(10px) scale(0.98);
+  transition: opacity 360ms var(--ow-overshoot), transform 360ms var(--ow-overshoot);
+}
+.ow-credit.is-in { opacity: 1; transform: none; }
+.ow-credit-spark {
+  width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto;
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 10px rgba(255,106,20,0.3);
+}
+.ow-credit-title { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--ow-orange-800); }
+.ow-credit-sub { font-size: 13px; color: var(--ow-slate-600); line-height: 1.5; margin-top: 3px; }
+
+/* Step 7 — browse-first as a quiet text link */
+.ow-activate-skip--link { font-weight: 500; color: var(--ow-slate-500); text-decoration: underline; text-underline-offset: 3px; }
+.ow-activate-skip--link:hover { color: var(--ow-slate-700); }
+
+/* Step 7 — premium activation offers (credit-first hierarchy) */
+.ow-offer2 {
+  position: relative; background: #fff;
+  border: 1px solid var(--ow-border); border-radius: 16px;
+  padding: 22px 22px 20px; margin-bottom: 14px;
+}
+.ow-offer2--rec {
+  border: 1.5px solid var(--ow-orange);
+  box-shadow: 0 0 0 1px var(--ow-orange), 0 16px 34px rgba(255, 106, 20, 0.13);
+  padding-top: 26px;
+}
+.ow-offer2-pill {
+  position: absolute; top: 16px; right: 18px;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em;
+  color: var(--ow-orange-800); background: var(--ow-orange-50);
+  border: 1px solid var(--ow-orange-200); border-radius: var(--ow-radius-pill);
+  padding: 4px 11px 4px 9px;
+}
+.ow-offer2-pill svg { color: var(--ow-orange); }
+.ow-offer2-label {
+  display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ow-slate-400); margin-bottom: 8px;
+}
+.ow-offer2-hero { display: flex; align-items: baseline; gap: 9px; }
+.ow-offer2-amount {
+  font-size: clamp(38px, 9vw, 46px); font-weight: 800; letter-spacing: -0.03em;
+  line-height: 1; color: var(--ow-slate-900);
+}
+.ow-offer2-unit { font-size: 17px; font-weight: 700; color: var(--ow-slate-500); }
+.ow-offer2--starter .ow-offer2-amount { font-size: clamp(30px, 7vw, 34px); }
+.ow-offer2-meta { display: flex; align-items: center; gap: 11px; margin: 11px 0 18px; }
+.ow-offer2-pay { font-size: 15px; font-weight: 600; color: var(--ow-slate-500); }
+.ow-offer2-bonus {
+  font-size: 12px; font-weight: 700; color: var(--ow-green-700);
+  background: var(--ow-green-soft); border: 1px solid var(--ow-green-border);
+  border-radius: var(--ow-radius-pill); padding: 3px 11px;
+}
+.ow-offer2-social { text-align: center; font-size: 12.5px; color: var(--ow-slate-500); margin: 12px 0 0; }
+.ow-offer2--starter .ow-btn-ghost--block { margin-top: 0; }
+
+.ow-trust-row {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 9px 18px;
+  margin: 20px 0 6px;
+}
+.ow-trust-row span {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 12.5px; font-weight: 600; color: var(--ow-slate-600);
+}
+.ow-trust-row svg { color: var(--ow-green); flex: 0 0 auto; }
 
