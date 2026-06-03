@@ -88,6 +88,18 @@ export default function StepSmsClaim({ ctx }) {
         </p>
       </div>
 
+      <div className="ow-balance-note">
+        <Wallet size={16} style={{ color: 'var(--ow-orange)', flex: '0 0 auto', marginTop: 1 }} />
+        <div>
+          <div>To claim by text, your available balance must cover the lead price.</div>
+          <div className="ow-balance-eg">
+            <span>Lead price <b>$42</b></span>
+            <span className="ow-balance-eg-sep" />
+            <span>Required balance <b>$42</b></span>
+          </div>
+        </div>
+      </div>
+
       <div className="ow-sms-showcase">
         <div className="ow-sms-phone-col">
           <SmsDemo origin={r.origin} dest={r.dest} />
@@ -105,18 +117,6 @@ export default function StepSmsClaim({ ctx }) {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      <div className="ow-balance-note">
-        <Wallet size={16} style={{ color: 'var(--ow-orange)', flex: '0 0 auto', marginTop: 1 }} />
-        <div>
-          <div>To claim by text, your available balance must cover the lead price.</div>
-          <div className="ow-balance-eg">
-            <span>Lead price <b>$42</b></span>
-            <span className="ow-balance-eg-sep" />
-            <span>Required balance <b>$42</b></span>
-          </div>
         </div>
       </div>
     </div>
