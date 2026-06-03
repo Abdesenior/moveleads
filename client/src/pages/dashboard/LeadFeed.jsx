@@ -284,17 +284,14 @@ export default function LeadFeed() {
     user?.deliversNationwide
   );
   const [feedScope, setFeedScope] = useState('all');
-  // Promote scope to 'matched' once the user object loads with prefs.
-  // Without this, the initial render (before AuthContext resolves) locks
-  // scope to 'all' and the filter never engages — the symptom: tab badge
-  // shows the matched count but the table renders unmatched rows. Only
-  // fires while the user hasn't manually picked a tab yet.
+  // Default scope is 'all' (the "All marketplace leads" tab) for every mover.
+  // The "Matched for you" tab is opt-in via a click — it is never auto-
+  // selected, even when the mover has preferences set. (Until 2026-06-03 an
+  // effect here promoted scope to 'matched' when hasPrefs; that auto-promotion
+  // was removed so the marketplace tab is the landing default.)
+  // scopeUserPickedRef is retained so the click handlers below can still flag
+  // an explicit user pick (used by the empty-state "browse all" CTA).
   const scopeUserPickedRef = useRef(false);
-  useEffect(() => {
-    if (!scopeUserPickedRef.current && hasPrefs && feedScope === 'all') {
-      setFeedScope('matched');
-    }
-  }, [hasPrefs, feedScope]);
   const pollRef   = useRef(null);
 
   const fetchLeads = useCallback(async () => {
@@ -602,8 +599,8 @@ export default function LeadFeed() {
           marginBottom: 14,
         }} role="tablist" aria-label="Lead scope">
           {[
-            { id: 'matched', label: 'Matched for you' },
             { id: 'all',     label: 'All marketplace leads' },
+            { id: 'matched', label: 'Matched for you' },
           ].map(tab => {
             const active = feedScope === tab.id;
             // Strict `=== true` here too — same predicate the filter uses, so
