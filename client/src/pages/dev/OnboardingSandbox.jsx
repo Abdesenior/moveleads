@@ -24,6 +24,12 @@ import { useContext, useState } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import OnboardingWizard from '../onboarding/OnboardingWizard';
 import { useToast } from '../../components/ui/Toast';
+// Sandbox-scoped iteration layer. Any CSS in this file only matches
+// when the wizard mounts inside .ow-sandbox-mode (the wrapper below),
+// so we can preview design tweaks here before promoting them to the
+// production Onboarding.css. Tweaks that look good in sandbox get
+// ported over by removing the .ow-sandbox-mode prefix from the rule.
+import './OnboardingSandbox.css';
 
 const SCREENS = [
   { id: 1, label: 'Welcome' },
@@ -198,7 +204,9 @@ export default function OnboardingSandbox() {
       </p>
 
       {wizardOpen && (
-        <OnboardingWizard onClose={closeWizard} initialStep={initialStep} />
+        <div className="ow-sandbox-mode">
+          <OnboardingWizard onClose={closeWizard} initialStep={initialStep} />
+        </div>
       )}
     </div>
   );
