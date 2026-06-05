@@ -199,108 +199,393 @@
   .ow-sandbox-mode .ow-verify-popup-digit { width: 40px; height: 48px; font-size: 20px; }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   SMS Claim — unified card + 5-step animated thread (2026-06-05)
+/* ═══════════════════════════════════════════════════════════════════
+   SMS Claim v2 — phone-as-tutorial redesign (2026-06-05)
    ---
-   Production layout has phone | right-col, with balance + steps stacked
-   in right-col. Operator wants a single cohesive section: phone + steps
-   in one row inside a soft-bordered card, balance as the card's hairline-
-   divided footer. Same modal width.
+   Replaces the previous .ow-sms-showcase--unified block. Operator goal:
+   mover understands the feature in under 5 seconds; phone animation
+   teaches the entire flow; no numbered checklist; no scroll on common
+   viewports. Layout:
 
-   The phone thread is animated — each bubble fades in as the explainer
-   step list ticks. Reveal is driven by `.is-shown` toggled in the JSX
-   when `active >= bubble-index`. min-height on the thread keeps modal
-   height constant across the 6 ticks.
-   ───────────────────────────────────────────────────────────── */
+     Desktop                                Mobile
+     ┌──────────────┬────────────┐          ┌────────────┐
+     │ Title        │            │          │ Title      │
+     │ Sub          │            │          │ Sub        │
+     │              │  [phone    │          │            │
+     │ ⚡ Benefit 1 │  animated  │          │ [phone]    │
+     │ 🏆 Benefit 2 │   thread]  │          │            │
+     │ 📞 Benefit 3 │            │          │ Balance    │
+     ├──────────────┴────────────┤          │ ────────── │
+     │       Balance card        │          └────────────┘
+     └───────────────────────────┘
+   ═══════════════════════════════════════════════════════════════════ */
 
-.ow-sandbox-mode .ow-sms-showcase--unified {
+/* Container ----------------------------------------------------------- */
+.ow-sandbox-mode .ow-smsclaim-v2 {
+  max-width: 760px;
+}
+.ow-sandbox-mode .ow-smsclaim-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 256px;
+  gap: 36px;
+  align-items: start;
+  margin-top: 4px;
+}
+
+/* Left copy column ---------------------------------------------------- */
+.ow-sandbox-mode .ow-smsclaim-title {
+  margin: 0 0 10px;
+  font-size: 26px;
+  line-height: 1.16;
+}
+.ow-sandbox-mode .ow-smsclaim-sub {
+  margin: 0 0 22px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ow-slate-500);
+}
+.ow-sandbox-mode .ow-smsclaim-orange {
+  color: var(--ow-orange-700);
+  font-weight: 700;
+}
+.ow-sandbox-mode .ow-smsclaim-benefits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  margin: 18px auto 4px;
-  max-width: 640px;
-  background: var(--ow-slate-50);
-  border: 1px solid var(--ow-border);
-  border-radius: 18px;
-  overflow: hidden;
+  gap: 16px;
+}
+.ow-sandbox-mode .ow-smsclaim-benefit {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.ow-sandbox-mode .ow-smsclaim-benefit-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--ow-orange-50);
+  color: var(--ow-orange-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ow-sandbox-mode .ow-smsclaim-benefit-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ow-slate-900);
+  margin-bottom: 2px;
+}
+.ow-sandbox-mode .ow-smsclaim-benefit-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ow-slate-500);
 }
 
-.ow-sandbox-mode .ow-sms-showcase--unified .ow-sms-showcase-grid {
-  display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
-  gap: 28px;
-  padding: 22px 22px 18px;
-  align-items: start;
-}
-
-.ow-sandbox-mode .ow-sms-showcase--unified .ow-sms-phone-col {
+/* Phone column -------------------------------------------------------- */
+.ow-sandbox-mode .ow-smsclaim-phone-col {
   display: flex;
   justify-content: center;
 }
-.ow-sandbox-mode .ow-sms-showcase--unified .ow-phone-mock {
-  width: 232px;
+
+/* Phone artwork — a slim device frame, light bezel, status bar + notch,
+   header, thread, and a faux text-input bar at the bottom. Sized to fit
+   inside the modal's body without driving the modal taller than ~580px
+   total on common viewports. */
+.ow-sandbox-mode .ow-smsclaim-phone-frame {
+  position: relative;
+  width: 256px;
+  background: #ffffff;
+  border: 8px solid #0f172a;
+  border-radius: 36px;
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
 }
 
-/* Animated thread keeps a fixed min-height so modal doesn't reflow as
-   bubbles fade in. 280px fits all 5 elements vertically with breathing
-   room; if the thread later grows, raise this in lockstep. */
-.ow-sandbox-mode .ow-phone-thread--animated {
-  min-height: 296px;
+/* Status bar (9:41 + signal dots) */
+.ow-sandbox-mode .ow-smsclaim-phone-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ow-slate-900);
+}
+.ow-sandbox-mode .ow-smsclaim-phone-time {
+  font-variant-numeric: tabular-nums;
+}
+.ow-sandbox-mode .ow-smsclaim-phone-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.ow-sandbox-mode .ow-smsclaim-phone-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ow-slate-700);
+}
+
+.ow-sandbox-mode .ow-smsclaim-phone-notch {
+  margin: 0 auto 6px;
+  width: 56px;
+  height: 5px;
+  background: #0f172a;
+  border-radius: 999px;
+}
+
+/* Screen contents */
+.ow-sandbox-mode .ow-smsclaim-phone-screen {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  justify-content: flex-end;
+  padding: 0 0 6px;
+}
+.ow-sandbox-mode .ow-smsclaim-phone-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 8px;
+  border-bottom: 1px solid var(--ow-slate-100);
+}
+.ow-sandbox-mode .ow-smsclaim-phone-back {
+  color: var(--ow-orange);
+  flex: 0 0 auto;
+}
+.ow-sandbox-mode .ow-smsclaim-phone-avatar {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ow-orange);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ow-sandbox-mode .ow-smsclaim-phone-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ow-slate-900);
+}
+.ow-sandbox-mode .ow-smsclaim-phone-day {
+  font-size: 10.5px;
+  color: var(--ow-slate-400);
+  text-align: center;
+  padding: 8px 0 4px;
+  font-weight: 600;
 }
 
-/* Bubble reveal — start translucent + slightly below, ease into place. */
-.ow-sandbox-mode .ow-sms-reveal {
+/* Thread — fixed min-height keeps modal stable as bubbles fade in. */
+.ow-sandbox-mode .ow-smsclaim-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 10px 8px;
+  min-height: 318px;
+}
+
+/* Bubble reveal */
+.ow-sandbox-mode .ow-smsclaim-reveal {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(8px) scale(0.985);
   transition:
     opacity 360ms cubic-bezier(0.2, 0.9, 0.3, 1.1),
     transform 360ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
-.ow-sandbox-mode .ow-sms-reveal.is-shown {
+.ow-sandbox-mode .ow-smsclaim-reveal.is-shown {
   opacity: 1;
   transform: none;
 }
 
-/* Step list inside the card sits flush-left aligned with the phone top. */
-.ow-sandbox-mode .ow-sms-showcase--unified .ow-claim-steps {
-  gap: 4px;
+/* Base bubble */
+.ow-sandbox-mode .ow-smsclaim-bub {
+  position: relative;
+  font-size: 11.5px;
+  line-height: 1.4;
+  padding: 7px 10px;
+  border-radius: 14px;
+  max-width: 86%;
+  color: var(--ow-slate-900);
+}
+.ow-sandbox-mode .ow-smsclaim-bub-title {
+  font-weight: 700;
+  color: var(--ow-slate-900);
+  margin-bottom: 2px;
+}
+.ow-sandbox-mode .ow-smsclaim-bub-time {
+  display: block;
+  margin-top: 4px;
+  font-size: 9.5px;
+  color: var(--ow-slate-400);
+  font-weight: 600;
 }
 
-/* Balance row — bottom of the card, hairline divider, no border-radius
-   (the parent's overflow: hidden does the corner clipping). */
-.ow-sandbox-mode .ow-sms-showcase--unified .ow-balance-note {
-  margin: 0;
-  border: none;
-  border-top: 1px solid var(--ow-border);
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.55);
-  padding: 12px 22px;
+/* Incoming (gray, left) */
+.ow-sandbox-mode .ow-smsclaim-bub--in {
+  align-self: flex-start;
+  background: var(--ow-slate-100);
+  border-bottom-left-radius: 6px;
+}
+.ow-sandbox-mode .ow-smsclaim-bub--celebrate {
+  background: #ecfdf5;
+  color: var(--ow-slate-900);
+}
+.ow-sandbox-mode .ow-smsclaim-bub--celebrate .ow-smsclaim-bub-title {
+  color: var(--ow-green-700, #047857);
 }
 
-/* Reduced-motion users get the terminal state instantly. */
+/* Outgoing SEND ABCD (green, right) */
+.ow-sandbox-mode .ow-smsclaim-bub--out {
+  align-self: flex-end;
+  background: var(--ow-green, #10b981);
+  color: #fff;
+  font-weight: 700;
+  border-bottom-right-radius: 6px;
+}
+.ow-sandbox-mode .ow-smsclaim-bub--out .ow-smsclaim-bub-time {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* Calling Sarah M. (green pill with phone icon, right-aligned) */
+.ow-sandbox-mode .ow-smsclaim-bub--call {
+  align-self: flex-end;
+  background: #ecfdf5;
+  color: var(--ow-green-700, #047857);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 12px;
+  border-bottom-right-radius: 6px;
+  max-width: 88%;
+}
+.ow-sandbox-mode .ow-smsclaim-bub-call-text { line-height: 1.3; }
+.ow-sandbox-mode .ow-smsclaim-bub-call-title { font-weight: 700; }
+.ow-sandbox-mode .ow-smsclaim-bub-call-icon {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ow-green, #10b981);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Faux text-input bar at bottom */
+.ow-sandbox-mode .ow-smsclaim-phone-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 8px 6px;
+  padding: 6px 10px;
+  background: var(--ow-slate-100);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--ow-slate-400);
+}
+.ow-sandbox-mode .ow-smsclaim-phone-input-plus,
+.ow-sandbox-mode .ow-smsclaim-phone-input-mic {
+  color: var(--ow-slate-500);
+  display: inline-flex;
+}
+.ow-sandbox-mode .ow-smsclaim-phone-input-placeholder { flex: 1 1 auto; }
+
+/* Balance card — compact integrated row beneath the grid ------------- */
+.ow-sandbox-mode .ow-smsclaim-balance {
+  margin-top: 18px;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  background: var(--ow-orange-50);
+  border: 1px solid var(--ow-orange-border);
+  border-radius: 14px;
+}
+.ow-sandbox-mode .ow-smsclaim-balance-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 106, 20, 0.14);
+  color: var(--ow-orange-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.ow-sandbox-mode .ow-smsclaim-balance-copy {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ow-slate-700);
+}
+.ow-sandbox-mode .ow-smsclaim-balance-copy strong {
+  color: var(--ow-slate-900);
+  font-weight: 700;
+}
+.ow-sandbox-mode .ow-smsclaim-balance-eg {
+  display: flex;
+  gap: 18px;
+}
+.ow-sandbox-mode .ow-smsclaim-balance-eg-col { text-align: right; }
+.ow-sandbox-mode .ow-smsclaim-balance-eg-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ow-slate-500);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ow-sandbox-mode .ow-smsclaim-balance-eg-value {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ow-orange-700);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion — bubbles snap to final state, no fade */
 @media (prefers-reduced-motion: reduce) {
-  .ow-sandbox-mode .ow-sms-reveal {
+  .ow-sandbox-mode .ow-smsclaim-reveal {
     opacity: 1;
     transform: none;
     transition: none;
   }
 }
 
-/* Mobile — collapse to single column inside the same card. */
+/* Mobile — collapse to 1-column. Hide benefits to keep the step fitting
+   within a mobile viewport without scrolling: Title → Phone → Balance
+   → CTA. The phone's tutorial conveys the value; benefits are desktop-
+   surface chrome. */
 @media (max-width: 640px) {
-  .ow-sandbox-mode .ow-sms-showcase--unified {
-    margin-inline: 0;
-  }
-  .ow-sandbox-mode .ow-sms-showcase--unified .ow-sms-showcase-grid {
+  .ow-sandbox-mode .ow-smsclaim-grid {
     grid-template-columns: 1fr;
-    gap: 18px;
-    padding: 18px 16px 14px;
+    gap: 16px;
     justify-items: center;
   }
-  .ow-sandbox-mode .ow-sms-showcase--unified .ow-phone-mock { width: 220px; }
-  .ow-sandbox-mode .ow-phone-thread--animated { min-height: 252px; }
-  .ow-sandbox-mode .ow-sms-showcase--unified .ow-balance-note { padding: 12px 16px; }
+  .ow-sandbox-mode .ow-smsclaim-copy {
+    text-align: center;
+    width: 100%;
+  }
+  .ow-sandbox-mode .ow-smsclaim-title { font-size: 22px; }
+  .ow-sandbox-mode .ow-smsclaim-sub { margin-bottom: 8px; }
+  .ow-sandbox-mode .ow-smsclaim-benefits { display: none; }
+  .ow-sandbox-mode .ow-smsclaim-phone-frame { width: 232px; }
+  .ow-sandbox-mode .ow-smsclaim-thread { min-height: 290px; }
+  .ow-sandbox-mode .ow-smsclaim-balance {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+  .ow-sandbox-mode .ow-smsclaim-balance-eg {
+    justify-content: center;
+    gap: 22px;
+  }
+  .ow-sandbox-mode .ow-smsclaim-balance-eg-col { text-align: center; }
 }
