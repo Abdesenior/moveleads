@@ -205,7 +205,7 @@ export default function OnboardingSandbox() {
 
       {wizardOpen && (
         <div className="ow-sandbox-mode">
-          <OnboardingWizard onClose={closeWizard} initialStep={initialStep} />
+          <OnboardingWizard sandbox onClose={closeWizard} initialStep={initialStep} />
         </div>
       )}
     </div>
