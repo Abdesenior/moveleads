@@ -226,10 +226,10 @@
 }
 .ow-sandbox-mode .ow-smsclaim-grid {
   display: grid;
-  grid-template-columns: 40fr 60fr;
+  grid-template-columns: 60fr 40fr;
   grid-template-areas:
-    "copy phone"
-    "balance phone";
+    "phone copy"
+    "phone balance";
   column-gap: 28px;
   row-gap: 16px;
   align-items: start;
@@ -372,12 +372,9 @@
   .ow-sandbox-mode .ow-smsclaim-benefits { display: none; }
   .ow-sandbox-mode .ow-smsclaim-phone-img { max-width: 300px; }
 
-  /* Mobile Example card — full width within the column. Inner layout
-     (label + two rows) stays identical to desktop. */
-  .ow-sandbox-mode .ow-smsclaim-balance {
-    width: 100%;
-    max-width: 320px;
-    text-align: left;
-    padding: 10px 12px;
-  }
+  /* Hide the Example card on mobile — the phone PNG already shows the
+     "$42" lead price + balance balance in the customer-details bubble.
+     Removing it tightens the mobile experience and keeps the CTA in
+     view without scrolling. */
+  .ow-sandbox-mode .ow-smsclaim-balance { display: none; }
 }
