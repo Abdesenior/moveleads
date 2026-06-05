@@ -8,7 +8,7 @@ import {
 import { AuthContext } from '../context/AuthContext';
 import ImpersonationBanner from './ImpersonationBanner';
 import VerificationBanner from './VerificationBanner';
-import ActivationBanner from './ActivationBanner';
+import OnboardingOfferBanner from './OnboardingOfferBanner';
 import FirstTopupReassurancePopup from './FirstTopupReassurancePopup';
 import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
 import SidebarTooltip from './SidebarTooltip';
@@ -70,11 +70,11 @@ export default function DashboardLayout({ children }) {
     // WP-A4 — gate auto-mount on email verification. Unverified users see
     // the dashboard (Lead Feed, Settings, Profile) but the activation wizard
     // must NOT auto-mount — they have to verify their email first. The
-    // ActivationBanner handles the verification CTA in this state.
+    // OnboardingOfferBanner handles the verification CTA in this state.
     if (user.isEmailVerified !== true) return;
     // Partner finished setup and explicitly dismissed the activation offer.
     // Don't auto-mount the wizard again — that feels paywalled. The
-    // ActivationBanner CTA still drives explicit re-engagement, and deep
+    // OnboardingOfferBanner CTA still drives explicit re-engagement, and deep
     // links (?activate=1, ?onboarding=resume) still open the wizard
     // because they signal explicit user intent.
     if (user.onboarding?.activationOfferDismissedAt) return;
@@ -253,7 +253,7 @@ export default function DashboardLayout({ children }) {
         )}
       </div>
 
-      <ActivationBanner onActivate={openActivation} />
+      <OnboardingOfferBanner onActivate={openActivation} />
       <ImpersonationBanner />
       <VerificationBanner />
 
