@@ -146,24 +146,24 @@ export default function StepSmsClaim({ ctx }) {
               draggable={false}
             />
           </div>
-        </div>
 
-        <div className="ow-smsclaim-balance">
-          <span className="ow-smsclaim-balance-icon" aria-hidden="true">
-            <Wallet size={18} strokeWidth={2.2} />
-          </span>
-          <div className="ow-smsclaim-balance-copy">
-            <strong>To claim a lead by text,</strong>
-            <span> your balance must cover the lead price.</span>
-          </div>
-          <div className="ow-smsclaim-balance-eg">
-            <div className="ow-smsclaim-balance-eg-col">
-              <div className="ow-smsclaim-balance-eg-label">Lead price</div>
-              <div className="ow-smsclaim-balance-eg-value">$42</div>
+          <div className="ow-smsclaim-balance">
+            <span className="ow-smsclaim-balance-icon" aria-hidden="true">
+              <Wallet size={18} strokeWidth={2.2} />
+            </span>
+            <div className="ow-smsclaim-balance-copy">
+              <strong>To claim a lead by text,</strong>
+              <span> your balance must cover the lead price.</span>
             </div>
-            <div className="ow-smsclaim-balance-eg-col">
-              <div className="ow-smsclaim-balance-eg-label">Balance needed</div>
-              <div className="ow-smsclaim-balance-eg-value">$42</div>
+            <div className="ow-smsclaim-balance-eg">
+              <div className="ow-smsclaim-balance-eg-col">
+                <div className="ow-smsclaim-balance-eg-label">Lead price</div>
+                <div className="ow-smsclaim-balance-eg-value">$42</div>
+              </div>
+              <div className="ow-smsclaim-balance-eg-col">
+                <div className="ow-smsclaim-balance-eg-label">Balance needed</div>
+                <div className="ow-smsclaim-balance-eg-value">$42</div>
+              </div>
             </div>
           </div>
         </div>
