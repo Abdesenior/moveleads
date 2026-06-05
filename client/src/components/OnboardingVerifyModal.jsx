@@ -30,6 +30,45 @@ function formatUSPhone(input) {
   return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
 }
 
+// Map server error codes to mover-facing copy. Never expose vendor names
+// (Twilio etc.) to the mover — they have no context for those. Falls
+// back to a generic-but-clear default so unknown server `message` fields
+// never bubble through.
+function friendlyError(json, fallback = 'Something went wrong. Please try again.') {
+  if (!json || !json.error) return fallback;
+  switch (json.error) {
+    case 'no_phone_on_file':
+      return 'Add a phone number in your profile first.';
+    case 'phone_in_use':
+      return 'This number is already verified on another account. Contact support if that seems wrong.';
+    case 'cooldown_active':
+      return `Please wait ${json.retryAfterSec || 60} seconds before requesting another code.`;
+    case 'daily_limit':
+      return "We've sent the limit of codes today. Try again in 24 hours, or call (307) 204-4792 to verify by phone.";
+    case 'verify_service_unavailable':
+      return 'Verification is briefly unavailable. Please try again shortly.';
+    case 'invalid_phone_format':
+      return "This phone number couldn't be verified. Please check the number and try again.";
+    case 'verification_blocked_by_twilio':
+      return "We couldn't send the code — your carrier may be blocking it. Call (307) 204-4792 and we'll verify you by phone.";
+    case 'invalid_code':
+      return "That code didn't match. Double-check and try again.";
+    case 'invalid_code_format':
+      return 'Enter the full 6-digit code.';
+    case 'verification_expired':
+      return 'Code expired or too many attempts. Send a new code.';
+    case 'no_active_verification':
+      return 'No active code. Send a new one.';
+    case 'twilio_rate_limit':
+      return 'Too many requests right now. Please try again in a few minutes.';
+    case 'ip_rate_limit':
+      return 'Too many requests from your network. Try again later.';
+    default:
+      // Don't fall back to json.message — it may contain vendor names.
+      return fallback;
+  }
+}
+
 export default function OnboardingVerifyModal({ isOpen, onClose, onSuccess }) {
   const { API_URL, token, user, refreshUser } = useContext(AuthContext);
   const phone = user?.phone || '';
@@ -72,7 +111,7 @@ export default function OnboardingVerifyModal({ isOpen, onClose, onSuccess }) {
           if (json.error === 'rate_limited' || json.error === 'cooldown_active') {
             setResendCooldown(Number(json.cooldownRemainingSec) || 60);
           } else {
-            setError(json.message || 'Could not send code. Try again in a moment.');
+            setError(friendlyError(json, 'Could not send code. Try again in a moment.'));
           }
         } else {
           setResendCooldown(60);
@@ -155,7 +194,7 @@ export default function OnboardingVerifyModal({ isOpen, onClose, onSuccess }) {
           inputRefs.current[0]?.focus();
           sentForRef.current = null; // allow auto-resend or manual resend
         } else {
-          setError(json.message || 'That code didn\'t work. Please try again.');
+          setError(friendlyError(json, "That code didn't work. Please try again."));
         }
         return;
       }
@@ -180,7 +219,7 @@ export default function OnboardingVerifyModal({ isOpen, onClose, onSuccess }) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) {
-        setError(json.message || 'Could not send code. Try again later.');
+        setError(friendlyError(json, 'Could not send code. Try again later.'));
       } else {
         setResendCooldown(60);
         inputRefs.current[0]?.focus();

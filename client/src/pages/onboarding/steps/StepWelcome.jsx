@@ -21,7 +21,16 @@ const TRUST_CHIPS = [
   'Published quickly after qualification',
 ];
 
-export default function StepWelcome() {
+// Sandbox-only variant — operator-approved aggressive copy. Promoted to
+// production once approved (W3 lock-in flips to assert these instead).
+const TRUST_CHIPS_SANDBOX = [
+  'Exclusive leads',
+  'Ready-to-book customers',
+  'Delivered within seconds',
+];
+
+export default function StepWelcome({ ctx }) {
+  const chips = ctx?.sandbox ? TRUST_CHIPS_SANDBOX : TRUST_CHIPS;
   return (
     <div className="ow-content ow-content--wide">
       <div className="ow-welcome2">
@@ -33,7 +42,7 @@ export default function StepWelcome() {
             the areas they serve.
           </p>
           <div className="ow-chips">
-            {TRUST_CHIPS.map((c) => (
+            {chips.map((c) => (
               <span className="ow-chip" key={c}>
                 <Check size={13} strokeWidth={3} /> {c}
               </span>

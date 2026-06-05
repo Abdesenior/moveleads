@@ -50,7 +50,7 @@ const stripePromiseSingleton = (() => {
   };
 })();
 
-function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip }) {
+function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sandbox }) {
   const ctaLabel = fetching
     ? 'Preparing secure payment…'
     : tier === 100
@@ -114,7 +114,9 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip }) {
       </div>
 
       <p className="ow-trust-strip">
-        Refundable balance · No subscription · Balance never expires · Pay per lead, never per month
+        {sandbox
+          ? 'No subscription · Balance never expires · Pay only when you buy a lead'
+          : 'Refundable balance · No subscription · Balance never expires · Pay per lead, never per month'}
       </p>
 
       {initErr && (
@@ -349,6 +351,7 @@ export default function StepActivate({ ctx }) {
       initErr={initErr}
       onContinue={handleContinue}
       onSkip={onBrowseFirst}
+      sandbox={ctx.sandbox}
     />
   );
 }

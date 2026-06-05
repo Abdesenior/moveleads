@@ -101,7 +101,9 @@ export default function StepContact({ ctx }) {
               <span className="ow-vs-icon"><AlertTriangle size={18} /></span>
               <div className="ow-vs-body">
                 <p className="ow-vs-title">Confirm your phone to receive text alerts</p>
-                <p className="ow-vs-text">We'll send you a 6-digit code.</p>
+                {!ctx.sandbox && (
+                  <p className="ow-vs-text">We'll send you a 6-digit code.</p>
+                )}
               </div>
               <button
                 type="button"

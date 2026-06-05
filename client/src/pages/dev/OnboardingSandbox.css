@@ -198,3 +198,109 @@
   .ow-sandbox-mode .ow-verify-popup { padding: 24px 18px 18px; }
   .ow-sandbox-mode .ow-verify-popup-digit { width: 40px; height: 48px; font-size: 20px; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   SMS Claim — unified card + 5-step animated thread (2026-06-05)
+   ---
+   Production layout has phone | right-col, with balance + steps stacked
+   in right-col. Operator wants a single cohesive section: phone + steps
+   in one row inside a soft-bordered card, balance as the card's hairline-
+   divided footer. Same modal width.
+
+   The phone thread is animated — each bubble fades in as the explainer
+   step list ticks. Reveal is driven by `.is-shown` toggled in the JSX
+   when `active >= bubble-index`. min-height on the thread keeps modal
+   height constant across the 6 ticks.
+   ───────────────────────────────────────────────────────────── */
+
+.ow-sandbox-mode .ow-sms-showcase--unified {
+  display: flex;
+  flex-direction: column;
+  margin: 18px auto 4px;
+  max-width: 640px;
+  background: var(--ow-slate-50);
+  border: 1px solid var(--ow-border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.ow-sandbox-mode .ow-sms-showcase--unified .ow-sms-showcase-grid {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 28px;
+  padding: 22px 22px 18px;
+  align-items: start;
+}
+
+.ow-sandbox-mode .ow-sms-showcase--unified .ow-sms-phone-col {
+  display: flex;
+  justify-content: center;
+}
+.ow-sandbox-mode .ow-sms-showcase--unified .ow-phone-mock {
+  width: 232px;
+}
+
+/* Animated thread keeps a fixed min-height so modal doesn't reflow as
+   bubbles fade in. 280px fits all 5 elements vertically with breathing
+   room; if the thread later grows, raise this in lockstep. */
+.ow-sandbox-mode .ow-phone-thread--animated {
+  min-height: 296px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+/* Bubble reveal — start translucent + slightly below, ease into place. */
+.ow-sandbox-mode .ow-sms-reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 360ms cubic-bezier(0.2, 0.9, 0.3, 1.1),
+    transform 360ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.ow-sandbox-mode .ow-sms-reveal.is-shown {
+  opacity: 1;
+  transform: none;
+}
+
+/* Step list inside the card sits flush-left aligned with the phone top. */
+.ow-sandbox-mode .ow-sms-showcase--unified .ow-claim-steps {
+  gap: 4px;
+}
+
+/* Balance row — bottom of the card, hairline divider, no border-radius
+   (the parent's overflow: hidden does the corner clipping). */
+.ow-sandbox-mode .ow-sms-showcase--unified .ow-balance-note {
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--ow-border);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 12px 22px;
+}
+
+/* Reduced-motion users get the terminal state instantly. */
+@media (prefers-reduced-motion: reduce) {
+  .ow-sandbox-mode .ow-sms-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Mobile — collapse to single column inside the same card. */
+@media (max-width: 640px) {
+  .ow-sandbox-mode .ow-sms-showcase--unified {
+    margin-inline: 0;
+  }
+  .ow-sandbox-mode .ow-sms-showcase--unified .ow-sms-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px 16px 14px;
+    justify-items: center;
+  }
+  .ow-sandbox-mode .ow-sms-showcase--unified .ow-phone-mock { width: 220px; }
+  .ow-sandbox-mode .ow-phone-thread--animated { min-height: 252px; }
+  .ow-sandbox-mode .ow-sms-showcase--unified .ow-balance-note { padding: 12px 16px; }
+}
