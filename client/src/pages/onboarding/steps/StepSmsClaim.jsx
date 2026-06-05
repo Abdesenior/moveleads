@@ -23,7 +23,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Check, Phone, PhoneCall, Wallet, Zap, Trophy } from 'lucide-react';
+import { Check, Phone, PhoneCall, Wallet, Zap } from 'lucide-react';
 
 // ── Production showcase (unchanged) ────────────────────────────────────────
 function SmsDemo({ origin, dest }) {
@@ -70,22 +70,10 @@ const STEPS = [
   'Customer details received',
 ];
 
+// Two title-only chips — the phone PNG carries the rest of the explanation.
 const BENEFITS = [
-  {
-    Icon: Zap,
-    title: 'Instant notifications',
-    text: 'Get notified the moment a matching lead arrives.',
-  },
-  {
-    Icon: Trophy,
-    title: 'First mover wins',
-    text: 'The first mover to reply claims the lead.',
-  },
-  {
-    Icon: Phone,
-    title: 'Connect faster',
-    text: 'Receive customer details immediately and call while the lead is hot.',
-  },
+  { Icon: Zap,   title: 'First to reply wins' },
+  { Icon: Phone, title: 'Customer details sent immediately' },
 ];
 
 export default function StepSmsClaim({ ctx }) {
@@ -118,21 +106,16 @@ export default function StepSmsClaim({ ctx }) {
           <div className="ow-smsclaim-copy">
             <h1 className="ow-h1 ow-smsclaim-title">Claim leads by text</h1>
             <p className="ow-sub ow-smsclaim-sub">
-              Get a text when a matching lead arrives.
-              <br />
-              Reply <strong className="ow-smsclaim-orange">SEND</strong> to claim it instantly.
+              Reply <strong className="ow-smsclaim-orange">SEND</strong> to claim matching leads instantly.
             </p>
 
             <ul className="ow-smsclaim-benefits">
               {BENEFITS.map((b) => (
                 <li key={b.title} className="ow-smsclaim-benefit">
                   <span className="ow-smsclaim-benefit-icon" aria-hidden="true">
-                    <b.Icon size={18} strokeWidth={2.2} />
+                    <b.Icon size={16} strokeWidth={2.4} />
                   </span>
-                  <div>
-                    <div className="ow-smsclaim-benefit-title">{b.title}</div>
-                    <div className="ow-smsclaim-benefit-text">{b.text}</div>
-                  </div>
+                  <span className="ow-smsclaim-benefit-title">{b.title}</span>
                 </li>
               ))}
             </ul>
@@ -148,22 +131,14 @@ export default function StepSmsClaim({ ctx }) {
           </div>
 
           <div className="ow-smsclaim-balance">
-            <span className="ow-smsclaim-balance-icon" aria-hidden="true">
-              <Wallet size={18} strokeWidth={2.2} />
-            </span>
-            <div className="ow-smsclaim-balance-copy">
-              <strong>To claim a lead by text,</strong>
-              <span> your balance must cover the lead price.</span>
+            <div className="ow-smsclaim-balance-label">Example</div>
+            <div className="ow-smsclaim-balance-row">
+              <span>Lead price</span>
+              <strong>$42</strong>
             </div>
-            <div className="ow-smsclaim-balance-eg">
-              <div className="ow-smsclaim-balance-eg-col">
-                <div className="ow-smsclaim-balance-eg-label">Lead price</div>
-                <div className="ow-smsclaim-balance-eg-value">$42</div>
-              </div>
-              <div className="ow-smsclaim-balance-eg-col">
-                <div className="ow-smsclaim-balance-eg-label">Balance needed</div>
-                <div className="ow-smsclaim-balance-eg-value">$42</div>
-              </div>
+            <div className="ow-smsclaim-balance-row">
+              <span>Balance needed</span>
+              <strong>$42</strong>
             </div>
           </div>
         </div>
