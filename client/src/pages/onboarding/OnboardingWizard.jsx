@@ -41,6 +41,7 @@ import { X, ArrowRight } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
 import VerifyPhoneModal from '../../components/VerifyPhoneModal';
+import OnboardingVerifyModal from '../../components/OnboardingVerifyModal';
 import { useToast } from '../../components/ui/Toast';
 import {
   splitAddress,
@@ -108,7 +109,7 @@ function isValidUSPhone(input) {
   return true;
 }
 
-export default function OnboardingWizard({ onClose, initialStep }) {
+export default function OnboardingWizard({ onClose, initialStep, sandbox = false }) {
   const { API_URL, refreshUser, user } = useContext(AuthContext);
   const toast = useToast();
   const navigate = useNavigate();
@@ -333,6 +334,13 @@ export default function OnboardingWizard({ onClose, initialStep }) {
 
   function handleVerifyClose() {
     setVerifyOpen(false);
+    // Sandbox mode: verification is REQUIRED. "Wrong number?" or any other
+    // close path just hides the modal — the mover stays on Step 4 (Contact)
+    // with the phone field amber, and clicking Continue retriggers the
+    // modal. No skip.
+    if (sandbox) return;
+    // Production (today): soft-skip — mover advances to SMS Claim with a
+    // toast suggesting they verify later from Settings.
     if (toast && toast.info) {
       toast.info(
         'Your phone is saved',
@@ -474,11 +482,19 @@ export default function OnboardingWizard({ onClose, initialStep }) {
             } else {
               setVerifyOpen(true);
             }
+          } else if (sandbox) {
+            // Sandbox: verification REQUIRED — can't read /auth/me cleanly,
+            // so force the verify modal open rather than soft-advancing.
+            setVerifyOpen(true);
           } else {
             setScreen(SCREENS.SMS_CLAIM);
           }
         } catch {
-          setScreen(SCREENS.SMS_CLAIM);
+          if (sandbox) {
+            setVerifyOpen(true);
+          } else {
+            setScreen(SCREENS.SMS_CLAIM);
+          }
         }
       } catch (err) {
         console.error('[OnboardingWizard] saveStep(3) failed:', err);
@@ -715,11 +731,19 @@ export default function OnboardingWizard({ onClose, initialStep }) {
         )}
       </div>
 
-      <VerifyPhoneModal
-        isOpen={verifyOpen}
-        onClose={handleVerifyClose}
-        onSuccess={handleVerifySuccess}
-      />
+      {sandbox ? (
+        <OnboardingVerifyModal
+          isOpen={verifyOpen}
+          onClose={handleVerifyClose}
+          onSuccess={handleVerifySuccess}
+        />
+      ) : (
+        <VerifyPhoneModal
+          isOpen={verifyOpen}
+          onClose={handleVerifyClose}
+          onSuccess={handleVerifySuccess}
+        />
+      )}
     </div>
   );
 }
