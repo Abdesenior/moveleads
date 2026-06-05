@@ -1206,4 +1206,78 @@ router.get('/leads/:id/distribution-diagnose', [auth, admin], async (req, res) =
   }
 });
 
+// ────────────────────────────────────────────────────────────────────────────
+// Onboarding sandbox — super_admin only. Lets the operator wipe their OWN
+// onboarding state so the v2 wizard can be tested end-to-end without
+// registering a fresh user account every iteration. Wipes onboarding fields
+// + matcher-input fields + phone verification + sms-claim opt-in. Does NOT
+// wipe balance (too risky to zero out real money even in dev). Does NOT
+// touch any other user's state — locked to req.user.id.
+//
+// @route   POST /api/admin/onboarding/sandbox-reset
+// @desc    Reset the calling super_admin's onboarding state for sandbox testing
+// @access  Private (super_admin only)
+router.post('/onboarding/sandbox-reset', [auth, superAdmin], async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const update = {
+      // Onboarding subdoc — clear progress + activation timestamps so the
+      // wizard auto-mounts and the Activate screen offers the bonus again.
+      'onboarding.complete':                   false,
+      'onboarding.skippedAt':                  null,
+      'onboarding.completedAt':                null,
+      'onboarding.currentStep':                0,
+      'onboarding.bonusClaimedAt':             null,
+      'onboarding.activatedAt':                null,
+      'onboarding.activationOfferDismissedAt': null,
+      'onboarding.firstTopupAt':               null,
+      'onboarding.firstTopupPopupShownAt':     null,
+      'onboarding.answers':                    {},
+      'onboarding.recovery':                   {
+        sent12h: false, sent24h: false, sent72h: false,
+        sentMidwizard12h: false, sentMidwizard24h: false, sentMidwizard72h: false,
+      },
+
+      // Matcher-input fields populated by save-step → coverage regen.
+      pickupStates:        [],
+      deliveryStates:      [],
+      deliversNationwide:  false,
+      serviceStates:       [],
+      interstateEnabled:   false,
+
+      // Phone verification — wipe so the Verify modal triggers in StepContact.
+      phoneVerified:                false,
+      phoneVerifiedAt:              null,
+      phoneVerificationLastSentAt:  null,
+      phoneVerificationSendsToday:  { dayKey: '', count: 0 },
+
+      // SMS Claim — reset opt-in so the chooseSms PATCH runs fresh.
+      'smsClaim.optInRequested':    false,
+      'smsClaim.optInAt':           null,
+    };
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: update },
+      { new: true }
+    ).select('onboarding pickupStates deliveryStates deliversNationwide ' +
+             'phoneVerified balance smsClaim');
+
+    // Coverage regen depends on save-step running with dispatchBase + pickup +
+    // delivery. Since we wiped those, simply delete the user's existing
+    // CoverageArea docs — the next save-step on Step 2/3 will rebuild them.
+    await CoverageArea.deleteMany({ company: userId });
+
+    return res.json({
+      ok: true,
+      msg: 'Onboarding state reset. Refresh the page to start the wizard.',
+      user,
+    });
+  } catch (err) {
+    console.error('[Admin sandbox-reset] error:', err.message);
+    return res.status(500).json({ ok: false, msg: 'Server error' });
+  }
+});
+
 module.exports = router;

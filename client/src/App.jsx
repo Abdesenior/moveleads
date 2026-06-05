@@ -55,6 +55,7 @@ const AdminDisputes = lazy(() => import('./pages/admin/AdminDisputes'));
 const AdminPricing = lazy(() => import('./pages/admin/AdminPricing'));
 const AdminMoverResearch = lazy(() => import('./pages/admin/AdminMoverResearch'));
 const AdminPartnerResearch = lazy(() => import('./pages/admin/AdminPartnerResearch'));
+const OnboardingSandbox = lazy(() => import('./pages/dev/OnboardingSandbox'));
 const FoundingMovers = lazy(() => import('./pages/FoundingMovers'));
 const FoundingRealtors = lazy(() => import('./pages/FoundingRealtors'));
 const FoundingGroups = lazy(() => import('./pages/FoundingGroups'));
@@ -129,6 +130,10 @@ function App() {
               <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
               <Route path="/admin/mover-research" element={<ProtectedRoute requireAdmin><AdminMoverResearch /></ProtectedRoute>} />
               <Route path="/admin/partner-research" element={<ProtectedRoute requireAdmin><AdminPartnerResearch /></ProtectedRoute>} />
+
+              {/* Dev sandbox — super_admin-only at the API layer; admin can
+                  preview screens but cannot reset state. */}
+              <Route path="/dev/onboarding-sandbox" element={<ProtectedRoute requireAdmin><OnboardingSandbox /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
