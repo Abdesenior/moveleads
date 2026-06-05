@@ -911,7 +911,22 @@
   cursor: pointer;
   padding: 0;
   transition: background 180ms ease, transform 120ms ease;
+  /* Sticky behavior — position: fixed (rather than sticky) for the same
+     iOS-Safari-in-overflow:hidden reason the mobile-header comment below
+     calls out. Desktop pins to top: 0. Mobile pins below the fixed
+     mobile-header. The :has() rule on .dashboard-layout reserves the
+     equivalent padding-top so content doesn't slide under the bar. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
 }
+/* Reserve space when the banner is mounted. The selector matches only
+   while .ml-offer-bar is in the DOM (the banner is conditionally
+   rendered by OnboardingOfferBanner), so no extra space is reserved
+   when the banner is hidden. */
+.dashboard-layout:has(.ml-offer-bar) { padding-top: 44px; }
 .ml-offer-bar:hover { background: #0b1b2d; }
 .ml-offer-bar:active { transform: scale(0.995); }
 .ml-offer-bar:focus-visible {
@@ -963,8 +978,15 @@
 .ml-offer-bar-text-full { display: inline; color: #fff; }
 .ml-offer-bar-text-mobile { display: none; }
 
-/* Mobile: flow into 2-line compact form. Still navy, still single button. */
+/* Mobile: flow into 2-line compact form. Still navy, still single button.
+   Pinned below the fixed mobile-header (which sits at top: 0 / height: 56px /
+   z-index: 12100). The banner uses z-index 12090 — below the header so the
+   hamburger + brand stay above, above all dashboard content. */
 @media (max-width: 600px) {
+  .ml-offer-bar {
+    top: 56px;
+    z-index: 12090;
+  }
   .ml-offer-bar-inner {
     height: auto;
     min-height: 56px;
@@ -1090,6 +1112,10 @@
        a placeholder of equal height to avoid sliding under it. */
     padding-top: 56px;
   }
+  /* When the OnboardingOfferBanner is rendered, it stacks below the mobile
+     app bar (top: 56px) and adds its own height (~56px) — so the layout
+     needs combined padding-top to keep content visible. */
+  .dashboard-layout:has(.ml-offer-bar) { padding-top: calc(56px + 56px); }
 
   /* Mobile fixed app bar — premium SaaS feel. position: fixed (rather than
      sticky) is more reliable inside .dashboard-layout's overflow:hidden
