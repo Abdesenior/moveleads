@@ -226,7 +226,7 @@
 }
 .ow-sandbox-mode .ow-smsclaim-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 256px;
+  grid-template-columns: minmax(0, 1fr) 288px;
   gap: 36px;
   align-items: start;
   margin-top: 4px;
@@ -299,7 +299,7 @@
 .ow-sandbox-mode .ow-smsclaim-phone-img {
   display: block;
   width: 100%;
-  max-width: 296px;
+  max-width: 320px;
   height: auto;
   user-select: none;
   -webkit-user-drag: none;
@@ -374,7 +374,7 @@
   .ow-sandbox-mode .ow-smsclaim-title { font-size: 22px; }
   .ow-sandbox-mode .ow-smsclaim-sub { margin-bottom: 8px; }
   .ow-sandbox-mode .ow-smsclaim-benefits { display: none; }
-  .ow-sandbox-mode .ow-smsclaim-phone-img { max-width: 240px; }
+  .ow-sandbox-mode .ow-smsclaim-phone-img { max-width: 300px; }
   .ow-sandbox-mode .ow-smsclaim-balance {
     grid-template-columns: 1fr;
     text-align: center;
