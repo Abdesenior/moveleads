@@ -70,12 +70,25 @@ export default function PlaceAutocomplete({
     debounceRef.current = setTimeout(() => fetchSuggestions(v), 300);
   }
 
+  // Mobile-only: tell the wizard to enter/exit a full-viewport "search
+  // mode" so the keyboard doesn't compete with the dropdown. The wizard
+  // listens for this event and adds .ow-place-search-active to its root,
+  // which the CSS scopes to (max-width: 640px) so desktop is untouched.
+  function setSearchMode(active) {
+    try {
+      window.dispatchEvent(
+        new CustomEvent('onboarding:place-search', { detail: { active: !!active } })
+      );
+    } catch { /* ignore */ }
+  }
+
   function pick(s) {
     onSelect && onSelect({ zip: s.zip, city: s.city, state: s.state, label: s.label });
     setQuery('');
     setSuggestions([]);
     setOpen(false);
     setHighlight(0);
+    setSearchMode(false);
   }
 
   function handleKey(e) {
@@ -92,12 +105,19 @@ export default function PlaceAutocomplete({
       if (s) pick(s);
     } else if (e.key === 'Escape') {
       setOpen(false);
+      setSearchMode(false);
     }
   }
 
   function handleBlur() {
     // Defer so onMouseDown on a suggestion item can fire before we close.
-    setTimeout(() => setOpen(false), 140);
+    // Search mode exits on the same cadence — if the user is just tapping
+    // an option, search mode stays on through the pick() call which also
+    // ends it. If the user really backed out, search mode releases here.
+    setTimeout(() => {
+      setOpen(false);
+      setSearchMode(false);
+    }, 140);
   }
 
   useEffect(() => () => {
@@ -134,6 +154,7 @@ export default function PlaceAutocomplete({
         onChange={handleInput}
         onFocus={() => {
           if (suggestions.length) setOpen(true);
+          setSearchMode(true);
           // Mobile: scroll the input to the top of its scroll ancestor
           // (the wizard modal body) AFTER the soft keyboard has finished
           // rising. iOS Safari fires window.visualViewport.resize when

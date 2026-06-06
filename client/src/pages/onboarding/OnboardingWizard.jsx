@@ -121,6 +121,18 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
   // the server-tracked currentStep is set — i.e. a true mid-wizard resume.
   const [screen, setScreen] = useState(initialStep || SCREENS.WELCOME);
   const [verifyOpen, setVerifyOpen] = useState(false);
+  // Mobile-only: when PlaceAutocomplete is focused, the wizard enters a
+  // full-viewport "search mode" so the keyboard doesn't fight the
+  // dropdown. PlaceAutocomplete dispatches a window event on focus/blur
+  // and we mirror it here. The class .ow-place-search-active is applied
+  // to the wizard root; Onboarding.css scopes the visual change to
+  // (max-width: 640px).
+  const [placeSearchActive, setPlaceSearchActive] = useState(false);
+  useEffect(() => {
+    const onSearch = (e) => setPlaceSearchActive(!!e?.detail?.active);
+    window.addEventListener('onboarding:place-search', onSearch);
+    return () => window.removeEventListener('onboarding:place-search', onSearch);
+  }, []);
   const [phoneVerified, setPhoneVerified] = useState(!!user?.phoneVerified);
 
   const [dispatchBase, setDispatchBase] = useState({ input: '', zip: '', city: '', state: '' });
@@ -614,7 +626,11 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
   };
 
   return (
-    <div className="onboarding-wizard" role="dialog" aria-label="MoveLeads onboarding">
+    <div
+      className={'onboarding-wizard' + (placeSearchActive ? ' ow-place-search-active' : '')}
+      role="dialog"
+      aria-label="MoveLeads onboarding"
+    >
       <div className="ow-blur" />
       <div className="ow-modal" style={{ position: 'relative' }}>
         {screen === SCREENS.ACTIVATE && (
