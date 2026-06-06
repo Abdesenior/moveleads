@@ -135,13 +135,35 @@ export default function PlaceAutocomplete({
         onFocus={() => {
           if (suggestions.length) setOpen(true);
           // Mobile: scroll the input to the top of its scroll ancestor
-          // (the wizard modal body) so the soft keyboard doesn't cover
-          // the dropdown that opens beneath the input. Delay one frame
-          // so the keyboard has started to rise — otherwise iOS measures
-          // against the pre-keyboard viewport and the scroll snaps back.
-          requestAnimationFrame(() => {
-            inputRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-          });
+          // (the wizard modal body) AFTER the soft keyboard has finished
+          // rising. iOS Safari fires window.visualViewport.resize when
+          // the keyboard finishes opening — that's the only reliable
+          // signal that the new visible-viewport height has settled.
+          // Without waiting, iOS auto-scrolls to the focused input
+          // first and then snaps the dropdown into a covered position.
+          // A 450 ms timeout falls back for browsers without
+          // visualViewport (older iOS, some embedded webviews) and
+          // for the rare case where the keyboard is already up
+          // (external keyboard, no resize event fires).
+          const vv = window.visualViewport;
+          const scroll = () => {
+            inputRef.current?.scrollIntoView({ block: 'start' });
+          };
+          if (vv) {
+            let fallback = 0;
+            const onResize = () => {
+              vv.removeEventListener('resize', onResize);
+              if (fallback) clearTimeout(fallback);
+              scroll();
+            };
+            vv.addEventListener('resize', onResize);
+            fallback = setTimeout(() => {
+              vv.removeEventListener('resize', onResize);
+              scroll();
+            }, 450);
+          } else {
+            setTimeout(scroll, 300);
+          }
         }}
         onBlur={handleBlur}
         onKeyDown={handleKey}

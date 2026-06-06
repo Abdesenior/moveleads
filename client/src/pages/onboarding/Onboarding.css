@@ -1760,6 +1760,11 @@ html, body {
 .ow-place-wrap {
   position: relative;
   width: 100%;
+  /* scrollIntoView({block:'start'}) snaps the input flush against the
+     top of the modal body. scroll-margin-top reserves breathing room so
+     the input has a small gap from the body padding when focused on
+     mobile and the keyboard rises. */
+  scroll-margin-top: 16px;
 }
 
 /* Ensure the modal always has enough vertical room for the autocomplete
