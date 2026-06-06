@@ -13,21 +13,9 @@
  *   4. Remove the rule from this file
  */
 
-/* ─────────────────────────────────────────────────────────────
-   Welcome empty-spacing fix (2026-06-05)
-   ---
-   Production Onboarding.css applies `.ow-body { min-height: 460px }` so
-   the modal always has room for the PlaceAutocomplete dropdown to float
-   below the input on Step 2 (Location). But that rule also pads the
-   Welcome screen with ~200px of empty white space below the chips and
-   the 4-icon flow column.
-
-   Scope min-height to ONLY the body that contains an autocomplete (the
-   Location step). Every other step sizes to its natural content height,
-   so Welcome fits the box cleanly.
-   ───────────────────────────────────────────────────────────── */
-.ow-sandbox-mode .ow-body { min-height: 0; }
-.ow-sandbox-mode .ow-body:has(.ow-place-wrap) { min-height: 460px; }
+/* The Welcome empty-spacing fix has been promoted to production
+   (Onboarding.css now applies `.ow-body:has(.ow-place-wrap)` directly).
+   No sandbox-only override needed here anymore. */
 
 /* ─────────────────────────────────────────────────────────────
    OnboardingVerifyModal — required phone-verify popup (2026-06-05)

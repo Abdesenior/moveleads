@@ -598,7 +598,6 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
   const footer = showFooter ? footerForScreen() : null;
 
   const ctx = {
-    sandbox,
     API_URL,
     dispatchBase, setDispatchBase,
     cityName: cityState.city,
