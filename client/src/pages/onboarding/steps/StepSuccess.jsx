@@ -1,44 +1,19 @@
 /**
  * Step 8 — Activation success (terminal).
  *
- * Renders a personalized post-activation checklist plus a small
- * SMS Claim heads-up card (kept as an aside, not a CTA — primary action
- * stays "View matching opportunities →"). The CTA calls ctx.onDone() which
- * navigates to /dashboard/leads.
- *
- * Personalized lines:
- *   - Headline reflects bonus path ($150) vs starter ($50) — derived from
- *     ctx.bonusPath / ctx.balance (set by the controller after refreshUser).
- *   - Market line — "N active requests match your setup near {market}" if
- *     the controller's match-count fetch returned a positive count; else
- *     "Routing enabled for {market}" as a calmer fallback.
- *
- * Locked-in test surface: aside carries `data-testid` =
- * `onboarding-success-sms-claim-aside` (preserves PR #79's selector so the
- * existing "Claim leads by text" / "Beta" / claim-code text assertions
- * keep passing under v2).
+ * Calm arrival moment. The headline confirms the activation; the
+ * reassurance card asks the mover to wait for fresh matching leads
+ * instead of grazing the marketplace. Primary CTA navigates to
+ * /dashboard/leads via ctx.onDone().
  */
 
 import { Check } from 'lucide-react';
 
 export default function StepSuccess({ ctx }) {
-  const {
-    bonusPath,
-    balance,
-    marketLabel,
-    matchCount,
-    onDone,
-  } = ctx;
+  const { bonusPath, balance, onDone } = ctx;
 
-  const headline = bonusPath
-    ? 'Your $150 balance is active'
-    : `Your $${Math.max(balance, 50)} balance is active`;
-
-  const marketLine = matchCount && matchCount > 0
-    ? `${matchCount} active ${matchCount === 1 ? 'lead matches' : 'leads match'} your setup near ${marketLabel}`
-    : (marketLabel && marketLabel !== 'your market'
-        ? `Routing enabled for ${marketLabel}`
-        : 'Routing enabled');
+  const balanceAmount = bonusPath ? 150 : Math.max(balance, 50);
+  const headline = `Your $${balanceAmount} balance is activated and ready to claim leads`;
 
   return (
     <div className="ow-content ow-success">
@@ -47,21 +22,15 @@ export default function StepSuccess({ ctx }) {
       </div>
       <h1 className="ow-h1">{headline}</h1>
 
-      <ul className="ow-success-list">
-        {bonusPath
-          ? <li>Onboarding bonus applied: <strong>+$50</strong></li>
-          : <li>Starter balance activated</li>}
-        <li>{marketLine}</li>
-        <li>Notifications ready for matching leads</li>
-      </ul>
-
-      {/* Operator-approved 2026-06-06: replaces the SMS Claim BETA aside.
-          Success screen is an arrival moment — reassurance over feature
-          pitch. SMS Claim awareness lives in the sidebar tab. */}
-      <p className="ow-success-reassurance">
-        <strong>Fresh leads are on the way.</strong> We're actively bringing
-        new requests into the platform — watch for matching alerts.
-      </p>
+      <div className="ow-success-reassurance">
+        <p className="ow-success-reassurance-title">
+          Fresh leads are on the way
+        </p>
+        <p className="ow-success-reassurance-body">
+          We recommend waiting for fresh matching leads — we&apos;ll send the
+          alert the moment they arrive.
+        </p>
+      </div>
 
       <button
         type="button"
