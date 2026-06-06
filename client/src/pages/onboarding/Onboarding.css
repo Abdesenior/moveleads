@@ -2006,45 +2006,6 @@ html, body {
 }
 .ow-smsclaim-orange { color: var(--ow-orange-700); font-weight: 700; }
 
-/* ── 3 benefit cards (Instant · Exclusive · Qualified) ──────────── */
-.ow-smsclaim-benefits {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0 0 14px;
-}
-.ow-smsclaim-benefit-card {
-  padding: 12px 10px 11px;
-  background: #fff;
-  border: 1px solid var(--ow-slate-200, #e5e7eb);
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-.ow-smsclaim-benefit-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  background: rgba(255, 106, 20, 0.10);
-  color: var(--ow-orange-700);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.ow-smsclaim-benefit-title {
-  font-size: 12.5px;
-  font-weight: 800;
-  color: var(--ow-slate-900);
-  letter-spacing: -0.005em;
-}
-.ow-smsclaim-benefit-body {
-  font-size: 11.5px;
-  line-height: 1.4;
-  color: var(--ow-slate-500);
-}
-
 /* ── HERO balance callout ─ heaviest block on the right column ─── */
 .ow-smsclaim-balance-hero {
   position: relative;
@@ -2129,37 +2090,54 @@ html, body {
   padding-top: 4px;
   margin-top: 2px;
   border-top: 1px dashed rgba(255, 106, 20, 0.18);
+  /* Check icon sits on the LEFT next to the success text. Override the
+     space-between flow so they stay adjacent. */
+  justify-content: flex-start;
+  gap: 8px;
 }
 .ow-smsclaim-example-check {
   color: #059669;
   flex-shrink: 0;
 }
 
-/* Mobile — stack title → phone → tagline/intro/cards/hero/example.
-   Cards stay in a 1×3 row at smaller size; the hero stays visible
-   because it is the most important block on the column. */
+/* Mobile — full-screen feature walkthrough. Phone is the hero; copy
+   tightens above so it sits high; balance + example fall below the
+   phone. Uses display:contents on .ow-smsclaim-copy to interleave the
+   phone column between the short line and the balance card without
+   duplicating JSX. */
 @media (max-width: 640px) {
+  .ow-smsclaim-v2 { max-width: 100%; }
+
+  /* Promote copy children directly into the parent grid so we can
+     interleave them with the phone column. */
+  .ow-smsclaim-copy { display: contents; }
+
   .ow-smsclaim-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
+      "headline"
+      "tagline"
+      "shortline"
       "phone"
-      "copy";
-    gap: 16px;
-    justify-items: center;
+      "balance"
+      "example";
+    column-gap: 0;
+    row-gap: 6px;
+    justify-items: stretch;
+    margin-top: 2px;
   }
-  .ow-smsclaim-copy { text-align: left; width: 100%; }
-  .ow-smsclaim-title { font-size: 22px; }
-  .ow-smsclaim-sub { margin-bottom: 10px; }
-  .ow-smsclaim-phone-img { max-width: 300px; }
 
-  .ow-smsclaim-benefits { gap: 6px; }
-  .ow-smsclaim-benefit-card { padding: 10px 8px; }
-  .ow-smsclaim-benefit-title { font-size: 12px; }
-  .ow-smsclaim-benefit-body  { font-size: 11px; }
-
-  .ow-smsclaim-balance-hero { padding: 14px 14px 12px; }
+  .ow-smsclaim-title         { grid-area: headline; font-size: 22px; margin-bottom: 4px; text-align: left; }
+  .ow-smsclaim-tagline       { grid-area: tagline;  margin-bottom: 6px; }
+  .ow-smsclaim-sub           { grid-area: shortline; margin: 0 0 4px; }
+  .ow-smsclaim-phone-col     { grid-area: phone; justify-self: center; width: 100%; margin: 2px 0 4px; }
+  .ow-smsclaim-balance-hero  { grid-area: balance; width: 100%; margin: 0 0 10px; padding: 14px 14px 12px; }
   .ow-smsclaim-balance-hero-title { font-size: 14.5px; }
   .ow-smsclaim-balance-hero-body  { font-size: 12.5px; }
+  .ow-smsclaim-example       { grid-area: example; width: 100%; }
+
+  /* Phone hero — grows 300px → 360px and centers. */
+  .ow-smsclaim-phone-img { max-width: 360px; width: 100%; margin: 0 auto; }
 }
 
 /* Success — reassurance paragraph (2026-06-06).
