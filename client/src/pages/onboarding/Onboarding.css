@@ -1762,14 +1762,17 @@ html, body {
   width: 100%;
 }
 
-/* Ensure the modal always has enough vertical room for the autocomplete
-   dropdown to float below the input without being clipped by
-   .ow-modal { overflow: hidden }. The shortest step (Location) has
-   ~170px of content; without this rule the modal would size to ~313px
-   and the floating dropdown would extend beyond it. */
-.ow-body { min-height: 460px; }
+/* Reserve modal height ONLY for the Location step so the autocomplete
+   dropdown can float below the input without being clipped by
+   .ow-modal { overflow: hidden }. Every other step sizes to its
+   natural content height — no empty space below the Welcome chips,
+   the Almost Ready checklist, or the Success card.
+   :has() is supported in all modern stable browsers (Chrome 105+,
+   Safari 15.4+, Firefox 121+). */
+.ow-body { min-height: 0; }
+.ow-body:has(.ow-place-wrap) { min-height: 460px; }
 @media (max-width: 640px) {
-  .ow-body { min-height: 0; }
+  .ow-body:has(.ow-place-wrap) { min-height: 0; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
