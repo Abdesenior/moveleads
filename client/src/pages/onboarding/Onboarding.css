@@ -1760,11 +1760,6 @@ html, body {
 .ow-place-wrap {
   position: relative;
   width: 100%;
-  /* scrollIntoView({block:'start'}) snaps the input flush against the
-     top of the modal body. scroll-margin-top reserves breathing room so
-     the input has a small gap from the body padding when focused on
-     mobile and the keyboard rises. */
-  scroll-margin-top: 16px;
 }
 
 /* Ensure the modal always has enough vertical room for the autocomplete
@@ -1778,69 +1773,26 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   PlaceAutocomplete — mobile "search mode" (2026-06-06)
+   Location step — mobile fullscreen (2026-06-06)
    ---
-   When the location input is focused on mobile, the wizard root gets
-   the class .ow-place-search-active (toggled by OnboardingWizard from
-   a custom event dispatched by PlaceAutocomplete on focus / blur /
-   pick / Escape). The modal expands to the visible viewport, the
-   footer hides, the body header collapses, and the dropdown takes
-   most of the remaining height. Releases on blur / selection.
+   On mobile only, when the wizard is on the Location step, render the
+   modal as a full-viewport sheet. The Location step is the only one
+   that triggers a soft keyboard + dropdown overlay, and the previous
+   bottom-sheet sizing left no room for the autocomplete dropdown to
+   show without being covered by the keyboard.
 
-   Desktop (>= 641px) is untouched — the entire block is gated by the
-   mobile media query.
+   Triggered by data-screen="location" on the wizard root (set by
+   OnboardingWizard). Desktop (>= 641px) keeps its centered modal.
    ───────────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* Smooth transitions when entering / leaving search mode. */
-  .onboarding-wizard .ow-modal,
-  .onboarding-wizard .ow-footer,
-  .onboarding-wizard .ow-header {
-    transition: all 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  .onboarding-wizard[data-screen="location"] {
+    align-items: stretch;
   }
-
-  .onboarding-wizard.ow-place-search-active .ow-modal {
+  .onboarding-wizard[data-screen="location"] .ow-modal {
     width: 100%;
     height: var(--ow-vh, 100dvh);
     max-height: var(--ow-vh, 100dvh);
     border-radius: 0;
-  }
-  /* The wizard root uses align-items: flex-end on mobile to bottom-anchor
-     the bottom-sheet feel. In search mode we anchor the modal to top
-     instead so it fills the full viewport. */
-  .onboarding-wizard.ow-place-search-active { align-items: stretch; }
-  .onboarding-wizard.ow-place-search-active .ow-modal { padding: 0; }
-
-  /* Hide the footer entirely. The Continue CTA is unreachable until the
-     user picks a location anyway, and freeing the footer height gives
-     the dropdown ~70px more room. */
-  .onboarding-wizard.ow-place-search-active .ow-footer {
-    display: none;
-  }
-
-  /* Collapse the body header (h1 + sub). The mover is mid-search; they
-     don't need the "Where is your company based?" reminder. Keeps the
-     input near the top with maximum dropdown room beneath. */
-  .onboarding-wizard.ow-place-search-active .ow-header {
-    display: none;
-  }
-  .onboarding-wizard.ow-place-search-active .ow-helper {
-    display: none;
-  }
-
-  /* Tighten body padding so the input sits right under the progress bar. */
-  .onboarding-wizard.ow-place-search-active .ow-body {
-    padding: 14px 18px;
-  }
-  .onboarding-wizard.ow-place-search-active .ow-label {
-    margin-bottom: 6px;
-  }
-
-  /* Dropdown takes most of the available space. Subtract the input area
-     (~74px: label + input + gap) and a 16px safety gap. The remaining
-     visible-viewport height is --ow-vh (which already shrinks when the
-     soft keyboard rises). */
-  .onboarding-wizard.ow-place-search-active .ow-place-dropdown {
-    max-height: calc(var(--ow-vh, 100dvh) - 110px);
   }
 }
 
@@ -1854,13 +1806,7 @@ html, body {
   list-style: none;
   margin: 0;
   padding: 6px;
-  /* Cap to whichever is smaller: the desktop default (280px) or the
-     remaining visible-viewport height after accounting for the input,
-     wizard chrome, and a safety gap. --ow-vh is set by the wizard
-     controller from window.visualViewport.height and shrinks when the
-     soft keyboard rises on mobile, so the dropdown never extends
-     beneath the keyboard. */
-  max-height: min(280px, calc(var(--ow-vh, 100dvh) - 220px));
+  max-height: 280px;
   overflow-y: auto;
   background: #fff;
   border: 1px solid var(--ow-border);

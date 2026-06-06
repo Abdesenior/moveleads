@@ -71,6 +71,20 @@ const SCREENS = {
   SUCCESS:      8,
 };
 
+// Kebab-case names mirrored onto data-screen on the wizard root. Used by
+// Onboarding.css to apply per-step layout tweaks (e.g. the mobile
+// fullscreen treatment for the Location step).
+const SCREEN_NAMES = {
+  [SCREENS.WELCOME]:      'welcome',
+  [SCREENS.LOCATION]:     'location',
+  [SCREENS.DELIVERY]:     'delivery',
+  [SCREENS.CONTACT]:      'contact',
+  [SCREENS.SMS_CLAIM]:    'sms-claim',
+  [SCREENS.ALMOST_READY]: 'almost-ready',
+  [SCREENS.ACTIVATE]:     'activate',
+  [SCREENS.SUCCESS]:      'success',
+};
+
 const SERVER_TO_SCREEN = {
   1: SCREENS.LOCATION,
   2: SCREENS.DELIVERY,
@@ -121,18 +135,6 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
   // the server-tracked currentStep is set — i.e. a true mid-wizard resume.
   const [screen, setScreen] = useState(initialStep || SCREENS.WELCOME);
   const [verifyOpen, setVerifyOpen] = useState(false);
-  // Mobile-only: when PlaceAutocomplete is focused, the wizard enters a
-  // full-viewport "search mode" so the keyboard doesn't fight the
-  // dropdown. PlaceAutocomplete dispatches a window event on focus/blur
-  // and we mirror it here. The class .ow-place-search-active is applied
-  // to the wizard root; Onboarding.css scopes the visual change to
-  // (max-width: 640px).
-  const [placeSearchActive, setPlaceSearchActive] = useState(false);
-  useEffect(() => {
-    const onSearch = (e) => setPlaceSearchActive(!!e?.detail?.active);
-    window.addEventListener('onboarding:place-search', onSearch);
-    return () => window.removeEventListener('onboarding:place-search', onSearch);
-  }, []);
   const [phoneVerified, setPhoneVerified] = useState(!!user?.phoneVerified);
 
   const [dispatchBase, setDispatchBase] = useState({ input: '', zip: '', city: '', state: '' });
@@ -627,7 +629,8 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
 
   return (
     <div
-      className={'onboarding-wizard' + (placeSearchActive ? ' ow-place-search-active' : '')}
+      className="onboarding-wizard"
+      data-screen={SCREEN_NAMES[screen] || ''}
       role="dialog"
       aria-label="MoveLeads onboarding"
     >
