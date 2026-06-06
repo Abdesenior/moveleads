@@ -39,21 +39,16 @@ export default function StepSmsClaim() {
             it before anyone else.
           </p>
 
-          <div className="ow-smsclaim-balance-hero">
-            <div className="ow-smsclaim-balance-hero-header">
-              <div className="ow-smsclaim-balance-hero-icon" aria-hidden="true">
+          <div className="ow-smsclaim-example">
+            <div className="ow-smsclaim-example-header">
+              <div className="ow-smsclaim-example-icon" aria-hidden="true">
                 <Wallet size={18} strokeWidth={2.25} />
               </div>
-              <div className="ow-smsclaim-balance-hero-title">
+              <div className="ow-smsclaim-example-title">
                 Keep balance ready
               </div>
             </div>
-            <p className="ow-smsclaim-balance-hero-body">
-              A $42 lead requires at least $42 available balance.
-            </p>
-          </div>
 
-          <div className="ow-smsclaim-example">
             <div className="ow-smsclaim-example-label">EXAMPLE</div>
             <div className="ow-smsclaim-example-row">
               <span>Lead</span>
