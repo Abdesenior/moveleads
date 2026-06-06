@@ -18,8 +18,10 @@ export default function FirstTopupReassurancePopup({ onClose }) {
       aria-labelledby="first-topup-popup-title"
       style={{
         position: 'fixed', inset: 0, background: 'rgba(10,25,47,0.7)', backdropFilter: 'blur(12px)',
-        // Sits above the top-up modal (10001) and the dashboard sticky header.
-        zIndex: 10050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        // 13500 — above the mobile fixed app bar (12100). Matches the
+        // wizard + VerifyPhoneModal + LeadFeed modal convention so the
+        // popup sits above the dashboard hamburger/brand strip on phones.
+        zIndex: 13500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
         animation: 'blFadeIn 0.25s ease',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
