@@ -132,7 +132,17 @@ export default function PlaceAutocomplete({
         placeholder={placeholder}
         value={query}
         onChange={handleInput}
-        onFocus={() => { if (suggestions.length) setOpen(true); }}
+        onFocus={() => {
+          if (suggestions.length) setOpen(true);
+          // Mobile: scroll the input to the top of its scroll ancestor
+          // (the wizard modal body) so the soft keyboard doesn't cover
+          // the dropdown that opens beneath the input. Delay one frame
+          // so the keyboard has started to rise — otherwise iOS measures
+          // against the pre-keyboard viewport and the scroll snaps back.
+          requestAnimationFrame(() => {
+            inputRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          });
+        }}
         onBlur={handleBlur}
         onKeyDown={handleKey}
         autoFocus={autoFocus}
