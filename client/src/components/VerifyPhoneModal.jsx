@@ -111,7 +111,7 @@ export default function VerifyPhoneModal({ isOpen, onClose, onSuccess }) {
       case 'invalid_code_format':    return 'Enter the full 6-digit code.';
       case 'verification_expired':   return 'Code expired or too many attempts. Send a new code.';
       case 'no_active_verification': return 'No active code. Send a new one.';
-      case 'twilio_rate_limit':      return 'Twilio rate limit reached. Please try again in a few minutes.';
+      case 'twilio_rate_limit':      return 'Too many requests right now. Please try again in a few minutes.';
       case 'ip_rate_limit':          return 'Too many requests from your network. Try again later.';
       default:                       return json.message || fallback;
     }

@@ -191,10 +191,14 @@ test('W18 — SETUP_STAGES labels stay mover-language (no engineering verbs)', (
 
 // ─── Success aside (PR #79 testid preserved) ────────────────────────────────
 
-test('W19 — Success aside keeps the PR #79 testid + Beta tag', () => {
-  assert.match(success, /data-testid="onboarding-success-sms-claim-aside"/);
-  assert.match(success, />Beta</);
-  assert.match(success, /Claim leads by text/);
+test('W19 — Success reassurance block replaces the SMS Claim BETA aside', () => {
+  // 2026-06-06 — Operator moved SMS Claim awareness off the Success
+  // screen. Success is an arrival moment ("you're ready, here come the
+  // leads"), not a place to pitch another feature. SMS Claim awareness
+  // now lives in the sidebar tab.
+  assert.doesNotMatch(success, /data-testid="onboarding-success-sms-claim-aside"/);
+  assert.doesNotMatch(success, />Beta</);
+  assert.match(success, /Fresh leads are on the way/);
 });
 
 // ─── Mandatory-onboarding posture: no ?onboarding/complete from wizard ──────
