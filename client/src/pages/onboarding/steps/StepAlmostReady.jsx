@@ -63,8 +63,9 @@ export default function StepAlmostReady({ ctx }) {
         <div>
           <div className="ow-credit-title">Claim your $50 free credit</div>
           <div className="ow-credit-sub">
-            Add your starting balance to unlock or claim moving opportunities
-            when they arrive.
+            {ctx?.sandbox
+              ? 'Add your starting balance to unlock or claim leads when they arrive.'
+              : 'Add your starting balance to unlock or claim moving opportunities when they arrive.'}
           </div>
         </div>
       </div>

@@ -28,14 +28,19 @@ export default function StepSuccess({ ctx }) {
     marketLabel,
     matchCount,
     onDone,
+    sandbox,
   } = ctx;
 
   const headline = bonusPath
     ? 'Your $150 balance is active'
     : `Your $${Math.max(balance, 50)} balance is active`;
 
+  // 'requests' / 'request' → 'leads' / 'lead' on the sandbox-promote path.
+  // Production copy preserved verbatim until promotion.
   const marketLine = matchCount && matchCount > 0
-    ? `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${marketLabel}`
+    ? sandbox
+      ? `${matchCount} active ${matchCount === 1 ? 'lead matches' : 'leads match'} your setup near ${marketLabel}`
+      : `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${marketLabel}`
     : (marketLabel && marketLabel !== 'your market'
         ? `Routing enabled for ${marketLabel}`
         : 'Routing enabled');
@@ -79,7 +84,7 @@ export default function StepSuccess({ ctx }) {
         style={{ marginTop: 18 }}
         onClick={onDone}
       >
-        View matching opportunities →
+        {sandbox ? 'View matching leads →' : 'View matching opportunities →'}
       </button>
     </div>
   );
