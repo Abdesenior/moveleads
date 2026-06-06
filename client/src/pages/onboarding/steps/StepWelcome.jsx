@@ -11,7 +11,7 @@ import { Home, Filter, Unlock, PhoneCall, Check } from 'lucide-react';
 const FLOW = [
   { Icon: Home,      label: 'Homeowner requests a quote' },
   { Icon: Filter,    label: 'We qualify the request' },
-  { Icon: Unlock,    label: 'You unlock or claim the lead' },
+  { Icon: Unlock,    label: 'You claim the fresh lead' },
   { Icon: PhoneCall, label: 'Call the customer' },
 ];
 
