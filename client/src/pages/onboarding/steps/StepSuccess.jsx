@@ -28,19 +28,14 @@ export default function StepSuccess({ ctx }) {
     marketLabel,
     matchCount,
     onDone,
-    sandbox,
   } = ctx;
 
   const headline = bonusPath
     ? 'Your $150 balance is active'
     : `Your $${Math.max(balance, 50)} balance is active`;
 
-  // 'requests' / 'request' → 'leads' / 'lead' on the sandbox-promote path.
-  // Production copy preserved verbatim until promotion.
   const marketLine = matchCount && matchCount > 0
-    ? sandbox
-      ? `${matchCount} active ${matchCount === 1 ? 'lead matches' : 'leads match'} your setup near ${marketLabel}`
-      : `${matchCount} active ${matchCount === 1 ? 'request matches' : 'requests match'} your setup near ${marketLabel}`
+    ? `${matchCount} active ${matchCount === 1 ? 'lead matches' : 'leads match'} your setup near ${marketLabel}`
     : (marketLabel && marketLabel !== 'your market'
         ? `Routing enabled for ${marketLabel}`
         : 'Routing enabled');
@@ -57,26 +52,16 @@ export default function StepSuccess({ ctx }) {
           ? <li>Onboarding bonus applied: <strong>+$50</strong></li>
           : <li>Starter balance activated</li>}
         <li>{marketLine}</li>
-        <li>Notifications ready for matching requests</li>
+        <li>Notifications ready for matching leads</li>
       </ul>
 
-      <aside
-        className="ow-success-sms-claim-card"
-        data-testid="onboarding-success-sms-claim-aside"
-        aria-label="SMS Claim heads-up"
-      >
-        <div className="ow-success-sms-claim-header">
-          <h3 className="ow-success-sms-claim-title">Claim leads by text</h3>
-          <span className="ow-success-beta">Beta</span>
-        </div>
-        <p className="ow-success-sms-claim-body">
-          When a matching lead comes in, we'll text you a claim code. Reply{' '}
-          <strong>SEND</strong> to claim it instantly — first to reply wins.
-        </p>
-        <p className="ow-success-sms-claim-footer">
-          Turn it on anytime from the sidebar.
-        </p>
-      </aside>
+      {/* Operator-approved 2026-06-06: replaces the SMS Claim BETA aside.
+          Success screen is an arrival moment — reassurance over feature
+          pitch. SMS Claim awareness lives in the sidebar tab. */}
+      <p className="ow-success-reassurance">
+        <strong>Fresh leads are on the way.</strong> We're actively bringing
+        new requests into the platform — watch for matching alerts.
+      </p>
 
       <button
         type="button"
@@ -84,7 +69,7 @@ export default function StepSuccess({ ctx }) {
         style={{ marginTop: 18 }}
         onClick={onDone}
       >
-        {sandbox ? 'View matching leads →' : 'View matching opportunities →'}
+        View matching leads →
       </button>
     </div>
   );

@@ -181,7 +181,10 @@ async function checkVerification(e164Phone, code) {
  */
 function normalizeError(err) {
   const code = err?.code ?? err?.status ?? null;
-  const message = err?.message || 'Twilio Verify error';
+  // Defensive default — only used as a final fallback. Route handlers
+  // already map error codes to mover-facing strings; this just ensures
+  // no vendor name leaks if a logger or future surface prints it.
+  const message = err?.message || 'Verification error';
 
   if (code === 20429 || code === 60203 || code === 60212) {
     return { ok: false, error: 'twilio_rate_limit', twilioCode: code, message };

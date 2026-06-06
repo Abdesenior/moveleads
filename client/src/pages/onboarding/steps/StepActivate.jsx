@@ -50,7 +50,7 @@ const stripePromiseSingleton = (() => {
   };
 })();
 
-function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sandbox }) {
+function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip }) {
   const ctaLabel = fetching
     ? 'Preparing secure payment…'
     : tier === 100
@@ -64,19 +64,7 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sand
       </div>
 
       <p className="ow-wallet-framing">
-        {sandbox ? (
-          <>
-            Add balance to unlock or claim leads.
-            <br />
-            You only pay when you buy a lead.
-          </>
-        ) : (
-          <>
-            This is your <strong>lead-buying wallet</strong> — not a subscription.
-            You pay only when you unlock or claim a lead. Your balance stays in
-            your account until you use it.
-          </>
-        )}
+        Add balance to unlock or claim leads.
       </p>
 
       <div className="ow-tiers" role="radiogroup" aria-label="Choose your starting balance">
@@ -356,7 +344,6 @@ export default function StepActivate({ ctx }) {
       initErr={initErr}
       onContinue={handleContinue}
       onSkip={onBrowseFirst}
-      sandbox={ctx.sandbox}
     />
   );
 }

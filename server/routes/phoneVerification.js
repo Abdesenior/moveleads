@@ -148,10 +148,10 @@ router.post('/send-verification', sendLimiter, async (req, res) => {
         });
       }
       if (result.error === 'twilio_rate_limit') {
-        return res.status(429).json({ error: 'twilio_rate_limit', message: 'Twilio rate limit reached. Try again later.' });
+        return res.status(429).json({ error: 'twilio_rate_limit', message: 'Too many requests right now. Try again later.' });
       }
       if (result.error === 'invalid_phone') {
-        return res.status(400).json({ error: 'invalid_phone_format', message: 'Twilio rejected the phone number.' });
+        return res.status(400).json({ error: 'invalid_phone_format', message: "This phone number couldn't be verified. Please check the number and try again." });
       }
       if (result.error === 'verification_blocked_by_twilio') {
         // 60238 / 60410 / 60411 / 60223 — Twilio Fraud Guard at the service
