@@ -61,9 +61,6 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sand
     <div className="ow-content">
       <div className="ow-header" style={{ textAlign: 'center' }}>
         <h1 className="ow-h1">Ready to receive moving jobs</h1>
-        <p className="ow-sub">
-          Your account is prepared and ready to receive verified move requests.
-        </p>
       </div>
 
       <p className="ow-wallet-framing">
@@ -93,19 +90,14 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sand
         >
           {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
-            {sandbox && (
-              <span className="ow-tier-pill-social" aria-hidden="true">Most movers start here</span>
-            )}
-            <span className="ow-tier-pill-recommended">Includes $50 bonus</span>
+            <span className="ow-tier-pill-recommended">+$50 Free Credit</span>
           </div>
           <div className="ow-tier-amount-row">
             <span className="ow-tier-pay">$100</span>
             <span className="ow-tier-arrow">→</span>
             <span className="ow-tier-receive">$150 balance</span>
           </div>
-          {!sandbox && (
-            <div className="ow-tier-support">Unlock verified homeowner move requests.</div>
-          )}
+          <div className="ow-tier-support">Unlock verified homeowner move requests.</div>
         </button>
 
         <button
@@ -129,9 +121,7 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sand
       </div>
 
       <p className="ow-trust-strip">
-        {sandbox
-          ? 'No subscription · Balance never expires · Pay only when you buy a lead'
-          : 'Refundable balance · No subscription · Balance never expires · Pay per lead, never per month'}
+        No subscription · Balance never expires · Pay only when you buy a lead
       </p>
 
       {initErr && (
