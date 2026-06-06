@@ -2006,11 +2006,15 @@ html, body {
 }
 .ow-smsclaim-orange { color: var(--ow-orange-700); font-weight: 700; }
 
-/* ── HERO balance callout ─ heaviest block on the right column ─── */
-.ow-smsclaim-balance-hero {
+/* ── EXAMPLE card — unified header + example rows ──────────────────
+   Merged from the previous .ow-smsclaim-balance-hero + .ow-smsclaim-
+   example pair. Header carries the wallet tile + "Keep balance ready"
+   title; the EXAMPLE label + 3 rows sit below in the same card. Same
+   hero visual treatment (orange gradient, accent border, shadow). */
+.ow-smsclaim-example {
   position: relative;
   margin: 0 0 12px;
-  padding: 18px 20px 16px;
+  padding: 16px 18px 14px;
   background:
     linear-gradient(135deg,
       rgba(255, 106, 20, 0.14) 0%,
@@ -2020,13 +2024,13 @@ html, body {
   border-radius: 14px;
   box-shadow: 0 6px 18px -8px rgba(255, 106, 20, 0.30);
 }
-.ow-smsclaim-balance-hero-header {
+.ow-smsclaim-example-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
-.ow-smsclaim-balance-hero-icon {
+.ow-smsclaim-example-icon {
   width: 36px;
   height: 36px;
   border-radius: 9px;
@@ -2038,30 +2042,11 @@ html, body {
   box-shadow: 0 2px 6px rgba(255, 106, 20, 0.35);
   flex-shrink: 0;
 }
-.ow-smsclaim-balance-hero-title {
+.ow-smsclaim-example-title {
   font-size: 15.5px;
   font-weight: 800;
   color: var(--ow-slate-900);
   letter-spacing: -0.01em;
-}
-.ow-smsclaim-balance-hero-body {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--ow-slate-700);
-}
-.ow-smsclaim-balance-hero-body strong {
-  font-weight: 800;
-  color: var(--ow-slate-900);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── EXAMPLE CLAIM card ─ proof of the balance rule, quieter ───── */
-.ow-smsclaim-example {
-  padding: 10px 12px 11px;
-  background: rgba(255, 106, 20, 0.05);
-  border: 1px solid rgba(255, 106, 20, 0.15);
-  border-radius: 10px;
 }
 .ow-smsclaim-example-label {
   font-size: 10px;
@@ -2075,9 +2060,9 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12.5px;
-  color: var(--ow-slate-600);
-  padding: 2px 0;
+  font-size: 13px;
+  color: var(--ow-slate-700);
+  padding: 3px 0;
 }
 .ow-smsclaim-example-row strong {
   font-weight: 800;
@@ -2087,9 +2072,9 @@ html, body {
 .ow-smsclaim-example-row--success {
   color: #047857;
   font-weight: 700;
-  padding-top: 4px;
-  margin-top: 2px;
-  border-top: 1px dashed rgba(255, 106, 20, 0.18);
+  padding-top: 6px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(255, 106, 20, 0.28);
   /* Check icon sits on the LEFT next to the success text. Override the
      space-between flow so they stay adjacent. */
   justify-content: flex-start;
@@ -2119,7 +2104,6 @@ html, body {
       "tagline"
       "shortline"
       "phone"
-      "balance"
       "example";
     column-gap: 0;
     row-gap: 6px;
@@ -2131,10 +2115,8 @@ html, body {
   .ow-smsclaim-tagline       { grid-area: tagline;  margin-bottom: 6px; }
   .ow-smsclaim-sub           { grid-area: shortline; margin: 0 0 4px; }
   .ow-smsclaim-phone-col     { grid-area: phone; justify-self: center; width: 100%; margin: 2px 0 4px; }
-  .ow-smsclaim-balance-hero  { grid-area: balance; width: 100%; margin: 0 0 10px; padding: 14px 14px 12px; }
-  .ow-smsclaim-balance-hero-title { font-size: 14.5px; }
-  .ow-smsclaim-balance-hero-body  { font-size: 12.5px; }
-  .ow-smsclaim-example       { grid-area: example; width: 100%; }
+  .ow-smsclaim-example       { grid-area: example; width: 100%; padding: 14px 14px 12px; }
+  .ow-smsclaim-example-title { font-size: 14.5px; }
 
   /* Phone hero — grows 300px → 360px and centers. */
   .ow-smsclaim-phone-img { max-width: 360px; width: 100%; margin: 0 auto; }
