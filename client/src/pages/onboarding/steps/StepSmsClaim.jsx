@@ -30,13 +30,14 @@ export default function StepSmsClaim() {
 
         <div className="ow-smsclaim-copy">
           <h1 className="ow-h1 ow-smsclaim-title">
-            Be first to fresh, exclusive leads
+            Be first to{' '}
+            <span className="ow-smsclaim-orange">fresh, exclusive</span>{' '}
+            leads
           </h1>
-          <p className="ow-smsclaim-tagline">Exclusive • Qualified • Fresh</p>
 
           <p className="ow-sub ow-smsclaim-sub">
-            Reply <strong className="ow-smsclaim-orange">SEND</strong> to claim
-            it before anyone else.
+            Reply <strong className="ow-smsclaim-orange">SEND ABCD</strong> to
+            claim it before anyone else.
           </p>
 
           <div className="ow-smsclaim-example">
