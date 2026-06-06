@@ -1999,57 +1999,167 @@ html, body {
   color: var(--ow-orange-700);
 }
 .ow-smsclaim-sub {
-  margin: 0 0 18px;
-  font-size: 14.5px;
+  margin: 0 0 14px;
+  font-size: 13.5px;
   line-height: 1.55;
-  color: var(--ow-slate-500);
+  color: var(--ow-slate-600);
 }
 .ow-smsclaim-orange { color: var(--ow-orange-700); font-weight: 700; }
 
-/* Example callout — small supporting note, not a primary section. */
-.ow-smsclaim-balance {
-  padding: 9px 12px;
-  background: rgba(255, 106, 20, 0.07);
+/* ── 3 benefit cards (Instant · Exclusive · Qualified) ──────────── */
+.ow-smsclaim-benefits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.ow-smsclaim-benefit-card {
+  padding: 12px 10px 11px;
+  background: #fff;
+  border: 1px solid var(--ow-slate-200, #e5e7eb);
   border-radius: 10px;
-}
-.ow-smsclaim-balance-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ow-orange-700);
-  margin-bottom: 4px;
-}
-.ow-smsclaim-balance-row {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 12.5px;
-  color: var(--ow-slate-600);
-  padding: 1px 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
-.ow-smsclaim-balance-row strong {
+.ow-smsclaim-benefit-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 106, 20, 0.10);
+  color: var(--ow-orange-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ow-smsclaim-benefit-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ow-slate-900);
+  letter-spacing: -0.005em;
+}
+.ow-smsclaim-benefit-body {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ow-slate-500);
+}
+
+/* ── HERO balance callout ─ heaviest block on the right column ─── */
+.ow-smsclaim-balance-hero {
+  position: relative;
+  margin: 0 0 12px;
+  padding: 18px 20px 16px;
+  background:
+    linear-gradient(135deg,
+      rgba(255, 106, 20, 0.14) 0%,
+      rgba(255, 106, 20, 0.08) 100%);
+  border: 1px solid rgba(255, 106, 20, 0.28);
+  border-left: 4px solid var(--ow-orange-700);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px -8px rgba(255, 106, 20, 0.30);
+}
+.ow-smsclaim-balance-hero-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ow-smsclaim-balance-hero-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--ow-orange-700);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(255, 106, 20, 0.35);
+  flex-shrink: 0;
+}
+.ow-smsclaim-balance-hero-title {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--ow-slate-900);
+  letter-spacing: -0.01em;
+}
+.ow-smsclaim-balance-hero-body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ow-slate-700);
+}
+.ow-smsclaim-balance-hero-body strong {
   font-weight: 800;
   color: var(--ow-slate-900);
   font-variant-numeric: tabular-nums;
 }
 
-/* Mobile — stack title→phone→Example hidden. Phone PNG carries the
-   teaching surface and the $42 lead price on its own. */
+/* ── EXAMPLE CLAIM card ─ proof of the balance rule, quieter ───── */
+.ow-smsclaim-example {
+  padding: 10px 12px 11px;
+  background: rgba(255, 106, 20, 0.05);
+  border: 1px solid rgba(255, 106, 20, 0.15);
+  border-radius: 10px;
+}
+.ow-smsclaim-example-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ow-orange-700);
+  margin-bottom: 6px;
+}
+.ow-smsclaim-example-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--ow-slate-600);
+  padding: 2px 0;
+}
+.ow-smsclaim-example-row strong {
+  font-weight: 800;
+  color: var(--ow-slate-900);
+  font-variant-numeric: tabular-nums;
+}
+.ow-smsclaim-example-row--success {
+  color: #047857;
+  font-weight: 700;
+  padding-top: 4px;
+  margin-top: 2px;
+  border-top: 1px dashed rgba(255, 106, 20, 0.18);
+}
+.ow-smsclaim-example-check {
+  color: #059669;
+  flex-shrink: 0;
+}
+
+/* Mobile — stack title → phone → tagline/intro/cards/hero/example.
+   Cards stay in a 1×3 row at smaller size; the hero stays visible
+   because it is the most important block on the column. */
 @media (max-width: 640px) {
   .ow-smsclaim-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "copy"
-      "phone";
+      "phone"
+      "copy";
     gap: 16px;
     justify-items: center;
   }
-  .ow-smsclaim-copy { text-align: center; width: 100%; }
+  .ow-smsclaim-copy { text-align: left; width: 100%; }
   .ow-smsclaim-title { font-size: 22px; }
-  .ow-smsclaim-sub { margin-bottom: 8px; }
+  .ow-smsclaim-sub { margin-bottom: 10px; }
   .ow-smsclaim-phone-img { max-width: 300px; }
-  .ow-smsclaim-balance { display: none; }
+
+  .ow-smsclaim-benefits { gap: 6px; }
+  .ow-smsclaim-benefit-card { padding: 10px 8px; }
+  .ow-smsclaim-benefit-title { font-size: 12px; }
+  .ow-smsclaim-benefit-body  { font-size: 11px; }
+
+  .ow-smsclaim-balance-hero { padding: 14px 14px 12px; }
+  .ow-smsclaim-balance-hero-title { font-size: 14.5px; }
+  .ow-smsclaim-balance-hero-body  { font-size: 12.5px; }
 }
 
 /* Success — reassurance paragraph (2026-06-06).
