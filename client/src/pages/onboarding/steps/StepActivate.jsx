@@ -58,9 +58,12 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip }) {
       : 'Activate $50 Starter Balance';
 
   return (
-    <div className="ow-content">
-      <div className="ow-header" style={{ textAlign: 'center' }}>
+    <div className="ow-content ow-content--activate">
+      <div className="ow-header ow-header--activate" style={{ textAlign: 'center' }}>
         <h1 className="ow-h1">Ready to receive moving jobs</h1>
+        <p className="ow-sub ow-sub--trust">
+          No subscription · Balance never expires · Pay only when you buy a lead
+        </p>
       </div>
 
       <p className="ow-wallet-framing">
@@ -107,10 +110,6 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip }) {
           </div>
         </button>
       </div>
-
-      <p className="ow-trust-strip">
-        No subscription · Balance never expires · Pay only when you buy a lead
-      </p>
 
       {initErr && (
         <div className="ow-activate-err" role="alert" aria-live="polite">

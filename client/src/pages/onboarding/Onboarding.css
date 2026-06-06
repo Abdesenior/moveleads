@@ -2107,19 +2107,47 @@ html, body {
   .ow-smsclaim-phone-img { max-width: 360px; width: 100%; margin: 0 auto; }
 }
 
-/* Success — reassurance paragraph (2026-06-06).
-   Replaces the .ow-success-sms-claim-card BETA aside. Success is an
-   arrival moment, not a feature-pitch surface. Reads as a calm
-   confidence line — bold lead-in, slate-600 follow-on. */
+/* ────────────────────────────────────────────────────────────────
+   Activate header — push H1 down, sub doubles as trust strip
+   (promoted out of the bottom-of-screen .ow-trust-strip block).
+   ──────────────────────────────────────────────────────────────── */
+.ow-header--activate {
+  padding-top: 18px;
+  margin-bottom: 22px;
+}
+.ow-sub--trust {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ow-slate-500);
+  letter-spacing: 0.005em;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Success — reassurance card (2026-06-06).
+   Promoted from a plain centered paragraph to a prominent card so the
+   mover sees the "wait for the alert" guidance as the focal element
+   between the headline and the CTA.
+   ──────────────────────────────────────────────────────────────── */
 .ow-success-reassurance {
-  max-width: 460px;
-  margin: 18px auto 4px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ow-slate-600);
+  max-width: 480px;
+  margin: 22px auto 6px;
+  padding: 18px 22px 16px;
+  background: var(--ow-orange-50);
+  border: 1px solid var(--ow-orange-border);
+  border-radius: 14px;
   text-align: center;
 }
-.ow-success-reassurance strong {
-  color: var(--ow-slate-900);
+.ow-success-reassurance-title {
+  margin: 0 0 6px;
+  font-size: 16px;
   font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ow-slate-900);
+}
+.ow-success-reassurance-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ow-slate-700);
 }
