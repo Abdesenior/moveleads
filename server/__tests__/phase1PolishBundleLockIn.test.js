@@ -145,9 +145,16 @@ test('L6.A — $50 tier pill no longer ambiguous "Limited"', () => {
   assert.match(stepActivate, />Starter — no bonus included</);
 });
 
-test('L6.B — $100 tier pill uses "bonus" instead of "Free Credits"', () => {
-  assert.match(stepActivate, />Includes \$50 bonus</);
+test('L6.B — $100 tier pill foregrounds the +$50 bonus framing', () => {
+  // 2026-06-06: pill text moved from "Includes $50 bonus" to
+  // "+$50 Free Credit" to match the operator-approved promote pass.
+  // The amount row already implies +$50 ($100 → $150 balance); the pill
+  // now amplifies it as a free-credit framing instead of duplicating
+  // the word "bonus" alongside the amount row.
+  assert.match(stepActivate, />\+\$50 Free Credit</);
+  // Negative-control on the legacy variants.
   assert.doesNotMatch(stepActivate, />Includes \$50 Free Credits</);
+  assert.doesNotMatch(stepActivate, />Includes \$50 bonus</);
 });
 
 test('L6.C — Onboarding trust strip says "Balance never expires"', () => {
