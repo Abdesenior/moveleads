@@ -1782,7 +1782,13 @@ html, body {
   list-style: none;
   margin: 0;
   padding: 6px;
-  max-height: 280px;
+  /* Cap to whichever is smaller: the desktop default (280px) or the
+     remaining visible-viewport height after accounting for the input,
+     wizard chrome, and a safety gap. --ow-vh is set by the wizard
+     controller from window.visualViewport.height and shrinks when the
+     soft keyboard rises on mobile, so the dropdown never extends
+     beneath the keyboard. */
+  max-height: min(280px, calc(var(--ow-vh, 100dvh) - 220px));
   overflow-y: auto;
   background: #fff;
   border: 1px solid var(--ow-border);
