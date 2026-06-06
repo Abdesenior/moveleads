@@ -378,3 +378,27 @@
      view without scrolling. */
   .ow-sandbox-mode .ow-smsclaim-balance { display: none; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Activate — "Most movers start here" social-proof pill (sandbox)
+   ---
+   Sits next to the bonus pill on the recommended $100 tier. Stronger
+   visual weight than the bonus pill — solid orange chip, white text —
+   so it reads as positioning, not just feature framing.
+   ───────────────────────────────────────────────────────────── */
+.ow-sandbox-mode .ow-tier-row-pill {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ow-sandbox-mode .ow-tier-pill-social {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: linear-gradient(180deg, var(--ow-orange), var(--ow-orange-800));
+  border-radius: var(--ow-radius-pill);
+  padding: 4px 10px;
+  box-shadow: 0 4px 10px rgba(255, 106, 20, 0.28);
+}

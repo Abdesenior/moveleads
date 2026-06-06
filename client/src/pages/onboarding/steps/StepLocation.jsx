@@ -23,6 +23,7 @@ import PlaceAutocomplete from '../../../components/PlaceAutocomplete';
 
 export default function StepLocation({ ctx }) {
   const { dispatchBase, setDispatchBase } = ctx;
+  const sb = !!ctx.sandbox;
 
   const onSelect = (place) => {
     // place = { zip, city, state, label }
@@ -45,7 +46,9 @@ export default function StepLocation({ ctx }) {
       <div className="ow-header">
         <h1 className="ow-h1">Where is your company based?</h1>
         <p className="ow-sub">
-          We'll use this to match you with nearby opportunities.
+          {sb
+            ? "We'll use this to match you with nearby leads."
+            : "We'll use this to match you with nearby opportunities."}
         </p>
       </div>
 
@@ -78,10 +81,14 @@ export default function StepLocation({ ctx }) {
               </p>
             </div>
           </div>
-          <p className="ow-helper">Used to match nearby opportunities.</p>
+          <p className="ow-helper">
+            {sb ? 'Used to match nearby leads.' : 'Used to match nearby opportunities.'}
+          </p>
         </>
       ) : (
-        <p className="ow-helper">Used to match you with nearby requests.</p>
+        <p className="ow-helper">
+          {sb ? 'Used to match you with nearby leads.' : 'Used to match you with nearby requests.'}
+        </p>
       )}
     </div>
   );

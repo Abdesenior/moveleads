@@ -67,9 +67,19 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sand
       </div>
 
       <p className="ow-wallet-framing">
-        This is your <strong>lead-buying wallet</strong> — not a subscription.
-        You pay only when you unlock or claim a lead. Your balance stays in
-        your account until you use it.
+        {sandbox ? (
+          <>
+            Add balance to unlock or claim leads.
+            <br />
+            You only pay when you buy a lead.
+          </>
+        ) : (
+          <>
+            This is your <strong>lead-buying wallet</strong> — not a subscription.
+            You pay only when you unlock or claim a lead. Your balance stays in
+            your account until you use it.
+          </>
+        )}
       </p>
 
       <div className="ow-tiers" role="radiogroup" aria-label="Choose your starting balance">
@@ -83,6 +93,9 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sand
         >
           {tier === 100 && (<span className="ow-tier-badge" aria-hidden="true">✓ Selected</span>)}
           <div className="ow-tier-row-pill">
+            {sandbox && (
+              <span className="ow-tier-pill-social" aria-hidden="true">Most movers start here</span>
+            )}
             <span className="ow-tier-pill-recommended">Includes $50 bonus</span>
           </div>
           <div className="ow-tier-amount-row">
@@ -90,7 +103,9 @@ function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip, sand
             <span className="ow-tier-arrow">→</span>
             <span className="ow-tier-receive">$150 balance</span>
           </div>
-          <div className="ow-tier-support">Unlock verified homeowner move requests.</div>
+          {!sandbox && (
+            <div className="ow-tier-support">Unlock verified homeowner move requests.</div>
+          )}
         </button>
 
         <button

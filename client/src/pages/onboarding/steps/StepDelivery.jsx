@@ -36,15 +36,19 @@ const QUICK_STATES = ['OK','LA','NM','AR','CO','KS','MS','TN','GA','FL'];
 export default function StepDelivery({ ctx }) {
   const { deliveryMode, setDeliveryMode, deliveryStates, toggleDeliveryState,
           cityName, stateAbbr, statesPhrase } = ctx;
+  const sb = !!ctx.sandbox;
 
   const mapMode = deliveryMode === 'all' ? 'all'
     : deliveryMode === 'some' ? 'some'
     : 'local';
 
+  // 'opportunities' → 'leads' on the sandbox-promote path. Production
+  // copy preserved verbatim until promotion.
+  const noun = sb ? 'leads' : 'opportunities';
   const caption = {
-    local: `We'll keep your opportunities focused ${cityName ? 'near ' + cityName : 'near you'}.`,
-    some:  `We'll send opportunities that match these states.`,
-    all:   `You'll be eligible for long-distance opportunities across the U.S.`,
+    local: `We'll keep your ${noun} focused ${cityName ? 'near ' + cityName : 'near you'}.`,
+    some:  `We'll send ${noun} that match these states.`,
+    all:   `You'll be eligible for long-distance ${noun} across the U.S.`,
   };
 
   return (
@@ -52,7 +56,9 @@ export default function StepDelivery({ ctx }) {
       <div className="ow-header">
         <h1 className="ow-h1">Where do you deliver?</h1>
         <p className="ow-sub">
-          Choose where you want to receive moving opportunities.
+          {sb
+            ? 'Choose where you want to receive leads.'
+            : 'Choose where you want to receive moving opportunities.'}
         </p>
       </div>
 
