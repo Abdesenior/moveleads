@@ -1944,3 +1944,110 @@ html, body {
   background: rgba(255, 106, 20, 0.24);
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════
+   SMS Claim v2 — phone-as-tutorial + Option C value-prop hierarchy
+   Promoted from sandbox 2026-06-06.
+   Layout:
+     Desktop                                Mobile
+     ┌────────────┬──────────────┐          ┌────────────┐
+     │            │ Title        │          │ Title      │
+     │  [phone]   │ Tagline      │          │ Tagline    │
+     │  60% col   │ Sub          │          │ Sub        │
+     │            │ Example      │          │ [phone]    │
+     └────────────┴──────────────┘          └────────────┘
+   ═══════════════════════════════════════════════════════════════════ */
+
+.ow-smsclaim-v2 { max-width: 760px; }
+.ow-smsclaim-grid {
+  display: grid;
+  grid-template-columns: 60fr 40fr;
+  grid-template-areas: "phone copy";
+  column-gap: 28px;
+  align-items: start;
+  margin-top: 4px;
+}
+.ow-smsclaim-copy      { grid-area: copy; }
+.ow-smsclaim-phone-col {
+  grid-area: phone;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.ow-smsclaim-phone-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Left column copy ----------------------------------------------- */
+.ow-smsclaim-title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  line-height: 1.16;
+}
+.ow-smsclaim-tagline {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ow-orange-700);
+}
+.ow-smsclaim-sub {
+  margin: 0 0 18px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ow-slate-500);
+}
+.ow-smsclaim-orange { color: var(--ow-orange-700); font-weight: 700; }
+
+/* Example callout — small supporting note, not a primary section. */
+.ow-smsclaim-balance {
+  padding: 9px 12px;
+  background: rgba(255, 106, 20, 0.07);
+  border-radius: 10px;
+}
+.ow-smsclaim-balance-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ow-orange-700);
+  margin-bottom: 4px;
+}
+.ow-smsclaim-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12.5px;
+  color: var(--ow-slate-600);
+  padding: 1px 0;
+}
+.ow-smsclaim-balance-row strong {
+  font-weight: 800;
+  color: var(--ow-slate-900);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mobile — stack title→phone→Example hidden. Phone PNG carries the
+   teaching surface and the $42 lead price on its own. */
+@media (max-width: 640px) {
+  .ow-smsclaim-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "copy"
+      "phone";
+    gap: 16px;
+    justify-items: center;
+  }
+  .ow-smsclaim-copy { text-align: center; width: 100%; }
+  .ow-smsclaim-title { font-size: 22px; }
+  .ow-smsclaim-sub { margin-bottom: 8px; }
+  .ow-smsclaim-phone-img { max-width: 300px; }
+  .ow-smsclaim-balance { display: none; }
+}
