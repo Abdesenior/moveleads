@@ -8,15 +8,20 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import TablePagination from '../../components/ui/TablePagination';
 import TableSkeleton from '../../components/ui/TableSkeleton';
+import { useToast } from '../../components/ui/Toast';
 
-const STATUS_OPTIONS = ['New', 'Contacted', 'Follow-up', 'Booked', 'Closed', 'Lost'];
+// Must match server/models/PurchasedLead.js CRM_STATUSES enum exactly.
+// Mongoose rejects any other value, so any drift here turns every status
+// update into a silent 400 — the row's UI says "Quoted" but the DB still
+// says "New", and the next page refresh snaps it back.
+const STATUS_OPTIONS = ['New', 'Contacted', 'Quoted', 'Booked', 'Completed', 'Lost'];
 
 const STATUS_META = {
   'New':       { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
   'Contacted': { bg: '#f5f3ff', color: '#7c3aed', border: '#ddd6fe' },
-  'Follow-up': { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' },
+  'Quoted':    { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' },
   'Booked':    { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
-  'Closed':    { bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+  'Completed': { bg: '#dcfce7', color: '#15803d', border: '#86efac' },
   'Lost':      { bg: '#fee2e2', color: '#dc2626', border: '#fecaca' },
 };
 
@@ -92,6 +97,7 @@ function IconBtn({ icon, title, onClick, color = '#64748b', hoverColor = '#0f172
 
 export default function Customers() {
   const { API_URL, token } = useContext(AuthContext);
+  const toast = useToast();
   const [purchases, setPurchases]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,16 +127,24 @@ export default function Customers() {
   useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
   useEffect(() => { setPage(1); }, [searchTerm, statusFilter, sortKey, sortDir]);
 
-  /* Inline status update (from table row dropdown) */
+  /* Inline status update (from table row dropdown). On server failure we
+     roll back the optimistic update and surface a toast — otherwise the
+     row's UI would diverge from the DB until the next page refresh. */
   const updateStatusInline = async (purchaseId, leadId, newStatus) => {
+    const prevStatus = purchases.find(p => p._id === purchaseId)?.crmStatus;
     setPurchases(prev => prev.map(p => p._id === purchaseId ? { ...p, crmStatus: newStatus } : p));
     try {
-      await fetch(`${API_URL}/leads/${leadId}/crm-status`, {
+      const res = await fetch(`${API_URL}/leads/${leadId}/crm-status`, {
         method: 'PATCH',
         headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ crmStatus: newStatus }),
       });
-    } catch (err) { console.error(err); }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.error('[Customers] inline status update failed:', err);
+      setPurchases(prev => prev.map(p => p._id === purchaseId ? { ...p, crmStatus: prevStatus } : p));
+      toast.error("Couldn't update status — please try again.", 'Save failed');
+    }
   };
 
   const saveLead = async () => {
@@ -145,7 +159,10 @@ export default function Customers() {
       if (!res.ok) throw new Error('Failed to update');
       setPurchases(prev => prev.map(p => p._id === detailLead._id ? { ...p, crmStatus: editStatus, crmNotes: editNotes } : p));
       setDetailLead(null);
-    } catch (err) { alert(err.message); } finally { setSaving(false); }
+    } catch (err) {
+      console.error('[Customers] saveLead failed:', err);
+      toast.error("Couldn't save changes — please try again.", 'Save failed');
+    } finally { setSaving(false); }
   };
 
   const submitDispute = async () => {
@@ -509,8 +526,8 @@ export default function Customers() {
               </button>
             </div>
 
-            {/* Two-column body */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '24px 28px', gap: 24, borderBottom: '1px solid #f1f5f9' }}>
+            {/* Two-column body — collapses to single column on phones. */}
+            <div className="customers-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '24px 28px', gap: 24, borderBottom: '1px solid #f1f5f9' }}>
               {/* Contact */}
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}>Contact</div>
@@ -705,6 +722,9 @@ export default function Customers() {
       <style>{`
         @keyframes custFadeIn  { from { opacity:0 } to { opacity:1 } }
         @keyframes custScaleIn { from { opacity:0; transform:scale(0.9) translateY(20px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        @media (max-width: 640px) {
+          .customers-detail-grid { grid-template-columns: 1fr !important; }
+        }
       `}</style>
     </DashboardLayout>
   );

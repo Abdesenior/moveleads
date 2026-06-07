@@ -361,8 +361,10 @@ export default function SettingsPage() {
         <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Manage notifications, service area, and preferences</p>
       </div>
 
-      {/* Two-column layout: vertical tabs + content */}
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, alignItems: 'start' }}>
+      {/* Two-column layout: vertical tabs + content. The settings-two-col
+         class hooks the existing @media (max-width: 700px) rule below that
+         collapses to a single column on phones. */}
+      <div className="settings-two-col" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, alignItems: 'start' }}>
 
         {/* ── Left: vertical tab menu ── */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>

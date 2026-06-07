@@ -21,10 +21,19 @@ import '../dashboard.css';
 // routes still resolve under /dashboard/* in App.jsx and the pages work — but
 // they are intentionally not surfaced as mover tabs and are reachable by
 // direct URL only. Do not re-add these entries without an explicit ask.
+// Feature flag — when ENABLE_DEAL_ROOM is off on the server, /dashboard/deals
+// renders a "currently unavailable" page. Hide the nav item in that case so
+// movers don't click into a dead end. Default: hidden unless explicitly
+// turned on via VITE_ENABLE_DEAL_ROOM=true at build time. Mirrors the
+// server's ENABLE_DEAL_ROOM env.
+const DEAL_ROOM_ENABLED = import.meta.env.VITE_ENABLE_DEAL_ROOM === 'true';
+
 const NAV_ITEMS = [
   { to: '/dashboard',          end: true,  icon: <LayoutDashboard size={18} />, label: 'Overview'           },
   { to: '/dashboard/leads',    end: false, icon: <Zap size={18} />,             label: 'Live Leads'         },
+  ...(DEAL_ROOM_ENABLED ? [
   { to: '/dashboard/deals',    end: false, icon: <Tag size={18} />,             label: 'Discounted Leads'   },
+  ] : []),
   { to: '/dashboard/my-leads', end: false, icon: <Briefcase size={18} />,       label: 'My Leads'           },
   { to: '/dashboard/customers',end: false, icon: <Users size={18} />,           label: 'Customers'          },
   { to: '/dashboard/billing',  end: false, icon: <CreditCard size={18} />,      label: 'Billing'            },

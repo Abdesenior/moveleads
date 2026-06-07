@@ -297,6 +297,7 @@ export default function LeadFeed() {
   const fetchLeads = useCallback(async () => {
     try {
       const res  = await fetch(`${API_URL}/leads`, { headers: { 'x-auth-token': token } });
+      if (!res.ok) throw new Error(`leads HTTP ${res.status}`);
       const data = await res.json();
       // Phase 3 — trust the server. /api/leads already gates on
       // distributionDecision + status + moveDate + inventoryChannel.
@@ -329,7 +330,11 @@ export default function LeadFeed() {
       // so this is belt-and-suspenders for the lifecycle axis only.
       if (!isFeedRenderable(lead)) return;
       playNewLeadSound();
-      setLeads(prev => [lead, ...prev.filter(l => (l._id||l.id) !== (lead._id||lead.id))]);
+      // Normalize IDs to string before comparing — Mongo ObjectId vs string
+      // mismatches can cause the same lead to slip past the dedup filter,
+      // producing a duplicate row. Matches the .toString() pattern used by
+      // the lead_sold handler below.
+      setLeads(prev => [lead, ...prev.filter(l => (l._id||l.id)?.toString() !== (lead._id||lead.id)?.toString())]);
     });
     // Phase D — bid_update / auction_settled listeners removed from the main
     // feed. The main marketplace is instant-only; server never emits those
