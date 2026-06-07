@@ -11,6 +11,7 @@ const { findLeadByClaimToken } = require('../utils/claimWindow');
 const { moverVisibilityFilter } = require('../utils/leadVisibility');
 const { getIo } = require('../services/socketService');
 const { sendMoverLostClaimSMS } = require('../services/smsService');
+const { sendLeadPurchaseReceiptEmail } = require('../services/emailService');
 const SmsDeliveryStatus = require('../models/SmsDeliveryStatus');
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
@@ -263,11 +264,14 @@ router.post(
       // PR-S3 — extended `.select()` to include `phoneVerified` (TCPA gate for
       // the claim path) and `balance` is fetched in the conditional debit, not
       // here. Other branches (STOP/START/HELP) ignore the extra fields.
+      //
+      // 2026-06-07 — added `email companyName` so the winner branch can
+      // fire the lead-purchase receipt email without a second round-trip.
       let user = null;
       if (last10) {
         const candidates = await User
           .find({ phone: { $regex: last10 + '$' } })
-          .select('_id phone isSuspended smsOptOut phoneVerified')
+          .select('_id phone isSuspended smsOptOut phoneVerified email companyName')
           .lean();
         if (candidates.length) {
           user = candidates.find(u => !u.isSuspended) || candidates[0];
@@ -560,6 +564,24 @@ router.post(
         } catch (e) {
           console.error(`[Twilio SMS Inbound] CLAIM broadcastLeadSold failed (non-fatal): ${e.message}`);
         }
+
+        // Receipt email — fire-and-forget. Mirrors the bids.js buy-now
+        // receipt pattern: the mover already owns the lead via the
+        // PurchasedLead mutex; the email is a paper trail. Failure logs
+        // but does not block the TwiML response that confirms the win.
+        // `debited` is the User doc returned by the conditional-debit
+        // CAS upstream — its balance is post-debit by construction, so
+        // we don't need another DB round-trip.
+        sendLeadPurchaseReceiptEmail({
+          user:         { email: user.email, companyName: user.companyName },
+          lead:         claimedLead,
+          amount:       price,
+          balanceAfter: debited.balance,
+          channel:      'sms_claim',
+          purchasedAt:  now,
+        }).catch(e =>
+          console.error(`[Twilio SMS Inbound] CLAIM receipt email failed (non-fatal): ${e.message}`)
+        );
 
         console.log(`[Twilio SMS Inbound] CLAIM won lead=${claimedLead._id} mover=${user._id} price=$${price}`);
         await finalize('won', 'claim succeeded', { leadId: claimedLead._id });

@@ -1268,6 +1268,148 @@ async function sendWelcomeEmail(user) {
   if (error) throw new Error(`Resend error: ${error.message}`);
 }
 
+/**
+ * Send a lead-purchase receipt to the mover after a successful buy.
+ * Fires from both the dashboard buy-now path (routes/bids.js) AND the
+ * SMS Claim winner path (routes/twilio.js). The `channel` field tells
+ * the mover (and the operator looking at the receipt later) WHICH path
+ * the purchase came from — useful when reconciling against transaction
+ * history.
+ *
+ * Fields:
+ *   user          — { email, companyName }
+ *   lead          — { _id, originCity, originState, destinationCity, destinationState }
+ *   amount        — dollars charged for this lead
+ *   balanceAfter  — mover's balance immediately after the debit
+ *   channel       — 'dashboard' or 'sms_claim'
+ *   purchasedAt   — Date (purchase timestamp)
+ */
+async function sendLeadPurchaseReceiptEmail({
+  user,
+  lead,
+  amount,
+  balanceAfter,
+  channel,
+  purchasedAt,
+}) {
+  const appUrl       = process.env.CLIENT_URL || 'https://moveleads.cloud';
+  const supportEmail = REPLY_TO;
+  const amt          = Number(amount || 0);
+  const bal          = Number(balanceAfter || 0);
+  const purchasedTs  = purchasedAt instanceof Date ? purchasedAt : new Date(purchasedAt || Date.now());
+  const purchasedStr = purchasedTs.toLocaleString('en-US', {
+    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  });
+
+  const leadId      = lead && (lead._id || lead.id) ? String(lead._id || lead.id) : '—';
+  const pickupCity  = (lead && lead.originCity)       || '—';
+  const pickupState = (lead && lead.originState)      || '';
+  const deliveryCity  = (lead && lead.destinationCity)  || '—';
+  const deliveryState = (lead && lead.destinationState) || '';
+  const pickupLine    = pickupState   ? `${pickupCity}, ${pickupState}`     : pickupCity;
+  const deliveryLine  = deliveryState ? `${deliveryCity}, ${deliveryState}` : deliveryCity;
+
+  const channelLabel = channel === 'sms_claim'
+    ? 'SMS Claim'
+    : channel === 'dashboard'
+      ? 'Dashboard Buy-Now'
+      : 'Lead Purchase';
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Lead purchase receipt</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <tr>
+                <td style="background:linear-gradient(135deg,#0b1628 0%,#1a3154 100%);padding:32px 40px;">
+                  <p style="margin:0;font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
+                    MoveLeads<span style="color:#f97316;">.cloud</span>
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#22c55e;padding:10px 40px;">
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">
+                    ✓ Lead purchased — ${channelLabel}
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px;">
+                  <p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f172a;">
+                    Receipt for ${user.companyName || 'your move'}
+                  </p>
+                  <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.6;">
+                    Your purchase is complete. Customer contact details are unlocked in your dashboard now — call within the first hour for the best close rate.
+                  </p>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:24px;">
+                    <tr>
+                      <td style="padding:20px 24px;">
+                        <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Route</p>
+                        <p style="margin:0 0 14px;font-size:16px;font-weight:700;color:#0f172a;">
+                          ${pickupLine} <span style="color:#94a3b8;">→</span> ${deliveryLine}
+                        </p>
+                        <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Amount charged</p>
+                        <p style="margin:0 0 14px;font-size:24px;font-weight:800;color:#0f172a;">$${amt.toFixed(2)}</p>
+                        <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Remaining balance</p>
+                        <p style="margin:0;font-size:18px;font-weight:800;color:#16a34a;">$${bal.toFixed(2)}</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:28px;">
+                    <tr>
+                      <td style="padding:16px 24px;">
+                        <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Lead ID</p>
+                        <p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#475569;font-family:'SF Mono',Menlo,monospace;">${leadId}</p>
+                        <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Purchased</p>
+                        <p style="margin:0 0 12px;font-size:13px;color:#475569;">${purchasedStr}</p>
+                        <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Channel</p>
+                        <p style="margin:0;font-size:13px;color:#475569;">${channelLabel}</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <a href="${appUrl}/dashboard/my-leads"
+                     style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px;letter-spacing:0.3px;">
+                    Open in My Leads
+                  </a>
+
+                  <p style="margin:24px 0 0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                    Questions about this purchase? Reply to this email or contact <a href="mailto:${supportEmail}" style="color:#475569;text-decoration:underline;">${supportEmail}</a>. Keep this receipt for your records.
+                  </p>
+                </td>
+              </tr>
+              ${emailFooter({ billing: true })}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    replyTo: REPLY_TO,
+    to: [user.email],
+    subject: `Lead purchase receipt — $${amt.toFixed(2)} (${pickupLine} → ${deliveryLine})`,
+    html,
+  });
+
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
 module.exports = {
   sendDisputeApprovedEmail, sendVerificationEmail, sendFeedbackRequestEmail,
   sendReviewRequestEmail, sendPasswordResetEmail, sendMoverReplyEmail,
@@ -1276,4 +1418,5 @@ module.exports = {
   sendOnboardingMidwizard12h, sendOnboardingMidwizard24h, sendOnboardingMidwizard72h,
   sendMatchingLeadEmail, broadcastLeadEmail,
   sendTopupReceiptEmail, sendActivationReceiptEmail, sendWelcomeEmail,
+  sendLeadPurchaseReceiptEmail,
 };

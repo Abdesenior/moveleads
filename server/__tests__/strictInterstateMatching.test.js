@@ -176,7 +176,7 @@ test('F3. Case-insensitive state code matching on lead side', () => {
 
 // ── G. Full-policy strict matcher layers distance/home/moveTypes ─────────
 
-test('G. doesLeadMatchMoverPreferencesStrict: distance + home size filters apply on top of coverage', () => {
+test('G. doesLeadMatchMoverPreferencesStrict: distance filter applies on top of coverage; home-size filter is retired', () => {
   const mover = {
     pickupStates: ['NY'],
     deliveryStates: ['CA'],
@@ -194,11 +194,15 @@ test('G. doesLeadMatchMoverPreferencesStrict: distance + home size filters apply
   assert.equal(doesLeadMatchMoverPreferencesStrict(wrongDistance, mover, {}), false,
     'distance preference Long Distance + lead.distance=Local → false');
 
-  const wrongHome = { ...matchingLead, homeSize: '1 Bedroom' };
-  assert.equal(doesLeadMatchMoverPreferencesStrict(wrongHome, mover, {}), false,
-    '1 Bedroom not in preferredHomeSizes → false');
+  // HOME-SIZE filter RETIRED (2026-06-07). preferredHomeSizes is still on
+  // the mover doc but the matcher ignores it. A 1-Bedroom lead that fails
+  // the OLD home-size check should now pass (assuming coverage + distance
+  // still match).
+  const oldRejectedBySize = { ...matchingLead, homeSize: '1 Bedroom' };
+  assert.equal(doesLeadMatchMoverPreferencesStrict(oldRejectedBySize, mover, {}), true,
+    '1 Bedroom lead no longer rejected — preferredHomeSizes filter is retired');
 
-  // Coverage fails first — distance/home filters never reach
+  // Coverage still fails first — distance filter never reaches
   const noCoverage = { ...matchingLead, originState: 'TX' };
   assert.equal(doesLeadMatchMoverPreferencesStrict(noCoverage, mover, {}), false);
 });
@@ -413,24 +417,27 @@ test('M5. maxDistance empty (Both) matches both distances', () => {
     'Both/Any-distance mover matches long-distance');
 });
 
-test('M6. Strict badge respects preferredHomeSizes', () => {
+test('M6. Strict badge IGNORES preferredHomeSizes (filter retired 2026-06-07)', () => {
   const mover = {
     pickupStates: ['NY'],
     deliveryStates: ['CA'],
     deliversNationwide: false,
     preferredHomeSizes: ['3 Bedroom', '4+ Bedroom'],
   };
+  // Pre-retirement this would have returned false (1 Bedroom not in
+  // preferences). Post-retirement the matcher no longer reads the field,
+  // so coverage + distance alone decide — both pass.
   const smallLead = {
     originState: 'NY', destinationState: 'CA',
     distance: 'Long Distance',
     homeSize: '1 Bedroom',
   };
-  assert.equal(doesLeadMatchMoverPreferencesStrict(smallLead, mover, {}), false,
-    '1 Bedroom lead must NOT match a mover who only wants 3+ Bedroom');
+  assert.equal(doesLeadMatchMoverPreferencesStrict(smallLead, mover, {}), true,
+    '1 Bedroom lead now matches — preferredHomeSizes is no longer read by the matcher');
 
   const bigLead = { ...smallLead, homeSize: '3 Bedroom' };
   assert.equal(doesLeadMatchMoverPreferencesStrict(bigLead, mover, {}), true,
-    '3 Bedroom lead matches a 3+ Bedroom preference');
+    '3 Bedroom lead also matches — both pass coverage + distance');
 });
 
 test('M7. Legacy fallback log fires once per mover per process (not per match call)', () => {

@@ -237,34 +237,25 @@ function evalDistance(lead, mover) {
 }
 
 function evalHomeSize(lead, mover) {
+  // 2026-06-07 — HOME_SIZE filter retired. Same posture as PR-C4
+  // (MOVE_TYPE_FILTER_RETIRED) above: the preferredHomeSizes field is
+  // preserved in the schema + Settings UI for forward compatibility, but
+  // the matcher no longer reads it. A mover should never miss a lead
+  // because of a stale or hidden home-size preference. The three prior
+  // codes (HOME_SIZE_NO_PREFERENCE / _IN_PREFS / _NOT_IN_PREFS /
+  // _MISSING_ON_LEAD) collapse to a single honest code.
+  //
+  // mover.preferredHomeSizes and lead.homeSize are surfaced in evidence
+  // so the diagnostic trace still answers "what would this gate have
+  // seen?" — useful for retrospective triage even though it no longer
+  // gates anything.
   const sizes = Array.isArray(mover?.preferredHomeSizes) ? mover.preferredHomeSizes : [];
-  if (sizes.length === 0) {
-    return {
-      gate: 'homeSize',
-      pass: true,
-      code: 'HOME_SIZE_NO_PREFERENCE',
-      reason: 'Mover.preferredHomeSizes is empty — no home-size filter applied.',
-      evidence: { preferredHomeSizes: sizes, leadHomeSize: lead?.homeSize || null },
-    };
-  }
-  if (!lead?.homeSize) {
-    return {
-      gate: 'homeSize',
-      pass: false,
-      code: 'HOME_SIZE_MISSING_ON_LEAD',
-      reason: 'Mover restricts by home size but lead has no homeSize field.',
-      evidence: { preferredHomeSizes: sizes, leadHomeSize: null },
-    };
-  }
-  const pass = sizes.includes(lead.homeSize);
   return {
     gate: 'homeSize',
-    pass,
-    code: pass ? 'HOME_SIZE_IN_PREFS' : 'HOME_SIZE_NOT_IN_PREFS',
-    reason: pass
-      ? `Lead homeSize='${lead.homeSize}' is in mover's preferredHomeSizes.`
-      : `Lead homeSize='${lead.homeSize}' is not in mover's preferredHomeSizes [${sizes.join(', ')}].`,
-    evidence: { preferredHomeSizes: sizes, leadHomeSize: lead.homeSize },
+    pass: true,
+    code: 'HOME_SIZE_FILTER_RETIRED',
+    reason: 'Home-size categorical filter retired (2026-06-07); all leads pass this gate. preferredHomeSizes is surfaced for evidence only.',
+    evidence: { preferredHomeSizes: sizes, leadHomeSize: lead?.homeSize || null },
   };
 }
 

@@ -17,6 +17,7 @@ const { auth } = require('../middleware/auth');
 const { getIo } = require('../services/socketService');
 const { settleOneLead } = require('../jobs/settleAuctions');
 const { isHiddenFromMovers, hiddenReason, routingMode, moverVisibilityFilter, recordClaimBlocked } = require('../utils/leadVisibility');
+const { sendLeadPurchaseReceiptEmail } = require('../services/emailService');
 
 // Cron-secret guard for endpoints triggered out-of-band by schedulers.
 // Returns 401 instead of 403 so curious authenticated callers can't tell
@@ -182,6 +183,25 @@ router.post('/:leadId/buy-now', auth, async (req, res) => {
     });
 
     broadcastLeadSold(lead, req.user.id);
+
+    // Receipt email — fire-and-forget. Mirrors the topup/activation
+    // receipt pattern: a send failure logs but does not break the buy-now
+    // success response. The mover has already paid + owns the lead via
+    // the PurchasedLead mutex; the email is a paper trail, not a
+    // money-safety surface.
+    User.findById(req.user.id).select('email companyName balance').lean()
+      .then(u => {
+        if (!u?.email) return;
+        return sendLeadPurchaseReceiptEmail({
+          user:         u,
+          lead,
+          amount:       price,
+          balanceAfter: u.balance,
+          channel:      'dashboard',
+          purchasedAt:  new Date(),
+        });
+      })
+      .catch(e => console.error(`[Bids] Buy-now receipt email failed (non-fatal): ${e.message}`));
 
     res.json({ success: true, message: 'Lead claimed!', pricePaid: price, lead });
   } catch (err) {
