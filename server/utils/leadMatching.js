@@ -53,11 +53,18 @@ function doesLeadMatchMoverPreferences(lead, user, coverageZips) {
     if (lead.distance !== distPref) return false;
   }
 
-  // 3. Preferred home sizes. Empty array → no filter.
-  const sizes = Array.isArray(user.preferredHomeSizes) ? user.preferredHomeSizes : [];
-  if (sizes.length > 0) {
-    if (!lead.homeSize || !sizes.includes(lead.homeSize)) return false;
-  }
+  // 3. Preferred home sizes — RETIRED (2026-06-07).
+  //    Pre-pilot retirement: same posture as the move-types filter
+  //    retirement (PR-C4) and the move-distance Service Area migration.
+  //    Stale values were silently filtering movers out of leads they could
+  //    handle; a mover should never miss a lead because of a hidden
+  //    preference. The User.preferredHomeSizes field is preserved (schema
+  //    + Settings UI continue to write it) for forward compatibility, but
+  //    the matcher always treats it as a no-op.
+  //
+  //    DO NOT re-read this field without re-adding a visible UI surface
+  //    and a clear retire-or-honor decision — same rule as the
+  //    no-hidden-backend-prefs principle from the 2026-05-28 cleanup.
 
   // 4. Onboarding moveTypes preference (apartment/home/office/longDistance
   //    /packing/storage/emergency + avoidMoveTypes). Permissive when not
@@ -231,11 +238,10 @@ function doesLeadMatchMoverPreferencesStrict(lead, mover, coverage = {}) {
     if (lead.distance !== distPref) return false;
   }
 
-  // Preferred home sizes.
-  const sizes = Array.isArray(mover.preferredHomeSizes) ? mover.preferredHomeSizes : [];
-  if (sizes.length > 0) {
-    if (!lead.homeSize || !sizes.includes(lead.homeSize)) return false;
-  }
+  // Preferred home sizes — RETIRED (2026-06-07). See the legacy matcher
+  // above for the full rationale. The field is preserved in the schema +
+  // Settings UI for forward compatibility; the matcher ignores it so a
+  // stale value can never silently filter a mover out of a lead.
 
   // Move-type preferences (apartment/home/office/longDistance/etc).
   if (!matchesMoveTypes(mover, lead)) return false;

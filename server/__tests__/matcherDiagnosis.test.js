@@ -208,15 +208,24 @@ test('9. Mover wants Long Distance, lead is Local → reject at distance', () =>
   assert.equal(t.final.firstFailedCode, 'DISTANCE_MISMATCH_WANTS_LONG');
 });
 
-// ── 10. Wrong home size ─────────────────────────────────────────────────
+// ── 10. Home-size filter is RETIRED (2026-06-07) ────────────────────────
 
-test('10. Mover preferredHomeSizes=[Studio,1 Bedroom], lead 3 Bedroom → reject at homeSize', () => {
+test('10. Home-size retirement: mover preferredHomeSizes=[Studio,1 Bedroom], lead 3 Bedroom → match passes', () => {
+  // Before the 2026-06-07 retirement, preferredHomeSizes=['Studio','1 Bedroom']
+  // would reject a 3 Bedroom lead at the homeSize gate. Same posture as
+  // PR-C4's moveType retirement (test 11 below): the whole
+  // preferredHomeSizes read was removed from leadMatching.js — a mover
+  // should never miss a lead because of a hidden or stale home-size
+  // preference. The diagnosis emits HOME_SIZE_FILTER_RETIRED with
+  // pass: true so existing logs and admin traces stay informative.
   const M = mover({ preferredHomeSizes: ['Studio', '1 Bedroom'] });
   const L = lead({ homeSize: '3 Bedroom' });
   const t = assertDashboardMatchesProductionMatcher(L, M);
-  assert.equal(t.final.dashboardMatch, false);
-  assert.equal(t.final.firstFailedGate, 'homeSize');
-  assert.equal(t.final.firstFailedCode, 'HOME_SIZE_NOT_IN_PREFS');
+  assert.equal(t.final.dashboardMatch, true,
+    'preferredHomeSizes must be ignored after 2026-06-07 retirement — Settings (coverage + distance) is now the complete dispatch picture');
+  const homeSizeGate = t.gates.find(g => g.gate === 'homeSize');
+  assert.equal(homeSizeGate.code, 'HOME_SIZE_FILTER_RETIRED');
+  assert.equal(homeSizeGate.pass, true);
 });
 
 // ── 11. PR-C4 retirement — avoidMoveTypes no longer rejects ────────────
