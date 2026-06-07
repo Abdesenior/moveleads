@@ -194,6 +194,11 @@ const UserSchema = new mongoose.Schema({
   // because the SmsClaim feature continues to roll out on a controlled
   // mover cohort — broad marketing enablement is a separate operational
   // decision.
+  // Meta CAPI single-fire guard (mover CompleteRegistration). Mirror Lead.metaCapiSentAt.
+  // Purchase needs NO guard — its idempotency key is the Stripe PaymentIntent id
+  // (Transaction unique index upstream + Meta event_id dedup).
+  metaMoverCompleteRegistrationSentAt: { type: Date },
+
   smsClaim: {
     status:           { type: String, enum: ['inactive', 'needs_balance', 'preview_enabled'], default: 'inactive' },
     optInRequested:   { type: Boolean, default: false },

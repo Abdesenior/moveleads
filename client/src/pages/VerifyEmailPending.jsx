@@ -4,6 +4,7 @@ import { Mail, RefreshCw, CheckCircle2, LogOut, Phone } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
 import { ButtonSpinner } from '../components/ui/Loading';
+import { useMoverFunnelPixel } from '../hooks/useMoverFunnelPixel';
 import '../auth.css';
 
 // ── VerifyEmailPending ─────────────────────────────────────────────────────
@@ -16,6 +17,7 @@ import '../auth.css';
 // infinite redirect). App.jsx wraps this in a token-only ProtectedRoute by
 // virtue of the user being inside AuthProvider; we double-check below.
 export default function VerifyEmailPending() {
+  useMoverFunnelPixel();
   const { user, token, API_URL, logout, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const toast = useToast();

@@ -27,7 +27,7 @@
  * the real PaymentElement renders the card surface.
  */
 
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -37,6 +37,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { AuthContext } from '../../../context/AuthContext';
+import { loadMoverPixel, trackMoverLead, trackMoverPurchase } from '../../../utils/metaPixelMovers';
 
 // Stripe.js loader — memoized at module scope per stripe/react-stripe-js
 // docs so multiple Activate mounts share one promise.
@@ -51,6 +52,14 @@ const stripePromiseSingleton = (() => {
 })();
 
 function TierPicker({ tier, setTier, fetching, initErr, onContinue, onSkip }) {
+  // Activation-offer screen reached: init the mover pixel and fire the single
+  // mid-funnel Lead. This is the only mover-pixel event inside onboarding
+  // besides Purchase — deliberately NO per-screen PageView.
+  useEffect(() => {
+    loadMoverPixel();
+    trackMoverLead();
+  }, []);
+
   const ctaLabel = fetching
     ? 'Preparing secure payment…'
     : tier === 100
@@ -185,6 +194,10 @@ function PaymentForm({ API_URL, tier, intent, onBack, onPaid }) {
         } catch {
           // Webhook will catch up — no UI block needed.
         }
+        // Mover Pixel: Purchase. event_id = PaymentIntent id (matches server
+        // CAPI) so Meta dedups. value = cash paid (tier: 50 or 100), not the
+        // bonus-inflated balance.
+        trackMoverPurchase(paymentIntent.id, { value: tier });
         if (refreshUser) await refreshUser();
         if (onPaid) onPaid();
         return;

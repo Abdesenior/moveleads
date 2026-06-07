@@ -15,6 +15,7 @@ const {
   sendTopupReceiptEmail,
   sendActivationReceiptEmail,
 } = require('../services/emailService');
+const metaCapiMovers = require('../services/metaCapiMovers');
 
 async function applyOnboardingActivationCredit(paymentIntent) {
   const md = paymentIntent.metadata || {};
@@ -86,7 +87,7 @@ async function applyOnboardingActivationCredit(paymentIntent) {
     { $set: { 'onboarding.complete': true, 'onboarding.completedAt': new Date() } }
   );
 
-  const fresh = await User.findById(userId).select('balance companyName email');
+  const fresh = await User.findById(userId).select('balance companyName email phone');
 
   sendAdminNotification({
     subject: `💰 Activation Payment — ${fresh.companyName}`,
@@ -108,6 +109,13 @@ async function applyOnboardingActivationCredit(paymentIntent) {
     balanceAfter: fresh.balance || 0,
     isBonusPath: bonusCredits > 0,
   }).catch(() => {});
+
+  // Mover CAPI: Purchase. This branch is reached once per PI (Transaction unique
+  // index is the idempotency key), so no extra guard is needed. event_id =
+  // PaymentIntent id so the browser Pixel Purchase dedups. value = cash paid.
+  metaCapiMovers
+    .sendActivationPurchase(fresh, { eventId: paymentIntent.id, value: selectedAmount })
+    .catch(err => console.error('[metaCapiMovers] Purchase threw:', err && err.message));
 
   console.log(`[ApplyCredit] credited $${totalCredits} to ${userId} for PI ${paymentIntent.id}`);
   return { applied: true, alreadyProcessed: false, balance: fresh.balance || 0, totalCredits };
