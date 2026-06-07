@@ -29,7 +29,7 @@
  *   - POST /api/billing/verify-payment-intent  (server-side completion)
  *   - POST /api/onboarding/dismiss-activation-offer  (browse-first)
  *   - PATCH /api/users/me/sms-claim             { optInRequested }
- *   - VerifyPhoneModal (Twilio Verify production component)
+ *   - OnboardingVerifyModal (Twilio Verify — wizard-native variant)
  *
  * Pickup is auto-derived from delivery (no UI for it):
  *   derivePickup(deliveryUiMode, deliveryStates, homeState) → {mode, states}
@@ -40,7 +40,6 @@ import { useNavigate } from 'react-router-dom';
 import { X, ArrowRight } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { US_STATES } from '../../data/usStates';
-import VerifyPhoneModal from '../../components/VerifyPhoneModal';
 import OnboardingVerifyModal from '../../components/OnboardingVerifyModal';
 import { useToast } from '../../components/ui/Toast';
 import {
@@ -749,19 +748,19 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
         )}
       </div>
 
-      {sandbox ? (
-        <OnboardingVerifyModal
-          isOpen={verifyOpen}
-          onClose={handleVerifyClose}
-          onSuccess={handleVerifySuccess}
-        />
-      ) : (
-        <VerifyPhoneModal
-          isOpen={verifyOpen}
-          onClose={handleVerifyClose}
-          onSuccess={handleVerifySuccess}
-        />
-      )}
+      {/* Wizard always uses OnboardingVerifyModal — both sandbox and
+         production. Both modal components call the same real Twilio
+         Verify endpoints; the difference is the "Wrong number?" CTA.
+         The dashboard's VerifyPhoneModal links to /dashboard/settings
+         (yanking the mover out of the wizard); OnboardingVerifyModal
+         just closes back to Step 4 so the phone field stays editable
+         in place. Dashboard Settings continues to use VerifyPhoneModal
+         for its own re-verify flow — unaffected. */}
+      <OnboardingVerifyModal
+        isOpen={verifyOpen}
+        onClose={handleVerifyClose}
+        onSuccess={handleVerifySuccess}
+      />
     </div>
   );
 }
