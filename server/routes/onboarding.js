@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
+const requirePhoneVerified = require('../middleware/requirePhoneVerified');
 const User = require('../models/User');
 const {
   expandAll,
@@ -62,6 +63,22 @@ router.post('/save-step', auth, async (req, res) => {
     // Accept 1..5 to keep partners with the legacy 5-step wizard mid-flow compatible.
     if (typeof step !== 'number' || step < 1 || step > 5) {
       return res.status(400).json({ msg: 'Invalid step' });
+    }
+
+    // ── Phone-verification gate for ALL steps past Contact (step 3) ──
+    // Steps 1-3 save coverage + phone + email + toggles BEFORE the verify
+    // modal opens, so they must stay open. Step 4 onward (SMS Claim,
+    // Almost Ready, Activate, Success) represent the mover advancing
+    // beyond the verification gate and require a verified phone.
+    if (step >= 4) {
+      const userDoc = await User.findById(req.user.id).select('phoneVerified').lean();
+      if (!userDoc) return res.status(401).json({ msg: 'User not found' });
+      if (userDoc.phoneVerified !== true) {
+        return res.status(403).json({
+          msg: 'Please verify your phone number before advancing past the Contact step.',
+          code: 'PHONE_NOT_VERIFIED',
+        });
+      }
     }
     const update = { 'onboarding.currentStep': step };
     if (answers && typeof answers === 'object') {
@@ -368,7 +385,7 @@ router.post('/skip', auth, async (req, res) => {
 // @route   POST /api/onboarding/complete
 // @desc    Mark wizard as fully completed (called after summary screen, before/after activation)
 // @access  Private
-router.post('/complete', auth, async (req, res) => {
+router.post('/complete', auth, requirePhoneVerified, async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(
       req.user.id,

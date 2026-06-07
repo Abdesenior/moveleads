@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, admin } = require('../middleware/auth');
+const requirePhoneVerified = require('../middleware/requirePhoneVerified');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const stripeInit = () => require('stripe')(process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.trim() : '');
@@ -48,7 +49,7 @@ const ALLOWED_INTENT_AMOUNTS = [50, 100];
 // @route   POST /api/billing/create-payment-intent
 // @desc    Create a PaymentIntent for the onboarding activation flow
 // @access  Private (JWT)
-router.post('/create-payment-intent', auth, async (req, res) => {
+router.post('/create-payment-intent', auth, requirePhoneVerified, async (req, res) => {
   try {
     const amount = Number(req.body?.amount);
     if (!ALLOWED_INTENT_AMOUNTS.includes(amount)) {
@@ -161,7 +162,7 @@ const ALLOWED_TOPUP_AMOUNTS = [50, 100, 200, 500];
 // @route   POST /api/billing/create-topup-intent
 // @desc    Create a PaymentIntent for an inline top-up (no redirect)
 // @access  Private (JWT)
-router.post('/create-topup-intent', auth, async (req, res) => {
+router.post('/create-topup-intent', auth, requirePhoneVerified, async (req, res) => {
   try {
     const amount = Number(req.body?.amount);
     if (!ALLOWED_TOPUP_AMOUNTS.includes(amount)) {

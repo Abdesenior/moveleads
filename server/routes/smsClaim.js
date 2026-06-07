@@ -206,6 +206,19 @@ router.patch('/', async (req, res) => {
   const set = {};
   if ('optInRequested' in body) {
     if (typeof body.optInRequested !== 'boolean') return res.status(400).json({ msg: 'optInRequested must be a boolean' });
+    // Phone-verification gate — only OPT-IN requires a verified phone.
+    // Opting OUT (setting false) must always succeed so a mover can disable
+    // the feature even if their verified state has been reset.
+    if (body.optInRequested === true) {
+      const userDoc = await User.findById(req.user.id).select('phoneVerified').lean();
+      if (!userDoc) return res.status(401).json({ msg: 'User not found' });
+      if (userDoc.phoneVerified !== true) {
+        return res.status(403).json({
+          msg: 'Please verify your phone number before enabling SMS Claim. SMS Claim requires a verified phone to deliver claim tokens.',
+          code: 'PHONE_NOT_VERIFIED',
+        });
+      }
+    }
     set['smsClaim.optInRequested'] = body.optInRequested;
   }
 
