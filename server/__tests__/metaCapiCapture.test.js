@@ -399,8 +399,34 @@ test('GetQuoteV6 wires Meta attribution + fires trackLead after non-idempotent 2
   // browser side has no metaCapiSentAt to gate on.
   assert.match(
     getQuoteV6Src,
-    /if\s*\(\s*!json\.idempotent\s*\)\s*\{\s*trackLead/,
-    'trackLead must be gated on !json.idempotent so retries do not re-fire the browser Lead'
+    /if\s*\(\s*!json\.idempotent\s*&&[^)]*\)\s*\{\s*trackLead/,
+    'trackLead must remain gated on !json.idempotent (retries do not re-fire) — now also AND-gated'
+  );
+});
+
+test('Lead event is gated to Long Distance (server + browser); Local fires nothing', () => {
+  // Single source of truth: the ONLY mileage threshold is the distance
+  // derivation in the ingest route. Tracking gates compare to its string output.
+  assert.match(ingestRouteSrc, /miles\s*>\s*100\s*\?\s*['"]Long Distance['"]\s*:\s*['"]Local['"]/,
+    'distance derivation (miles>100) remains the single classification source');
+
+  // Server: 201 response exposes the canonical classification for the browser.
+  assert.match(ingestRouteSrc, /distance:\s*lead\.distance/,
+    'ingest 201 response must include distance: lead.distance');
+
+  // Server: CAPI Lead fires ONLY when lead.distance === "Long Distance".
+  assert.match(
+    ingestRouteSrc,
+    /if\s*\(\s*lead\.distance\s*===\s*['"]Long Distance['"]\s*\)\s*\{[\s\S]{0,240}metaCapi\.sendLead\(/,
+    'sendLead must be wrapped in if (lead.distance === "Long Distance") — Local does not fire CAPI'
+  );
+
+  // Browser: trackLead fires ONLY for non-idempotent Long Distance responses.
+  // (Covers all three: Long Distance fires, Local does not, idempotent retries do not.)
+  assert.match(
+    getQuoteV6Src,
+    /!json\.idempotent\s*&&\s*json\.lead\?\.distance\s*===\s*['"]Long Distance['"]/,
+    'browser trackLead must require !json.idempotent && json.lead.distance === "Long Distance"'
   );
 });
 
