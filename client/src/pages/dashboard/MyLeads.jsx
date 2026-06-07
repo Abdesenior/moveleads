@@ -429,9 +429,12 @@ export default function MyLeads() {
 
   useEffect(() => {
     fetch(`${API_URL}/purchases`, { headers: { 'x-auth-token': token } })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`purchases HTTP ${r.status}`);
+        return r.json();
+      })
       .then(data => { if (Array.isArray(data)) setPurchases(data); })
-      .catch(console.error)
+      .catch(err => console.error('[MyLeads] fetch failed:', err))
       .finally(() => setLoading(false));
   }, [API_URL, token]);
 

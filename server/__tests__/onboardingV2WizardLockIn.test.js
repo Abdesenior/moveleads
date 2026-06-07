@@ -93,8 +93,12 @@ test('W6 — chooseSms advances to ALMOST_READY after PATCH', () => {
 
 // ─── Phone verify integration (PR #80 surface preserved) ────────────────────
 
-test('W7 — VerifyPhoneModal mounted at wizard root with success + close handlers', () => {
-  assert.match(wizard, /<VerifyPhoneModal/);
+test('W7 — OnboardingVerifyModal mounted at wizard root with success + close handlers', () => {
+  // Post PR #123: the wizard renders OnboardingVerifyModal (wizard-native
+  // variant), NOT the dashboard's VerifyPhoneModal. Both call the same
+  // Twilio Verify endpoints; the difference is the "Wrong number?" CTA
+  // staying inside the wizard instead of bouncing to /dashboard/settings.
+  assert.match(wizard, /<OnboardingVerifyModal/);
   assert.match(wizard, /onSuccess=\{handleVerifySuccess\}/);
   assert.match(wizard, /onClose=\{handleVerifyClose\}/);
 });

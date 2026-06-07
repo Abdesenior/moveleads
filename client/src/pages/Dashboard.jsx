@@ -143,6 +143,12 @@ export default function Dashboard() {
           fetch(`${API_URL}/leads`, { headers: h }),
         ]);
 
+        // Fail-fast on 4xx/5xx — otherwise .json() would parse an error
+        // object and silently leave state at its empty defaults.
+        if (!purchasesRes.ok) throw new Error(`purchases HTTP ${purchasesRes.status}`);
+        if (!txRes.ok)        throw new Error(`transactions HTTP ${txRes.status}`);
+        if (!leadsRes.ok)     throw new Error(`leads HTTP ${leadsRes.status}`);
+
         const purchases = await purchasesRes.json();
         const transactions = await txRes.json();
         const allLeads = await leadsRes.json();

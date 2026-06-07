@@ -76,6 +76,8 @@ export default function Billing() {
         fetch(`${API_URL}/billing/transactions`, { headers }),
         fetch(`${API_URL}/billing/balance`, { headers }),
       ]);
+      if (!txRes.ok)  throw new Error(`transactions HTTP ${txRes.status}`);
+      if (!balRes.ok) throw new Error(`balance HTTP ${balRes.status}`);
       const txData = await txRes.json();
       const balData = await balRes.json();
       if (Array.isArray(txData)) setTransactions(txData);

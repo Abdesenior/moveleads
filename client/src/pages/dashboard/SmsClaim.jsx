@@ -105,8 +105,9 @@ export default function SmsClaim() {
     <DashboardLayout>
       <div style={{ padding: '24px clamp(20px, 4vw, 40px) 48px', maxWidth: 1120, margin: '0 auto' }}>
 
-        {/* ── HERO ── 2 columns on desktop, stacked on mobile ────────────── */}
-        <section style={heroGrid}>
+        {/* ── HERO ── 2 columns on desktop, stacked on mobile via the
+            .sms-claim-hero-grid CSS rule below. */}
+        <section className="sms-claim-hero-grid" style={heroGrid}>
           <div>
             <span style={betaBadge}>BETA</span>
             <h1 style={heroH1}>Claim leads by text</h1>
@@ -272,6 +273,11 @@ export default function SmsClaim() {
         onClose={() => setVerifyOpen(false)}
         onSuccess={() => { setVerifyOpen(false); fetchState(); }}
       />
+      <style>{`
+        @media (max-width: 640px) {
+          .sms-claim-hero-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </DashboardLayout>
   );
 }
