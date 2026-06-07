@@ -1267,7 +1267,10 @@
     inset: 0;
     background: rgba(10,25,47,0.65);
     backdrop-filter: blur(8px);
-    z-index: 11900;
+    /* 12094 — one tick below the drawer (12095) so the drawer paints on top.
+       Sits ABOVE the offer banner (12090) so taps on the banner area dismiss
+       the drawer correctly instead of leaking through to the banner. */
+    z-index: 12094;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -1284,7 +1287,10 @@
     left: 0;
     height: 100vh;
     width: 280px;
-    z-index: 12001;
+    /* 12095 — above the offer banner (12090) so the drawer covers it when
+       open, but below the mobile app bar (12100) which keeps its X toggle
+       visible so the user can close the drawer. */
+    z-index: 12095;
     transform: translateX(-105%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 20px 0 60px rgba(10,25,47,0.4);
