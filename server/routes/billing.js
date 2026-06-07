@@ -156,12 +156,7 @@ router.post('/verify-payment-intent', auth, async (req, res) => {
 // Strict idempotency via Transaction.stripePaymentIntentId unique-sparse index.
 // ──────────────────────────────────────────────────────────────────────────
 
-// $1 is TEMPORARY — added for the Stripe account migration smoke test.
-// REVERT this change as soon as the production refund test (Test F) passes.
-// Existing UI tiers ($50/$100/$500) are unaffected; the $1 path is reachable
-// only via direct API call (curl/Postman) which is fine for an operator
-// smoke test. See PR: revert/temp-1usd-topup-stripe-smoke.
-const ALLOWED_TOPUP_AMOUNTS = [1, 50, 100, 200, 500];
+const ALLOWED_TOPUP_AMOUNTS = [50, 100, 200, 500];
 // applyTopUpCredit is now imported from ./billingCredits.
 
 // @route   POST /api/billing/create-topup-intent
