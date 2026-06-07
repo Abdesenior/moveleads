@@ -348,20 +348,21 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
 
   function handleVerifyClose() {
     setVerifyOpen(false);
-    // Sandbox mode: verification is REQUIRED. "Wrong number?" or any other
-    // close path just hides the modal — the mover stays on Step 4 (Contact)
-    // with the phone field amber, and clicking Continue retriggers the
-    // modal. No skip.
-    if (sandbox) return;
-    // Production (today): soft-skip — mover advances to SMS Claim with a
-    // toast suggesting they verify later from Settings.
+    // Phone verification is REQUIRED in both sandbox AND production modes.
+    // Closing the modal ("Wrong number?", X, backdrop click) only hides
+    // it — the mover stays on Step 4 (Contact) with the phone field
+    // amber. Clicking Continue retriggers the modal. No soft-skip.
+    //
+    // Server-side enforcement (server/middleware/requirePhoneVerified.js)
+    // blocks step >= 4 saves, onboarding/complete, all PaymentIntent
+    // creates, and SMS Claim opt-in if the phone is unverified — so any
+    // bypass attempt against the UI fails at the API boundary too.
     if (toast && toast.info) {
       toast.info(
-        'Your phone is saved',
-        "Verify it anytime from Settings → Profile. Text alerts won't fire until your phone is confirmed."
+        'Phone verification required',
+        "We text you when matching homeowner requests come in. Click Verify now on the Contact step to confirm your number."
       );
     }
-    setScreen(SCREENS.SMS_CLAIM);
   }
 
   async function patchSmsClaim(optInRequested) {
@@ -494,21 +495,19 @@ export default function OnboardingWizard({ onClose, initialStep, sandbox = false
             if (fresh.phoneVerified === true) {
               setScreen(SCREENS.SMS_CLAIM);
             } else {
+              // Phone unverified — open the verify modal. No soft-skip.
               setVerifyOpen(true);
             }
-          } else if (sandbox) {
-            // Sandbox: verification REQUIRED — can't read /auth/me cleanly,
-            // so force the verify modal open rather than soft-advancing.
-            setVerifyOpen(true);
           } else {
-            setScreen(SCREENS.SMS_CLAIM);
+            // /auth/me failure (network, 5xx). Phone verification is
+            // REQUIRED so we open the modal rather than silently
+            // advancing. The server-side requirePhoneVerified gate
+            // would refuse the next step's save-step anyway.
+            setVerifyOpen(true);
           }
         } catch {
-          if (sandbox) {
-            setVerifyOpen(true);
-          } else {
-            setScreen(SCREENS.SMS_CLAIM);
-          }
+          // fetch threw (offline, etc.). Same posture as !res.ok above.
+          setVerifyOpen(true);
         }
       } catch (err) {
         console.error('[OnboardingWizard] saveStep(3) failed:', err);
