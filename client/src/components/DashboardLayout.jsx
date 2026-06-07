@@ -388,13 +388,28 @@ export default function DashboardLayout({ children }) {
       </div>
 
       {showWizard && <OnboardingWizard onClose={handleCloseWizard} initialStep={wizardInitialStep} />}
-      {showActivationSuccess && <ActivationSuccessModal onClose={handleCloseActivationSuccess} />}
+      {showActivationSuccess && <ActivationSuccessModal user={user} onClose={handleCloseActivationSuccess} />}
       {showFirstTopupPopup && <FirstTopupReassurancePopup onClose={dismissFirstTopupPopup} />}
     </div>
   );
 }
 
-function ActivationSuccessModal({ onClose }) {
+function ActivationSuccessModal({ user, onClose }) {
+  // Headline + bonus row are driven by the live AuthContext user (passed
+  // in from DashboardLayout). refreshUser() fires right before this mounts,
+  // so the credited balance is usually here within one tick; the $50 floor
+  // matches StepSuccess.jsx and protects against a brief stale-context
+  // render that would otherwise flash "$0 balance is active". Bonus row
+  // only appears when the server stamped onboarding.bonusClaimedAt — same
+  // gate used by OnboardingOfferBanner and the in-wizard StepSuccess.
+  const balance = Math.round(user?.balance || 0);
+  const displayBalance = Math.max(balance, 50);
+  const bonusApplied = !!user?.onboarding?.bonusClaimedAt;
+  const rows = [];
+  if (bonusApplied) rows.push(['Onboarding bonus applied', '+$50']);
+  rows.push(['Dispatch alerts enabled', null]);
+  rows.push(['Market coverage configured', null]);
+
   return (
     <div style={{
       // 13500 — above the mobile fixed app bar (12100 in dashboard.css).
@@ -424,18 +439,14 @@ function ActivationSuccessModal({ onClose }) {
         <h1 style={{
           fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em',
           color: '#0f172a', margin: '0 0 8px', lineHeight: 1.2,
-        }}>Your $150 balance is active</h1>
+        }}>Your ${displayBalance} balance is active</h1>
         <ul style={{
           listStyle: 'none', padding: 0,
           margin: '18px 0 0',
           display: 'flex', flexDirection: 'column', gap: 8,
           fontSize: 14.5, color: '#475569', textAlign: 'left',
         }}>
-          {[
-            ['Onboarding bonus applied', '+$50'],
-            ['Dispatch alerts enabled', null],
-            ['Market coverage configured', null],
-          ].map(([label, value]) => (
+          {rows.map(([label, value]) => (
             <li key={label} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
               padding: '10px 14px',

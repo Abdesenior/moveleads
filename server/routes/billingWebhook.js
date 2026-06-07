@@ -20,6 +20,59 @@ const {
   applyTopUpCredit,
 } = require('./billingCredits');
 
+// ── Balance clawback with non-negative clamp ────────────────────────────
+// Stripe refunds/chargebacks can arrive AFTER the mover has spent the
+// original credit on leads. Unconditional $inc would drive balance
+// negative, and operators would have to remediate via the manual admin
+// balance-adjust route (see B4-refund-overdraft-investigation.md).
+//
+// This helper does a conditional-CAS clamp: only debit if the full
+// amount can be debited; otherwise zero out the balance and write a
+// compensating "Admin Adjustment" Transaction row for the unfundable
+// delta. Ledger invariant sum(Transaction.amount) === User.balance is
+// preserved across the two-row write: the Stripe Refund / Stripe
+// Chargeback row already carries -amount; the +writedown row offsets
+// the portion the balance could not actually fund.
+//
+// Race window: between the CAS miss and the unconditional $set:0, a
+// concurrent debit (buy-now / SMS Claim) could fire and our $set would
+// overwrite it. Net effect: that concurrent debit is silently absorbed
+// (mover effectively gets one lead for free). Chargebacks are rare
+// events and operator-eyeballed; we accept this race.
+async function clawbackOrClamp({ userId, amount, sourceLabel, sourceChargeId }) {
+  const ok = await User.findOneAndUpdate(
+    { _id: userId, balance: { $gte: amount } },
+    { $inc: { balance: -amount } },
+    { new: true }
+  );
+  if (ok) {
+    return { clamped: false, debited: amount, writedown: 0, finalBalance: ok.balance };
+  }
+
+  // Would-be-negative — clamp to 0 and write compensating ledger row.
+  const cur = await User.findById(userId).select('balance').lean();
+  const before = Number(cur?.balance || 0);
+  const debited = Math.max(0, Math.min(amount, before));
+  const writedown = Math.round((amount - debited) * 100) / 100;
+  await User.updateOne({ _id: userId }, { $set: { balance: 0 } });
+
+  try {
+    await Transaction.create({
+      user: userId,
+      type: 'Admin Adjustment',
+      // POSITIVE — offsets the unfundable portion of the -amount clawback
+      // row so sum(Transaction.amount) === User.balance still holds.
+      amount: writedown,
+      description: `Auto writedown: ${sourceLabel} ${sourceChargeId} exceeded balance by $${writedown.toFixed(2)} — clamped to 0 to preserve non-negative invariant`,
+      status: 'Completed',
+    });
+  } catch (txnErr) {
+    console.error(`[Webhook] Admin Adjustment writedown failed (non-fatal): ${txnErr.message}`);
+  }
+
+  return { clamped: true, debited, writedown, finalBalance: 0 };
+}
+
 // @route   POST /api/billing/webhook
 // @desc    Stripe Webhook Listener
 // @access  Public (Stripe Signature Verification)
@@ -107,12 +160,25 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
         throw err;
       }
 
-      await User.updateOne({ _id: original.user }, { $inc: { balance: -refundedDollars } });
+      const clampResult = await clawbackOrClamp({
+        userId: original.user,
+        amount: refundedDollars,
+        sourceLabel: 'Stripe Refund',
+        sourceChargeId: charge.id,
+      });
 
-      console.log(`[Webhook] charge.refunded → clawed back $${refundedDollars} from user ${original.user} (charge ${charge.id})`);
+      console.log(
+        `[Webhook] charge.refunded → clawed back $${clampResult.debited} from user ${original.user} ` +
+        `(charge ${charge.id}; clamped=${clampResult.clamped}, writedown=$${clampResult.writedown})`
+      );
 
       User.findById(original.user).select('email companyName').lean().then((u) => {
         if (!u?.email) return;
+        const clampLines = clampResult.clamped
+          ? `<p><strong>Clamped to zero:</strong> YES</p>
+             <p><strong>Actually debited:</strong> $${clampResult.debited.toFixed(2)}</p>
+             <p><strong>Compensating Admin Adjustment:</strong> +$${clampResult.writedown.toFixed(2)} (mover owes this — consider collection action)</p>`
+          : `<p><strong>Clamped to zero:</strong> NO</p>`;
         return sendAdminNotification({
           subject: `🔁 Stripe refund processed — ${u.companyName}`,
           html: `
@@ -122,7 +188,8 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
             <p><strong>Amount Refunded:</strong> $${refundedDollars.toFixed(2)}</p>
             <p><strong>Charge:</strong> ${charge.id}</p>
             <p><strong>PaymentIntent:</strong> ${piId}</p>
-            <p>The user's MoveLeads balance has been decremented accordingly. Review for any negative-balance follow-up.</p>
+            ${clampLines}
+            <p><strong>Final balance:</strong> $${clampResult.finalBalance.toFixed(2)}</p>
           `,
         });
       }).catch(() => {});
@@ -180,12 +247,25 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
         throw err;
       }
 
-      await User.updateOne({ _id: original.user }, { $inc: { balance: -disputedDollars } });
+      const clampResult = await clawbackOrClamp({
+        userId: original.user,
+        amount: disputedDollars,
+        sourceLabel: 'Stripe Chargeback',
+        sourceChargeId: chargeId,
+      });
 
-      console.log(`[Webhook] charge.dispute.created → clawed back $${disputedDollars} from user ${original.user} (charge ${chargeId})`);
+      console.log(
+        `[Webhook] charge.dispute.created → clawed back $${clampResult.debited} from user ${original.user} ` +
+        `(charge ${chargeId}; clamped=${clampResult.clamped}, writedown=$${clampResult.writedown})`
+      );
 
       User.findById(original.user).select('email companyName').lean().then((u) => {
         if (!u) return;
+        const clampLines = clampResult.clamped
+          ? `<p><strong>Clamped to zero:</strong> YES</p>
+             <p><strong>Actually debited:</strong> $${clampResult.debited.toFixed(2)}</p>
+             <p><strong>Compensating Admin Adjustment:</strong> +$${clampResult.writedown.toFixed(2)} (mover owes this — consider collection action)</p>`
+          : `<p><strong>Clamped to zero:</strong> NO</p>`;
         return sendAdminNotification({
           subject: `⚠️ Stripe Chargeback opened — ${u.companyName}`,
           html: `
@@ -195,7 +275,8 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
             <p><strong>Amount Disputed:</strong> $${disputedDollars.toFixed(2)}</p>
             <p><strong>Reason:</strong> ${dispute.reason || 'unspecified'}</p>
             <p><strong>Charge:</strong> ${chargeId}</p>
-            <p>Credit has been clawed back from the mover's balance. Stripe dispute response required separately.</p>
+            ${clampLines}
+            <p><strong>Final balance:</strong> $${clampResult.finalBalance.toFixed(2)}</p>
           `,
         });
       }).catch(() => {});
