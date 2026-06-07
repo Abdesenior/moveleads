@@ -479,7 +479,8 @@ export default function Customers() {
       {detailLead && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(12px)',
-          zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          // 13500 — above the mobile fixed app bar (12100 in dashboard.css).
+          zIndex: 13500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
           animation: 'custFadeIn 0.3s ease',
         }}>
           <div style={{

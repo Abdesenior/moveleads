@@ -19,7 +19,8 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
       position: 'fixed', inset: 0,
       background: 'rgba(10, 25, 47, 0.7)',
       backdropFilter: 'blur(12px)',
-      zIndex: 10000,
+      // 13500 — above the mobile fixed app bar (12100 in dashboard.css).
+      zIndex: 13500,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 20,
       animation: 'cmFadeIn 0.25s ease'

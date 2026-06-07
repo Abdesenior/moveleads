@@ -397,7 +397,9 @@ export default function DashboardLayout({ children }) {
 function ActivationSuccessModal({ onClose }) {
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
+      // 13500 — above the mobile fixed app bar (12100 in dashboard.css).
+      // Matches the standard modal layer convention.
+      position: 'fixed', inset: 0, zIndex: 13500,
       background: 'rgba(7, 17, 31, 0.55)',
       backdropFilter: 'blur(8px)',
       display: 'grid', placeItems: 'center',
