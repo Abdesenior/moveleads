@@ -988,7 +988,6 @@ export default function SettingsPage() {
 
       {/* ── Delete Account Modal ── */}
       {showDeleteModal && (
-        {/* zIndex 13500 — above the mobile fixed app bar (12100 in dashboard.css). */}
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 13500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>

@@ -622,7 +622,6 @@ function UnlockConfirmModal({ lead, balance, busy, error, onCancel, onConfirm })
 
   return (
     <div onClick={() => !busy && onCancel()}
-      /* zIndex 13500 — above the mobile fixed app bar (12100 in dashboard.css). */
       style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 13500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()}
         style={{ background: '#fff', borderRadius: 10, padding: 0, maxWidth: 460, width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>

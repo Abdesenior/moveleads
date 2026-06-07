@@ -660,7 +660,6 @@ export default function Leads() {
 
       {/* ── Success Modal ─────────────────────────────── */}
       {successData && (
-        {/* zIndex 13500 — above the mobile fixed app bar (12100 in dashboard.css). */}
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 13500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'mlFadeIn 0.25s ease' }}>
           <div style={{ background: '#fff', borderRadius: 22, padding: '36px 32px', width: '100%', maxWidth: 460, textAlign: 'center', boxShadow: '0 32px 80px rgba(0,0,0,0.2)', animation: 'mlScaleIn 0.3s cubic-bezier(0.16,1,0.3,1)' }}>
             <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>

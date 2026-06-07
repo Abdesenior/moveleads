@@ -12,7 +12,6 @@ export default function CreditsModal({ isOpen, onClose, onSelect }) {
   if (!isOpen) return null;
 
   return (
-    {/* zIndex 13500 — above the mobile fixed app bar (12100 in dashboard.css). */}
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(10, 25, 47, 0.8)', zIndex: 13500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(8px)' }}>
       <div style={{ background: 'white', width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '40px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
