@@ -1900,14 +1900,38 @@ html, body {
    already wires for .ow-overlay. Alias to .onboarding-wizard.
    ============================================================ */
 @media (max-width: 640px) {
+  /* Mobile: every screen is a full-viewport sheet. This generalizes the
+     pattern that the Location step already used (data-screen="location"
+     full-viewport override below) so that any step with an input — Contact
+     phone field, Location ZIP, Delivery state picker, Activate Stripe
+     element — keeps its layout when the soft keyboard slides up.
+     `--ow-vh` is updated by OnboardingWizard.jsx on every visualViewport
+     resize/scroll, so when the keyboard appears `--ow-vh` shrinks to the
+     visible-area height and the modal recomputes its height to match.
+     The keyboard sits below the modal instead of covering its content,
+     and the body's internal scroll keeps inputs visible. */
   .onboarding-wizard {
     padding: 0;
-    align-items: flex-end;
+    align-items: stretch;
   }
   .ow-modal {
     width: 100%;
-    max-height: calc(var(--ow-vh, 100dvh) - 12px);
-    border-radius: 16px 16px 0 0;
+    height: var(--ow-vh, 100dvh);
+    max-height: var(--ow-vh, 100dvh);
+    border-radius: 0;
+  }
+  /* Make the body the flex grow region so it owns the scroll between the
+     sticky progress bar above and the sticky footer below. */
+  .ow-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+  }
+  /* Sticky footer — sits above the keyboard safe-area on iOS. */
+  .ow-footer {
+    flex: 0 0 auto;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
   .ow-tier-v2 { padding: 16px 16px; }
   .ow-tier-pay,
@@ -1944,29 +1968,10 @@ html, body {
   .ow-body:has(.ow-place-wrap) { min-height: 0; }
 }
 
-/* ─────────────────────────────────────────────────────────────────────
-   Location step — mobile fullscreen (2026-06-06)
-   ---
-   On mobile only, when the wizard is on the Location step, render the
-   modal as a full-viewport sheet. The Location step is the only one
-   that triggers a soft keyboard + dropdown overlay, and the previous
-   bottom-sheet sizing left no room for the autocomplete dropdown to
-   show without being covered by the keyboard.
-
-   Triggered by data-screen="location" on the wizard root (set by
-   OnboardingWizard). Desktop (>= 641px) keeps its centered modal.
-   ───────────────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  .onboarding-wizard[data-screen="location"] {
-    align-items: stretch;
-  }
-  .onboarding-wizard[data-screen="location"] .ow-modal {
-    width: 100%;
-    height: var(--ow-vh, 100dvh);
-    max-height: var(--ow-vh, 100dvh);
-    border-radius: 0;
-  }
-}
+/* Note: the prior Location-step-only fullscreen override has been
+   generalized to ALL screens in the .onboarding-wizard mobile block
+   above (2026-06-07). Any step with an input now keeps its layout
+   stable when the soft keyboard appears. */
 
 /* Dropdown panel — absolute below the input, full input width. */
 .ow-place-dropdown {
