@@ -8,6 +8,7 @@ const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const PlatformSettings = require('../models/PlatformSettings');
 const { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } = require('../services/emailService');
+const metaCapiMovers = require('../services/metaCapiMovers');
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
@@ -39,7 +40,7 @@ function generateVerificationToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function issueJWT(user, res) {
+function issueJWT(user, res, extra = {}) {
   const payload = { user: { id: user.id, role: user.role } };
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' }, (err, token) => {
     if (err) throw err;
@@ -55,6 +56,7 @@ function issueJWT(user, res) {
         companyName: user.companyName,
         isEmailVerified: !!user.isEmailVerified,
       },
+      ...extra,
     });
   });
 }
@@ -199,14 +201,18 @@ router.get('/verify-email', async (req, res) => {
     user.emailVerificationExpires = undefined;
     await user.save();
 
-    // Welcome email — fires the first time the user verifies. Best-effort,
-    // never block verification on email delivery.
+    // Welcome email — best-effort, never blocks verification.
     sendWelcomeEmail(user).catch(() => {});
 
-    // Issue JWT alongside the verified flag so a returning user (different
-    // device, cleared cookies) lands authenticated and can be redirected
-    // straight into /dashboard/leads by the client.
-    return issueJWT(user, res);
+    // Mover CAPI: CompleteRegistration fires once per user (guarded). The
+    // same event_id is echoed to the browser so the Pixel event dedups.
+    const metaEventId = crypto.randomUUID();
+    metaCapiMovers
+      .sendCompleteRegistration(user, { eventId: metaEventId, req })
+      .catch(err => console.error('[metaCapiMovers] CompleteRegistration threw:', err && err.message));
+
+    // Issue JWT + echo the event_id for browser↔CAPI dedup.
+    return issueJWT(user, res, { metaEventId });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

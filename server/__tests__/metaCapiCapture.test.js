@@ -36,6 +36,7 @@ const envExampleSrc     = fs.readFileSync(path.join(__dirname, '..', '.env.examp
 
 const clientRoot = path.join(__dirname, '..', '..', 'client');
 const metaPixelSrc       = fs.readFileSync(path.join(clientRoot, 'src', 'utils', 'metaPixel.js'), 'utf8');
+const metaPixelCoreSrc = fs.readFileSync(path.join(clientRoot, 'src', 'utils', 'metaPixelCore.js'), 'utf8');
 const mainJsxSrc         = fs.readFileSync(path.join(clientRoot, 'src', 'main.jsx'), 'utf8');
 const getQuoteV6Src      = fs.readFileSync(path.join(clientRoot, 'src', 'pages', 'GetQuoteV6.jsx'), 'utf8');
 const envProdExampleSrc  = fs.readFileSync(path.join(clientRoot, '.env.production.example'), 'utf8');
@@ -323,27 +324,37 @@ test('client .env.production.example documents VITE_META_PIXEL_ID', () => {
 // ── F. Client wiring ─────────────────────────────────────────────────────
 
 test('client metaPixel helper exports the expected surface', () => {
-  for (const name of ['loadPixel', 'generateEventId', 'readFbp', 'readFbc', 'eventSourceUrl', 'trackLead']) {
-    assert.match(
-      metaPixelSrc,
-      new RegExp(`export\\s+function\\s+${name}\\b`),
-      `client/src/utils/metaPixel.js must export ${name}()`
-    );
+  // loadPixel + trackLead are defined in metaPixel.js; readers may be defined
+  // OR re-exported from metaPixelCore after the core extraction.
+  for (const name of ['loadPixel', 'trackLead']) {
+    assert.match(metaPixelSrc, new RegExp(`export\\s+function\\s+${name}\\b`),
+      `metaPixel.js must export ${name}()`);
+  }
+  for (const name of ['generateEventId', 'readFbp', 'readFbc', 'eventSourceUrl']) {
+    assert.match(metaPixelSrc, new RegExp(`\\b${name}\\b`),
+      `metaPixel.js must export/re-export ${name}`);
   }
 
-  // loadPixel must read VITE_META_PIXEL_ID and short-circuit when unset.
+  // loadPixel reads VITE_META_PIXEL_ID and short-circuits when unset.
   assert.match(metaPixelSrc, /import\.meta\.env\.VITE_META_PIXEL_ID/);
   assert.match(metaPixelSrc, /if\s*\(\s*!PIXEL_ID\s*\)/,
     'loadPixel must short-circuit when VITE_META_PIXEL_ID is missing');
 
-  // _fbc fallback from URL fbclid param — first-ad-click attribution insurance.
-  assert.match(metaPixelSrc, /fbclid/,
-    'readFbc must fall back to the ?fbclid= URL param');
+  // Homeowner events are isolated via trackSingle — no bare track broadcast.
+  assert.match(metaPixelSrc, /trackSingle\(\s*PIXEL_ID\s*,\s*['"]Lead['"]/,
+    'trackLead must use trackSingle(PIXEL_ID, "Lead", …) for pixel isolation');
+  assert.doesNotMatch(metaPixelSrc, /fbq\(\s*['"]track['"]\s*,/,
+    'no bare fbq("track", …) broadcast calls — use trackSingle');
 
-  // trackLead must guard window.fbq and pass eventID for dedup.
-  assert.match(metaPixelSrc, /typeof\s+fbq\s*!==\s*['"]function['"]/);
-  assert.match(metaPixelSrc, /eventID:\s*eventId/,
-    'trackLead must pass eventID to fbq for browser↔CAPI dedup');
+  // The shared core carries the snippet injector, fbq guard, eventID dedup,
+  // and the fbclid fallback.
+  assert.match(metaPixelCoreSrc, /export function ensureFbevents/);
+  assert.match(metaPixelCoreSrc, /export function trackSingle/);
+  assert.match(metaPixelCoreSrc, /typeof\s+fbq\s*!==\s*['"]function['"]/);
+  assert.match(metaPixelCoreSrc, /eventID:\s*eventId/,
+    'core trackSingle must pass eventID for browser↔CAPI dedup');
+  assert.match(metaPixelCoreSrc, /fbclid/,
+    'readFbc must fall back to the ?fbclid= URL param');
 });
 
 test('main.jsx boots the Meta Pixel exactly once', () => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import useCanonical from '../utils/useCanonical';
 import JsonLd from '../components/JsonLd';
+import { useMoverFunnelPixel } from '../hooks/useMoverFunnelPixel';
 import './Partners.css';
 
 // ── Data ────────────────────────────────────────────────────────────────────
@@ -253,6 +254,7 @@ function LeadCard({ lead, onBuy }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function Partners() {
+  useMoverFunnelPixel();
   useCanonical('/partners');
 
   const navigate = useNavigate();

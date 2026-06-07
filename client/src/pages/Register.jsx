@@ -1,12 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useMoverFunnelPixel } from '../hooks/useMoverFunnelPixel';
 import { useToast } from '../components/ui/Toast';
 import { ButtonSpinner } from '../components/ui/Loading';
 import { CheckCircle2, Zap, Shield, Clock, ArrowRight, Lock, ShieldCheck, CreditCard, Mail, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import '../auth.css';
 
 export default function Register() {
+  useMoverFunnelPixel();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({ companyName: '', dotNumber: '', mcNumber: '', phone: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');

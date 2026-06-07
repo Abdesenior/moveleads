@@ -2,9 +2,12 @@ import { useEffect, useState, useContext } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2, ArrowRight, RefreshCw, Mail } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { useMoverFunnelPixel } from '../hooks/useMoverFunnelPixel';
+import { trackMoverCompleteRegistration } from '../utils/metaPixelMovers';
 import '../auth.css';
 
 export default function VerifyEmail() {
+  useMoverFunnelPixel();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const { API_URL, login, user, refreshUser } = useContext(AuthContext);
@@ -33,6 +36,9 @@ export default function VerifyEmail() {
         }
         setStatus('success');
         setMessage('Email verified! Redirecting to your dashboard…');
+        // Mover Pixel: CompleteRegistration. event_id matches the server CAPI
+        // event so Meta dedups browser vs CAPI. Only fires on real success.
+        if (data.metaEventId) trackMoverCompleteRegistration(data.metaEventId);
 
         // ── WP-A5 — Post-verification redirect ──
         // Server issues a JWT alongside verification. Three cases:
