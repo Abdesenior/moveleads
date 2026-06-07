@@ -26,7 +26,11 @@ const cleanDescription = (desc) => {
   return desc.replace(/\s*\(Session:.*?\)/gi, '').trim();
 };
 
+// $1 is TEMPORARY — added for the Stripe account migration smoke test
+// (PR #127 added it to ALLOWED_TOPUP_AMOUNTS server-side). Revert as soon
+// as Test F (refund → clawback) passes. See revert PR for the full restore.
 const CREDIT_PACKS = [
+  { amount: 1,   label: '$1'   },
   { amount: 50,  label: '$50'  },
   { amount: 100, label: '$100', popular: true },
   { amount: 200, label: '$200' },
