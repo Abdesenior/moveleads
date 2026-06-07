@@ -58,7 +58,8 @@ export default function ConfirmPurchaseModal({
         position: 'fixed', inset: 0,
         background: 'rgba(15,23,42,0.55)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: 20,
+        // 13500 — above the mobile fixed app bar (12100 in dashboard.css).
+        zIndex: 13500, padding: 20,
         backdropFilter: 'blur(4px)',
       }}
     >

@@ -391,7 +391,8 @@ export default function Billing() {
       {confirmAmount !== null && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(10,25,47,0.7)', backdropFilter: 'blur(12px)',
-          zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          // 13500 — above the mobile fixed app bar (12100 in dashboard.css).
+          zIndex: 13500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
           animation: 'blFadeIn 0.25s ease',
         }}>
           <div style={{
@@ -517,7 +518,9 @@ function TopUpPaymentModal({ amount, balance, API_URL, token, onClose, onSuccess
     <div
       style={{
         position: 'fixed', inset: 0, background: 'rgba(10,25,47,0.7)', backdropFilter: 'blur(12px)',
-        zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        // 13550 — one tick above the topup confirm modal (13500) so this
+        // nested confirm renders on top of it.
+        zIndex: 13550, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
         animation: 'blFadeIn 0.25s ease',
       }}
     >
