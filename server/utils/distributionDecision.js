@@ -59,6 +59,10 @@ const DISTRIBUTABLE_VALUES = Object.freeze(['system_approved', 'admin_approved']
  *      - validation.phone.providerSuspicion === 'high'
  *      - validation.fraud.smsPumpingRisk === 'high'
  *      - validation.fingerprint.bot === true
+ *   6.5 contact-trust gate (feature-flagged)→ system_held
+ *      (Promotes contact legitimacy to a PRIMARY gate so move-value
+ *      signals can't auto-approve a weak-trust lead. See
+ *      _contactTrustGateReason for the five sub-rules.)
  *   7. default                              → system_approved
  *
  * Reject is reserved for EXPLICIT verdicts (admin REJECTED_FAKE or scoring
@@ -105,9 +109,122 @@ function deriveSystemDecision(lead) {
   if (v.fraud && v.fraud.smsPumpingRisk === 'high')    return 'system_held';
   if (v.fingerprint && v.fingerprint.bot === true)     return 'system_held';
 
+  // (6.5) Contact-trust gate (feature-flagged, 2026-06-06).
+  //       Hardens the approval gate so contact legitimacy is the PRIMARY
+  //       requirement rather than an advisory weight in the composite.
+  //       Every rule returns system_held — admin can still approve to
+  //       publish any held lead, mirroring the held-not-rejected semantic
+  //       used elsewhere in this function.
+  //
+  //       Toggle via env: CONTACT_TRUST_GATE_ENABLED=true. When the flag
+  //       is unset or 'false' the gate is bypassed and the function
+  //       behaves exactly as before.
+  if (process.env.CONTACT_TRUST_GATE_ENABLED === 'true') {
+    const gateReason = _contactTrustGateReason(lead);
+    if (gateReason) {
+      _logContactTrustGate(lead, gateReason);
+      return 'system_held';
+    }
+  }
+
   // (7) Default: trust. Legacy leads (no V5 fields) land here, AND V5
   //     leads with shadowTier in {standard, premium, hot} and no blockers.
   return 'system_approved';
+}
+
+/**
+ * Contact-trust gate — checks the five operator-approved sub-rules in
+ * order. Returns the first matching reason string, or null if the lead
+ * passes every rule.
+ *
+ * Pure function — no side effects, no env reads. Caller (deriveSystem-
+ * Decision) gates the env check.
+ *
+ * @param {Object} lead
+ * @returns {string|null} reason code or null if the gate is silent
+ */
+function _contactTrustGateReason(lead) {
+  const v = lead.validation || {};
+  const phone = v.phone || {};
+  const scores = lead.scores || {};
+  const identity = phone.identityMatch || {};
+  const hasNameMatch =
+    identity.firstNameMatch === true || identity.lastNameMatch === true;
+
+  // Rule 1 — Landline without identity match.
+  // Landline is a real number but the lowest-trust line type. A name
+  // match (Twilio Lookup verification of owner first/last name)
+  // overrides the block; an unverified landline does not.
+  if (phone.lineType === 'landline' && !hasNameMatch) {
+    return 'landline_no_identity_match';
+  }
+
+  // Rule 2 — VoIP / fixed VoIP. Always held; identity match does NOT
+  // override (per spec — VoIP is the most common burner-phone vector).
+  if (
+    phone.lineType === 'voip' ||
+    phone.lineType === 'fixedvoip' ||
+    phone.isVoip === true
+  ) {
+    return 'voip';
+  }
+
+  // Rule 3 — No telecom enrichment. Either Twilio Verify explicitly
+  // reported no enrichment, or Lookup never ran (no checkedAt). Both
+  // mean we have no carrier evidence to back the number. An identity
+  // match overrides the block.
+  const noEnrichment =
+    phone.validityReason === 'twilio_no_enrichment' ||
+    phone.checkedAt == null;
+  if (noEnrichment && !hasNameMatch) {
+    return 'no_telecom_enrichment';
+  }
+
+  // Rule 4 — Trust score floor. A composite > 70 cannot save a lead
+  // whose contact-trust sub-score is below 60; the score breakdown
+  // is in services/leadScoringEngine.js trustScore block.
+  if (typeof scores.trustScore === 'number' && scores.trustScore < 60) {
+    return 'trust_score_below_60';
+  }
+
+  // Rule 5 — Composite cannot override marginal trust. If the composite
+  // crosses the auto-approve band (>=70) on the back of move-value /
+  // urgency / intent points while trust sits in the 60-64 grey zone,
+  // hold for review.
+  if (
+    typeof scores.compositeScore === 'number' &&
+    typeof scores.trustScore === 'number' &&
+    scores.compositeScore >= 70 &&
+    scores.trustScore < 65
+  ) {
+    return 'composite_overrides_weak_trust';
+  }
+
+  return null;
+}
+
+/**
+ * Structured log when the contact-trust gate holds a lead. Tagged-string
+ * format matches the existing [phoneVerification] / [Admin sandbox-reset]
+ * conventions in this codebase so operators can grep for the tag.
+ */
+function _logContactTrustGate(lead, reason) {
+  const v = lead.validation || {};
+  const phone = v.phone || {};
+  const scores = lead.scores || {};
+  const identity = phone.identityMatch || {};
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[contactTrustGate] held leadId=${lead._id || lead.id || 'n/a'} ` +
+    `reason=${reason} ` +
+    `lineType=${phone.lineType || 'n/a'} ` +
+    `trustScore=${scores.trustScore ?? 'n/a'} ` +
+    `compositeScore=${scores.compositeScore ?? 'n/a'} ` +
+    `validityReason=${phone.validityReason || 'n/a'} ` +
+    `checkedAt=${phone.checkedAt ? new Date(phone.checkedAt).toISOString() : 'null'} ` +
+    `firstNameMatch=${identity.firstNameMatch ?? 'n/a'} ` +
+    `lastNameMatch=${identity.lastNameMatch ?? 'n/a'}`
+  );
 }
 
 /**
@@ -161,6 +278,10 @@ function describeSystemDecisionSource(lead) {
   if (v.phone && v.phone.providerSuspicion === 'high') return 'raw:providerSuspicion=high';
   if (v.fraud && v.fraud.smsPumpingRisk === 'high')    return 'raw:smsPumpingRisk=high';
   if (v.fingerprint && v.fingerprint.bot === true)     return 'raw:fingerprint.bot=true';
+  if (process.env.CONTACT_TRUST_GATE_ENABLED === 'true') {
+    const reason = _contactTrustGateReason(lead);
+    if (reason) return `contact_trust_gate:${reason}`;
+  }
   return 'evidence clean';
 }
 

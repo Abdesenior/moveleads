@@ -1,9 +1,10 @@
 require('dotenv').config();
 
-if (!process.env.JWT_SECRET) {
-  console.error('[FATAL] JWT_SECRET is not set. Refusing to start.');
-  process.exit(1);
-}
+// Boot-time env validation. In production, hard-fails (exit 1) if any of
+// TWILIO_AUTH_TOKEN / STRIPE_WEBHOOK_SECRET / SERVER_URL / JWT_SECRET are
+// missing. In non-production, logs warnings and continues. See
+// utils/validateEnv.js.
+require('./utils/validateEnv')();
 
 console.log('SERVER VERSION: import-fix-v4', new Date().toISOString());
 const express = require('express');
