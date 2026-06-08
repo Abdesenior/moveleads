@@ -561,7 +561,7 @@ async function sendAdminLeadNotification(lead) {
 
   const { error } = await resend.emails.send({
     from: 'MoveLeads <noreply@moveleads.cloud>',
-    to: 'admin@moveleads.cloud',
+    to: ['admin@moveleads.cloud', 'amine@moveleads.cloud'],
     subject: `🔥 New Lead: ${lead.homeSize} | ${lead.originCity} → ${lead.destinationCity} | $${lead.price}`,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
@@ -623,7 +623,7 @@ async function sendAdminNotification({ subject, html }) {
   try {
     await getResend().emails.send({
       from: 'MoveLeads <noreply@moveleads.cloud>',
-      to: 'admin@moveleads.cloud',
+      to: ['admin@moveleads.cloud', 'amine@moveleads.cloud'],
       subject,
       html
     });
