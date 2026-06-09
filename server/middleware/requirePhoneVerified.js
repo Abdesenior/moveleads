@@ -12,6 +12,12 @@
  *   - POST /api/onboarding/complete               (mark wizard done)
  *   - POST /api/onboarding/save-step (step >= 4)  (advance past Contact)
  *   - PATCH /api/users/me/sms-claim               (opt-in to SMS Claim)
+ *   - POST /api/bids/:leadId/buy-now              (dashboard lead purchase)
+ *
+ * Closed bypass (2026-06-09):
+ *   - POST /api/onboarding/skip was DELETED — it silently set
+ *     onboarding.complete=true without verification. The UI never called
+ *     it; deletion has no user-facing effect.
  *
  * Failure mode: 403 with a stable error code `PHONE_NOT_VERIFIED` so the
  * client can route the user back to the verify modal. The message is
