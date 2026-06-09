@@ -14,6 +14,7 @@ const User     = require('../models/User');
 const PurchasedLead = require('../models/PurchasedLead');
 const Transaction   = require('../models/Transaction');
 const { auth } = require('../middleware/auth');
+const requirePhoneVerified = require('../middleware/requirePhoneVerified');
 const { getIo } = require('../services/socketService');
 const { settleOneLead } = require('../jobs/settleAuctions');
 const { isHiddenFromMovers, hiddenReason, routingMode, moverVisibilityFilter, recordClaimBlocked } = require('../utils/leadVisibility');
@@ -104,7 +105,14 @@ router.post('/:leadId', auth, async (req, res) => {
 // sequence here should be mirrored there (and vice versa); the two are pinned
 // by their respective lock-in tests (this one's tests live in dealRoom.test
 // + distributionModel.test; the SMS sibling has smsClaimLiveHandler.test).
-router.post('/:leadId/buy-now', auth, async (req, res) => {
+// requirePhoneVerified added 2026-06-09 for consistency with the rest of
+// the marketplace-participation chokepoint set. Activation pay, top-up,
+// SMS Claim opt-in, onboarding/complete, and onboarding step >= 4 all
+// require a verified phone — dashboard buy-now joins them. A mover with
+// phoneVerified=false can no longer purchase leads even if they somehow
+// hold a balance (grandfathered from pre-2026-06-07 flow, admin manual
+// credit, etc.).
+router.post('/:leadId/buy-now', auth, requirePhoneVerified, async (req, res) => {
   try {
     // Atomic: only one mover can flip status to 'buy_now'.
     // Phase 6 — the moverVisibilityFilter is part of the atomic match so a

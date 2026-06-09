@@ -359,28 +359,21 @@ router.post('/preview-coverage', auth, async (req, res) => {
   }
 });
 
-// @route   POST /api/onboarding/skip
-// @desc    Mark wizard as skipped — soft-lock dismissed
-// @access  Private
-router.post('/skip', auth, async (req, res) => {
-  try {
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        $set: {
-          'onboarding.skippedAt': new Date(),
-          'onboarding.complete': true,
-          'onboarding.completedAt': new Date(),
-        },
-      },
-      { new: true }
-    ).select('onboarding');
-    return res.json({ onboarding: user.onboarding });
-  } catch (err) {
-    console.error('[Onboarding] skip error', err);
-    return res.status(500).json({ msg: 'Server error' });
-  }
-});
+// POST /api/onboarding/skip — DELETED 2026-06-09.
+//
+// The route silently set onboarding.complete=true without requiring phone
+// verification, allowing a technical user (DevTools fetch, curl, Postman)
+// to bypass the wizard's verification gate. The UI never called this
+// route (grep -r confirmed zero references in client/src), so removing
+// it has no user-facing effect.
+//
+// Phone-verification policy is now consistent: every endpoint that
+// advances onboarding state OR enables marketplace participation either
+// runs through requirePhoneVerified, has an inline phoneVerified check,
+// or doesn't mutate sensitive state. There is no "skip" escape hatch.
+//
+// DO NOT re-add a skip route without explicit operator approval AND
+// requirePhoneVerified gating.
 
 // @route   POST /api/onboarding/complete
 // @desc    Mark wizard as fully completed (called after summary screen, before/after activation)
