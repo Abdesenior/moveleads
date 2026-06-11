@@ -246,93 +246,14 @@ export default function Dashboard() {
         {kpiCards.map((c, i) => <KpiCard key={i} loading={loading} {...c} />)}
       </div>
 
-      {/* ── Chart + Activity — .dashboard-content-grid collapses this to a
-             single column on phones (rule already in dashboard.css; the
-             class just wasn't applied here). */}
-      <div className="dashboard-content-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18, marginBottom: 24 }}>
-
-        {/* Line chart */}
-        <div style={{
-          background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(18px)',
-          border: '1px solid rgba(255,255,255,0.9)', borderRadius: 20,
-          padding: '24px 28px',
-          boxShadow: '0 4px 24px rgba(15,23,42,0.07)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Lead Volume</h3>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>Your purchases — last 7 days</p>
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', background: '#f1f5f9', padding: '5px 12px', borderRadius: 8, letterSpacing: '0.04em' }}>
-              LAST 7 DAYS
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.18} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip />} />
-              <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2.5} fill="url(#areaGrad)" dot={{ fill: '#3b82f6', r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: '#3b82f6' }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Recent activity */}
-        <div style={{
-          background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(18px)',
-          border: '1px solid rgba(255,255,255,0.9)', borderRadius: 20,
-          padding: '24px 24px',
-          boxShadow: '0 4px 24px rgba(15,23,42,0.07)',
-          display: 'flex', flexDirection: 'column'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Recent Activity</h3>
-            <button onClick={() => navigate('/dashboard/billing')} style={{ background: 'none', border: 'none', fontSize: 12, color: '#3b82f6', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-              View all <ChevronRight size={13} />
-            </button>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {loading ? (
-              [...Array(4)].map((_, i) => (
-                <div key={i} style={{ height: 52, borderRadius: 10, background: '#f1f5f9', marginBottom: 8, animation: 'pulse 1.4s ease infinite' }} />
-              ))
-            ) : activity.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: 13 }}>
-                <Clock size={28} style={{ marginBottom: 8, opacity: 0.4 }} />
-                <p style={{ margin: 0 }}>No activity yet</p>
-              </div>
-            ) : activity.map(tx => (
-              <div key={tx._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #f8fafc' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: tx.type === 'Credit Deposit' ? '#f0fdf4' : '#eff6ff', color: tx.type === 'Credit Deposit' ? '#16a34a' : '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {tx.type === 'Credit Deposit' ? <ArrowUpCircle size={16} /> : <ShoppingBag size={16} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {cleanDesc(tx.description)}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>{daysAgoLabel(tx.date)}</p>
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 700, flexShrink: 0, color: tx.type === 'Credit Deposit' ? '#16a34a' : '#0f172a', background: tx.type === 'Credit Deposit' ? '#f0fdf4' : '#f8fafc', padding: '3px 9px', borderRadius: 8 }}>
-                  {tx.type === 'Credit Deposit' ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Available Leads Table ─────────────────────── */}
+      {/* ── Available Leads Table — first content section per operator
+             direction (2026-06-11): leads are the action surface, chart +
+             activity are reference and now sit below. */}
       <div style={{
         background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(18px)',
         border: '1px solid rgba(255,255,255,0.9)', borderRadius: 20,
-        boxShadow: '0 4px 24px rgba(15,23,42,0.07)', overflow: 'hidden'
+        boxShadow: '0 4px 24px rgba(15,23,42,0.07)', overflow: 'hidden',
+        marginBottom: 24,
       }}>
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -422,6 +343,87 @@ export default function Dashboard() {
           </table>
           </div>
         )}
+      </div>
+
+      {/* ── Chart + Activity — .dashboard-content-grid collapses this to a
+             single column on phones. */}
+      <div className="dashboard-content-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18, marginBottom: 24 }}>
+
+        {/* Line chart */}
+        <div style={{
+          background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(18px)',
+          border: '1px solid rgba(255,255,255,0.9)', borderRadius: 20,
+          padding: '24px 28px',
+          boxShadow: '0 4px 24px rgba(15,23,42,0.07)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Lead Volume</h3>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>Your purchases — last 7 days</p>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', background: '#f1f5f9', padding: '5px 12px', borderRadius: 8, letterSpacing: '0.04em' }}>
+              LAST 7 DAYS
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.18} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <Tooltip content={<ChartTooltip />} />
+              <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2.5} fill="url(#areaGrad)" dot={{ fill: '#3b82f6', r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: '#3b82f6' }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Recent activity */}
+        <div style={{
+          background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(18px)',
+          border: '1px solid rgba(255,255,255,0.9)', borderRadius: 20,
+          padding: '24px 24px',
+          boxShadow: '0 4px 24px rgba(15,23,42,0.07)',
+          display: 'flex', flexDirection: 'column'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Recent Activity</h3>
+            <button onClick={() => navigate('/dashboard/billing')} style={{ background: 'none', border: 'none', fontSize: 12, color: '#3b82f6', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+              View all <ChevronRight size={13} />
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {loading ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} style={{ height: 52, borderRadius: 10, background: '#f1f5f9', marginBottom: 8, animation: 'pulse 1.4s ease infinite' }} />
+              ))
+            ) : activity.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: 13 }}>
+                <Clock size={28} style={{ marginBottom: 8, opacity: 0.4 }} />
+                <p style={{ margin: 0 }}>No activity yet</p>
+              </div>
+            ) : activity.map(tx => (
+              <div key={tx._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #f8fafc' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: tx.type === 'Credit Deposit' ? '#f0fdf4' : '#eff6ff', color: tx.type === 'Credit Deposit' ? '#16a34a' : '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {tx.type === 'Credit Deposit' ? <ArrowUpCircle size={16} /> : <ShoppingBag size={16} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cleanDesc(tx.description)}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>{daysAgoLabel(tx.date)}</p>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, flexShrink: 0, color: tx.type === 'Credit Deposit' ? '#16a34a' : '#0f172a', background: tx.type === 'Credit Deposit' ? '#f0fdf4' : '#f8fafc', padding: '3px 9px', borderRadius: 8 }}>
+                  {tx.type === 'Credit Deposit' ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <style>{`
