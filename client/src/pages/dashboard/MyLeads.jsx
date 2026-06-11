@@ -202,7 +202,9 @@ function ExpandedPanel({ purchase, onUpdate }) {
             </div>
           )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        {/* Detail panel — collapses to one column on phones via the
+           .myleads-detail-grid rule in dashboard.css. */}
+        <div className="myleads-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
 
           {/* Left: contact info */}
           <div>
@@ -577,7 +579,7 @@ export default function MyLeads() {
             No leads match your search.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>

@@ -1858,3 +1858,12 @@
     opacity: 1 !important;
   }
 }
+
+/* MyLeads expanded detail panel — 2 columns (contact / CRM) on desktop,
+   stacked on phones. Same sweep pattern as .admin-stats-grid above. */
+@media (max-width: 640px) {
+  .myleads-detail-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
