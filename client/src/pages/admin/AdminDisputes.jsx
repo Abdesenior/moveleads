@@ -101,7 +101,7 @@ export default function AdminDisputes() {
         />
       </div>
 
-      <div className="panel" style={{ padding: 0, overflow: 'hidden', borderRadius: 18 }}>
+      <div className="panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: 18 }}>
         <table className="leads-table">
           <thead>
             <tr>

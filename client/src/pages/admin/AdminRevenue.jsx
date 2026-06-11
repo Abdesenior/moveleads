@@ -138,7 +138,7 @@ export default function AdminRevenue() {
       </div>
 
       {/* Transaction Table */}
-      <div className="panel" style={{ padding: 0, overflow: 'hidden', borderRadius: 18 }}>
+      <div className="panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: 18 }}>
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

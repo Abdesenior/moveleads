@@ -184,7 +184,7 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      <div className="panel" style={{ padding: 0, overflow: 'hidden', borderRadius: 18 }}>
+      <div className="panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: 18 }}>
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid #f1f5f9' }}>
           <div style={{ fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--bg-navy)', fontSize: 16 }}>Customer Directory</div>
           <div style={{ position: 'relative', minWidth: 260, flex: '1 1 260px' }}>

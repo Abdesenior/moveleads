@@ -219,7 +219,7 @@ export default function AdminQuality() {
       {loading && <div style={{ color: '#64748b', fontSize: 14 }}>Loading…</div>}
 
       {!loading && !error && (
-        <div className="panel" style={{ padding: 0, overflow: 'hidden', borderRadius: 18 }}>
+        <div className="panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: 18 }}>
           {filtered.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center', color: '#64748b' }}>
               <CheckCircle size={32} style={{ margin: '0 auto 12px', color: '#16a34a' }} />
