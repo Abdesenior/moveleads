@@ -149,10 +149,12 @@ test('B3. Schedules at every 5 minutes (cadence parity with siblings)', () => {
 // ── C. Eligibility filter parity ───────────────────────────────────────
 
 test('C1. buildEligibilityFilter returns the post-2026-06-09 narrowed shape', () => {
-  // 2026-06-09 — added `notifiedAt: null` to stop re-promoting expired
-  // leads that have already been broadcast. See file header for the full
-  // rationale.
-  const { buildEligibilityFilter } = require('../jobs/reactivateLeads');
+  // 2026-06-09 — two narrowings in one day:
+  //   (1) notifiedAt: null — never re-promote previously-broadcast leads.
+  //   (2) createdAt window + distributionDecision — never resurrect
+  //       legacy leads predating the current qualification system.
+  // See file header for the full rationale.
+  const { buildEligibilityFilter, MAX_REACTIVATION_AGE_MS } = require('../jobs/reactivateLeads');
   const now = new Date('2026-05-29T00:00:00Z');
   const filter = buildEligibilityFilter(now);
   assert.deepEqual(
@@ -162,12 +164,14 @@ test('C1. buildEligibilityFilter returns the post-2026-06-09 narrowed shape', ()
       status:        { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
       moveDate:      { $gte: now },
       notifiedAt:    null,
+      createdAt:     { $gte: new Date(now.getTime() - MAX_REACTIVATION_AGE_MS) },
+      distributionDecision: { $in: ['system_approved', 'admin_approved'] },
       $or: [
         { buyers: { $size: 0 } },
         { buyers: { $exists: false } },
       ],
     },
-    'Eligibility filter must include notifiedAt: null (never-broadcast only)'
+    'Eligibility filter must include notifiedAt + createdAt window + distributable decision'
   );
 });
 
@@ -185,6 +189,85 @@ test('C1b. Filter explicitly gates on notifiedAt: null (regression guard for the
     filter.notifiedAt,
     null,
     'Filter notifiedAt clause MUST be exactly `null` — anything else (e.g. {$exists:false}) lets previously-broadcast leads slip through'
+  );
+});
+
+test('C1c. Filter gates on createdAt within MAX_REACTIVATION_AGE_MS (legacy-lead guard)', () => {
+  // A never-broadcast lead older than 7 days is presumed legacy /
+  // abandoned inventory. Even if an admin retroactively flips its
+  // distributionDecision, the cron must not resurrect it.
+  const { buildEligibilityFilter, MAX_REACTIVATION_AGE_MS } = require('../jobs/reactivateLeads');
+  assert.equal(MAX_REACTIVATION_AGE_MS, 7 * 24 * 60 * 60 * 1000,
+    'MAX_REACTIVATION_AGE_MS must be exactly 7 days');
+  const now = new Date('2026-06-09T12:00:00Z');
+  const filter = buildEligibilityFilter(now);
+  assert.ok(filter.createdAt, 'Filter MUST include a createdAt clause');
+  assert.deepEqual(
+    filter.createdAt,
+    { $gte: new Date(now.getTime() - MAX_REACTIVATION_AGE_MS) },
+    'createdAt clause must be a $gte window of exactly MAX_REACTIVATION_AGE_MS'
+  );
+});
+
+test('C1d. Filter requires a distributable distributionDecision (qualification guard)', () => {
+  // Aligns the cron with dispatchApprovedLead's isHiddenFromMoversById
+  // check. Without this, the cron flips auctionStatus on undistributable
+  // leads every 5 minutes only for the dispatch to be suppressed
+  // downstream — wasted writes and a single-point-of-defense risk.
+  const { buildEligibilityFilter } = require('../jobs/reactivateLeads');
+  const filter = buildEligibilityFilter(new Date());
+  assert.deepEqual(
+    [...filter.distributionDecision.$in].sort(),
+    ['admin_approved', 'system_approved'],
+    'distributionDecision.$in must contain exactly system_approved + admin_approved (matches DISTRIBUTABLE_VALUES in utils/distributionDecision.js)'
+  );
+});
+
+test('C1e. Legacy leads cannot match the filter — proof by Mongo-semantics simulation', () => {
+  // Simulate Mongo's matching semantics on three representative legacy
+  // docs against the built filter. We test the FIELDS the legacy guard
+  // relies on (createdAt + distributionDecision); the in-Mongo behaviors
+  // ("undefined does not match $in", "$gte on a date") are modeled
+  // directly because the test lane has no mongod.
+  const { buildEligibilityFilter } = require('../jobs/reactivateLeads');
+  const now = new Date('2026-06-09T12:00:00Z');
+  const filter = buildEligibilityFilter(now);
+
+  const matchesLegacyGuards = (doc) => {
+    // createdAt window
+    if (!(doc.createdAt instanceof Date)) return false;
+    if (doc.createdAt.getTime() < filter.createdAt.$gte.getTime()) return false;
+    // distributionDecision $in — undefined / missing does NOT match
+    if (!filter.distributionDecision.$in.includes(doc.distributionDecision)) return false;
+    return true;
+  };
+
+  // Legacy lead 1 — pre-qualification-era: no distributionDecision at all.
+  assert.equal(
+    matchesLegacyGuards({ createdAt: new Date('2026-06-08T00:00:00Z'), distributionDecision: undefined }),
+    false,
+    'recent lead WITHOUT distributionDecision must not match'
+  );
+
+  // Legacy lead 2 — old lead with default system_pending.
+  assert.equal(
+    matchesLegacyGuards({ createdAt: new Date('2026-01-15T00:00:00Z'), distributionDecision: 'system_pending' }),
+    false,
+    'old system_pending lead must not match'
+  );
+
+  // Legacy lead 3 — old lead that an admin retroactively approved.
+  assert.equal(
+    matchesLegacyGuards({ createdAt: new Date('2026-04-01T00:00:00Z'), distributionDecision: 'admin_approved' }),
+    false,
+    'old lead must not match even when admin_approved — createdAt window is the hard cutoff'
+  );
+
+  // Control — fresh approved lead matches.
+  assert.equal(
+    matchesLegacyGuards({ createdAt: new Date('2026-06-08T00:00:00Z'), distributionDecision: 'system_approved' }),
+    true,
+    'fresh system_approved lead must still match (cron purpose preserved)'
   );
 });
 
