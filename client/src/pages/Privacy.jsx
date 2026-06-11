@@ -128,8 +128,31 @@ We do not use advertising or retargeting cookies. You can control cookies throug
 When data is no longer needed, we securely delete or anonymize it.`,
   },
   {
+    id: 'sms-messaging',
+    title: '9. SMS / Text Messaging Program',
+    content: `MoveLeads LLC operates an SMS text messaging program for registered moving companies ("Movers") who opt in during registration or from their account settings.
+
+**What we send:** With your consent, we send SMS messages for the following use cases:
+- **Lead notifications:** Alerts when a new moving lead matches your service area and preferences.
+- **Account notifications:** Phone verification codes, purchase confirmations, balance updates, and security alerts.
+- **Onboarding information:** Setup guidance while you complete your account.
+- **Promotional communications:** Occasional offers and product updates (only if you have opted in).
+
+**Your mobile number is never sold, rented, or shared with third parties for marketing purposes.** Mobile opt-in data and consent records are not shared with any third party except our SMS delivery provider (Twilio) solely for the purpose of delivering the messages you requested.
+
+**Message frequency varies** based on lead activity in your service area and your notification preferences.
+
+**Message and data rates may apply** depending on your mobile carrier plan.
+
+**Opting out:** Reply **STOP** to any message to unsubscribe at any time. After opting out you will receive a single confirmation message and no further texts. You can re-subscribe by replying START or updating your notification settings in your dashboard.
+
+**Help:** Reply **HELP** to any message for assistance, or contact support@moveleads.cloud.
+
+**Consent is not a condition of purchase.** You can use the MoveLeads platform, receive email notifications, and purchase leads from your dashboard without opting in to SMS.`,
+  },
+  {
     id: 'changes',
-    title: '9. Changes to This Policy',
+    title: '10. Changes to This Policy',
     content: `We may update this Privacy Policy from time to time. When we make material changes, we will:
 
 - Update the "Last updated" date at the top of this page.
@@ -140,12 +163,13 @@ Your continued use of MoveLeads after any changes constitutes acceptance of the 
   },
   {
     id: 'contact',
-    title: '10. Contact Us',
+    title: '11. Contact Us',
     content: `If you have questions about this Privacy Policy or how we handle your data, contact us:
 
 **Email:** legal@moveleads.cloud
 **Support:** support@moveleads.cloud
-**Mailing address:** MoveLeads, Inc., Austin, TX, United States
+**Company:** MoveLeads LLC, registered in Wyoming, United States
+**Website:** https://moveleads.cloud
 
 For EU/UK inquiries related to GDPR, you may also contact our Data Protection contact at: legal@moveleads.cloud
 
@@ -207,7 +231,7 @@ export default function Privacy() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7 }}>
-            Last updated: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>March 20, 2026</strong>
+            Last updated: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>June 11, 2026</strong>
           </p>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, maxWidth: 520, margin: '10px auto 0' }}>
             We take your privacy seriously. This policy explains how MoveLeads.cloud collects, uses, and protects your information.

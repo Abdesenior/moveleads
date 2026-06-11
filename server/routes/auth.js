@@ -67,6 +67,12 @@ function issueJWT(user, res, extra = {}) {
 router.post('/register', registerLimiter, async (req, res) => {
   const { companyName, dotNumber, mcNumber, phone, password } = req.body;
   const email = req.body.email?.toLowerCase().trim();
+  // A2P 10DLC consent — strict-boolean check so a string "false" or other
+  // truthy junk from a scripted POST can't record consent. The trio
+  // (flag + timestamp + IP) is the audit trail Twilio/carriers expect
+  // during campaign review. req.ip is the real client IP because
+  // server.js sets `app.set('trust proxy', 1)`.
+  const smsConsent = req.body.smsConsent === true;
 
   // ── WP12.1 — Server-side input validation ─────────────────────────────────
   // The client (Register.jsx:43-68) performs these same checks before submit,
@@ -111,6 +117,10 @@ router.post('/register', registerLimiter, async (req, res) => {
       isEmailVerified: false,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      // A2P consent record — only populated on affirmative opt-in.
+      smsConsent,
+      smsConsentAt: smsConsent ? new Date() : null,
+      smsConsentIp: smsConsent ? (req.ip || '') : '',
     });
 
     try {

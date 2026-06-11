@@ -13,6 +13,7 @@ const About = lazy(() => import('./pages/About'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
+const SmsConsent = lazy(() => import('./pages/SmsConsent'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 // V1 (`./pages/GetQuote`) is retained only because `MoveRoute`
@@ -87,6 +88,9 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              {/* A2P 10DLC — public opt-in demonstration page for Twilio/
+                  carrier campaign review. Must stay login-free. */}
+              <Route path="/sms-consent" element={<SmsConsent />} />
               {/* /get-quote is the single public quote URL — renders the v6
                   funnel (file kept as GetQuoteV6.jsx for history; no rename).
                   /move/:from/:to still reuses V1 via MoveRoute. */}

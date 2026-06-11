@@ -11,7 +11,7 @@ const SECTIONS = [
   {
     id: 'acceptance',
     title: '1. Acceptance of Terms',
-    content: `By accessing or using moveleads.cloud ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.
+    content: `By accessing or using moveleads.cloud ("the Service"), operated by **MoveLeads LLC**, a technology platform and lead marketplace for moving companies registered in Wyoming, United States, you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.
 
 These terms apply to all users, including homeowners requesting moving quotes ("Customers") and moving companies purchasing leads ("Movers").`,
   },
@@ -91,9 +91,30 @@ Our total liability for any claim shall not exceed the amount you paid to MoveLe
 We will notify registered users of material changes via email.`,
   },
   {
+    id: 'sms-terms',
+    title: '9. SMS / Text Messaging Terms',
+    content: `By opting in to SMS messages from MoveLeads LLC (during registration, onboarding, or from your account settings), you agree to receive text messages for the following use cases: **lead notifications, account notifications, onboarding information, and promotional communications**.
+
+**Message frequency varies** based on lead activity in your service area and your notification preferences.
+
+**Message and data rates may apply** depending on your mobile carrier plan.
+
+**Opt out at any time:** Reply **STOP** to any message to unsubscribe. You will receive one final confirmation message and no further texts. Reply START or update your dashboard settings to re-subscribe.
+
+**Need help?** Reply **HELP** to any message, or contact support@moveleads.cloud.
+
+**Your mobile number is never sold, rented, or shared with third parties for marketing purposes.** See our Privacy Policy for full details on how your phone number and consent records are handled.
+
+**Consent is not a condition of purchase.** You can use the Service without opting in to SMS; email notifications and dashboard access work independently.
+
+Carriers are not liable for delayed or undelivered messages.`,
+  },
+  {
     id: 'contact',
-    title: '9. Contact',
-    content: `Questions about these Terms? Contact us at support@moveleads.cloud.`,
+    title: '10. Contact',
+    content: `Questions about these Terms? Contact us at support@moveleads.cloud.
+
+**MoveLeads LLC** — registered in Wyoming, United States · https://moveleads.cloud`,
   },
 ];
 
@@ -120,7 +141,7 @@ export default function Terms() {
             Terms of Service
           </h1>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', margin: 0 }}>
-            Last updated: April 1, 2026
+            Last updated: June 11, 2026
           </p>
         </div>
       </section>

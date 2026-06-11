@@ -10,7 +10,10 @@ import '../auth.css';
 export default function Register() {
   useMoverFunnelPixel();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({ companyName: '', dotNumber: '', mcNumber: '', phone: '', email: '', password: '', confirmPassword: '' });
+  // smsConsent starts UNCHECKED — A2P 10DLC requires affirmative opt-in
+  // (no pre-checked boxes). Consent is optional; registration proceeds
+  // either way and the value + timestamp + IP are recorded server-side.
+  const [formData, setFormData] = useState({ companyName: '', dotNumber: '', mcNumber: '', phone: '', email: '', password: '', confirmPassword: '', smsConsent: false });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
@@ -378,7 +381,38 @@ export default function Register() {
                     placeholder="(555) 123-4567"
                   />
                   <small style={{ display: 'block', marginTop: 6, color: 'rgba(15,23,42,0.55)', fontSize: 12, lineHeight: 1.45 }}>
-                    Used for account verification and move request notifications.
+                    Used for account verification, lead notifications, account updates, and SMS communications.
+                  </small>
+
+                  {/* A2P 10DLC consent — UNCHECKED by default (carrier
+                     requirement: affirmative opt-in only). Optional: the
+                     mover can register without it; SMS features simply
+                     stay off until they opt in later. */}
+                  <label style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    marginTop: 14, padding: '12px 14px', borderRadius: 10,
+                    background: 'rgba(15,23,42,0.03)', border: '1px solid rgba(15,23,42,0.08)',
+                    cursor: 'pointer', fontWeight: 400,
+                  }}>
+                    <input
+                      type="checkbox"
+                      name="smsConsent"
+                      checked={formData.smsConsent}
+                      onChange={e => setFormData(prev => ({ ...prev, smsConsent: e.target.checked }))}
+                      style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, accentColor: '#f97316', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(15,23,42,0.7)' }}>
+                      I agree to receive SMS messages from MoveLeads regarding lead opportunities,
+                      account notifications, onboarding information, and promotional offers.
+                      Message frequency varies. Message and data rates may apply.
+                      Reply STOP to opt out and HELP for assistance.
+                    </span>
+                  </label>
+                  <small style={{ display: 'block', marginTop: 8, fontSize: 12, color: 'rgba(15,23,42,0.55)' }}>
+                    By signing up you agree to our{' '}
+                    <Link to="/terms" target="_blank" style={{ color: '#f97316', fontWeight: 600 }}>Terms of Service</Link>
+                    {' '}and{' '}
+                    <Link to="/privacy" target="_blank" style={{ color: '#f97316', fontWeight: 600 }}>Privacy Policy</Link>.
                   </small>
                 </div>
                 <button type="submit" className="auth-btn">
