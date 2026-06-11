@@ -283,7 +283,11 @@ export default function Customers() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      {/* Stats — 4-across on desktop, 2×2 on phones (.customers-stats-grid
+          in dashboard.css). The inline repeat(4, 1fr) previously forced the
+          grid wider than a phone viewport, making the WHOLE page scroll
+          horizontally. */}
+      <div className="customers-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Total', value: purchases.length, icon: <Users size={15} />, bg: '#eff6ff', color: '#2563eb' },
           { label: 'New', value: purchases.filter(p => !p.crmStatus || p.crmStatus === 'New').length, icon: <AlertCircle size={15} />, bg: '#f5f3ff', color: '#7c3aed' },
