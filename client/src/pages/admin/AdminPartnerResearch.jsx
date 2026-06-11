@@ -210,18 +210,20 @@ export default function AdminPartnerResearch() {
 
   return (
     <AdminLayout>
-      {/* Hover affordance for the per-row trash icon — subtle until hovered. */}
+      {/* Hover affordance for the per-row trash icon — subtle until hovered.
+          Touch devices never hover, so (hover: none) forces full opacity. */}
       <style>{`
         .apr-row-delete { opacity: 0.35; transition: opacity 0.12s ease, color 0.12s ease; }
         .apr-row:hover .apr-row-delete { opacity: 1; }
         .apr-row-delete:hover { color: #dc2626; }
+        @media (hover: none) { .apr-row-delete { opacity: 1; } }
         .apr-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: #ef4444; }
       `}</style>
 
       <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>Partner Research</h1>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           <StatCard label="Total submissions" value={stats.total} />
           <StatCard label="Realtors" value={stats.realtor} accent="realtor" />
           <StatCard label="Facebook groups" value={stats.facebook_group_admin} accent="facebook_group_admin" />
@@ -458,7 +460,7 @@ function Drawer({ onClose, doc, onDelete, deleting }) {
         onClick={e => e.stopPropagation()}
         style={{
           position: 'absolute', right: 0, top: 0, bottom: 0,
-          width: 'min(520px, 100vw)', background: '#fff',
+          width: 'min(520px, 92vw)', background: '#fff',
           padding: 24, overflowY: 'auto', boxShadow: '-12px 0 32px rgba(15,23,42,0.18)',
         }}
       >

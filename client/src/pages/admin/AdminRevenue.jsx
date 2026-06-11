@@ -109,8 +109,8 @@ export default function AdminRevenue() {
         <p>Monitor platform-wide financial performance</p>
       </header>
 
-      {/* Revenue Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
+      {/* Revenue Cards — single column on phones via .admin-stats-grid. */}
+      <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
         <div className="balance-card" style={{ padding: '32px 36px', marginBottom: 0 }}>
           <div style={{ position: 'relative', zIndex: 1 }}>
             <p style={{ color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px', fontWeight: 600, margin: '0 0 10px 0' }}>Total Revenue YTD</p>
@@ -146,12 +146,12 @@ export default function AdminRevenue() {
             </div>
             <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--bg-navy)', margin: 0, fontFamily: 'var(--font-heading)' }}>All Transactions</h2>
           </div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', flex: '1 1 260px', justifyContent: 'flex-end' }}>
+            <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: 320 }}>
               <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
               <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search transactions..."
-                style={{ padding: '10px 10px 10px 36px', borderRadius: 12, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, width: 260 }}
+                style={{ padding: '10px 10px 10px 36px', borderRadius: 12, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, width: '100%', boxSizing: 'border-box' }}
               />
             </div>
             <button onClick={exportToCSV} type="button"

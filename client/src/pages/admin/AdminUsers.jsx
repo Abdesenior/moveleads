@@ -152,8 +152,9 @@ export default function AdminUsers() {
         <p>Monitor and control all registered customer accounts</p>
       </header>
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+      {/* Stats — collapses to a single column on phones (see .admin-stats-grid
+          rule appended in dashboard.css, same pattern as the PR #124 sweep). */}
+      <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         <div className="stat-card" style={{ padding: 20 }}>
           <div className="stat-header">
             <span className="stat-title">Total Users</span>
@@ -299,7 +300,7 @@ export default function AdminUsers() {
                       <DollarSign size={13} /> Balance
                     </button>
                     <button onClick={() => { setSelectedUserId(u._id); setSelectedUserName(u.companyName || u.email); setDeleteConfirmInput(''); setShowConfirm(true); }}
-                      style={{ width: 34, height: 34, borderRadius: 8, background: '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', transition: 'all 0.2s' }}
+                      style={{ width: 40, height: 40, borderRadius: 8, background: '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', transition: 'all 0.2s' }}
                       title="Delete"><Trash2 size={14} /></button>
                   </div>
                 </td>
@@ -320,7 +321,7 @@ export default function AdminUsers() {
       {/* ── Adjust Balance Modal ── */}
       {balanceModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 'clamp(20px, 5vw, 32px)', width: '100%', maxWidth: 'min(420px, 92vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <DollarSign size={20} color="#16a34a" />
@@ -398,7 +399,7 @@ export default function AdminUsers() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
           <div style={{
-            background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 440,
+            background: '#fff', borderRadius: 16, padding: 'clamp(20px, 5vw, 32px)', width: '100%', maxWidth: 'min(440px, 92vw)',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>

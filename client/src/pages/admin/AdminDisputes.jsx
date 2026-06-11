@@ -97,7 +97,7 @@ export default function AdminDisputes() {
           placeholder="Search by company, customer or reason..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '100%', maxWidth: 400, padding: '12px 12px 12px 40px', borderRadius: 12, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13 }}
+          style={{ width: '100%', maxWidth: 400, boxSizing: 'border-box', padding: '12px 12px 12px 40px', borderRadius: 12, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13 }}
         />
       </div>
 
@@ -156,9 +156,10 @@ export default function AdminDisputes() {
                         <button 
                           onClick={() => resolveDispute(d._id, true)}
                           title="Approve Refund"
-                          style={{ 
-                            padding: '8px 14px', borderRadius: 8, border: 'none', 
-                            background: '#dcfce7', color: '#16a34a', fontWeight: 700, 
+                          className="admin-action-btn"
+                          style={{
+                            padding: '10px 16px', borderRadius: 8, border: 'none',
+                            background: '#dcfce7', color: '#16a34a', fontWeight: 700,
                             fontSize: 12, cursor: 'pointer', transition: 'all 0.2s'
                           }}
                         >
@@ -167,9 +168,10 @@ export default function AdminDisputes() {
                         <button 
                           onClick={() => resolveDispute(d._id, false)}
                           title="Deny Refund"
-                          style={{ 
-                            padding: '8px 14px', borderRadius: 8, border: 'none', 
-                            background: '#fee2e2', color: '#dc2626', fontWeight: 700, 
+                          className="admin-action-btn"
+                          style={{
+                            padding: '10px 16px', borderRadius: 8, border: 'none',
+                            background: '#fee2e2', color: '#dc2626', fontWeight: 700,
                             fontSize: 12, cursor: 'pointer', transition: 'all 0.2s'
                           }}
                         >
