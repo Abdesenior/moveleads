@@ -1,5 +1,5 @@
 import { useState, useCallback, useContext, useEffect } from 'react';
-import { X, CheckCircle, XCircle, RefreshCw, Edit3, Trash2, FileText, AlertTriangle, Clock } from 'lucide-react';
+import { X, CheckCircle, XCircle, RefreshCw, Edit3, Trash2, FileText, AlertTriangle, Clock, Stethoscope } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { toMoverLabel } from '../../utils/tierLabels';
 
@@ -67,6 +67,29 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
   const [overrideReason, setOverrideReason] = useState('');
   const [timeline, setTimeline] = useState(null);
   const [timelineErr, setTimelineErr] = useState(null);
+  // Distribution diagnose — lazy-fetched on demand. Surfaces the existing
+  // GET /api/admin/leads/:id/distribution-diagnose endpoint (previously
+  // curl-only) as a mobile-friendly vertical checklist.
+  const [diag, setDiag] = useState(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagErr, setDiagErr] = useState(null);
+
+  const runDiagnose = useCallback(async () => {
+    setDiagLoading(true);
+    setDiagErr(null);
+    try {
+      const res = await fetch(`${API_URL}/admin/leads/${lead._id}/distribution-diagnose`, {
+        headers: { 'x-auth-token': token },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || `HTTP ${res.status}`);
+      setDiag(json);
+    } catch (err) {
+      setDiagErr(err.message || 'Diagnose failed');
+    } finally {
+      setDiagLoading(false);
+    }
+  }, [API_URL, token, lead._id]);
 
   useEffect(() => {
     if (!lead?._id) return;
@@ -139,17 +162,56 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
   };
 
   return (
-    <div onClick={onClose} style={{
+    <div onClick={onClose} className="ssm-overlay" style={{
       position: 'fixed', inset: 0,
       background: 'rgba(10,20,40,0.65)', backdropFilter: 'blur(14px)',
       zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
+      {/* Mobile pass (2026-06-11) — same className + media-rule pattern as
+         the mover-dashboard sweep (PR #124). Below 420px the modal goes
+         full-screen, every 2/3-col grid collapses to 1 column, and the
+         admin action bar is pinned to the TOP of the body (order: -1) with
+         full-width 48px buttons so Approve/Reject are thumb-reachable
+         without scrolling. Desktop is untouched. */}
+      <style>{`
+        @media (max-width: 420px) {
+          .ssm-overlay { padding: 0 !important; align-items: stretch !important; }
+          .ssm-root {
+            max-width: 100% !important; width: 100% !important;
+            max-height: 100dvh !important; height: 100dvh !important;
+            border-radius: 0 !important;
+          }
+          .ssm-root { overflow-x: hidden !important; }
+          .ssm-header { padding: 12px 14px !important; }
+          .ssm-body { padding: 14px !important; display: flex; flex-direction: column; }
+          .ssm-body > * { min-width: 0; }
+          .ssm-actions {
+            order: -1;
+            flex-direction: column !important;
+            border-top: none !important;
+            border-bottom: 1px solid #e2e8f0;
+            padding-top: 0 !important;
+            padding-bottom: 14px;
+            margin-top: 0 !important;
+            margin-bottom: 16px;
+          }
+          .ssm-actions button {
+            width: 100%;
+            min-height: 48px;
+            font-size: 14px !important;
+            justify-content: center;
+          }
+          .ssm-grid-2, .ssm-grid-3 { grid-template-columns: 1fr !important; }
+          .ssm-root pre { font-size: 9px !important; max-width: 100%; }
+          .ssm-override-tiers button { flex: 1 1 calc(50% - 4px); min-height: 44px; }
+        }
+      `}</style>
+      <div onClick={e => e.stopPropagation()} className="ssm-root" style={{
         background: '#fff', width: '100%', maxWidth: 820, maxHeight: '90vh', overflow: 'auto',
         borderRadius: 24, boxShadow: '0 40px 100px rgba(0,0,0,0.3)',
       }}>
         {/* Header */}
-        <div style={{
+        <div className="ssm-header" style={{
           padding: '18px 24px', borderBottom: '1px solid #e2e8f0',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'linear-gradient(135deg, #fef3c7 0%, #fff 100%)', position: 'sticky', top: 0, zIndex: 2,
@@ -172,7 +234,7 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
           }} title="Close"><X size={16} /></button>
         </div>
 
-        <div style={{ padding: 24 }}>
+        <div className="ssm-body" style={{ padding: 24 }}>
           {loading && <div style={{ color: '#64748b', fontSize: 14 }}>Loading…</div>}
           {error && <div style={{ color: '#dc2626', fontSize: 14 }}>Error: {error}</div>}
 
@@ -180,7 +242,7 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
             <>
               {/* ── Status triplet (Phase 6.1) — lifecycle / quality / distribution ── */}
               {triplet && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+                <div className="ssm-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
                   <TripletCard label="Lifecycle status" value={triplet.lifecycle || '—'} hint="Lead.status (legacy)" />
                   <TripletCard label="Quality status" value={triplet.quality || '—'} hint="From distribution status" tone={triplet.quality} />
                   <TripletCard
@@ -196,6 +258,36 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
               {leadDetail?.distributionDecision && (
                 <DistributionDecisionCard lead={leadDetail} />
               )}
+
+              {/* ── Distribution diagnose — surfaces the (previously
+                     curl-only) /distribution-diagnose endpoint as a
+                     vertical checklist. Answers "would this lead dispatch,
+                     and if not, which gate stops it?" from any device. */}
+              <div style={{ marginBottom: 18 }}>
+                {!diag && (
+                  <button
+                    onClick={runDiagnose}
+                    disabled={diagLoading}
+                    className="admin-action-btn"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      padding: '10px 16px', minHeight: 44, borderRadius: 10,
+                      border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8',
+                      fontSize: 13, fontWeight: 700, cursor: diagLoading ? 'wait' : 'pointer',
+                      opacity: diagLoading ? 0.6 : 1,
+                    }}
+                  >
+                    <Stethoscope size={15} />
+                    {diagLoading ? 'Diagnosing…' : 'Diagnose delivery'}
+                  </button>
+                )}
+                {diagErr && (
+                  <div style={{ marginTop: 8, padding: 10, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#b91c1c', fontSize: 12 }}>
+                    {diagErr}
+                  </div>
+                )}
+                {diag && <DiagnoseChecklist diag={diag} onRefresh={runDiagnose} refreshing={diagLoading} />}
+              </div>
 
               {/* ── Evidence row — demoted below the Distribution Decision card.
                      "Scoring Tier" is the engine's verdict (evidence), not the
@@ -270,7 +362,7 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
 
 
               {/* ── Legacy vs shadow comparison ──────────────────────── */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 22 }}>
+              <div className="ssm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 22 }}>
                 <div style={{ padding: 16, background: '#f8fafc', borderRadius: 14, border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase' }}>Legacy (production)</div>
                   <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -317,7 +409,7 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                   {/* ── Sub-scores ─────────────────────────────────────── */}
                   <div style={{ marginBottom: 22 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>Sub-scores</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                    <div className="ssm-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                       {[
                         ['trustScore', 'Trust'],
                         ['urgencyScore', 'Urgency'],
@@ -446,8 +538,11 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
                 </div>
               )}
 
-              {/* ── Action buttons ───────────────────────────────────── */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 22, borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
+              {/* ── Action buttons — pinned to the TOP of the body on mobile
+                     (order: -1 via .ssm-actions) so Approve/Reject are
+                     thumb-reachable without scrolling. Desktop order
+                     unchanged (bottom of the modal). */}
+              <div className="ssm-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 22, borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
                 <ActionButton
                   label="Approve to dashboard" icon={<CheckCircle size={14} />} color="#15803d"
                   bg="#dcfce7" disabled={busy != null}
@@ -520,7 +615,7 @@ export default function ScoringSnapshotModal({ lead, data, loading, error, onClo
               {overrideOpen && (
                 <div style={{ marginTop: 14, padding: 14, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#5b21b6', textTransform: 'uppercase', marginBottom: 8 }}>Tier override</div>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <div className="ssm-override-tiers" style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                     {['hot', 'premium', 'standard', 'review', 'rejected'].map(t => (
                       <button
                         key={t}
@@ -582,6 +677,130 @@ function TripletCard({ label, value, hint, tone }) {
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.fg, textTransform: 'uppercase' }}>{label}</div>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginTop: 4 }}>{value}</div>
       {hint && <div style={{ fontSize: 10, color: t.fg, marginTop: 2 }}>{hint}</div>}
+    </div>
+  );
+}
+
+/*
+ * DiagnoseChecklist — mobile-first vertical rendering of the
+ * GET /api/admin/leads/:id/distribution-diagnose response.
+ *
+ * One row per gate, in the same priority order the server evaluates
+ * (qualification → visibility → notifiedAt dedup), each with a pass/fail
+ * glyph and the concrete reason. The verdict row at the top answers the
+ * operator question directly: "would a broadcast fire right now?"
+ */
+function DiagRow({ pass, label, detail, info = false }) {
+  const fg = info ? '#475569' : pass ? '#15803d' : '#b91c1c';
+  const bg = info ? '#f8fafc' : pass ? '#f0fdf4' : '#fef2f2';
+  const border = info ? '#e2e8f0' : pass ? '#bbf7d0' : '#fecaca';
+  const glyph = info ? 'ℹ' : pass ? '✓' : '✕';
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+      padding: '10px 12px', background: bg, border: `1px solid ${border}`, borderRadius: 8,
+    }}>
+      <span style={{ fontWeight: 800, color: fg, fontSize: 14, lineHeight: '18px', flexShrink: 0 }}>{glyph}</span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{label}</div>
+        {detail && <div style={{ fontSize: 11.5, color: '#475569', marginTop: 2, wordBreak: 'break-word' }}>{detail}</div>}
+      </div>
+    </div>
+  );
+}
+
+function DiagnoseChecklist({ diag, onRefresh, refreshing }) {
+  const wouldDispatch = !diag.broadcastWouldSuppress;
+  const fmt = (d) => (d ? new Date(d).toLocaleString() : null);
+
+  return (
+    <div style={{ marginTop: 10, padding: 14, background: '#fff', border: '1px solid #bfdbfe', borderRadius: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#1d4ed8', textTransform: 'uppercase' }}>
+          Delivery diagnosis
+        </div>
+        <button
+          onClick={onRefresh}
+          disabled={refreshing}
+          style={{ background: 'transparent', border: 'none', color: '#1d4ed8', fontSize: 11, fontWeight: 700, cursor: refreshing ? 'wait' : 'pointer', padding: '6px 8px' }}
+        >
+          {refreshing ? 'Refreshing…' : '↻ Refresh'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {/* Verdict first — the question the operator actually asked. */}
+        <DiagRow
+          pass={wouldDispatch}
+          label={wouldDispatch ? 'Broadcast WOULD fire right now' : 'Broadcast suppressed'}
+          detail={wouldDispatch
+            ? 'No gate blocks dispatch. If movers still didn\'t get SMS, check per-mover gates (coverage / phoneVerified / opt-out) via matcher-diagnose.'
+            : `First blocking gate: ${diag.broadcastWouldSuppressBy}`}
+        />
+
+        <DiagRow
+          pass={!diag.qualificationFailed}
+          label="Qualification gate"
+          detail={diag.qualificationFailed
+            ? diag.qualificationReason
+            : `shadowTier=${diag.shadowTier || '—'} · qualityGateCleared=${String(diag.qualityGateCleared)}`}
+        />
+
+        <DiagRow
+          pass={diag.distributable}
+          label="Distribution decision"
+          detail={`${diag.distributionDecision || 'unset'}${diag.distributionDecisionReason ? ` — ${diag.distributionDecisionReason}` : ''}${diag.distributionDecisionBy ? ` (by ${diag.distributionDecisionBy})` : ''}`}
+        />
+
+        <DiagRow
+          pass={!diag.hiddenFromMovers}
+          label="Visible to movers"
+          detail={diag.hiddenFromMovers ? diag.hiddenReason : 'Passes moverVisibilityFilter'}
+        />
+
+        <DiagRow
+          info
+          pass
+          label={diag.notifiedAt ? `Already broadcast — ${fmt(diag.notifiedAt)}` : 'Never broadcast yet'}
+          detail={diag.notifiedAt
+            ? 'notifiedAt dedup blocks a re-broadcast (by design — movers are never re-alerted).'
+            : 'notifiedAt is null — this lead is still eligible for its first broadcast.'}
+        />
+
+        {(diag.lastBroadcastAttemptAt || diag.lastBroadcastSuppressReason || diag.lastBroadcastMatchedCount != null) && (
+          <DiagRow
+            info
+            pass
+            label="Last broadcast attempt"
+            detail={[
+              diag.lastBroadcastAttemptAt && `at ${fmt(diag.lastBroadcastAttemptAt)}`,
+              diag.lastBroadcastMatchedCount != null && `matched ${diag.lastBroadcastMatchedCount} mover${diag.lastBroadcastMatchedCount === 1 ? '' : 's'}`,
+              diag.lastBroadcastSuppressReason && `suppressed: ${diag.lastBroadcastSuppressReason}`,
+            ].filter(Boolean).join(' · ')}
+          />
+        )}
+
+        {Array.isArray(diag.structuralBlockers) && diag.structuralBlockers.length > 0 && (
+          <DiagRow
+            pass={false}
+            label={`Structural blockers (${diag.structuralBlockers.length})`}
+            detail={diag.structuralBlockers.join(' · ')}
+          />
+        )}
+
+        {diag.claimWindow && (
+          <DiagRow
+            info
+            pass
+            label={`Claim window: ${diag.claimWindow.status || '—'}`}
+            detail={[
+              diag.claimWindow.token && `token ${diag.claimWindow.token}`,
+              diag.claimWindow.expiresAt && `expires ${fmt(diag.claimWindow.expiresAt)}`,
+              diag.claimWindow.closedReason && `closed: ${diag.claimWindow.closedReason}`,
+            ].filter(Boolean).join(' · ')}
+          />
+        )}
+      </div>
     </div>
   );
 }

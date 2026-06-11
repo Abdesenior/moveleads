@@ -310,19 +310,20 @@ export default function AdminMoverResearch() {
                     </div>
                   </td>
                   <td style={tdStyle}>{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : '—'}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right', width: 36 }}>
+                  <td style={{ ...tdStyle, textAlign: 'right', width: 44 }}>
                     <button
+                      className="row-delete-btn"
                       onClick={(e) => { e.stopPropagation(); handleDelete(s._id); }}
                       title="Delete submission"
                       style={{
                         background: 'transparent', border: 'none', cursor: 'pointer',
-                        padding: 6, borderRadius: 6, color: '#cbd5e1',
+                        padding: 12, borderRadius: 8, color: '#cbd5e1',
                         display: 'inline-flex', alignItems: 'center',
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = '#cbd5e1'; }}
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={16} />
                     </button>
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>
@@ -750,7 +751,7 @@ function Drawer({ children, onClose }) {
       }} />
       <aside style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: 'min(560px, 100vw)', background: '#fff',
+        width: 'min(560px, 92vw)', background: '#fff',
         boxShadow: '-20px 0 60px -20px rgba(15,23,42,0.25)',
         zIndex: 101, overflowY: 'auto',
       }}>

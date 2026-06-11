@@ -1785,3 +1785,76 @@
   }
 }
 
+
+/* ════════════════════════════════════════════════════════════════════════
+   Admin mobile operations sweep (2026-06-11)
+   ---
+   Same pattern as the mover-dashboard mobile sweep (PR #124): pages keep
+   their inline desktop styles and opt into mobile behavior via a
+   className + one media rule here. No redesign, no framework.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Stat/metric card grids — single column on phones. Used by AdminUsers,
+   AdminLeads, AdminRevenue (and any future admin grid that adds the class). */
+@media (max-width: 640px) {
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
+
+/* Filter bars (search + selects) — stack to full-width rows on phones.
+   Used by AdminLeads. */
+@media (max-width: 640px) {
+  .admin-filter-bar > div,
+  .admin-filter-bar > select {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* Tap feedback for critical action buttons (Approve/Deny etc).
+   Touch devices have no hover — :active is the only press signal. */
+.admin-action-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.92);
+}
+
+/* iOS zoom-on-focus fix — Safari zooms the page when a focused input has
+   font-size < 16px. Applies to all admin + mover dashboard form controls
+   on phones. Desktop keeps the designed sizes. */
+@media (max-width: 640px) {
+  .dashboard-main input,
+  .dashboard-main select,
+  .dashboard-main textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Toggle switches — 28px tall was below comfortable thumb size. 36px on
+   touch-capable layouts; knob scales with it. Desktop pointer users keep
+   the compact 28px design. */
+@media (max-width: 640px) {
+  .toggle-switch {
+    width: 60px;
+    height: 36px;
+  }
+  .toggle-switch::after {
+    width: 30px;
+    height: 30px;
+    top: 3px;
+    left: 3px;
+  }
+  .toggle-switch.active::after {
+    transform: translateX(24px);
+  }
+}
+
+/* Row delete buttons on the research pages reveal on hover — but touch
+   devices never hover. Force full visibility when no hover capability. */
+@media (hover: none) {
+  .row-delete-btn {
+    opacity: 1 !important;
+  }
+}

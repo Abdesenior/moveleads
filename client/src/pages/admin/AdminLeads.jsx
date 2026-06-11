@@ -887,8 +887,8 @@ export default function AdminLeads() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+      {/* Quick Stats — single column on phones via .admin-stats-grid. */}
+      <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         <div className="stat-card" style={{ padding: 20 }}>
           <div className="stat-header">
             <span className="stat-title">Total Leads</span>
@@ -918,8 +918,9 @@ export default function AdminLeads() {
         </div>
       </div>
 
-      {/* Search & Filter */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+      {/* Search & Filter — wraps to stacked rows on phones via
+          .admin-filter-bar (selects go full-width below 640px). */}
+      <div className="admin-filter-bar" style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, position: 'relative' }}>
           <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
           <input type="text" placeholder="Search leads by city or contact..." value={searchTerm}
@@ -1018,7 +1019,7 @@ export default function AdminLeads() {
         <div onClick={() => !bulkBusy && setDealModalOpen(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: 6, padding: 0, maxWidth: 460, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
+            style={{ background: '#fff', borderRadius: 6, padding: 0, maxWidth: 'min(460px, 94vw)', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' }}>Inventory action</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
@@ -1200,16 +1201,17 @@ export default function AdminLeads() {
                   <InventoryChannelBadge lead={lead} />
                 </td>
                 <td style={{ textAlign: 'right', paddingRight: 24 }}>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                  {/* 40px tap targets — iOS HIG minimum. Was 34px. */}
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button onClick={() => openScoringModal(lead)}
-                      style={{ width: 34, height: 34, borderRadius: 10, background: '#fef3c7', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', transition: 'all 0.2s' }}
-                      title="View scoring snapshot (shadow mode)"><BarChart2 size={14} /></button>
+                      style={{ width: 40, height: 40, borderRadius: 10, background: '#fef3c7', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', transition: 'all 0.2s' }}
+                      title="View scoring snapshot (shadow mode)"><BarChart2 size={15} /></button>
                     <button onClick={() => handleEditClick(lead)}
-                      style={{ width: 34, height: 34, borderRadius: 10, background: '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', transition: 'all 0.2s' }}
-                      title="Edit"><Edit2 size={14} /></button>
+                      style={{ width: 40, height: 40, borderRadius: 10, background: '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', transition: 'all 0.2s' }}
+                      title="Edit"><Edit2 size={15} /></button>
                     <button onClick={() => { setSelectedLead(lead); setShowConfirm(true); }}
-                      style={{ width: 34, height: 34, borderRadius: 10, background: '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', transition: 'all 0.2s' }}
-                      title="Delete"><Trash2 size={14} /></button>
+                      style={{ width: 40, height: 40, borderRadius: 10, background: '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', transition: 'all 0.2s' }}
+                      title="Delete"><Trash2 size={15} /></button>
                   </div>
                 </td>
               </tr>
