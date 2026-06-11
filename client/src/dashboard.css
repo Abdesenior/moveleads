@@ -1460,7 +1460,11 @@
   }
 
   .dashboard-content-grid {
-    grid-template-columns: 1fr;
+    /* !important — Dashboard.jsx sets the desktop columns ('1.6fr 1fr')
+       as an INLINE style, which beats a plain stylesheet rule. Without
+       this the chart + activity panes stay side-by-side on phones and
+       the recharts SVG collapses to ~114px wide. */
+    grid-template-columns: 1fr !important;
   }
 }
 
@@ -1865,5 +1869,15 @@
   .myleads-detail-grid {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
+  }
+}
+
+/* Customers stats — 4-across desktop, 2×2 on phones. The inline
+   repeat(4, 1fr) made the grid wider than the viewport (each tile has
+   ~120px min-content), causing whole-page horizontal scroll. */
+@media (max-width: 640px) {
+  .customers-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
   }
 }
