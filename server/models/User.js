@@ -56,6 +56,16 @@ const UserSchema = new mongoose.Schema({
   // phone replies STOP/STOPALL/UNSUBSCRIBE/CANCEL/END/QUIT to our Twilio
   // number; reset false on START/UNSTOP/YES. Independent of onboarding.
   smsOptOut: { type: Boolean, default: false },
+  // ── A2P 10DLC consent record (2026-06-11) ───────────────────────────────
+  // Captured at registration when the mover checks the (unchecked-by-
+  // default) SMS consent box. The trio is the audit trail Twilio/carriers
+  // expect during A2P campaign review: what was consented to, when, and
+  // from which IP. Consent is OPTIONAL — registration proceeds without it;
+  // these stay false/null in that case. Never overwritten retroactively:
+  // a later opt-in (Settings/onboarding toggle) records a fresh timestamp.
+  smsConsent:   { type: Boolean, default: false },
+  smsConsentAt: { type: Date, default: null },
+  smsConsentIp: { type: String, default: '' },
   // phoneVerified: partner-side phone verification gate. Outbound lead
   // alert SMS only fires when this is true. (Distinct from any lead-side
   // phone verification on the Lead model.)
