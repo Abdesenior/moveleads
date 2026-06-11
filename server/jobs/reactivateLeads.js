@@ -64,12 +64,26 @@
  *   higher Mongo pressure for negligible UX benefit; looser is a
  *   visibly stale marketplace.
  *
- * Filter parity:
- *   The eligibility filter MUST stay byte-identical to the pre-PR-6
- *   read-handler filter so the cutover is semantically a no-op for
- *   which leads get reactivated. Future criteria changes go through
- *   here, NOT a parallel filter elsewhere. The test suite pins this
- *   parity (see __tests__/reactivateLeadsCron.test.js).
+ * Filter scope (2026-06-09 — narrowed):
+ *   The eligibility filter now ALSO requires `notifiedAt: null`. Only
+ *   leads that have never been broadcast can be reactivated. Once a
+ *   lead has been broadcast and its auction window expires, it stays
+ *   expired until the cleanup cron removes it when the move date
+ *   passes. This stops "zombie inventory" — leads re-appearing in the
+ *   dashboard Live Leads feed every 5 minutes for days after the
+ *   original auction ended without selling. The cron's main legitimate
+ *   purpose (handling silent-state pending / admin-held leads that
+ *   haven't broadcast yet) is preserved because those leads have
+ *   `notifiedAt: null`.
+ *
+ *   Trade-off: a lead that doesn't sell in its first 24h auction
+ *   window is gone from the marketplace. We accept the lost re-list
+ *   liquidity in exchange for clean inventory UX. Instant-dispatch
+ *   leads (the current production model) don't go through auction
+ *   cycles anyway, so the impact is minimal.
+ *
+ *   The test suite pins both the original parity AND the new
+ *   `notifiedAt: null` clause (see __tests__/reactivateLeadsCron.test.js).
  */
 
 const cron = require('node-cron');
@@ -90,6 +104,20 @@ function buildEligibilityFilter(now) {
     auctionStatus: { $nin: ['active', 'sold', 'buy_now'] },
     status: { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
     moveDate: { $gte: now },
+    // 2026-06-09 — only reactivate leads that have NEVER been broadcast.
+    // Without this clause, a lead that was broadcast once, sat through
+    // a 24h auction window without selling, and is now `auctionStatus:
+    // 'expired'` would get re-promoted every 5 minutes for as long as
+    // its move date is in the future. The per-channel `notifiedAt` CAS
+    // in the broadcasters short-circuits the actual SMS/email/socket
+    // emit — but the lead re-appears in the dashboard "Live Leads"
+    // feed (which filters on `auctionStatus: 'active'`) and movers
+    // perceive it as zombie inventory. By gating on `notifiedAt: null`
+    // we keep the cron's main legitimate purpose (handling silent-state
+    // pending / admin-held leads that haven't broadcast yet) and stop
+    // re-listing previously-broadcast expired leads. Once expired,
+    // stays expired — until the move date passes and cleanup removes it.
+    notifiedAt: null,
     $or: [
       { buyers: { $size: 0 } },
       { buyers: { $exists: false } },

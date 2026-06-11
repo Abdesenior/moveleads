@@ -148,7 +148,10 @@ test('B3. Schedules at every 5 minutes (cadence parity with siblings)', () => {
 
 // ── C. Eligibility filter parity ───────────────────────────────────────
 
-test('C1. buildEligibilityFilter returns the pre-PR-6 filter shape', () => {
+test('C1. buildEligibilityFilter returns the post-2026-06-09 narrowed shape', () => {
+  // 2026-06-09 — added `notifiedAt: null` to stop re-promoting expired
+  // leads that have already been broadcast. See file header for the full
+  // rationale.
   const { buildEligibilityFilter } = require('../jobs/reactivateLeads');
   const now = new Date('2026-05-29T00:00:00Z');
   const filter = buildEligibilityFilter(now);
@@ -158,12 +161,30 @@ test('C1. buildEligibilityFilter returns the pre-PR-6 filter shape', () => {
       auctionStatus: { $nin: ['active', 'sold', 'buy_now'] },
       status:        { $in: ['Available', 'READY_FOR_DISTRIBUTION'] },
       moveDate:      { $gte: now },
+      notifiedAt:    null,
       $or: [
         { buyers: { $size: 0 } },
         { buyers: { $exists: false } },
       ],
     },
-    'Eligibility filter must be byte-identical to the pre-PR-6 read-handler filter'
+    'Eligibility filter must include notifiedAt: null (never-broadcast only)'
+  );
+});
+
+test('C1b. Filter explicitly gates on notifiedAt: null (regression guard for the 2026-06-09 fix)', () => {
+  // Belt-and-suspenders standalone assertion. If a future refactor
+  // accidentally drops the notifiedAt clause from the filter, this
+  // catches it in isolation (independent of any other filter field).
+  const { buildEligibilityFilter } = require('../jobs/reactivateLeads');
+  const filter = buildEligibilityFilter(new Date());
+  assert.ok(
+    Object.prototype.hasOwnProperty.call(filter, 'notifiedAt'),
+    'Filter MUST include a notifiedAt clause — without it, expired leads re-broadcast every 5 min'
+  );
+  assert.equal(
+    filter.notifiedAt,
+    null,
+    'Filter notifiedAt clause MUST be exactly `null` — anything else (e.g. {$exists:false}) lets previously-broadcast leads slip through'
   );
 });
 
