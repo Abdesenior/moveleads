@@ -85,10 +85,36 @@ export default function ResolutionCenter() {
 
   return (
     <DashboardLayout>
-    <div style={{ display: 'flex', height: 'calc(100vh - 80px)', background: '#f8fafc', margin: '-36px -40px' }}>
+    {/* Mobile pass (2026-06-11): the desktop 2-pane layout (340px list +
+       flex detail) stacks vertically on phones — list capped at 40vh on
+       top, detail below. The desktop negative margins assume the
+       .dashboard-main desktop padding; on mobile they overflowed the
+       narrower padding, so they're zeroed there. The `spin` keyframe the
+       refresh icon references was never defined on this page — added. */}
+    <style>{`
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (max-width: 768px) {
+        .rc-layout {
+          flex-direction: column !important;
+          height: auto !important;
+          min-height: calc(100dvh - 120px);
+          margin: 0 !important;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid #e2e8f0;
+        }
+        .rc-list {
+          width: 100% !important;
+          max-height: 40vh;
+          border-right: none !important;
+          border-bottom: 1px solid #e2e8f0;
+        }
+      }
+    `}</style>
+    <div className="rc-layout" style={{ display: 'flex', height: 'calc(100vh - 80px)', background: '#f8fafc', margin: '-36px -40px' }}>
 
       {/* Left Sidebar: Complaint List */}
-      <div style={{ width: 340, background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+      <div className="rc-list" style={{ width: 340, background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>Resolution Center</h2>

@@ -286,12 +286,12 @@ export default function Billing() {
             </div>
             <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Transaction History</span>
           </div>
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', flex: '1 1 160px', maxWidth: 280 }}>
             <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
             <input
               type="text" placeholder="Search transactions…" value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              style={{ padding: '9px 9px 9px 34px', borderRadius: 10, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, width: 220, fontFamily: 'inherit' }}
+              style={{ padding: '9px 9px 9px 34px', borderRadius: 10, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
               onFocus={e => (e.target.style.borderColor = '#ea580c')}
               onBlur={e  => (e.target.style.borderColor = '#e2e8f0')}
             />

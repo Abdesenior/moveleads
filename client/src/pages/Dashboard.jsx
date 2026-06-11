@@ -246,8 +246,10 @@ export default function Dashboard() {
         {kpiCards.map((c, i) => <KpiCard key={i} loading={loading} {...c} />)}
       </div>
 
-      {/* ── Chart + Activity ──────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18, marginBottom: 24 }}>
+      {/* ── Chart + Activity — .dashboard-content-grid collapses this to a
+             single column on phones (rule already in dashboard.css; the
+             class just wasn't applied here). */}
+      <div className="dashboard-content-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18, marginBottom: 24 }}>
 
         {/* Line chart */}
         <div style={{
@@ -360,7 +362,11 @@ export default function Dashboard() {
             <p style={{ margin: 0, fontSize: 14 }}>No available leads right now — check back soon.</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          /* Scroll wrapper — 6 columns can't fit a phone; without this the
+             table either squishes to illegibility or clips. Same posture
+             as the admin table panels (PR #136). */
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
                 {['Route', 'Est. Size', 'Distance', 'Move Date', 'Urgency', 'Price'].map(h => (
@@ -414,6 +420,7 @@ export default function Dashboard() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
