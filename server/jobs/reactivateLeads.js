@@ -64,26 +64,37 @@
  *   higher Mongo pressure for negligible UX benefit; looser is a
  *   visibly stale marketplace.
  *
- * Filter scope (2026-06-09 — narrowed):
- *   The eligibility filter now ALSO requires `notifiedAt: null`. Only
- *   leads that have never been broadcast can be reactivated. Once a
- *   lead has been broadcast and its auction window expires, it stays
- *   expired until the cleanup cron removes it when the move date
- *   passes. This stops "zombie inventory" — leads re-appearing in the
- *   dashboard Live Leads feed every 5 minutes for days after the
- *   original auction ended without selling. The cron's main legitimate
- *   purpose (handling silent-state pending / admin-held leads that
- *   haven't broadcast yet) is preserved because those leads have
- *   `notifiedAt: null`.
+ * Filter scope (2026-06-09 — narrowed twice in one day):
+ *
+ *   Morning narrowing — `notifiedAt: null`. Only leads that have never
+ *   been broadcast can be reactivated. Once a lead has been broadcast
+ *   and its auction window expires, it stays expired until the cleanup
+ *   cron removes it when the move date passes. Stops "zombie inventory"
+ *   re-appearing in the dashboard Live Leads feed every 5 minutes.
+ *
+ *   Follow-up narrowing — legacy-lead protection:
+ *     - `createdAt >= now - MAX_REACTIVATION_AGE_MS` (7 days). A
+ *       never-broadcast lead older than a week is presumed legacy /
+ *       abandoned inventory and must not be resurrected.
+ *     - `distributionDecision ∈ {system_approved, admin_approved}`.
+ *       Aligns the cron's filter with what dispatchApprovedLead's
+ *       visibility check requires anyway. Pre-qualification-era leads
+ *       (distributionDecision undefined / 'system_pending') no longer
+ *       receive auctionStatus writes every tick only for their
+ *       dispatch to be suppressed downstream.
+ *
+ *   Net intent: send FRESH, QUALIFIED leads. Never re-alert, never
+ *   resurrect legacy inventory.
  *
  *   Trade-off: a lead that doesn't sell in its first 24h auction
- *   window is gone from the marketplace. We accept the lost re-list
- *   liquidity in exchange for clean inventory UX. Instant-dispatch
- *   leads (the current production model) don't go through auction
- *   cycles anyway, so the impact is minimal.
+ *   window is gone from the marketplace, and an admin approving a
+ *   > 7-day-old lead must dispatch it via the admin.approve route
+ *   (which calls dispatchApprovedLead directly) — the cron won't pick
+ *   it up. Instant-dispatch leads (the current production model)
+ *   don't go through auction cycles anyway, so the impact is minimal.
  *
- *   The test suite pins both the original parity AND the new
- *   `notifiedAt: null` clause (see __tests__/reactivateLeadsCron.test.js).
+ *   The test suite pins all clauses (see
+ *   __tests__/reactivateLeadsCron.test.js).
  */
 
 const cron = require('node-cron');
@@ -99,6 +110,12 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
  * @param {Date} now
  * @returns {Object} mongo filter
  */
+// Max age for reactivation. A never-broadcast lead older than this is
+// presumed legacy / abandoned inventory — it predates the current
+// qualification cycle and must NOT be resurrected by the cron regardless
+// of any other field state. Exported for tests + ops scripts.
+const MAX_REACTIVATION_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 function buildEligibilityFilter(now) {
   return {
     auctionStatus: { $nin: ['active', 'sold', 'buy_now'] },
@@ -118,6 +135,26 @@ function buildEligibilityFilter(now) {
     // re-listing previously-broadcast expired leads. Once expired,
     // stays expired — until the move date passes and cleanup removes it.
     notifiedAt: null,
+    // 2026-06-09 (same-day follow-up) — two belt-and-suspenders clauses
+    // protecting against LEGACY leads (created before the current
+    // qualification / scoring / contact-trust system) that still carry
+    // notifiedAt: null and a future moveDate:
+    //
+    // (a) createdAt within MAX_REACTIVATION_AGE_MS (7 days). A
+    //     never-broadcast lead older than a week is stale inventory by
+    //     definition — even if an admin retroactively flips its
+    //     distributionDecision, the cron must not resurrect it. Hard
+    //     cutoff on a field every lead has.
+    createdAt: { $gte: new Date(now.getTime() - MAX_REACTIVATION_AGE_MS) },
+    // (b) distributionDecision must be distributable. Aligns the cron
+    //     with what dispatchApprovedLead's isHiddenFromMoversById check
+    //     requires anyway — previously the cron would flip
+    //     auctionStatus/auctionEndsAt on undistributable leads every 5
+    //     minutes only for the dispatch to be suppressed downstream.
+    //     Now those leads produce ZERO writes per tick. Legacy leads
+    //     with distributionDecision undefined or 'system_pending' are
+    //     excluded here (undefined does not match the $in).
+    distributionDecision: { $in: ['system_approved', 'admin_approved'] },
     $or: [
       { buyers: { $size: 0 } },
       { buyers: { $exists: false } },
@@ -240,4 +277,4 @@ const scheduledTask = cron.schedule('*/5 * * * *', async () => {
   }
 });
 
-module.exports = { reactivateLeads, buildEligibilityFilter, scheduledTask };
+module.exports = { reactivateLeads, buildEligibilityFilter, scheduledTask, MAX_REACTIVATION_AGE_MS };
