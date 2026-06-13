@@ -286,7 +286,8 @@ export default function Dashboard() {
           /* Scroll wrapper — 6 columns can't fit a phone; without this the
              table either squishes to illegibility or clips. Same posture
              as the admin table panels (PR #136). */
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <>
+          <div className="dash-leads-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
@@ -342,6 +343,45 @@ export default function Dashboard() {
             </tbody>
           </table>
           </div>
+
+          {/* Mobile card list — same `availableLeads` data as the table
+              (CSS shows the table on desktop and these cards ≤640px).
+              Read-only preview; the panel's "View Live Feed" button is the
+              action surface. */}
+          <div className="dash-leads-mobile" role="list">
+            {availableLeads.map((lead) => {
+              const badge = urgencyBadge(lead.moveDate);
+              return (
+                <article key={lead._id} role="listitem" className="dlm-card">
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Truck size={15} color="#3b82f6" />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: 800, fontSize: 14.5, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.originCity} → {lead.destinationCity}</p>
+                      <p style={{ margin: '1px 0 0', fontSize: 11.5, color: '#94a3b8' }}>{lead.originZip} → {lead.destinationZip}</p>
+                    </div>
+                    <span style={{ fontWeight: 800, fontSize: 16, color: '#0f172a', fontFamily: 'var(--font-heading)', flexShrink: 0 }}>${lead.price || 25}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 10, fontSize: 12.5, color: '#475569' }}>
+                    <span>{lead.homeSize || '—'}</span>
+                    <span style={{ color: '#cbd5e1', fontWeight: 800, margin: '0 2px' }}>·</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><MapPin size={12} color="#94a3b8" />{lead.distance || '—'}</span>
+                    <span style={{ color: '#cbd5e1', fontWeight: 800, margin: '0 2px' }}>·</span>
+                    <span>{lead.moveDate ? new Date(lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' }) : '—'}</span>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    {badge ? (
+                      <UrgencyBadge moveDate={lead.moveDate} />
+                    ) : (
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#22c55e', background: '#f0fdf4', padding: '3px 9px', borderRadius: 8 }}>Flexible</span>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
 
@@ -430,6 +470,20 @@ export default function Dashboard() {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
+        }
+
+        /* Card list is desktop-hidden; the table is the desktop layout. */
+        .dash-leads-mobile { display: none; }
+
+        @media (max-width: 640px) {
+          /* Swap the horizontally-scrolling Available Leads table for cards. */
+          .dash-leads-table-wrap { display: none !important; }
+          .dash-leads-mobile { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+          .dlm-card {
+            width: 100%; box-sizing: border-box;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+            padding: 14px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+          }
         }
       `}</style>
     </DashboardLayout>

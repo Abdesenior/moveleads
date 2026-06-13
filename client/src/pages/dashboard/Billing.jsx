@@ -298,7 +298,7 @@ export default function Billing() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div className="billing-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -376,6 +376,53 @@ export default function Billing() {
             )}
           </tbody>
         </table>
+        </div>
+
+        {/* Mobile card list — same `paged` data as the table (CSS shows the
+            table on desktop and these cards ≤640px). Read-only, no actions. */}
+        <div className="billing-mobile-list" role="list">
+          {loading ? (
+            [0, 1, 2].map(i => <div key={i} className="bill-card-skel" />)
+          ) : paged.length === 0 ? (
+            <div style={{ padding: '44px 20px', textAlign: 'center' }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <Zap size={22} color="#cbd5e1" />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>No transactions yet</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Add funds to get started</div>
+            </div>
+          ) : (
+            paged.map(tx => (
+              <article key={tx._id} role="listitem" className="bill-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: tx.type === 'Credit Deposit' ? '#f0fdf4' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {tx.type === 'Credit Deposit'
+                      ? <ArrowUpCircle size={15} color="#16a34a" />
+                      : <ShoppingBag size={15} color="#3b82f6" />}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.type}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanDescription(tx.description)}</div>
+                  </div>
+                  <span style={{ fontWeight: 800, fontSize: 15, flexShrink: 0, color: tx.amount > 0 ? '#16a34a' : '#0f172a' }}>
+                    {Number(tx.amount) > 0 ? '+' : '-'}${Math.abs(Number(tx.amount) || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: 12.5, color: '#64748b' }}>
+                    {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                  <span style={{
+                    padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
+                    background: tx.status === 'Completed' ? '#dcfce7' : '#fee2e2',
+                    color: tx.status === 'Completed' ? '#16a34a' : '#dc2626',
+                  }}>
+                    {tx.status}
+                  </span>
+                </div>
+              </article>
+            ))
+          )}
         </div>
 
         {!loading && totalPages > 1 && (
@@ -484,6 +531,27 @@ export default function Billing() {
         @keyframes blPulse    { 0%,100% { transform:scale(1) } 50% { transform:scale(1.04) } }
         @keyframes blFadeIn   { from { opacity:0 } to { opacity:1 } }
         @keyframes blScaleIn  { from { opacity:0; transform:scale(0.9) translateY(20px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        @keyframes blShimmer  { 0% { background-position:200% 0 } 100% { background-position:-200% 0 } }
+
+        /* Card list is desktop-hidden; the table is the desktop layout. */
+        .billing-mobile-list { display: none; }
+
+        @media (max-width: 640px) {
+          /* Swap the horizontally-scrolling transaction table for cards. */
+          .billing-table-wrap { display: none !important; }
+          .billing-mobile-list { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+          .bill-card {
+            width: 100%; box-sizing: border-box;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+            padding: 14px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+          }
+          .bill-card-skel {
+            height: 96px; border-radius: 14px;
+            background: linear-gradient(90deg,#f1f5f9,#f8fafc,#f1f5f9);
+            background-size: 200% 100%;
+            animation: blShimmer 1.2s ease-in-out infinite;
+          }
+        }
       `}</style>
     </DashboardLayout>
   );
