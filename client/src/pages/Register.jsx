@@ -381,13 +381,13 @@ export default function Register() {
                     placeholder="(555) 123-4567"
                   />
                   <small style={{ display: 'block', marginTop: 6, color: 'rgba(15,23,42,0.55)', fontSize: 12, lineHeight: 1.45 }}>
-                    Used for account verification, lead notifications, account updates, and SMS communications.
+                    Used for verification, lead alerts, and account updates.
                   </small>
 
                   {/* A2P 10DLC consent — UNCHECKED by default (carrier
-                     requirement: affirmative opt-in only). Optional: the
-                     mover can register without it; SMS features simply
-                     stay off until they opt in later. */}
+                     requirement: affirmative opt-in only). Required to
+                     continue: the box must be actively checked, so the
+                     server always records consent + timestamp + IP. */}
                   <label style={{
                     display: 'flex', alignItems: 'flex-start', gap: 10,
                     marginTop: 14, padding: '12px 14px', borderRadius: 10,
@@ -399,17 +399,17 @@ export default function Register() {
                       name="smsConsent"
                       checked={formData.smsConsent}
                       onChange={e => setFormData(prev => ({ ...prev, smsConsent: e.target.checked }))}
+                      required
                       style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, accentColor: '#f97316', cursor: 'pointer' }}
                     />
                     <span style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(15,23,42,0.7)' }}>
-                      I agree to receive SMS messages from MoveLeads regarding lead opportunities,
-                      account notifications, onboarding information, and promotional offers.
-                      Message frequency varies. Message and data rates may apply.
-                      Reply STOP to opt out and HELP for assistance.
+                      I agree to receive SMS from MoveLeads LLC. Msg frequency varies.
+                      Msg &amp; data rates may apply. Reply STOP to opt out or HELP for help.
+                      Consent not required to purchase.
                     </span>
                   </label>
                   <small style={{ display: 'block', marginTop: 8, fontSize: 12, color: 'rgba(15,23,42,0.55)' }}>
-                    By signing up you agree to our{' '}
+                    By signing up, you agree to our{' '}
                     <Link to="/terms" target="_blank" style={{ color: '#f97316', fontWeight: 600 }}>Terms of Service</Link>
                     {' '}and{' '}
                     <Link to="/privacy" target="_blank" style={{ color: '#f97316', fontWeight: 600 }}>Privacy Policy</Link>.

@@ -73,11 +73,12 @@ test('C1. Consent checkbox starts UNCHECKED (smsConsent: false in initial state)
   assert.match(registerSrc, /smsConsent:\s*false/);
 });
 
-test('C2. Register shows the exact consent language', () => {
-  assert.match(registerSrc, /I agree to receive SMS messages from MoveLeads/);
-  assert.match(registerSrc, /Message frequency varies/);
-  assert.match(registerSrc, /Message and data rates may apply/);
-  assert.match(registerSrc, /Reply STOP to opt out and HELP for assistance/);
+test('C2. Register shows the consent language with all required disclosures', () => {
+  assert.match(registerSrc, /I agree to receive SMS from MoveLeads LLC/);
+  assert.match(registerSrc, /Msg frequency varies/);
+  assert.match(registerSrc, /Msg &amp; data rates may apply/);
+  assert.match(registerSrc, /Reply STOP to opt out or HELP for help/);
+  assert.match(registerSrc, /Consent not required to purchase/);
 });
 
 test('C3. Register links to Terms and Privacy below the checkbox', () => {
@@ -85,8 +86,15 @@ test('C3. Register links to Terms and Privacy below the checkbox', () => {
   assert.match(registerSrc, /to="\/privacy"/);
 });
 
-test('C4. Phone helper text mentions lead notifications, account updates, and SMS', () => {
-  assert.match(registerSrc, /lead notifications, account updates, and SMS communications/);
+test('C4. Phone helper text describes the SMS use cases', () => {
+  assert.match(registerSrc, /Used for verification, lead alerts, and account updates/);
+});
+
+test('C5. SMS consent checkbox is REQUIRED to continue registration', () => {
+  // Native constraint validation on the step-1 form blocks "Continue"
+  // until the box is checked, so a registered user always has a consent
+  // record. The `required` attribute must live on the smsConsent input.
+  assert.match(registerSrc, /name="smsConsent"[\s\S]{0,300}?\brequired\b/);
 });
 
 // ── D. Privacy + Terms pages ─────────────────────────────────────────────
