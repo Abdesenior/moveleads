@@ -103,9 +103,9 @@ We will notify registered users of material changes via email.`,
 
 **Need help?** Reply **HELP** to any message, or contact support@moveleads.cloud.
 
-**Your mobile number is never sold, rented, or shared with third parties for marketing purposes.** See our Privacy Policy for full details on how your phone number and consent records are handled.
+**Your mobile number is never sold, rented, or shared with third parties for marketing purposes. Mobile opt-in information and consent records will not be shared with third parties for marketing purposes.** See our Privacy Policy for full details on how your phone number and consent records are handled.
 
-**Consent is not a condition of purchase.** You can use the Service without opting in to SMS; email notifications and dashboard access work independently.
+**Consent is not a condition of purchase.** You may opt out of SMS at any time by replying STOP without losing access to email notifications or dashboard features.
 
 Carriers are not liable for delayed or undelivered messages.`,
   },
