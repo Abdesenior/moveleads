@@ -21,9 +21,21 @@ const stripePromiseSingleton = (() => {
   };
 })();
 
+// Strip internal noise from transaction descriptions before showing them
+// to movers: the "(Session: …)" tag, "(admin: <id>)" stamps, and raw lead
+// ObjectIds (e.g. "Buy-now purchase: lead 6a27…" → "Buy-now purchase").
+// Admin views intentionally keep the IDs for debugging.
 const cleanDescription = (desc) => {
   if (!desc) return '';
-  return desc.replace(/\s*\(Session:.*?\)/gi, '').trim();
+  return desc
+    .replace(/\s*\(Session:.*?\)/gi, '')
+    .replace(/\s*\(admin:\s*[a-f\d]{24}\)/gi, '')
+    .replace(/\s*[:,]\s*lead\s+[a-f\d]{24}\b/gi, '')
+    .replace(/\s*[:,]\s*[a-f\d]{24}\b/gi, '')
+    .replace(/\s+[a-f\d]{24}\b/gi, '')
+    .replace(/\s*[:,]\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 };
 
 const CREDIT_PACKS = [
