@@ -812,10 +812,10 @@ export default function SettingsPage() {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                     padding: '11px 24px', borderRadius: 12, border: 'none',
-                    background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                    background: 'linear-gradient(135deg,#ff6a14,#d97706)',
                     color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: 'var(--font-heading)',
-                    boxShadow: '0 4px 12px rgba(245,158,11,0.25)',
+                    boxShadow: '0 4px 12px rgba(255, 106, 20,0.25)',
                     opacity: prefsSaving ? 0.6 : 1,
                   }}
                 >
@@ -934,10 +934,10 @@ export default function SettingsPage() {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                     padding: '11px 24px', borderRadius: 12, border: 'none',
-                    background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                    background: 'linear-gradient(135deg,#ff6a14,#d97706)',
                     color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: 'var(--font-heading)',
-                    boxShadow: '0 4px 12px rgba(245,158,11,0.25)',
+                    boxShadow: '0 4px 12px rgba(255, 106, 20,0.25)',
                     opacity: profileSaving ? 0.6 : 1,
                   }}
                 >

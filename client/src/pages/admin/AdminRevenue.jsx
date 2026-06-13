@@ -121,10 +121,10 @@ export default function AdminRevenue() {
           </div>
         </div>
         <div style={{
-          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+          background: 'linear-gradient(135deg, #ff6a14 0%, #d97706 100%)',
           color: 'white', padding: '32px 36px', borderRadius: 20,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          boxShadow: '0 10px 30px rgba(245,158,11,0.25)', position: 'relative', overflow: 'hidden'
+          boxShadow: '0 10px 30px rgba(255, 106, 20,0.25)', position: 'relative', overflow: 'hidden'
         }}>
           <div style={{ position: 'absolute', top: '-30%', right: '-5%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1 }}>

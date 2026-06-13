@@ -522,7 +522,7 @@ function Sidebar({ data }) {
         {[
           { icon: <CheckCircle size={15} />, bg: '#ecfdf5', c: '#10b981', title: 'Licensed carriers only', sub: 'Every mover is FMCSA-licensed. No unlicensed brokers, ever.' },
           { icon: <Shield size={15} />, bg: '#eff6ff', c: '#3b82f6', title: 'Phone-verified movers', sub: 'All movers on our network pass ID and license verification.' },
-          { icon: <Star size={15} />, bg: '#fff7ed', c: '#f59e0b', title: 'One matched mover', sub: 'We match you to one mover — not a flood of strangers calling.' },
+          { icon: <Star size={15} />, bg: '#fff7ed', c: '#ff6a14', title: 'One matched mover', sub: 'We match you to one mover — not a flood of strangers calling.' },
           { icon: <Clock size={15} />, bg: '#f5f3ff', c: '#8b5cf6', title: 'Fast response', sub: 'Most customers receive a call within 15–30 minutes.' },
         ].map((t, i) => (
           <div key={i} className="gq-trust-item">

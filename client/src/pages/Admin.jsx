@@ -84,9 +84,9 @@ export default function Admin() {
       value: `${stats.leadVolume.sold}/${stats.leadVolume.ingested}`, 
       desc: 'Sold vs. Ingested (Today)', 
       icon: <TrendingUp size={20} />, 
-      color: '#f59e0b', 
+      color: '#ff6a14', 
       bg: '#fffbeb',
-      gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+      gradient: 'linear-gradient(135deg, #ff6a14 0%, #d97706 100%)'
     },
     { 
       title: 'Stripe Balance', 
@@ -207,11 +207,11 @@ export default function Admin() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <button onClick={() => window.location.href = '/admin/leads'} style={{
               display: 'flex', alignItems: 'center', gap: 14,
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              background: 'linear-gradient(135deg, #ff6a14 0%, #d97706 100%)',
               color: '#fff', border: 'none', borderRadius: 14, padding: '18px 22px',
               fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)',
               cursor: 'pointer', transition: 'all 0.25s',
-              boxShadow: '0 4px 16px rgba(245,158,11,0.3)'
+              boxShadow: '0 4px 16px rgba(255, 106, 20,0.3)'
             }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Plus size={18} />

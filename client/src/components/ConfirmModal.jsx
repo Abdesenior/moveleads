@@ -6,7 +6,7 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
 
   const colors = {
     danger: { bg: '#fef2f2', icon: '#ef4444', btn: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', shadow: 'rgba(239,68,68,0.3)' },
-    warning: { bg: '#fff7ed', icon: '#f59e0b', btn: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.3)' },
+    warning: { bg: '#fff7ed', icon: '#ff6a14', btn: 'linear-gradient(135deg, #ff6a14 0%, #d97706 100%)', shadow: 'rgba(255, 106, 20,0.3)' },
     success: { bg: '#f0fdf4', icon: '#22c55e', btn: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', shadow: 'rgba(34,197,94,0.3)' }
   };
 

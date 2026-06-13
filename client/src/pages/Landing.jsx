@@ -384,7 +384,7 @@ export default function Landing() {
                 transition: 'all 0.22s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', height: '100%'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff6a14' }}>
                     <Star size={22} />
                   </div>
                   <h3 style={{ fontSize: 18, fontWeight: 700, color: NAVY, fontFamily: F, letterSpacing: '-0.01em' }}>
@@ -397,7 +397,7 @@ export default function Landing() {
                 <div style={{ background: '#f8fafc', border: `1px solid ${BL}`, borderRadius: 12, padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: `1px dashed #e2e8f0` }}><div style={{ width: 32, height: 32, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle size={16} color="#22c55e" /></div><div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>Status changed to <span style={{ color: '#22c55e' }}>Completed</span></div></div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', borderBottom: `1px dashed #e2e8f0` }}><ArrowRight size={16} color="#94a3b8" /><div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Trigger: Send Review Request Email</div></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 12 }}><div style={{ width: 32, height: 32, borderRadius: '50%', background: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Star size={16} color="#f59e0b" /></div><div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>New 5-Star Review on Google!</div></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 12 }}><div style={{ width: 32, height: 32, borderRadius: '50%', background: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Star size={16} color="#ff6a14" /></div><div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>New 5-Star Review on Google!</div></div>
                 </div>
               </div>
             </Reveal>
@@ -767,7 +767,7 @@ export default function Landing() {
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 10 }}>
-                {[1, 2, 3, 4, 5].map(s => <Star key={s} size={18} color="#f59e0b" fill="#f59e0b" />)}
+                {[1, 2, 3, 4, 5].map(s => <Star key={s} size={18} color="#ff6a14" fill="#ff6a14" />)}
               </div>
               <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>Rated 4.9/5 from 200+ reviews</p>
               <h2 style={{ fontFamily: F, fontSize: 42, fontWeight: 800, letterSpacing: '-0.03em', color: NAVY }}>Trusted across America</h2>
@@ -788,7 +788,7 @@ export default function Landing() {
                   onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
                   onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'none'; }}
                 >
-                  <div style={{ display: 'flex', gap: 3, marginBottom: 18 }}>{[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} color="#f59e0b" fill="#f59e0b" />)}</div>
+                  <div style={{ display: 'flex', gap: 3, marginBottom: 18 }}>{[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} color="#ff6a14" fill="#ff6a14" />)}</div>
                   <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.75, marginBottom: 22, flex: 1 }}>"{t.q}"</p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
