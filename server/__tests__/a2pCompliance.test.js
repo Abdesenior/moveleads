@@ -133,6 +133,14 @@ test('D5. Contact page shows the legal entity', () => {
   assert.match(contactSrc, /Wyoming/);
 });
 
+test('D6. Privacy + Terms state opt-in/consent records are not shared for marketing', () => {
+  // A2P reviewers look for an explicit "opt-in data not shared for
+  // marketing" statement. Pin the verbatim sentence in both policies.
+  const sentence = /opt-in information and consent records will not be shared with third parties for marketing purposes/i;
+  assert.match(privacySrc, sentence);
+  assert.match(termsSrc, sentence);
+});
+
 // ── E. /sms-consent public page ──────────────────────────────────────────
 
 test('E1. /sms-consent route is registered WITHOUT ProtectedRoute (public)', () => {
@@ -143,7 +151,7 @@ test('E2. SmsConsent page contains the full opt-in demonstration', () => {
   // Phone field + checkbox + consent text
   assert.match(consentSrc, /type="tel"/);
   assert.match(consentSrc, /type="checkbox"/);
-  assert.match(consentSrc, /I agree to receive SMS messages from MoveLeads/);
+  assert.match(consentSrc, /I agree to receive SMS from MoveLeads LLC/);
 });
 
 test('E3. SmsConsent page has all program disclosures', () => {

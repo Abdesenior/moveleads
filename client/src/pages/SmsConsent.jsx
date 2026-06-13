@@ -25,10 +25,9 @@ const NAVY = '#0b1628';
 const ORANGE = '#f97316';
 
 const CONSENT_TEXT =
-  'I agree to receive SMS messages from MoveLeads regarding lead opportunities, ' +
-  'account notifications, onboarding information, and promotional offers. ' +
-  'Message frequency varies. Message and data rates may apply. ' +
-  'Reply STOP to opt out and HELP for assistance.';
+  'I agree to receive SMS from MoveLeads LLC. Msg frequency varies. ' +
+  'Msg & data rates may apply. Reply STOP to opt out or HELP for help. ' +
+  'Consent not required to purchase.';
 
 export default function SmsConsent() {
   useCanonical('/sms-consent');
@@ -62,8 +61,7 @@ export default function SmsConsent() {
             SMS Opt-In &amp; Consent
           </h1>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.6 }}>
-            How moving companies opt in to text messages from MoveLeads LLC,
-            and everything you need to know about our SMS program.
+            How moving companies opt in to text messages from MoveLeads LLC.
           </p>
         </div>
       </section>
@@ -74,13 +72,11 @@ export default function SmsConsent() {
           {/* Program summary */}
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 14, padding: '22px 26px', marginBottom: 36 }}>
             <p style={{ margin: 0, fontSize: 15, color: '#475569', lineHeight: 1.75 }}>
-              <strong style={{ color: NAVY }}>MoveLeads LLC</strong> (https://moveleads.cloud) is a
-              technology platform and lead marketplace for moving companies, registered in
-              Wyoming, USA. Registered movers can opt in to receive SMS messages about{' '}
-              <strong style={{ color: NAVY }}>lead opportunities, account notifications,
-              onboarding information, and promotional offers</strong>. Consent is collected
-              during registration via the exact flow demonstrated below. Consent is not a
-              condition of purchase — every platform feature except SMS works without it.
+              <strong style={{ color: NAVY }}>MoveLeads LLC</strong> (https://moveleads.cloud), a
+              lead marketplace for moving companies registered in Wyoming, USA, sends SMS for{' '}
+              <strong style={{ color: NAVY }}>verification, lead alerts, and account updates</strong>.
+              Movers opt in during registration via the flow shown below, and can reply STOP to
+              opt out at any time without losing access to their account.
             </p>
           </div>
 
@@ -115,7 +111,7 @@ export default function SmsConsent() {
               }}
             />
             <small style={{ display: 'block', marginTop: 6, color: '#64748b', fontSize: 12, lineHeight: 1.5 }}>
-              Used for account verification, lead notifications, account updates, and SMS communications.
+              Used for verification, lead alerts, and account updates.
             </small>
 
             <label style={{
@@ -136,7 +132,7 @@ export default function SmsConsent() {
             </label>
 
             <small style={{ display: 'block', marginTop: 10, fontSize: 12, color: '#64748b' }}>
-              By signing up you agree to our{' '}
+              By signing up, you agree to our{' '}
               <Link to="/terms" style={{ color: ORANGE, fontWeight: 600 }}>Terms of Service</Link>
               {' '}and{' '}
               <Link to="/privacy" style={{ color: ORANGE, fontWeight: 600 }}>Privacy Policy</Link>.

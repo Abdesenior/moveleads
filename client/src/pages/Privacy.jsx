@@ -138,7 +138,7 @@ When data is no longer needed, we securely delete or anonymize it.`,
 - **Onboarding information:** Setup guidance while you complete your account.
 - **Promotional communications:** Occasional offers and product updates (only if you have opted in).
 
-**Your mobile number is never sold, rented, or shared with third parties for marketing purposes.** Mobile opt-in data and consent records are not shared with any third party except our SMS delivery provider (Twilio) solely for the purpose of delivering the messages you requested.
+**Your mobile number is never sold, rented, or shared with third parties for marketing purposes. Mobile opt-in information and consent records will not be shared with third parties for marketing purposes.** Opt-in information and consent records are shared only with our SMS delivery provider (Twilio), solely to deliver the messages you requested.
 
 **Message frequency varies** based on lead activity in your service area and your notification preferences.
 
@@ -148,7 +148,7 @@ When data is no longer needed, we securely delete or anonymize it.`,
 
 **Help:** Reply **HELP** to any message for assistance, or contact support@moveleads.cloud.
 
-**Consent is not a condition of purchase.** You can use the MoveLeads platform, receive email notifications, and purchase leads from your dashboard without opting in to SMS.`,
+**Consent is not a condition of purchase.** You may opt out of SMS at any time by replying STOP; doing so does not affect your ability to receive email notifications or purchase leads from your dashboard.`,
   },
   {
     id: 'changes',
