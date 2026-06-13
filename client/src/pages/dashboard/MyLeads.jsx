@@ -313,7 +313,7 @@ function ExpandedPanel({ purchase, onUpdate }) {
                 style={{
                   padding: '7px 18px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700,
                   cursor: saving ? 'not-allowed' : 'pointer',
-                  background: saved ? '#16a34a' : 'linear-gradient(135deg,#f59e0b,#d97706)',
+                  background: saved ? '#16a34a' : 'linear-gradient(135deg,#ff6a14,#d97706)',
                   color: '#fff', transition: 'background 0.3s',
                   opacity: saving ? 0.7 : 1,
                 }}

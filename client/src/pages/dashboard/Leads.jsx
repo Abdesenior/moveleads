@@ -39,7 +39,7 @@ const urgency = (moveDateStr) => {
   const days = Math.ceil((new Date(moveDateStr) - Date.now()) / 86400000);
   if (days <= 0) return { label: 'Today!',      color: '#ef4444', bg: '#fef2f2' };
   if (days <= 2) return { label: `${days}d left`, color: '#ef4444', bg: '#fef2f2' };
-  if (days <= 5) return { label: `${days}d left`, color: '#f59e0b', bg: '#fffbeb' };
+  if (days <= 5) return { label: `${days}d left`, color: '#ff6a14', bg: '#fffbeb' };
   return null;
 };
 
@@ -506,7 +506,7 @@ export default function Leads() {
                         <div style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
                           padding: '4px 10px', borderRadius: 9999,
-                          background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                          background: 'linear-gradient(135deg, #ff6a14, #ea580c)',
                           color: '#fff', fontSize: 11, fontWeight: 800,
                           boxShadow: '0 2px 6px rgba(234, 88, 12, 0.2)'
                         }}>

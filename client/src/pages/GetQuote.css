@@ -19,7 +19,7 @@
   --green-l: #ecfdf5;
   --violet:  #8b5cf6;
   --violet-l:#f5f3ff;
-  --amber:   #f59e0b;
+  --amber:   #ff6a14;
   --amber-l: #fffbeb;
   --border:  #e5e7eb;
   --border-l:#f3f4f6;
@@ -241,7 +241,7 @@
 
 .gq-progress-bar { height: 3px; background: #f1f5f9; }
 .gq-progress-fill {
-  height: 100%; background: linear-gradient(90deg, var(--accent), #f59e0b);
+  height: 100%; background: linear-gradient(90deg, var(--accent), #ff6a14);
   transition: width 0.4s var(--ease); border-radius: 0 3px 3px 0;
 }
 

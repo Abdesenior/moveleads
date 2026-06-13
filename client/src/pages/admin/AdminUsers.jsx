@@ -245,7 +245,7 @@ export default function AdminUsers() {
                         <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, border: '1px solid #fca5a5', padding: '2px 6px', borderRadius: 4, marginLeft: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Admin</span>
                       )}
                       {u.isSuspended && (
-                        <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 800, border: '1px solid #fcd34d', padding: '2px 6px', borderRadius: 4, marginLeft: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Suspended</span>
+                        <span style={{ fontSize: 9, color: '#ff6a14', fontWeight: 800, border: '1px solid #fcd34d', padding: '2px 6px', borderRadius: 4, marginLeft: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Suspended</span>
                       )}
                     </div>
                   </div>

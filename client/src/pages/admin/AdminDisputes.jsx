@@ -79,7 +79,7 @@ export default function AdminDisputes() {
 
       {/* Info Box */}
       <div style={{ 
-        background: '#fffbeb', borderLeft: '4px solid #f59e0b', 
+        background: '#fffbeb', borderLeft: '4px solid #ff6a14', 
         padding: '16px 20px', borderRadius: 12, marginBottom: 28,
         display: 'flex', alignItems: 'center', gap: 14
       }}>

@@ -876,10 +876,10 @@ export default function AdminLeads() {
           <button onClick={() => { setEditingId(null); setFormData(emptyForm); setShowModal(true); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              background: 'linear-gradient(135deg, #ff6a14 0%, #d97706 100%)',
               color: '#fff', border: 'none', borderRadius: 14, padding: '14px 24px',
               fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)',
-              cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
+              cursor: 'pointer', boxShadow: '0 4px 12px rgba(255, 106, 20,0.3)',
               transition: 'all 0.2s'
             }}>
             <Plus size={18} /> Add New Lead
@@ -1398,7 +1398,7 @@ export default function AdminLeads() {
               </div>
 
               {/* ── Section 4: Notes ── */}
-              <SectionHeader icon={<FileText size={14} color="#f59e0b" />} bg="#fffbeb" title="Special Instructions" subtitle="Extra details for the moving company" />
+              <SectionHeader icon={<FileText size={14} color="#ff6a14" />} bg="#fffbeb" title="Special Instructions" subtitle="Extra details for the moving company" />
               <div style={{ marginBottom: 28 }}>
                 <textarea name="specialInstructions" value={formData.specialInstructions} onChange={handleInput}
                   rows={3} style={{ ...inputStyle, resize: 'vertical', minHeight: 80, lineHeight: 1.6 }}
@@ -1424,14 +1424,14 @@ export default function AdminLeads() {
                   <button type="submit" disabled={submitting}
                     style={{
                       padding: '12px 32px', borderRadius: 12, border: 'none',
-                      background: submitting ? '#94a3b8' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      background: submitting ? '#94a3b8' : 'linear-gradient(135deg, #ff6a14 0%, #d97706 100%)',
                       color: '#fff', fontSize: 14, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer',
                       fontFamily: 'var(--font-heading)',
-                      boxShadow: submitting ? 'none' : '0 4px 16px rgba(245,158,11,0.35)',
+                      boxShadow: submitting ? 'none' : '0 4px 16px rgba(255, 106, 20,0.35)',
                       transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 8
                     }}
-                    onMouseEnter={e => { if (!submitting) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(245,158,11,0.45)'; } }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = submitting ? 'none' : '0 4px 16px rgba(245,158,11,0.35)'; }}>
+                    onMouseEnter={e => { if (!submitting) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 106, 20,0.45)'; } }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = submitting ? 'none' : '0 4px 16px rgba(255, 106, 20,0.35)'; }}>
                     {submitting ? (
                       <>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>

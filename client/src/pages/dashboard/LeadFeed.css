@@ -48,9 +48,9 @@
 }
 
 .connection-badge.reconnecting {
-  background: rgba(245, 158, 11, 0.1);
+  background: rgba(255, 106, 20, 0.1);
   color: #d97706;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(255, 106, 20, 0.2);
 }
 
 .pulse-dot {
@@ -217,7 +217,7 @@
 
 .buy-btn {
   width: 100%;
-  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  background: linear-gradient(135deg, #ff6a14 0%, #ea580c 100%);
   color: white;
   border: none;
   padding: 14px;
@@ -230,12 +230,12 @@
   gap: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+  box-shadow: 0 4px 12px rgba(255, 106, 20, 0.2);
 }
 
 .buy-btn:hover {
   transform: scale(1.02);
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 6px 20px rgba(255, 106, 20, 0.3);
 }
 
 /* Modals — z-index 13500 sits above the mobile sticky app bar (12100 in
@@ -411,7 +411,7 @@
 }
 
 .view-btn { background: var(--bg-navy); color: white; flex: 1; }
-.close-success-btn { background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); color: white; flex: 1; }
+.close-success-btn { background: linear-gradient(135deg, #ff6a14 0%, #ea580c 100%); color: white; flex: 1; }
 
 @media (max-width: 640px) {
   .feed-header { flex-direction: column; align-items: flex-start; gap: 16px; }
@@ -605,7 +605,7 @@
     padding: 13px 14px;
     border: none;
     border-radius: 12px;
-    background: linear-gradient(135deg, #f59e0b, #ea580c);
+    background: linear-gradient(135deg, #ff6a14, #ea580c);
     color: white;
     font-family: inherit;
     font-weight: 700;

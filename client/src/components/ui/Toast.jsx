@@ -26,9 +26,9 @@ const toastStyles = {
   },
   warning: {
     bg: '#fffbeb',
-    border: '#f59e0b',
+    border: '#ff6a14',
     icon: AlertTriangle,
-    iconColor: '#f59e0b'
+    iconColor: '#ff6a14'
   },
   info: {
     bg: '#eff6ff',

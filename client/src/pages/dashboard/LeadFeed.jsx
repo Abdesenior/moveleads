@@ -586,7 +586,7 @@ export default function LeadFeed() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {displayedLeads.length > 0 && (
-              <div className="hero-available-pill" style={{ background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', borderRadius: 20, padding: '7px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="hero-available-pill" style={{ background: 'linear-gradient(135deg,#ff6a14,#ea580c)', color: 'white', borderRadius: 20, padding: '7px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Zap size={13} /> {displayedLeads.length} Available
               </div>
             )}
@@ -824,7 +824,7 @@ export default function LeadFeed() {
                           {isToday  && <span className="lead-tag tag-today" style={{ ...TAG_BASE, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>Today!</span>}
                           {isUrgent && <span className="lead-tag tag-urgent" style={{ ...TAG_BASE, background: '#fff7ed', color: '#d97706', border: '1px solid #fde68a' }}>Urgent</span>}
                           {isPremium && (
-                            <span className="lead-tag tag-premium" style={{ ...TAG_BASE, background: 'linear-gradient(135deg,#f59e0b,#ea580c)', color: 'white', border: 'none' }}>
+                            <span className="lead-tag tag-premium" style={{ ...TAG_BASE, background: 'linear-gradient(135deg,#ff6a14,#ea580c)', color: 'white', border: 'none' }}>
                               ⭐ High-Value Move
                             </span>
                           )}
@@ -1067,7 +1067,7 @@ function fmtRoutePart(city, state) {
 /* ─── Shared button styles ─────────────────────────────────────────────────── */
 const BTN_PRIMARY = {
   padding: '8px 18px', borderRadius: 20, border: 'none',
-  background: 'linear-gradient(135deg,#f59e0b,#ea580c)',
+  background: 'linear-gradient(135deg,#ff6a14,#ea580c)',
   color: 'white', fontWeight: 700, fontSize: 13,
   cursor: 'pointer', whiteSpace: 'nowrap',
 };

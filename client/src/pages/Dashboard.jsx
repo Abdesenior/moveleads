@@ -34,7 +34,7 @@ const urgencyBadge = (moveDateStr) => {
   const days = Math.ceil((new Date(moveDateStr) - Date.now()) / 86400000);
   if (days <= 0) return { label: 'Moving today!', color: '#ef4444', bg: '#fef2f2' };
   if (days <= 2) return { label: `Moving in ${days}d!`, color: '#ef4444', bg: '#fef2f2' };
-  if (days <= 5) return { label: `${days} days left`, color: '#f59e0b', bg: '#fffbeb' };
+  if (days <= 5) return { label: `${days} days left`, color: '#ff6a14', bg: '#fffbeb' };
   return null;
 };
 
@@ -220,7 +220,7 @@ export default function Dashboard() {
       value: kpi.jobsWon,
       sub: 'Marked as Booked',
       icon: <Trophy size={18} />,
-      accent: '#f59e0b',
+      accent: '#ff6a14',
     },
     {
       title: 'Total Spend',
@@ -258,7 +258,7 @@ export default function Dashboard() {
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 9, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={15} color="#f59e0b" />
+              <Zap size={15} color="#ff6a14" />
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>Available Leads</h3>

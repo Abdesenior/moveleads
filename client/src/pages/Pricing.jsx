@@ -155,7 +155,7 @@ export default function Pricing() {
               { icon: <Users size={20} />, c: '#3b82f6', bg: '#eff6ff', bc: 'rgba(59,130,246,0.12)', title: 'Move Size', body: 'Studio from $10\nUp to $75 for 5+ beds' },
               { icon: <MapPin size={20} />, c: '#8b5cf6', bg: '#f5f3ff', bc: 'rgba(139,92,246,0.12)', title: 'Distance', body: 'Local from $10\nLong distance +$35 base' },
               { icon: <Clock size={20} />, c: '#ef4444', bg: '#fef2f2', bc: 'rgba(239,68,68,0.12)', title: 'Urgency', body: 'Moving within 7 days\nup to 1.5× price' },
-              { icon: <TrendingUp size={20} />, c: '#f59e0b', bg: '#fffbeb', bc: 'rgba(245,158,11,0.12)', title: 'Season', body: 'Peak May–Aug\n× 1.15 multiplier' },
+              { icon: <TrendingUp size={20} />, c: '#ff6a14', bg: '#fffbeb', bc: 'rgba(255, 106, 20,0.12)', title: 'Season', body: 'Peak May–Aug\n× 1.15 multiplier' },
               { icon: <Star size={20} />, c: '#22c55e', bg: '#f0fdf4', bc: 'rgba(34,197,94,0.12)', title: 'Lead Grade', body: 'Grade A = premium\nGrade C = standard' },
             ].map((f, i) => (
               <Reveal key={i} delay={i * 0.07}>

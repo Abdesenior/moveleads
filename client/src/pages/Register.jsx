@@ -306,7 +306,7 @@ export default function Register() {
               <div style={{
                 height: '100%',
                 width: step === 1 ? '50%' : '100%',
-                background: 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)',
+                background: 'linear-gradient(90deg, #ff6a14 0%, #d97706 100%)',
                 transition: 'width 0.4s ease',
                 borderRadius: 2
               }} />

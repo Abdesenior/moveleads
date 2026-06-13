@@ -194,7 +194,7 @@ export default function Billing() {
       }}>
         {/* Left: balance */}
         <div className="billing-balance-col" style={{ padding: '32px 36px', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg,#ea580c,#f59e0b)' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg,#ea580c,#ff6a14)' }} />
           <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>
             Balance
           </p>
@@ -238,10 +238,10 @@ export default function Billing() {
                   style={{
                     padding: '7px 16px', borderRadius: 9999, fontSize: 13, fontWeight: 700,
                     cursor: 'pointer', border: '1.5px solid',
-                    background: active ? 'linear-gradient(135deg,#f59e0b,#ea580c)' : '#f8fafc',
+                    background: active ? 'linear-gradient(135deg,#ff6a14,#ea580c)' : '#f8fafc',
                     color: active ? '#fff' : '#475569',
-                    borderColor: active ? '#f59e0b' : '#e2e8f0',
-                    boxShadow: active ? '0 4px 12px rgba(245,158,11,0.3)' : 'none',
+                    borderColor: active ? '#ff6a14' : '#e2e8f0',
+                    boxShadow: active ? '0 4px 12px rgba(255, 106, 20,0.3)' : 'none',
                     transition: 'all 0.15s',
                     position: 'relative',
                   }}
@@ -454,8 +454,8 @@ export default function Billing() {
                   style={{
                     flex: 2, padding: 13, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14,
                     cursor: 'pointer', fontFamily: 'var(--font-heading)',
-                    background: 'linear-gradient(135deg,#f59e0b,#d97706)',
-                    color: '#fff', boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
+                    background: 'linear-gradient(135deg,#ff6a14,#d97706)',
+                    color: '#fff', boxShadow: '0 4px 14px rgba(255, 106, 20,0.3)',
                     transition: 'all 0.25s',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   }}
