@@ -338,7 +338,7 @@ export default function Customers() {
 
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(15,23,42,0.06)', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div className="customers-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -483,6 +483,98 @@ export default function Customers() {
             )}
           </tbody>
         </table>
+        </div>
+
+        {/* Mobile card list — separate from the desktop table above. CSS
+            shows the table on desktop and these cards ≤640px, so neither
+            layout fights the other's <td>/whitespace rules. Same `paged`
+            array and the exact same handlers as the table rows, so sort,
+            filter, pagination, status updates, and every action behave
+            identically. */}
+        <div className="customers-mobile-list" role="list">
+          {loading ? (
+            [0, 1, 2].map(i => <div key={i} className="cust-card-skel" />)
+          ) : sorted.length === 0 ? (
+            <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <Users size={24} color="#cbd5e1" />
+              </div>
+              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: 15, marginBottom: 6 }}>
+                {purchases.length === 0 ? 'No customers yet' : 'No matches found'}
+              </div>
+              <div style={{ fontSize: 13, color: '#94a3b8' }}>
+                {purchases.length === 0 ? 'Purchase leads from the Live Leads Market to see them here.' : 'Try adjusting your search or filter.'}
+              </div>
+            </div>
+          ) : (
+            paged.map((p) => {
+              const meta = statusMeta(p.crmStatus || 'New');
+              return (
+                <article key={p._id} role="listitem" className="cust-card">
+                  {/* Header: avatar + name/phone + status pill */}
+                  <div className="cust-card-head">
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+                      background: `linear-gradient(135deg,${meta.color}20,${meta.color}10)`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: meta.color, fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-heading)',
+                    }}>
+                      {getInitials(p.lead?.customerName)}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.lead?.customerName || '—'}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 1 }}>{p.lead?.customerPhone || '—'}</div>
+                    </div>
+                    <StatusDropdown
+                      value={p.crmStatus || 'New'}
+                      onChange={newStatus => updateStatusInline(p._id, p.lead?._id, newStatus)}
+                    />
+                  </div>
+
+                  {/* Route */}
+                  <div style={{ marginTop: 12 }}>
+                    <RouteCell
+                      originCity={p.lead?.originCity} originZip={p.lead?.originZip}
+                      destCity={p.lead?.destinationCity} destZip={p.lead?.destinationZip}
+                    />
+                  </div>
+
+                  {/* Move date + price */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: '#64748b' }}>
+                      <Calendar size={13} color="#94a3b8" />
+                      {p.lead?.moveDate ? new Date(p.lead.moveDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: 16, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
+                      ${p.pricePaid?.toFixed(2) || '—'}
+                    </span>
+                  </div>
+
+                  {/* Actions — full-width 44px tap targets */}
+                  <div className="cust-card-actions">
+                    <button type="button" className="cust-act" style={{ color: '#16a34a', background: '#f0fdf4', borderColor: '#bbf7d0' }}
+                      onClick={() => window.open(`tel:${p.lead?.customerPhone}`, '_self')}>
+                      <Phone size={15} /> Call
+                    </button>
+                    <button type="button" className="cust-act" style={{ color: '#2563eb', background: '#eff6ff', borderColor: '#bfdbfe' }}
+                      onClick={() => window.open(`sms:${p.lead?.customerPhone}`, '_self')}>
+                      <MessageSquare size={15} /> Text
+                    </button>
+                    <button type="button" className="cust-act" style={{ color: '#ea580c', background: '#fff7ed', borderColor: '#fed7aa' }}
+                      onClick={() => { setDetailLead(p); setEditStatus(p.crmStatus || 'New'); setEditNotes(p.crmNotes || ''); resetDisputeState(); }}>
+                      <Eye size={15} /> View
+                    </button>
+                    <button type="button" className="cust-act" style={{ color: '#dc2626', background: '#fef2f2', borderColor: '#fecaca' }}
+                      onClick={() => { setDetailLead(p); setEditStatus(p.crmStatus || 'New'); setEditNotes(p.crmNotes || ''); resetDisputeState(); setDisputingLead(true); }}>
+                      <Flag size={15} /> Dispute
+                    </button>
+                  </div>
+                </article>
+              );
+            })
+          )}
         </div>
 
         {!loading && totalPages > 1 && (
@@ -726,8 +818,41 @@ export default function Customers() {
       <style>{`
         @keyframes custFadeIn  { from { opacity:0 } to { opacity:1 } }
         @keyframes custScaleIn { from { opacity:0; transform:scale(0.9) translateY(20px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        @keyframes custShimmer { 0% { background-position:200% 0 } 100% { background-position:-200% 0 } }
+
+        /* Card list is desktop-hidden; the table is the desktop layout. */
+        .customers-mobile-list { display: none; }
+
         @media (max-width: 640px) {
           .customers-detail-grid { grid-template-columns: 1fr !important; }
+
+          /* Swap the horizontally-scrolling table for stacked cards. */
+          .customers-table-wrap { display: none !important; }
+          .customers-mobile-list { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+
+          .cust-card {
+            width: 100%; box-sizing: border-box;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+            padding: 14px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+          }
+          .cust-card-head { display: flex; align-items: center; gap: 11px; }
+
+          .cust-card-actions { display: flex; gap: 7px; margin-top: 12px; }
+          .cust-act {
+            flex: 1 1 0; min-width: 0; height: 44px;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            border: 1px solid #e2e8f0; border-radius: 11px;
+            font-family: inherit; font-size: 12.5px; font-weight: 700;
+            cursor: pointer; -webkit-tap-highlight-color: transparent;
+          }
+          .cust-act:active { transform: scale(0.97); }
+
+          .cust-card-skel {
+            height: 150px; border-radius: 14px;
+            background: linear-gradient(90deg,#f1f5f9,#f8fafc,#f1f5f9);
+            background-size: 200% 100%;
+            animation: custShimmer 1.2s ease-in-out infinite;
+          }
         }
       `}</style>
     </DashboardLayout>
