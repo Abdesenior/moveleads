@@ -20,7 +20,21 @@ const getGreeting = () => {
   return 'Good evening';
 };
 
-const cleanDesc = (desc = '') => desc.replace(/\s*\(Session:.*?\)/gi, '').trim();
+// Strip internal noise from transaction descriptions before showing them
+// to movers: the "(Session: …)" tag, "(admin: <id>)" stamps, and raw lead
+// ObjectIds (e.g. "Buy-now purchase: lead 6a27…" → "Buy-now purchase",
+// "Admin lead deletion refund: lead 6a27…" → "Admin lead deletion
+// refund"). Admin views intentionally keep the IDs for debugging.
+const cleanDesc = (desc = '') =>
+  (desc || '')
+    .replace(/\s*\(Session:.*?\)/gi, '')
+    .replace(/\s*\(admin:\s*[a-f\d]{24}\)/gi, '')
+    .replace(/\s*[:,]\s*lead\s+[a-f\d]{24}\b/gi, '')
+    .replace(/\s*[:,]\s*[a-f\d]{24}\b/gi, '')
+    .replace(/\s+[a-f\d]{24}\b/gi, '')
+    .replace(/\s*[:,]\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 
 const daysAgoLabel = (dateStr) => {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 86400000);
