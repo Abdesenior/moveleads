@@ -142,6 +142,14 @@ export default function AdminUsers() {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   };
 
+  // Phones are stored as raw digits; render US numbers as (555) 123-4567.
+  const formatPhone = (raw) => {
+    const d = String(raw || '').replace(/\D/g, '');
+    const ten = d.length === 11 && d.startsWith('1') ? d.slice(1) : d;
+    if (ten.length === 10) return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+    return raw || '—';
+  };
+
   const activeUsers = users.filter(u => !u.isSuspended && u.role !== 'admin').length;
   const suspendedUsers = users.filter(u => u.isSuspended).length;
 
@@ -255,7 +263,10 @@ export default function AdminUsers() {
                     </div>
                   </div>
                 </td>
-                <td style={{ fontSize: 13, color: '#475569' }}>{u.email}</td>
+                <td style={{ fontSize: 13, color: '#475569' }}>
+                  <div>{u.email}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{formatPhone(u.phone)}</div>
+                </td>
                 <td style={{ fontSize: 13, color: '#475569' }}>{u.dotNumber || 'N/A'} / {u.mcNumber || 'N/A'}</td>
                 <td>
                   <span style={{
