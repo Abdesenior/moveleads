@@ -186,7 +186,12 @@ export default function AdminUsers() {
 
       <div className="panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: 18 }}>
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid #f1f5f9' }}>
-          <div style={{ fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--bg-navy)', fontSize: 16 }}>Customer Directory</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--bg-navy)', fontSize: 16 }}>Customer Directory</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+              {searchTerm ? `${filteredUsers.length} of ${users.length}` : `${users.length} ${users.length === 1 ? 'user' : 'users'}`}
+            </span>
+          </div>
           <div style={{ position: 'relative', minWidth: 260, flex: '1 1 260px' }}>
             <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
