@@ -319,11 +319,13 @@ export default function GetQuoteV6() {
         throw new Error(json.msg || json.message || `Submission failed (${res.status})`);
       }
 
-      // Browser-side Lead event — fires ONLY after a confirmed 200. The
-      // server is already firing the matching CAPI event with the same
-      // eventID, so Meta will dedupe them. Idempotent retries (same
-      // clientSubmissionId) skip this — they didn't create a new Lead.
-      if (!json.idempotent) {
+      // Browser-side Lead event — fires ONLY after a confirmed 200 AND only for
+      // Long Distance leads. The server is the single source of truth for the
+      // classification; we read json.lead.distance and never re-derive it (no
+      // duplicated mileage threshold here). The server fires the matching CAPI
+      // Lead with the same eventID, so Meta dedupes them. Idempotent retries
+      // (same clientSubmissionId) skip this — they didn't create a new Lead.
+      if (!json.idempotent && json.lead?.distance === 'Long Distance') {
         trackLead(metaEventId);
       }
 

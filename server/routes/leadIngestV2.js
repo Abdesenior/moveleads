@@ -326,8 +326,14 @@ router.post('/', ingestLimiter, async (req, res) => {
     // those are retries of an already-created Lead, and CAPI must fire
     // exactly once per Lead (dedup contract). The original ingest is what
     // fired (or will fire, in Commit 2's live mode).
-    metaCapi.sendLead(lead, req).catch(err =>
-      console.error('[metaCapi] scaffold call threw:', err && err.message));
+    // Fire the Meta CAPI Lead ONLY for Long Distance leads. `lead.distance`
+    // (computed above — the single source of truth, miles>100) gates both this
+    // CAPI event and the browser Pixel event (via the response field below), so
+    // Local leads fire no Meta Lead. Browser + CAPI dedup on lead.metaEventId.
+    if (lead.distance === 'Long Distance') {
+      metaCapi.sendLead(lead, req).catch(err =>
+        console.error('[metaCapi] sendLead threw:', err && err.message));
+    }
 
     // 8. Sequential background qualification chain (Phase 6.7) ─────────────────
     //
@@ -423,6 +429,10 @@ router.post('/', ingestLimiter, async (req, res) => {
         moveDate: lead.moveDate,
         homeSize: lead.homeSize,
         status: lead.status,
+        // Canonical server classification — the browser reads this to gate the
+        // Meta Lead Pixel event (Long Distance only). It does NOT re-derive
+        // distance, so the mileage threshold stays solely in the ingest logic.
+        distance: lead.distance,
       },
     });
   } catch (err) {
