@@ -95,6 +95,12 @@ function buildSitemap() {
 
 async function main() {
   const shell = await readFile(path.join(DIST, 'index.html'), 'utf8');
+  // Keep the un-rendered SPA shell for app routes and 404s (served by
+  // worker/index.js). noindex: nothing served from it should be indexed.
+  await writeFile(
+    path.join(DIST, '_app.html'),
+    shell.replace('<head>', '<head>\n    <meta name="robots" content="noindex" />'),
+  );
   const server = await startServer(shell);
   const origin = `http://127.0.0.1:${server.address().port}`;
   // Playwright's bundled Chromium in CI; fall back to a locally installed Chrome.
