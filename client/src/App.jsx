@@ -31,6 +31,8 @@ const VerifyEmailPending = lazy(() => import('./pages/VerifyEmailPending'));
 const Feedback = lazy(() => import('./pages/Feedback'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const SeoLanding = lazy(() => import('./pages/SeoLanding'));
+const RoutePage = lazy(() => import('./pages/RoutePage'));
+const RoutesIndex = lazy(() => import('./pages/RoutesIndex'));
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const LeadFeed = lazy(() => import('./pages/dashboard/LeadFeed'));
@@ -113,6 +115,8 @@ function App() {
               <Route path="/moving-leads" element={<SeoLanding />} />
               <Route path="/moving-leads/:type" element={<SeoLanding />} />
               <Route path="/resources/:slug" element={<SeoLanding />} />
+              <Route path="/moving" element={<RoutesIndex />} />
+              <Route path="/moving/:slug" element={<RoutePage />} />
               <Route path="/founding-movers" element={<FoundingMovers />} />
               <Route path="/founding-realtors" element={<FoundingRealtors />} />
               <Route path="/founding-groups" element={<FoundingGroups />} />
