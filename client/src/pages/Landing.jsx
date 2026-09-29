@@ -7,7 +7,6 @@ import {
   Home, Warehouse, Menu, X
 } from 'lucide-react';
 import JsonLd, { organizationSchema, softwareAppSchema, landingPageFaqSchema } from '../components/JsonLd';
-import useCanonical from '../utils/useCanonical';
 import '../phone-mockup.css';
 import './Landing.css';
 
@@ -44,10 +43,8 @@ export default function Landing() {
   const [tick, setTick] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  useCanonical('/');
 
   useEffect(() => {
-    document.title = 'MoveLeads.cloud — Verified Moving Leads for Moving Companies';
     const fn = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', fn);
     return () => window.removeEventListener('scroll', fn);

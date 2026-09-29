@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, Zap, Heart, Users, TrendingUp, Star, CheckCircle } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
-import useCanonical from '../utils/useCanonical';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -44,8 +43,6 @@ const VALUES = [
 ];
 
 export default function About() {
-  useCanonical('/about');
-  useEffect(() => { document.title = 'About Us — MoveLeads.cloud'; }, []);
 
   return (
     <MarketingLayout>

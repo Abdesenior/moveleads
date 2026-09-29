@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './components/ui/Toast';
 import { LoadingScreen } from './components/ui/Loading';
 import NotFound from './pages/NotFound';
+import RouteSeo from './components/RouteSeo';
 
 const Landing = lazy(() => import('./pages/Landing'));
 const Register = lazy(() => import('./pages/Register'));
@@ -77,6 +78,7 @@ function App() {
       <ToastProvider>
         <Router>
           <ScrollToTop />
+          <RouteSeo />
           <Suspense fallback={<LoadingScreen message="Loading..." />}>
             <Routes>
               <Route path="/" element={<Landing />} />

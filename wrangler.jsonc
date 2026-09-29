@@ -1,0 +1,17 @@
+// Cloudflare Workers config for the MoveLeads frontend (static SPA).
+// Build first: `cd client && npm ci && npm run build`, then `npx wrangler deploy`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "moveleads",
+  "compatibility_date": "2026-09-25",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./client/dist",
+    // Serve index.html for client-side routes like /login, /dashboard.
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    { "pattern": "moveleads.cloud", "custom_domain": true },
+    { "pattern": "www.moveleads.cloud", "custom_domain": true }
+  ]
+}

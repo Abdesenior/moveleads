@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../components/MarketingLayout';
-import useCanonical from '../utils/useCanonical';
 import { MessageSquare, ShieldCheck, Info } from 'lucide-react';
 
 /**
@@ -30,8 +29,6 @@ const CONSENT_TEXT =
   'Consent not required to purchase.';
 
 export default function SmsConsent() {
-  useCanonical('/sms-consent');
-  useEffect(() => { document.title = 'SMS Opt-In & Consent — MoveLeads.cloud'; }, []);
 
   // Demo-only local state so the reviewer can interact with the controls.
   const [phone, setPhone] = useState('');

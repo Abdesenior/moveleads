@@ -1,7 +1,6 @@
 import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import useCanonical from '../utils/useCanonical';
 import JsonLd from '../components/JsonLd';
 import { useMoverFunnelPixel } from '../hooks/useMoverFunnelPixel';
 import './Partners.css';
@@ -255,7 +254,6 @@ function LeadCard({ lead, onBuy }) {
 // ── Main component ─────────────────────────────────────────────────────────
 export default function Partners() {
   useMoverFunnelPixel();
-  useCanonical('/partners');
 
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -265,8 +263,6 @@ export default function Partners() {
 
   return (
     <div className="partners-page">
-      <title>MoveLeads — Verified move requests for moving companies. Pay-as-you-go.</title>
-      <meta name="description" content="See real customers requesting movers in your service area. Unlock only the moves you want, call first, and book more jobs before competitors do. Pay-as-you-go credits, no subscription." />
       <JsonLd schema={{
         '@context': 'https://schema.org',
         '@type': 'Service',

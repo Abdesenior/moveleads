@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import './getQuoteV6/styles.css';
-import useCanonical from '../utils/useCanonical';
 import {
   generateEventId,
   readFbp,
@@ -172,7 +171,6 @@ export default function GetQuoteV6() {
 
   // SEO canonical for the route this funnel is mounted at. Both /get-quote
   // and /get-quote-v6 render this component; /get-quote is canonical.
-  useCanonical('/get-quote');
 
   // Computed once and threaded down so every screen and the desktop shell
   // agree on the viewport class (avoids each screen re-reading the media

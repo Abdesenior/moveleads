@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
@@ -14,7 +14,6 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => { document.title = 'Forgot Password — MoveLeads.cloud'; }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

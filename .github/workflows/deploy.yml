@@ -11,10 +11,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ── 1. Build gate: must pass before smoke test ────────────────────────────
-  build-check:
-    name: Pre-deploy build check
+  # ── 1. Frontend: build, pre-render, deploy to Cloudflare Workers ──────────
+  #      Needs repo secrets CLOUDFLARE_API_TOKEN (Workers Scripts: Edit) and
+  #      CLOUDFLARE_ACCOUNT_ID. Skips the deploy step until they are set.
+  deploy-frontend:
+    name: Deploy UI → Cloudflare (moveleads.cloud)
     runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,20 +32,35 @@ jobs:
         working-directory: client
         run: npm ci
 
-      - name: Vite production build
+      - name: Install Chromium for pre-rendering
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Build (Vite + pre-render)
         working-directory: client
         run: npm run build
         env:
-          VITE_API_URL: https://api.moveleads.cloud
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+          VITE_MAPBOX_TOKEN: ${{ vars.VITE_MAPBOX_TOKEN }}
+          VITE_META_MOVER_PIXEL_ID: ${{ vars.VITE_META_MOVER_PIXEL_ID }}
 
-  # ── 2. (Optional) Trigger Render deploy hook if secret is configured ──────
-  #      Render can also auto-deploy via its native GitHub integration.
-  #      Set RENDER_DEPLOY_HOOK_URL in repo secrets to enable this step.
+      - name: Skip deploy — Cloudflare token not configured
+        if: env.CF_TOKEN == ''
+        run: echo "CLOUDFLARE_API_TOKEN not set — deploy manually with 'npx wrangler deploy'."
+
+      - name: Deploy to Cloudflare Workers
+        if: env.CF_TOKEN != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+  # ── 2. Backend: Render deploys from GitHub natively; hook is optional ─────
   deploy-backend:
     name: Deploy API → Render
     runs-on: ubuntu-latest
-    needs: build-check
     env:
       RENDER_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
     steps:
@@ -54,60 +73,7 @@ jobs:
           curl -fsSL -X POST "$RENDER_HOOK" \
             -o /dev/null -w "Render deploy triggered: HTTP %{http_code}\n"
 
-  # ── 3. (Optional) Deploy frontend to Vercel if token is configured ────────
-  #      Vercel auto-deploys via its native GitHub integration when no token
-  #      is provided here. Add VERCEL_TOKEN + VERCEL_ORG_ID + VERCEL_PROJECT_ID
-  #      to repo secrets to use this CI-driven deploy instead.
-  deploy-frontend:
-    name: Deploy UI → Vercel (moveleads.cloud)
-    runs-on: ubuntu-latest
-    needs: build-check
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-    steps:
-      - name: Skip — Vercel deploying via native Git integration
-        if: env.VERCEL_TOKEN == ''
-        run: echo "VERCEL_TOKEN not set — Vercel is deploying automatically from GitHub. No action needed."
-
-      - uses: actions/checkout@v4
-        if: env.VERCEL_TOKEN != ''
-
-      - uses: actions/setup-node@v4
-        if: env.VERCEL_TOKEN != ''
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-
-      - name: Install Vercel CLI
-        if: env.VERCEL_TOKEN != ''
-        run: npm install -g vercel@latest
-
-      - name: Pull Vercel project settings
-        if: env.VERCEL_TOKEN != ''
-        working-directory: client
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build for Vercel
-        if: env.VERCEL_TOKEN != ''
-        working-directory: client
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Deploy to Vercel production
-        if: env.VERCEL_TOKEN != ''
-        working-directory: client
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  # ── 4. Smoke test — waits for both platforms then hits health endpoints ────
+  # ── 3. Smoke test ─────────────────────────────────────────────────────────
   smoke-test:
     name: Smoke test production
     runs-on: ubuntu-latest
@@ -118,12 +84,12 @@ jobs:
 
       - name: API health check
         run: |
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" https://api.moveleads.cloud/)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.moveleads.cloud/api/health)
           echo "API responded: HTTP $STATUS"
           [ "$STATUS" = "200" ] || (echo "API health check FAILED" && exit 1)
 
       - name: Frontend health check
         run: |
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" https://moveleads.cloud/)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://moveleads.cloud/)
           echo "Frontend responded: HTTP $STATUS"
           [ "$STATUS" = "200" ] || (echo "Frontend health check FAILED" && exit 1)

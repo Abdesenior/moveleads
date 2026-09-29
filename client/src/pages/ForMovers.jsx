@@ -1,5 +1,4 @@
-import { useState, useEffect, useContext, useRef } from 'react';
-import useCanonical from '../utils/useCanonical';
+import { useState, useContext, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShieldCheck, Zap, CreditCard, ArrowRight, CheckCircle,
@@ -77,8 +76,6 @@ export default function ForMovers() {
   const { API_URL } = useContext(AuthContext);
   const formRef = useRef(null);
 
-  useCanonical('/for-movers');
-  useEffect(() => { document.title = 'For Movers — MoveLeads.cloud'; }, []);
 
   const [form, setForm] = useState({ contactName: '', companyName: '', phone: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);

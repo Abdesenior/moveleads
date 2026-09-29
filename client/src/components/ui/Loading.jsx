@@ -23,7 +23,7 @@ export function Spinner({ size = 24, color = ORANGE }) {
 
 export function LoadingScreen({ message = 'Loading...' }) {
   return (
-    <div style={{
+    <div data-loading-screen style={{
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
