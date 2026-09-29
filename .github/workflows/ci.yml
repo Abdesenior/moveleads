@@ -52,11 +52,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build (Vite)
+      - name: Install Chromium for pre-rendering
+        run: npx playwright install --with-deps chromium
+
+      - name: Build (Vite + pre-render)
         run: npm run build
         env:
-          VITE_API_URL: https://api.moveleads.cloud
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+          VITE_MAPBOX_TOKEN: ${{ vars.VITE_MAPBOX_TOKEN }}
+          VITE_META_MOVER_PIXEL_ID: ${{ vars.VITE_META_MOVER_PIXEL_ID }}
 
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4

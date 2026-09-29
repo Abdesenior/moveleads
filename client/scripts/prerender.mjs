@@ -8,7 +8,7 @@ import http from 'node:http';
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from '@playwright/test';
+import { chromium } from 'playwright';
 import { INDEXABLE_ROUTES, SITE_URL } from '../src/seo/routes.js';
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
