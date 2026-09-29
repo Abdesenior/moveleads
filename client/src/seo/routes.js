@@ -8,14 +8,14 @@ export const SITE_NAME = 'MoveLeads.cloud';
 export const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`;
 
 const DEFAULT_DESCRIPTION =
-  'Phone-verified moving leads for moving companies. Pay per lead from $10, no subscription, no contract.';
+  'Screened moving leads for moving companies. Pay per lead from $10, no subscription, no contract.';
 
 // Indexable public pages. `changefreq`/`priority` feed the sitemap.
 export const INDEXABLE_ROUTES = {
   '/': {
     title: 'Verified Moving Leads for Moving Companies, from $10 | MoveLeads',
     description:
-      'Buy phone-verified moving leads one at a time, from $10. Single-buyer by default, no subscription, no contract. Homeowners: get a free moving quote.',
+      'Buy screened, graded moving leads one at a time, from $10. Single-buyer by default, no subscription, no contract. Homeowners: get a free moving quote.',
     changefreq: 'weekly',
     priority: 1.0,
   },
@@ -33,6 +33,41 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.9,
   },
+  '/moving-leads': {
+    title: 'Verified Moving Leads from $10, One Buyer by Default | MoveLeads',
+    description:
+      'Buy moving leads one at a time from $10. Screened, graded and priced before you see them, sold to one mover by default. No subscription, no contract.',
+    changefreq: 'weekly',
+    priority: 1.0,
+  },
+  '/moving-leads/exclusive': {
+    title: 'Exclusive Moving Leads: One Mover per Customer, from $10 | MoveLeads',
+    description:
+      'Exclusive moving leads sold to one moving company only. First mover to claim buys it, no bidding war. From $10, no subscription.',
+    changefreq: 'monthly',
+    priority: 0.9,
+  },
+  '/moving-leads/long-distance': {
+    title: 'Long-Distance Moving Leads for Interstate Movers, from $18 | MoveLeads',
+    description:
+      'Interstate and cross-country moving leads matched to your pickup and delivery states. From $18 over 100 miles, $35 over 1,000 miles. Pay per lead.',
+    changefreq: 'monthly',
+    priority: 0.9,
+  },
+  '/moving-leads/local': {
+    title: 'Local Moving Leads from $10, Capped at $25 | MoveLeads',
+    description:
+      'Local moving leads under 100 miles, from $10 and never more than $25. Matched to your dispatch base, sold to one mover by default.',
+    changefreq: 'monthly',
+    priority: 0.9,
+  },
+  '/resources/how-to-get-moving-leads': {
+    title: 'How to Get Moving Leads: 8 Free and Paid Ways (2026 Guide)',
+    description:
+      'The 8 ways moving companies get leads, free and paid: Google Business Profile, referrals, ads and lead providers, plus what to ask any lead provider.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
   '/partners': {
     title: 'Verified Move Requests for Moving Companies, Pay-as-You-Go | MoveLeads',
     description:
@@ -43,7 +78,7 @@ export const INDEXABLE_ROUTES = {
   '/founding-movers': {
     title: 'Founding Movers Program: Early Access to Verified Leads | MoveLeads',
     description:
-      'Apply to join MoveLeads as a founding mover in your market and get early access to phone-verified moving leads.',
+      'Apply to join MoveLeads as a founding mover in your market and get early access to screened moving leads.',
     changefreq: 'monthly',
     priority: 0.7,
   },

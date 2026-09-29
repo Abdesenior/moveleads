@@ -30,6 +30,7 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const VerifyEmailPending = lazy(() => import('./pages/VerifyEmailPending'));
 const Feedback = lazy(() => import('./pages/Feedback'));
 const Pricing = lazy(() => import('./pages/Pricing'));
+const SeoLanding = lazy(() => import('./pages/SeoLanding'));
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const LeadFeed = lazy(() => import('./pages/dashboard/LeadFeed'));
@@ -109,6 +110,9 @@ function App() {
               <Route path="/embed/widget" element={<WidgetEmbedPage />} />
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/moving-leads" element={<SeoLanding />} />
+              <Route path="/moving-leads/:type" element={<SeoLanding />} />
+              <Route path="/resources/:slug" element={<SeoLanding />} />
               <Route path="/founding-movers" element={<FoundingMovers />} />
               <Route path="/founding-realtors" element={<FoundingRealtors />} />
               <Route path="/founding-groups" element={<FoundingGroups />} />
