@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import useCanonical from '../utils/useCanonical';
 import { useNavigate, Link, useSearchParams, useParams } from 'react-router-dom';
 import {
   CheckCircle, ArrowRight, ArrowLeft, Home, MapPin, Calendar,
@@ -237,8 +236,6 @@ function QuoteForm({ prefillOriginZip = '', prefillDestZip = '' }) {
     name: '', email: '', phone: '',
   });
 
-  useCanonical('/get-quote');
-  useEffect(() => { document.title = 'Get a Free Moving Quote — MoveLeads.cloud'; }, []);
 
   // Zip resolution
   const [zipError, setZipError] = useState('');

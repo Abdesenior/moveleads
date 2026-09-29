@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../components/MarketingLayout';
 import JsonLd from '../components/JsonLd';
-import useCanonical from '../utils/useCanonical';
 import {
   CheckCircle, ChevronDown, ArrowRight, Phone,
   Zap, Shield, Star, BarChart2, Clock, CreditCard,
@@ -101,8 +100,6 @@ function FAQ({ items }) {
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
 export default function Pricing() {
-  useCanonical('/pricing');
-  useEffect(() => { document.title = 'Pricing — MoveLeads.cloud'; }, []);
   return (
     <MarketingLayout>
       <JsonLd schema={pricingPageFaqSchema} />

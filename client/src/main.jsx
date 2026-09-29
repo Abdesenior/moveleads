@@ -47,7 +47,37 @@ window.addEventListener('unhandledrejection', (e) => {
   if (isChunkLoadError(e?.reason)) recoverFromStaleDeploy();
 });
 
-createRoot(document.getElementById('root')).render(
+// Pre-rendered pages (scripts/prerender.mjs) ship real HTML inside #root.
+// React replaces it on mount and shows the Suspense spinner while the route
+// chunk loads, so keep a copy of the static HTML on screen until the real
+// page has rendered, instead of flashing a spinner.
+const rootEl = document.getElementById('root');
+
+// The static HTML also carries the pre-rendered page's SEO tags. <RouteSeo />
+// renders the right ones for the current route, so drop the static copies to
+// avoid duplicates (and stale tags when the file was served as SPA fallback).
+document.head
+  .querySelectorAll('title, meta[name="description"], meta[name="robots"], link[rel="canonical"], meta[property^="og:"], meta[name^="twitter:"]')
+  .forEach((el) => el.remove());
+
+if (rootEl.firstElementChild) {
+  const snapshot = rootEl.cloneNode(true);
+  snapshot.removeAttribute('id');
+  rootEl.after(snapshot);
+  rootEl.style.display = 'none';
+  const reveal = () => {
+    observer.disconnect();
+    snapshot.remove();
+    rootEl.style.display = '';
+  };
+  const observer = new MutationObserver(() => {
+    if (rootEl.firstElementChild && !rootEl.querySelector('[data-loading-screen]')) reveal();
+  });
+  observer.observe(rootEl, { childList: true, subtree: true });
+  setTimeout(reveal, 8000);
+}
+
+createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
       <App />

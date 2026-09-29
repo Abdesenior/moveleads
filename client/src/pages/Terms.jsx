@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../components/MarketingLayout';
-import useCanonical from '../utils/useCanonical';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -119,8 +118,6 @@ Carriers are not liable for delayed or undelivered messages.`,
 ];
 
 export default function Terms() {
-  useCanonical('/terms');
-  useEffect(() => { document.title = 'Terms of Service — MoveLeads.cloud'; }, []);
 
   return (
     <MarketingLayout>

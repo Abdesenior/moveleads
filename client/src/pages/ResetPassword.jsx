@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
@@ -20,7 +20,6 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => { document.title = 'Reset Password — MoveLeads.cloud'; }, []);
 
   // No token in URL — show error immediately
   if (!token) {
