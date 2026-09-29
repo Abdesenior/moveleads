@@ -3,6 +3,8 @@
 // time (the pre-render list + sitemap are derived from INDEXABLE_ROUTES).
 // Keep this file plain JS with no Vite-only imports so Node can load it.
 
+import { ROUTE_SEO } from './routePages.js';
+
 export const SITE_URL = 'https://moveleads.cloud';
 export const SITE_NAME = 'MoveLeads.cloud';
 export const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`;
@@ -68,6 +70,14 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.8,
   },
+  '/moving': {
+    title: 'Long-Distance Moving Costs by Route (2026) | MoveSmart by MoveLeads',
+    description:
+      'Distance, typical cost by home size and moving tips for popular US moving routes. Get a free quote for any long-distance move.',
+    changefreq: 'weekly',
+    priority: 0.9,
+  },
+  ...ROUTE_SEO,
   '/partners': {
     title: 'Verified Move Requests for Moving Companies, Pay-as-You-Go | MoveLeads',
     description:
