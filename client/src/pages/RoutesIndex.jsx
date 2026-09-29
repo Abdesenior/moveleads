@@ -39,7 +39,9 @@ export default function RoutesIndex() {
       <main style={{ maxWidth: 820, margin: '0 auto', padding: '48px 20px 56px' }}>
         {byOrigin().map(([origin, routes]) => (
           <section key={origin} style={{ marginBottom: 36 }}>
-            <h2 style={{ fontFamily: F, fontSize: 22, fontWeight: 800, color: NAVY, margin: '0 0 12px' }}>Moving from {origin}</h2>
+            <h2 style={{ fontFamily: F, fontSize: 22, fontWeight: 800, color: NAVY, margin: '0 0 12px' }}>
+              <Link to={`/moving-from/${routes[0].fromKey}`} style={{ color: NAVY, textDecoration: 'none' }}>Moving from {origin}</Link>
+            </h2>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, border: `1px solid ${BL}`, borderRadius: 12 }}>
               {routes.map((r, i) => {
                 const two = costRows(r.miles).find((c) => c.size === '2 bedrooms');

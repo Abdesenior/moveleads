@@ -81,6 +81,13 @@ function Section({ s }) {
         </ul>
       )}
       {s.link && <p style={pStyle}><Link to={s.link.to} style={linkStyle}>{s.link.label} →</Link></p>}
+      {s.sources && (
+        <p style={{ ...pStyle, fontSize: 13.5 }}>
+          Sources: {s.sources.map((src, i) => (
+            <span key={src.url}>{i > 0 && ' · '}<a href={src.url} target="_blank" rel="noopener noreferrer" style={{ ...linkStyle, fontWeight: 600 }}>{src.label}</a></span>
+          ))}
+        </p>
+      )}
     </section>
   );
 }

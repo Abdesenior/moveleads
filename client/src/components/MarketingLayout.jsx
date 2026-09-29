@@ -120,7 +120,7 @@ export default function MarketingLayout({ children }) {
               </div>
             </div>
             {[
-              { title: 'Moving leads', links: [{ l: 'Verified moving leads', to: '/moving-leads' }, { l: 'Exclusive leads', to: '/moving-leads/exclusive' }, { l: 'Long-distance leads', to: '/moving-leads/long-distance' }, { l: 'Local leads', to: '/moving-leads/local' }, { l: 'Pricing', to: '/pricing' }, { l: 'How to get moving leads', to: '/resources/how-to-get-moving-leads' }] },
+              { title: 'Moving leads', links: [{ l: 'Verified moving leads', to: '/moving-leads' }, { l: 'Exclusive leads', to: '/moving-leads/exclusive' }, { l: 'Long-distance leads', to: '/moving-leads/long-distance' }, { l: 'Local leads', to: '/moving-leads/local' }, { l: 'Pricing', to: '/pricing' }, { l: 'How to get moving leads', to: '/resources/how-to-get-moving-leads' }, { l: 'Best lead providers', to: '/resources/best-moving-lead-providers' }] },
               { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'For Movers', to: '/for-movers' }, { l: 'Get a free moving quote', to: '/get-quote' }, { l: 'Moving costs by route', to: '/moving' }, { l: 'Privacy Policy', to: '/privacy' }] },
               { title: 'Account', links: [{ l: 'Sign up free', to: '/register' }, { l: 'Log in', to: '/login' }, { l: 'Feedback', to: '/feedback' }] },
             ].map((col, i) => (

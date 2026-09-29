@@ -57,6 +57,18 @@ export const CITIES = {
     note: 'In Washington, DC you can reserve curb space for a moving truck with temporary no-parking signs from the city. Many apartment buildings also require a COI and a reserved elevator.' },
   raleigh: { name: 'Raleigh', state: 'NC', zip: '27601', tax: false,
     note: 'Raleigh and the Research Triangle keep growing, so good movers book up in summer. Late summer and fall can bring storm remnants from the coast.' },
+  houston: { name: 'Houston', state: 'TX', zip: '77002', tax: true,
+    note: 'Texas has no state income tax. Houston is hot and humid most of the year, and hurricane season runs June 1 to November 30. Heavy rain can flood some streets, so keep your move date flexible in storm season.' },
+  'san-diego': { name: 'San Diego', state: 'CA', zip: '92101', tax: false,
+    note: 'San Diego weather is mild year-round, so there is no bad-weather season to avoid. Some neighborhoods need a temporary parking permit for a moving truck.' },
+  portland: { name: 'Portland', state: 'OR', zip: '97204', tax: false,
+    note: 'Oregon has no state sales tax, which helps when you furnish a new home. The rainy season runs roughly October to April, so ask how your mover protects belongings in wet weather.' },
+  'salt-lake-city': { name: 'Salt Lake City', state: 'UT', zip: '84101', tax: false,
+    note: 'Salt Lake City sits at about 4,200 feet. Winter snow can slow mountain routes into the city, so allow extra delivery time from November to March.' },
+  minneapolis: { name: 'Minneapolis', state: 'MN', zip: '55401', tax: false,
+    note: 'Minneapolis winters are long and cold. Winter moves can be cheaper, but snow and ice slow loading, so plan for extra time and floor protection.' },
+  detroit: { name: 'Detroit', state: 'MI', zip: '48226', tax: false,
+    note: 'Detroit winters bring snow and ice, so winter moves need extra time. Summer is the busiest moving season, so book early.' },
 };
 
 // [from, to, approximate driving miles]
@@ -81,6 +93,36 @@ const ROUTES = [
   ['seattle', 'denver', 1320],
   ['dallas', 'denver', 790],
   ['denver', 'phoenix', 820],
+  ['los-angeles', 'dallas', 1435],
+  ['los-angeles', 'houston', 1545],
+  ['los-angeles', 'nashville', 2010],
+  ['san-francisco', 'seattle', 810],
+  ['san-francisco', 'denver', 1255],
+  ['san-francisco', 'portland', 635],
+  ['san-diego', 'phoenix', 355],
+  ['san-diego', 'austin', 1300],
+  ['new-york', 'dallas', 1550],
+  ['new-york', 'houston', 1630],
+  ['new-york', 'orlando', 1075],
+  ['new-york', 'tampa', 1140],
+  ['new-york', 'raleigh', 500],
+  ['new-york', 'nashville', 890],
+  ['boston', 'charlotte', 840],
+  ['boston', 'miami', 1510],
+  ['chicago', 'denver', 1000],
+  ['chicago', 'houston', 1085],
+  ['chicago', 'tampa', 1175],
+  ['chicago', 'minneapolis', 410],
+  ['detroit', 'tampa', 1140],
+  ['seattle', 'phoenix', 1420],
+  ['seattle', 'austin', 2100],
+  ['portland', 'phoenix', 1335],
+  ['minneapolis', 'phoenix', 1640],
+  ['washington', 'charlotte', 400],
+  ['philadelphia', 'charlotte', 540],
+  ['houston', 'denver', 1030],
+  ['salt-lake-city', 'phoenix', 660],
+  ['dallas', 'atlanta', 780],
 ];
 
 // Published ranges (USD) by home size and distance band, from COST_SOURCE.
@@ -181,3 +223,36 @@ export function relatedRoutes(slug, limit = 6) {
     .slice(0, limit)
     .map(([s, o]) => ({ to: `/moving/${s}`, label: `${o.from.name} to ${o.to.name}` }));
 }
+
+// City hub pages: /moving-from/:city and /moving-to/:city.
+export function cityRoutes(cityKey, dir) {
+  return Object.entries(ROUTE_PAGES)
+    .filter(([, r]) => (dir === 'from' ? r.fromKey : r.toKey) === cityKey)
+    .map(([slug, r]) => ({ slug, ...r }))
+    .sort((a, b) => a.miles - b.miles);
+}
+
+export const CITY_HUB_SEO = Object.fromEntries(
+  Object.entries(CITIES).flatMap(([key, c]) => {
+    const out = [];
+    const from = cityRoutes(key, 'from');
+    const to = cityRoutes(key, 'to');
+    if (from.length) {
+      out.push([`/moving-from/${key}`, {
+        title: `Moving from ${c.name}, ${c.state}: Costs to ${from.length} Popular Destinations`,
+        description: `Distances and typical long-distance moving costs from ${c.name} to ${from.slice(0, 3).map((r) => r.to.name).join(', ')} and more. Get a free moving quote.`,
+        changefreq: 'monthly',
+        priority: 0.7,
+      }]);
+    }
+    if (to.length) {
+      out.push([`/moving-to/${key}`, {
+        title: `Moving to ${c.name}, ${c.state}: Costs, Tips and Free Quotes`,
+        description: `What to know before moving to ${c.name}, plus distances and typical moving costs from ${to.slice(0, 3).map((r) => r.from.name).join(', ')} and more.`,
+        changefreq: 'monthly',
+        priority: 0.7,
+      }]);
+    }
+    return out;
+  }),
+);

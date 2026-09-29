@@ -59,6 +59,9 @@ export const B2B_PAGES = {
           { to: '/moving-leads/local', label: 'Local moving leads' },
           { to: '/moving-leads/exclusive', label: 'Exclusive moving leads' },
           { to: '/resources/how-to-get-moving-leads', label: 'Guide: how to get moving leads' },
+          { to: '/resources/best-moving-lead-providers', label: 'Best moving lead providers compared' },
+          { to: '/compare/network-leads', label: 'MoveLeads vs Network Leads' },
+          { to: '/compare/moveadvisor', label: 'MoveLeads vs MoveAdvisor' },
         ],
       },
     ],
@@ -218,6 +221,152 @@ export const B2B_PAGES = {
       ['What is the cheapest way to get moving leads?', 'Your Google Business Profile, reviews and referrals cost nothing but time. They take months to build, so many movers buy leads while they grow.'],
       ['Are bought moving leads worth it?', 'They can be if you track cost per booked job. Single-buyer leads usually close at a higher rate than leads shared with several movers.'],
       ['How fast should I call a new lead?', 'As fast as possible. The first mover to reach the customer has the best chance of booking the job.'],
+    ],
+  },
+  '/compare/network-leads': {
+    breadcrumb: 'MoveLeads vs Network Leads',
+    parent: '/moving-leads',
+    eyebrow: 'Comparison',
+    h1: 'MoveLeads vs Network Leads: price, exclusivity and terms',
+    answer:
+      'Both sell moving leads from a prepaid balance with no contract. The main difference is exclusivity and price: MoveLeads sells every lead to one mover by default, from $10 for local moves, while Network Leads charges $45 for an exclusive local lead and $85 for an exclusive interstate lead, or $15 to $20 for a lead shared with up to 4 movers.',
+    sections: [
+      {
+        h2: 'Side-by-side comparison',
+        table: {
+          head: ['', 'MoveLeads', 'Network Leads'],
+          rows: [
+            ['Default lead type', 'Single-buyer (one mover)', 'Shared with up to 4 movers'],
+            ['Exclusive local lead', 'From $10, capped at $25', '$45'],
+            ['Exclusive interstate lead', 'From $18 (over 100 mi) to $35 base, max $150', '$85'],
+            ['Shared lead', 'Not offered by default', '$15 local, $20 interstate (up to 4 movers)'],
+            ['Contract', 'None, prepaid', 'None, prepaid'],
+            ['Bad-lead credit', 'Report within 24 hours', 'Report within 7 days'],
+            ['Live call transfers', 'Not offered', '$60 local, $100 interstate'],
+            ['Delivery', 'SMS, email, live dashboard', 'Email, SMS, CRM, API and Zapier'],
+          ],
+          note: 'Network Leads prices and terms as published on their website in September 2026. Check their site for current prices.',
+        },
+        sources: [{ url: 'https://www.network-leads.com/moving-leads', label: 'Network Leads pricing page' }],
+      },
+      {
+        h2: 'When MoveLeads is the better fit',
+        bullets: [
+          'You want every lead to be yours alone without paying an exclusive premium.',
+          'You run local moves and want lead costs capped at $25.',
+          'You want to see the grade and exact price of each lead before you buy.',
+        ],
+      },
+      {
+        h2: 'When Network Leads may be the better fit',
+        bullets: [
+          'You want live call transfers.',
+          'You need an API or Zapier connection to your own software.',
+          'You prefer a longer 7-day window to report bad leads.',
+        ],
+      },
+    ],
+    faq: [
+      ['Is MoveLeads cheaper than Network Leads?', 'For exclusive leads, yes: MoveLeads exclusive leads start at $10 local and $18 to $35 long distance before adjustments, against $45 and $85 for Network Leads exclusive leads. Network Leads shared leads cost $15 to $20 but go to up to 4 movers.'],
+      ['Do either require a contract?', 'No. Both use a prepaid balance with no contract.'],
+      ['Can I use both?', 'Yes. Many movers buy from more than one provider and compare cost per booked job.'],
+    ],
+  },
+
+  '/compare/moveadvisor': {
+    breadcrumb: 'MoveLeads vs MoveAdvisor',
+    parent: '/moving-leads',
+    eyebrow: 'Comparison',
+    h1: 'MoveLeads vs MoveAdvisor: which moving lead provider fits you?',
+    answer:
+      'MoveAdvisor sends each lead to your company and up to 3 other providers, and covers the US, Canada, the UK, Europe and Australia. MoveLeads focuses on US moves and sells each lead to one mover by default, with the price shown before you buy, from $10.',
+    sections: [
+      {
+        h2: 'Side-by-side comparison',
+        table: {
+          head: ['', 'MoveLeads', 'MoveAdvisor'],
+          rows: [
+            ['Movers per lead', 'One by default', 'Up to 4 (you plus up to 3 others)'],
+            ['Published prices', 'From $10, shown on every lead', 'Not listed on their leads page'],
+            ['Markets', 'United States', 'US, Canada, UK, Europe, Australia, international'],
+            ['Bad leads', 'Credit within 24 hours', 'Void process for bad leads'],
+            ['Budget controls', 'Prepaid balance, optional auto-recharge', 'Daily lead caps and monthly budget limits'],
+            ['Delivery', 'SMS, email, live dashboard', 'Portal, email or your software, SMS, phone leads'],
+          ],
+          note: 'MoveAdvisor details as published on their website in September 2026.',
+        },
+        sources: [{ url: 'https://moveadvisor.com/biz/leads', label: 'MoveAdvisor moving leads page' }],
+      },
+      {
+        h2: 'When MoveLeads is the better fit',
+        bullets: [
+          'You work US moves and want leads that no other mover gets by default.',
+          'You want to see each lead’s price before paying.',
+        ],
+      },
+      {
+        h2: 'When MoveAdvisor may be the better fit',
+        bullets: [
+          'You move customers outside the US.',
+          'You want leads imported into your own moving software.',
+        ],
+      },
+    ],
+    faq: [
+      ['Are MoveAdvisor leads shared?', 'Their leads page says a lead can go to your company and up to 3 other providers, though some leads may end up exclusive to you.'],
+      ['How much do MoveAdvisor leads cost?', 'Prices are not listed on their leads page; you need to contact them. MoveLeads prices start at $10 and are shown on each lead.'],
+    ],
+  },
+
+  '/resources/best-moving-lead-providers': {
+    breadcrumb: 'Best moving lead providers',
+    parent: '/moving-leads',
+    eyebrow: 'Buyer’s guide for movers',
+    h1: 'Best moving lead providers in 2026: prices and terms compared',
+    answer:
+      'The right moving lead provider depends on three things: how many movers get each lead, what a lead costs, and what happens when a number is wrong. Below are published prices and terms for four providers, including us, so you can compare them on the same points.',
+    sections: [
+      {
+        h2: 'Providers compared',
+        table: {
+          head: ['Provider', 'Movers per lead', 'Price', 'Contract'],
+          rows: [
+            ['MoveLeads', 'One by default', 'From $10 local, $18–$35 base long distance, max $150', 'None'],
+            ['Network Leads', 'Up to 4, 2, or exclusive', '$15–$20 shared; $45–$85 exclusive', 'None'],
+            ['MoveAdvisor', 'Up to 4', 'Not published', 'Not published'],
+            ['99calls', 'Exclusive', '$24.99 organic; $49–$158 paid-ads leads', 'None'],
+          ],
+          note: 'Competitor details as published on each provider’s website in September 2026. MoveLeads is our own service.',
+        },
+        sources: [
+          { url: 'https://www.network-leads.com/moving-leads', label: 'Network Leads' },
+          { url: 'https://moveadvisor.com/biz/leads', label: 'MoveAdvisor' },
+          { url: 'https://99calls.com/Moving-Leads.htm', label: '99calls' },
+        ],
+      },
+      {
+        h2: 'How to choose',
+        numbered: [
+          'Exclusivity. A lead shared with 4 movers is cheaper, but you are racing 3 others on the phone. Compare cost per booked job, not cost per lead.',
+          'Price transparency. Prefer providers that show the price before you buy.',
+          'Bad-lead policy. Check how long you have to report a wrong number and whether you get cash or credit.',
+          'Commitment. Avoid contracts and monthly minimums until a provider proves itself.',
+          'Coverage control. You should be able to choose routes, distances and move sizes.',
+        ],
+      },
+      {
+        h2: 'Compare in detail',
+        links: [
+          { to: '/compare/network-leads', label: 'MoveLeads vs Network Leads' },
+          { to: '/compare/moveadvisor', label: 'MoveLeads vs MoveAdvisor' },
+          { to: '/moving-leads/exclusive', label: 'Shared vs exclusive moving leads' },
+        ],
+      },
+    ],
+    faq: [
+      ['What is the cheapest moving lead provider?', 'Shared leads are cheapest per lead, from about $15 at Network Leads. For exclusive leads, MoveLeads starts at $10 for local moves.'],
+      ['Are exclusive moving leads worth the price?', 'Often, because you are the only company calling. Track your booking rate to compare.'],
+      ['Should I use more than one provider?', 'Many movers do. Run each for a few weeks and keep the ones with the lowest cost per booked job.'],
     ],
   },
 };
