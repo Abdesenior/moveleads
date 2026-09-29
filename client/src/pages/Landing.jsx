@@ -160,7 +160,7 @@ export default function Landing() {
                 <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(249,115,22,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: ORANGE }} />
                 </div>
-                <span style={{ color: '#fb923c', fontSize: 13, fontWeight: 600 }}>Trusted by 500+ moving companies</span>
+                <span style={{ color: '#fb923c', fontSize: 13, fontWeight: 600 }}>Screened moving leads from $10</span>
               </div>
             </Reveal>
             <Reveal delay={0.07}>
@@ -197,7 +197,7 @@ export default function Landing() {
             </Reveal>
             <Reveal delay={0.26}>
               <div style={{ display: 'flex', gap: 28, paddingTop: 26, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                {[{ v: '10k+', l: 'Leads delivered' }, { v: '$10', l: 'Per lead' }, { v: '98%', l: 'Satisfaction' }].map((s, i) => (
+                {[{ v: '$10', l: 'From per lead' }, { v: '1', l: 'Buyer by default' }, { v: '$0', l: 'Monthly fee' }].map((s, i) => (
                   <div key={i} style={{ paddingLeft: i > 0 ? 28 : 0, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
                     <div style={{ fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: F }}>{s.v}</div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', fontWeight: 500, marginTop: 2 }}>{s.l}</div>
@@ -267,23 +267,6 @@ export default function Landing() {
               </div>
             </div>
           </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* LOGOS */}
-      <section style={{ padding: '42px 0', background: '#fff', borderBottom: `1px solid ${BL}` }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <p style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 26 }}>Trusted by leading moving companies</p>
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ display: 'flex', gap: 52, animation: 'lpMarquee 22s linear infinite', width: 'max-content' }}>
-              {['Atlas Moving Co', 'SafeMove USA', 'Premier Movers', 'Elite Relocation', 'FastMove Pro', 'AllState Moving', 'CityMove Group', 'ProMover', 'Atlas Moving Co', 'SafeMove USA', 'Premier Movers', 'Elite Relocation', 'FastMove Pro', 'AllState Moving'].map((n, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: 0.38, flexShrink: 0 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#64748b' }}>{n.split(' ').map(x => x[0]).join('').slice(0, 2)}</div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#334155', whiteSpace: 'nowrap' }}>{n}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </section>
@@ -746,7 +729,7 @@ export default function Landing() {
       <section className="lp-section-stats" style={{ background: `${NOISE}, linear-gradient(135deg,#070e1b 0%,#0b1628 100%)` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
           <div className="lp-stats-grid">
-            {[['10,000+', 'Leads delivered'], ['500+', 'Moving companies'], ['98%', 'Satisfaction rate'], ['$10', 'Average lead cost']].map(([v, l], i) => (
+            {[['$10', 'Starting lead price'], ['1', 'Buyer per lead by default'], ['$0', 'Monthly fee'], ['24h', 'Bad-number credit window']].map(([v, l], i) => (
               <Reveal key={i} delay={i * 0.07}>
                 <div>
                   <div className="lp-stat-val" style={{ fontSize: 46, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', fontFamily: F, marginBottom: 7 }}>{v}</div>
@@ -757,53 +740,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
-      {/* TESTIMONIALS */}
-      <section className="lp-section" style={{ background: '#fff' }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
-          <Reveal>
-            <div style={{ textAlign: 'center', marginBottom: 52 }}>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 10 }}>
-                {[1, 2, 3, 4, 5].map(s => <Star key={s} size={18} color="#ff6a14" fill="#ff6a14" />)}
-              </div>
-              <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>Rated 4.9/5 from 200+ reviews</p>
-              <h2 style={{ fontFamily: F, fontSize: 42, fontWeight: 800, letterSpacing: '-0.03em', color: NAVY }}>Trusted across America</h2>
-            </div>
-          </Reveal>
-          <div className="lp-test-grid">
-            {[
-              { n: 'Mike Thompson', co: 'Atlas Moving Co', loc: 'Phoenix, AZ', q: 'MoveLeads doubled our bookings in 3 months. We closed $47,000 in new business. The quality is unlike anything we\'ve tried.', stat: '+$47k revenue' },
-              { n: 'Sarah Chen', co: 'Premier Movers', loc: 'Seattle, WA', q: 'Conversion jumped from 8% to 22% after switching to MoveLeads. Every dollar we spend returns 15x. Absolute game changer.', stat: '22% close rate' },
-              { n: 'David Rodriguez', co: 'Elite Relocation', loc: 'Austin, TX', q: 'The pay-per-lead model is perfect. No wasted spend, zero contracts. We\'re buying 30 leads a week and growing fast.', stat: '30 leads/week' },
-            ].map((t, i) => (
-              <Reveal key={i} delay={i * 0.09}>
-                <div style={{
-                  background: '#fff', border: `1px solid ${BL}`, borderRadius: 18, padding: '30px 26px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'all 0.22s ease',
-                  display: 'flex', flexDirection: 'column',
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'none'; }}
-                >
-                  <div style={{ display: 'flex', gap: 3, marginBottom: 18 }}>{[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} color="#ff6a14" fill="#ff6a14" />)}</div>
-                  <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.75, marginBottom: 22, flex: 1 }}>"{t.q}"</p>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 11, background: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>{t.n.split(' ').map(x => x[0]).join('')}</div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>{t.n}</div>
-                        <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.co} · {t.loc}</div>
-                      </div>
-                    </div>
-                    <div style={{ padding: '4px 11px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.18)', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>{t.stat}</div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
 
       {/* FAQ */}
       <section className="lp-section" style={{ background: '#fff', borderTop: `1px solid ${BL}` }}>
@@ -853,7 +789,7 @@ export default function Landing() {
               Start growing your<br />moving business today.
             </h2>
             <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', marginBottom: 38, lineHeight: 1.65 }}>
-              Join 500+ moving companies getting exclusive leads. No credit card required.
+              Screened leads, one buyer by default, no subscription. Free to join.
             </p>
             <div className="lp-cta-buttons">
               <Link to="/register" style={{
@@ -891,8 +827,8 @@ export default function Landing() {
               </div>
             </div>
             {[
-              { title: 'Product', links: [{ l: 'Features', h: '#features' }, { l: 'Pricing', to: '/pricing' }, { l: 'How It Works', h: '#how-it-works' }] },
-              { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'For Movers', to: '/for-movers' }, { l: 'Privacy Policy', to: '/privacy' }] },
+              { title: 'Moving leads', links: [{ l: 'Verified moving leads', to: '/moving-leads' }, { l: 'Exclusive leads', to: '/moving-leads/exclusive' }, { l: 'Long-distance leads', to: '/moving-leads/long-distance' }, { l: 'Local leads', to: '/moving-leads/local' }, { l: 'Pricing', to: '/pricing' }, { l: 'How to get moving leads', to: '/resources/how-to-get-moving-leads' }] },
+              { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'For Movers', to: '/for-movers' }, { l: 'Get a free moving quote', to: '/get-quote' }, { l: 'Privacy Policy', to: '/privacy' }] },
               { title: 'Account', links: [{ l: 'Sign up free', to: '/register' }, { l: 'Log in', to: '/login' }, { l: 'Feedback', to: '/feedback' }] },
             ].map((col, i) => (
               <div key={i}>

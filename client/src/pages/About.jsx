@@ -107,10 +107,10 @@ export default function About() {
             <Reveal delay={0.12}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {[
-                  { v: '2022', l: 'Founded', c: NAVY, bg: NAVY },
-                  { v: '500+', l: 'Companies served', c: ORANGE, bg: '#fff7ed' },
-                  { v: '10k+', l: 'Leads delivered', c: '#3b82f6', bg: '#eff6ff' },
-                  { v: '98%', l: 'Satisfaction rate', c: '#22c55e', bg: '#f0fdf4' },
+                  { v: '$10', l: 'Starting lead price', c: NAVY, bg: NAVY },
+                  { v: '1', l: 'Buyer per lead by default', c: ORANGE, bg: '#fff7ed' },
+                  { v: '$0', l: 'Monthly fee', c: '#3b82f6', bg: '#eff6ff' },
+                  { v: '24h', l: 'Bad-number credit window', c: '#22c55e', bg: '#f0fdf4' },
                 ].map((s, i) => (
                   <div key={i} style={{
                     background: i === 0 ? NAVY : s.bg,
@@ -218,7 +218,7 @@ export default function About() {
         <div style={{ maxWidth: 540, margin: '0 auto', padding: '0 28px', position: 'relative' }}>
           <Reveal>
             <h2 style={{ fontFamily: F, fontSize: 40, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', marginBottom: 12, lineHeight: 1.1 }}>Ready to grow?</h2>
-            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.75)', marginBottom: 34, lineHeight: 1.65 }}>Join 500+ moving companies and start closing more jobs today.</p>
+            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.75)', marginBottom: 34, lineHeight: 1.65 }}>Pay per lead, no subscription. Start closing more jobs today.</p>
             <Link to="/register" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               background: '#fff', color: ORANGE, padding: '14px 30px', borderRadius: 13,

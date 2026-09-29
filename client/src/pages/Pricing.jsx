@@ -25,7 +25,7 @@ const pricingPageFaqSchema = {
       name: 'What if a lead has a bad phone number?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Every lead is verified via Twilio before entering the marketplace. If you receive an invalid or disconnected number, contact support within 24 hours for a full credit.'
+        text: 'Every lead is screened before it enters the marketplace. If you receive an invalid or disconnected number, contact support within 24 hours for a full credit.'
       }
     },
     {
@@ -149,8 +149,8 @@ export default function Pricing() {
 
           <div className="pricing-grid-5" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
             {[
-              { icon: <Users size={20} />, c: '#3b82f6', bg: '#eff6ff', bc: 'rgba(59,130,246,0.12)', title: 'Move Size', body: 'Studio from $10\nUp to $75 for 5+ beds' },
-              { icon: <MapPin size={20} />, c: '#8b5cf6', bg: '#f5f3ff', bc: 'rgba(139,92,246,0.12)', title: 'Distance', body: 'Local from $10\nLong distance +$35 base' },
+              { icon: <Users size={20} />, c: '#3b82f6', bg: '#eff6ff', bc: 'rgba(59,130,246,0.12)', title: 'Move Size', body: 'Studio from $10\nLarger homes grade higher' },
+              { icon: <MapPin size={20} />, c: '#8b5cf6', bg: '#f5f3ff', bc: 'rgba(139,92,246,0.12)', title: 'Distance', body: 'Local $10 to $25\nOver 1,000 mi from $35' },
               { icon: <Clock size={20} />, c: '#ef4444', bg: '#fef2f2', bc: 'rgba(239,68,68,0.12)', title: 'Urgency', body: 'Moving within 7 days\nup to 1.5× price' },
               { icon: <TrendingUp size={20} />, c: '#ff6a14', bg: '#fffbeb', bc: 'rgba(255, 106, 20,0.12)', title: 'Season', body: 'Peak May–Aug\n× 1.15 multiplier' },
               { icon: <Star size={20} />, c: '#22c55e', bg: '#f0fdf4', bc: 'rgba(34,197,94,0.12)', title: 'Lead Grade', body: 'Grade A = premium\nGrade C = standard' },
@@ -278,7 +278,7 @@ export default function Pricing() {
 
           <div className="pricing-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             {[
-              { icon: <Shield size={16} />, text: 'Phone-verified leads — no VoIP, no fake numbers' },
+              { icon: <Shield size={16} />, text: 'Screened phone numbers, 24-hour bad-number credit' },
               { icon: <Zap size={16} />, text: 'Real-time dashboard with live lead notifications' },
               { icon: <Phone size={16} />, text: 'Instant SMS alert when a lead matches your area' },
               { icon: <Star size={16} />, text: 'Grade and score shown before you buy' },
@@ -410,7 +410,7 @@ export default function Pricing() {
           </Reveal>
           <FAQ items={[
             ['Do I need a subscription?', 'No. Add balance and buy leads whenever you want. There are no monthly fees, no contracts, and no minimums. You only pay when you claim a lead.'],
-            ['What if a lead has a bad phone number?', 'Every lead is verified via Twilio before entering the marketplace. If you receive an invalid or disconnected number, contact support within 24 hours for a full credit.'],
+            ['What if a lead has a bad phone number?', 'Every lead is screened before it enters the marketplace. If you receive an invalid or disconnected number, contact support within 24 hours for a full credit.'],
             ["Can I set a territory so I only see local leads?", "Yes — set your coverage zip codes in Settings and only leads that match will appear in your feed. You won't see (or be charged for) leads outside your area."],
             ['How is Lead Grade calculated?', 'We score every lead on distance, home size, urgency, and whether the phone number is a real mobile line. Grade A = highest value, long-distance, peak season. Grade C = standard local leads.'],
           ]} />
