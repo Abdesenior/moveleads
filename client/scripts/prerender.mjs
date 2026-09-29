@@ -5,7 +5,7 @@
 // Usage: node scripts/prerender.mjs   (run from client/, after vite build)
 
 import http from 'node:http';
-import { readFile, writeFile, stat } from 'node:fs/promises';
+import { readFile, writeFile, stat, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -107,6 +107,7 @@ async function main() {
       try {
         const html = await renderRoute(browser, origin, route);
         const out = route === '/' ? 'index.html' : `${route.slice(1)}.html`;
+        await mkdir(path.dirname(path.join(DIST, out)), { recursive: true });
         await writeFile(path.join(DIST, out), html);
         console.log(`prerendered ${route} -> ${out} (${Math.round(html.length / 1024)} KB)`);
       } catch (err) {

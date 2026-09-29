@@ -1,0 +1,21 @@
+# MoveLeads
+
+> MoveLeads (moveleads.cloud) is a US moving-lead marketplace. People who are moving request a free quote; moving companies buy those requests as leads, one at a time, from a prepaid balance.
+
+## For moving companies
+
+- Leads are screened, graded (A to C) and priced before a mover sees them.
+- Each lead is sold to one mover by default: the first mover to claim it buys it.
+- Prices start at $10 and stay between $10 and $150. Local moves (under 100 miles) are capped at $25. Base price by distance: under 100 miles $10, 100 to 500 miles $18, 500 to 1,000 miles $25, over 1,000 miles $35, adjusted for move date, peak season and grade.
+- No subscription, no contract. Balance does not expire. Wrong or disconnected numbers reported within 24 hours are credited back.
+- Movers are matched by dispatch base and pickup and delivery states, and alerted by SMS, email and a live dashboard.
+
+## Key pages
+
+- [Verified moving leads](https://moveleads.cloud/moving-leads): how MoveLeads leads work and what they cost
+- [Exclusive moving leads](https://moveleads.cloud/moving-leads/exclusive): single-buyer leads
+- [Long-distance moving leads](https://moveleads.cloud/moving-leads/long-distance): interstate and cross-country leads
+- [Local moving leads](https://moveleads.cloud/moving-leads/local): moves under 100 miles
+- [Pricing](https://moveleads.cloud/pricing): lead pricing
+- [How to get moving leads](https://moveleads.cloud/resources/how-to-get-moving-leads): guide for moving companies
+- [Get a free moving quote](https://moveleads.cloud/get-quote): for people who are moving

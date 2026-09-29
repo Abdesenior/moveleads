@@ -15,9 +15,9 @@ const FEATURES = [
     icon: <ShieldCheck size={26} />,
     color: '#22c55e',
     bg: 'rgba(34,197,94,0.12)',
-    tag: 'Twilio Lookup V2',
+    tag: 'Phone screening',
     title: '100% Phone-Verified Leads',
-    body: 'Every lead is run through the Twilio Lookup API before it ever reaches your inbox. VoIP numbers, burners, and fake lines are rejected automatically — you only see real mobile and landline customers.'
+    body: 'Every phone number is screened before a lead reaches you. Invalid and fake-pattern numbers are held back for review, and if a number still turns out wrong you get a credit back within 24 hours of reporting it.',
   },
   {
     icon: <Zap size={26} />,
@@ -39,7 +39,7 @@ const FEATURES = [
 
 const HOW_IT_WORKS = [
   { n: '01', title: 'Create your account', body: 'Sign up in 60 seconds. Set your coverage zip codes and deposit your first balance.' },
-  { n: '02', title: 'Leads hit your dashboard live', body: 'A homeowner fills out our quote form. Twilio verifies their phone. Your screen lights up.' },
+  { n: '02', title: 'Leads hit your dashboard live', body: 'A homeowner fills out our quote form. We screen and grade it. Your screen lights up.' },
   { n: '03', title: 'Claim, call, convert', body: 'Purchase the lead with one click. Our Speed-to-Lead SMS sends you the contact instantly. You call first.' }
 ];
 
@@ -52,7 +52,7 @@ const TESTIMONIALS = [
 const FAQS = [
   { q: 'How are leads priced?', a: 'Leads are priced dynamically based on home size and distance (Local vs. Long Distance). Prices start at $10 for a studio local move and scale up. You see the exact price before you claim any lead.' },
   { q: 'Are leads shared or exclusive?', a: 'Leads are capped at a maximum of 3 buyers. You compete on speed — the faster you claim, the more likely you are the first and only mover the customer hears from.' },
-  { q: 'How does phone verification work?', a: 'We use the Twilio Lookup V2 API to check every submitted phone number before a lead is broadcast. Numbers that come back as VoIP, invalid, or unverifiable are automatically rejected.' },
+  { q: 'How are phone numbers checked?', a: 'Every number is screened for invalid formats and known fake patterns before a lead is sent. Suspicious leads go to manual review instead of your feed. If a number you bought is wrong or disconnected, report it within 24 hours for a credit.' },
   { q: 'Can I set a coverage area?', a: 'Yes. After signup you\'ll land in your dashboard where you can add as many origin and destination zip codes as you service. You only receive leads that match your coverage.' },
   { q: 'Is there a monthly fee?', a: 'No monthly subscription. You pre-load credits and only pay per lead claimed. Auto-recharge is optional and completely configurable.' }
 ];
@@ -161,7 +161,7 @@ export default function ForMovers() {
               </div>
               <div>
                 <div className="fm-social-stars">{'★'.repeat(5)}</div>
-                <p className="fm-social-label">500+ movers trust MoveLeads.cloud</p>
+                <p className="fm-social-label">Pay per lead. No subscription, no contract.</p>
               </div>
             </div>
           </div>
@@ -392,7 +392,7 @@ export default function ForMovers() {
       <section className="fm-cta-section">
         <div className="fm-cta-inner">
           <h2 className="fm-cta-h2">Ready to stop wasting money on fake leads?</h2>
-          <p className="fm-cta-sub">Join 500+ verified moving companies. No monthly fee. Your first lead could arrive today.</p>
+          <p className="fm-cta-sub">No monthly fee, no contract. Your first lead could arrive today.</p>
           <button onClick={scrollToForm} className="fm-cta-btn">
             Create Free Account <ArrowRight size={18} />
           </button>
