@@ -62,6 +62,8 @@ export const B2B_PAGES = {
           { to: '/resources/best-moving-lead-providers', label: 'Best moving lead providers compared' },
           { to: '/compare/network-leads', label: 'MoveLeads vs Network Leads' },
           { to: '/compare/moveadvisor', label: 'MoveLeads vs MoveAdvisor' },
+          { to: '/resources/how-to-price-a-long-distance-move', label: 'Guide: how to price a long-distance move' },
+          { to: '/resources/speed-to-lead-for-movers', label: 'Guide: speed to lead for movers' },
         ],
       },
     ],
@@ -367,6 +369,196 @@ export const B2B_PAGES = {
       ['What is the cheapest moving lead provider?', 'Shared leads are cheapest per lead, from about $15 at Network Leads. For exclusive leads, MoveLeads starts at $10 for local moves.'],
       ['Are exclusive moving leads worth the price?', 'Often, because you are the only company calling. Track your booking rate to compare.'],
       ['Should I use more than one provider?', 'Many movers do. Run each for a few weeks and keep the ones with the lowest cost per booked job.'],
+    ],
+  },
+  '/resources/moving-scams': {
+    audience: 'homeowner',
+    breadcrumb: 'How to avoid moving scams',
+    eyebrow: 'Guide for people moving',
+    h1: 'How to spot and avoid moving scams: 10 red flags',
+    answer:
+      'Most moving scams follow the same pattern: a very low quote by phone, a large cash deposit, then a much higher price once your belongings are on the truck. You can avoid them by checking the mover’s USDOT number with the FMCSA, getting a written estimate after an in-home or video survey, and never paying a large deposit in cash.',
+    sections: [
+      {
+        h2: '10 red flags of a moving scam',
+        numbered: [
+          'No in-home or video survey. An honest estimate needs a real look at what you own.',
+          'A quote far below everyone else. Lowball quotes are how "hostage load" scams start.',
+          'A large deposit, especially in cash. Reputable movers usually take little or nothing up front.',
+          'No USDOT number. Interstate movers must be registered with the FMCSA.',
+          'No written estimate. Get every price in writing before move day.',
+          'Blank or incomplete paperwork. Never sign a blank bill of lading or order for service.',
+          'No copy of the FMCSA booklet. Interstate movers must give you "Your Rights and Responsibilities When You Move".',
+          'A company name that changes. Watch for a different name on the truck, the paperwork and the phone.',
+          'A rented truck with no company markings on move day.',
+          'Pressure to pay more before unloading. On a non-binding estimate, the mover can only require 110% of the estimate at delivery.',
+        ],
+      },
+      {
+        h2: 'How to check a mover before you book',
+        steps: [
+          'Look up the USDOT number on the FMCSA website and check the company is authorised for household goods.',
+          'Compare the company name and address with the FMCSA record.',
+          'Read recent reviews on more than one site.',
+          'Ask whether they are a mover or a broker. A broker arranges your move with another company.',
+          'Get at least three written estimates.',
+        ],
+      },
+      {
+        h2: 'What the law says about your price',
+        bullets: [
+          'Binding estimate: you pay the estimated price, plus any services you add later.',
+          'Non-binding estimate: at delivery, the mover can only require 100% of a binding estimate or 110% of a non-binding estimate, plus added services and limited extra charges. Anything above that is billed later.',
+          'Basic "released value" protection pays only 60 cents per pound per item. Ask about Full Value Protection for valuable items.',
+        ],
+        sources: [
+          { url: 'https://www.fmcsa.dot.gov/sites/fmcsa.dot.gov/files/2023-10/FMCSA_R&R_Handbook_Web_v1.pdf', label: 'FMCSA: Your Rights and Responsibilities When You Move' },
+          { url: 'https://www.fmcsa.dot.gov/consumer-protection/protect-your-move/what-binding-move-estimate', label: 'FMCSA: What is a binding move estimate?' },
+        ],
+      },
+      {
+        h2: 'If you think you’ve been scammed',
+        text: 'Keep every document and message. File a complaint with the FMCSA National Consumer Complaint Database, contact your state attorney general, and report fraud to the police if your belongings are being held.',
+      },
+    ],
+    faq: [
+      ['What is a hostage load moving scam?', 'The mover gives a low quote, loads your belongings, then refuses to deliver unless you pay much more. Federal rules limit what can be demanded at delivery on a non-binding estimate to 110% of the estimate plus added services.'],
+      ['How much deposit should a mover ask for?', 'There is no fixed rule, but reputable movers ask for a small deposit or none. Be wary of large deposits and cash-only payments.'],
+      ['How do I check if a mover is licensed?', 'Search the company’s USDOT number on the FMCSA website. Interstate household goods movers must be registered.'],
+    ],
+  },
+
+  '/resources/moving-checklist': {
+    audience: 'homeowner',
+    breadcrumb: 'Moving checklist',
+    eyebrow: 'Guide for people moving',
+    h1: 'Moving checklist: what to do 8 weeks out to move day',
+    answer:
+      'Start 8 weeks before your move: get at least three written estimates and book a mover. Use weeks 6 to 4 to declutter and set up utilities, weeks 3 to 1 to pack and change your address, and keep a bag of essentials with you on move day.',
+    sections: [
+      { h2: '8 weeks before', bullets: ['Get at least three written estimates after an in-home or video survey.', 'Check each mover’s USDOT number with the FMCSA.', 'Set a moving budget. Try the moving cost calculator for a starting range.', 'Start a folder for quotes, receipts and contracts.'] },
+      { h2: '6 weeks before', bullets: ['Book your mover and get the estimate and order for service in writing.', 'Declutter: sell, donate or throw away what you won’t move. Less weight costs less.', 'Order boxes, tape and packing paper.', 'Ask your building about elevator reservations and parking at both homes.'] },
+      { h2: '4 weeks before', bullets: ['Schedule utilities to stop at your old home and start at the new one.', 'Forward your mail with USPS.', 'Transfer school and medical records.', 'Start packing rooms you use least.'] },
+      { h2: '2 weeks before', bullets: ['Update your address with your bank, employer, insurance and subscriptions.', 'Confirm the moving date, arrival window and final price with your mover.', 'Plan how pets and plants travel.', 'Use up food in the freezer.'] },
+      { h2: '1 week before', bullets: ['Finish packing and label each box with its room.', 'Pack an essentials bag: documents, medication, chargers, clothes, toiletries.', 'Take photos of electronics and valuables for the inventory.', 'Defrost and dry the fridge if it is moving.'] },
+      { h2: 'Moving day', bullets: ['Check the inventory before you sign it.', 'Read the bill of lading before signing, and never sign a blank one.', 'Do a final walk-through of every room and closet.', 'Keep valuables, cash and documents with you.'] },
+    ],
+    faq: [
+      ['How far in advance should I book movers?', 'For a long-distance move, about 6 to 8 weeks ahead. Book earlier for moves between May and September.'],
+      ['What should I pack first?', 'Rooms and items you use least: guest rooms, books, decorations and out-of-season clothes.'],
+      ['What should I not pack in the moving truck?', 'Important documents, medication, cash, jewelry, and hazardous items like propane, paint and cleaning chemicals.'],
+    ],
+  },
+
+  '/resources/binding-vs-non-binding-moving-estimate': {
+    audience: 'homeowner',
+    breadcrumb: 'Binding vs non-binding estimates',
+    eyebrow: 'Guide for people moving',
+    h1: 'Binding vs non-binding moving estimates: which should you get?',
+    answer:
+      'A binding estimate locks your price for the services listed. A non-binding estimate is the mover’s best guess, and the final price depends on the actual weight. For interstate moves, federal rules cap what a mover can require at delivery at 110% of a non-binding estimate, plus added services and limited extra charges.',
+    sections: [
+      {
+        h2: 'The difference at a glance',
+        table: {
+          head: ['', 'Binding', 'Non-binding'],
+          rows: [
+            ['Price', 'Fixed for the listed services', 'Based on actual weight and services'],
+            ['Due at delivery', '100% of the estimate plus added services', 'Up to 110% of the estimate plus added services'],
+            ['Best for', 'Budget certainty', 'Moves where you may bring less than expected'],
+          ],
+        },
+        sources: [{ url: 'https://www.fmcsa.dot.gov/sites/fmcsa.dot.gov/files/2023-10/FMCSA_R&R_Handbook_Web_v1.pdf', label: 'FMCSA: Your Rights and Responsibilities When You Move' }, { url: 'https://www.fmcsa.dot.gov/consumer-protection/protect-your-move/what-binding-move-estimate', label: 'FMCSA: What is a binding move estimate?' }],
+      },
+      {
+        h2: 'What about a "not-to-exceed" estimate?',
+        text: 'Some movers offer a binding not-to-exceed estimate: you pay the lower of the estimate or the actual weight-based price. It gives you a price ceiling and the chance to pay less. Ask whether your mover offers it.',
+      },
+      {
+        h2: 'Tips',
+        bullets: [
+          'Insist on an in-home or video survey before any estimate.',
+          'Make sure every service you need is listed: packing, stairs, long carries, shuttle trucks.',
+          'Get the estimate in writing and keep a signed copy.',
+        ],
+      },
+    ],
+    faq: [
+      ['Can a mover charge more than a binding estimate?', 'Only for services you add after the contract, and for certain charges when access at your home was not as described.'],
+      ['What happens if the non-binding price is higher than 110%?', 'You pay up to 110% at delivery. The mover bills the rest later, and you have at least 30 days to pay it.'],
+    ],
+  },
+
+  '/resources/how-to-price-a-long-distance-move': {
+    breadcrumb: 'How to price a long-distance move',
+    parent: '/moving-leads',
+    eyebrow: 'Guide for moving companies',
+    h1: 'How to price a long-distance move (and win the job)',
+    answer:
+      'Long-distance moves are usually priced by weight and distance, plus accessorial charges for extra services. Estimate the shipment weight from a survey, apply your per-pound rate for the distance, add packing and access charges, then decide whether to offer a binding or non-binding estimate.',
+    sections: [
+      {
+        h2: 'The basic formula',
+        numbered: [
+          'Weight. Estimate it from an in-home or video survey. Typical weights run from about 1,500 lbs for a studio to 9,500 lbs or more for a 4-bedroom home.',
+          'Linehaul rate. Your per-pound rate for the distance. Industry guides put interstate rates at roughly $0.50 to $0.70 per pound.',
+          'Accessorials. Packing, materials, stairs, long carries, shuttle trucks, bulky items and storage.',
+          'Fuel and seasonal adjustments. Peak season (May to September) supports higher rates.',
+        ],
+        sources: [
+          { url: 'https://sirelo.com/house-moving/long-distance-moving-costs/', label: 'Sirelo: long-distance moving costs' },
+          { url: 'https://mygoodmovers.com/moving-guide/long-distance-moving-cost', label: 'myGoodMovers: shipment weights by home size' },
+        ],
+      },
+      {
+        h2: 'Binding or non-binding?',
+        text: 'A binding estimate wins trust and closes faster, but you carry the risk if the survey was wrong. A non-binding estimate protects you on weight, but federal rules cap collection at delivery at 110% of the estimate. Many movers offer binding not-to-exceed estimates to win competitive jobs.',
+        link: { to: '/resources/binding-vs-non-binding-moving-estimate', label: 'Binding vs non-binding estimates explained' },
+      },
+      {
+        h2: 'How to win more long-distance jobs',
+        bullets: [
+          'Call new leads fast. The first mover to reach a customer has the best chance.',
+          'Offer a video survey so you can quote the same day.',
+          'Send a clear, itemised written estimate.',
+          'Buy leads for the routes you actually run.',
+        ],
+        link: { to: '/moving-leads/long-distance', label: 'Get long-distance moving leads' },
+      },
+    ],
+    faq: [
+      ['How do movers calculate long-distance prices?', 'Mostly by shipment weight and distance, plus charges for extra services like packing, stairs and shuttle trucks.'],
+      ['What is a typical rate per pound?', 'Industry guides cite roughly $0.50 to $0.70 per pound for interstate moves, varying by distance, season and market.'],
+    ],
+  },
+
+  '/resources/speed-to-lead-for-movers': {
+    breadcrumb: 'Speed to lead for movers',
+    parent: '/moving-leads',
+    eyebrow: 'Guide for moving companies',
+    h1: 'Speed to lead: why the first mover to call wins',
+    answer:
+      'People who request moving quotes often contact several companies, and many book the first mover who calls back with a clear price. Calling within minutes, not hours, is one of the cheapest ways to book more jobs from the leads you already pay for.',
+    sections: [
+      {
+        h2: 'How to respond faster',
+        numbered: [
+          'Turn on instant alerts. Get new leads by SMS, not just email.',
+          'Set dispatch hours so leads arrive when someone can call.',
+          'Use a call script. Confirm the move date, size and addresses, then book a survey.',
+          'Text if they don’t answer. A short text with your name and company gets a reply later.',
+          'Follow up. Call again the same day and the next morning.',
+        ],
+      },
+      {
+        h2: 'Why single-buyer leads help',
+        text: 'When a lead is shared with several movers, speed decides everything. When you are the only buyer, you still want to call fast, but you are not racing three other companies to the phone.',
+        link: { to: '/moving-leads/exclusive', label: 'How single-buyer leads work' },
+      },
+    ],
+    faq: [
+      ['How fast should I call a moving lead?', 'As fast as possible, ideally within minutes of the request.'],
+      ['What if the customer doesn’t answer?', 'Send a short text with your name and company, then call again later the same day.'],
     ],
   },
 };

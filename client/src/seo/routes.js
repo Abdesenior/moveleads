@@ -91,6 +91,41 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.8,
   },
+  '/resources/moving-scams': {
+    title: 'How to Avoid Moving Scams: 10 Red Flags (2026 Guide)',
+    description:
+      'Spot a moving scam before it happens: lowball quotes, big cash deposits, no USDOT number. Your rights under federal rules and how to check a mover.',
+    changefreq: 'monthly',
+    priority: 0.7,
+  },
+  '/resources/moving-checklist': {
+    title: 'Moving Checklist: 8 Weeks Out to Move Day, Week by Week',
+    description:
+      'A week-by-week moving checklist: estimates, booking, utilities, address changes, packing and what to check on moving day.',
+    changefreq: 'monthly',
+    priority: 0.7,
+  },
+  '/resources/binding-vs-non-binding-moving-estimate': {
+    title: 'Binding vs Non-Binding Moving Estimates Explained',
+    description:
+      'Binding estimates fix your price; non-binding ones depend on weight, capped at 110% at delivery for interstate moves. Which to choose and why.',
+    changefreq: 'monthly',
+    priority: 0.7,
+  },
+  '/resources/how-to-price-a-long-distance-move': {
+    title: 'How to Price a Long-Distance Move: A Guide for Movers',
+    description:
+      'Price long-distance moves by weight, distance and accessorials, choose binding or non-binding estimates, and win more jobs.',
+    changefreq: 'monthly',
+    priority: 0.7,
+  },
+  '/resources/speed-to-lead-for-movers': {
+    title: 'Speed to Lead for Moving Companies: Call First, Book More',
+    description:
+      'Why the first mover to call wins the job, and 5 ways to respond faster to moving leads.',
+    changefreq: 'monthly',
+    priority: 0.7,
+  },
   '/moving-cost-calculator': {
     title: 'Moving Cost Calculator 2026: Estimate Your Long-Distance Move',
     description:
