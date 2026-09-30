@@ -197,6 +197,9 @@ export default function RoutePage() {
             <h2 style={h2Style}>Related moving routes</h2>
             <ul style={{ paddingLeft: 20, margin: 0 }}>
               {related.map((l) => <li key={l.to} style={liStyle}><Link to={l.to} style={linkStyle}>Moving from {l.label}</Link></li>)}
+              <li style={liStyle}><Link to={`/moving-from/${r.fromKey}`} style={linkStyle}>All moves from {from.name}</Link></li>
+              <li style={liStyle}><Link to={`/moving-to/${r.toKey}`} style={linkStyle}>All moves to {to.name}</Link></li>
+              <li style={liStyle}><Link to="/moving-cost-calculator" style={linkStyle}>Moving cost calculator</Link></li>
               <li style={liStyle}><Link to="/moving" style={linkStyle}>All moving routes</Link></li>
             </ul>
           </section>

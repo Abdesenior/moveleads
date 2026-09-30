@@ -3,7 +3,7 @@
 // time (the pre-render list + sitemap are derived from INDEXABLE_ROUTES).
 // Keep this file plain JS with no Vite-only imports so Node can load it.
 
-import { ROUTE_SEO } from './routePages.js';
+import { ROUTE_SEO, CITY_HUB_SEO } from './routePages.js';
 
 export const SITE_URL = 'https://moveleads.cloud';
 export const SITE_NAME = 'MoveLeads.cloud';
@@ -70,6 +70,34 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.8,
   },
+  '/compare/network-leads': {
+    title: 'MoveLeads vs Network Leads: Prices, Exclusivity, Terms (2026)',
+    description:
+      'Exclusive moving leads from $10 at MoveLeads vs $45–$85 at Network Leads. Compare shared vs exclusive leads, bad-lead credit, contracts and delivery.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
+  '/compare/moveadvisor': {
+    title: 'MoveLeads vs MoveAdvisor: Moving Leads Compared (2026)',
+    description:
+      'MoveAdvisor shares leads with up to 3 other movers; MoveLeads sells each lead to one mover by default from $10. Compare pricing, markets and terms.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
+  '/resources/best-moving-lead-providers': {
+    title: 'Best Moving Lead Providers 2026: Prices and Terms Compared',
+    description:
+      'Moving lead providers compared on price, how many movers get each lead, contracts and bad-lead policies: MoveLeads, Network Leads, MoveAdvisor, 99calls.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
+  '/moving-cost-calculator': {
+    title: 'Moving Cost Calculator 2026: Estimate Your Long-Distance Move',
+    description:
+      'Free moving cost calculator. Pick your cities and home size to see a typical 2026 price range for a long-distance move, then get a free quote.',
+    changefreq: 'monthly',
+    priority: 0.9,
+  },
   '/moving': {
     title: 'Long-Distance Moving Costs by Route (2026) | MoveSmart by MoveLeads',
     description:
@@ -78,6 +106,7 @@ export const INDEXABLE_ROUTES = {
     priority: 0.9,
   },
   ...ROUTE_SEO,
+  ...CITY_HUB_SEO,
   '/partners': {
     title: 'Verified Move Requests for Moving Companies, Pay-as-You-Go | MoveLeads',
     description:
