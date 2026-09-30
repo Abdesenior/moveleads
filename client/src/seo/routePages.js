@@ -69,6 +69,32 @@ export const CITIES = {
     note: 'Minneapolis winters are long and cold. Winter moves can be cheaper, but snow and ice slow loading, so plan for extra time and floor protection.' },
   detroit: { name: 'Detroit', state: 'MI', zip: '48226', tax: false,
     note: 'Detroit winters bring snow and ice, so winter moves need extra time. Summer is the busiest moving season, so book early.' },
+  'san-antonio': { name: 'San Antonio', state: 'TX', zip: '78205', tax: true,
+    note: 'Texas has no state income tax. San Antonio summers are long and hot, so schedule loading for early morning and keep heat-sensitive items in your car.' },
+  jacksonville: { name: 'Jacksonville', state: 'FL', zip: '32202', tax: true,
+    note: 'Florida has no state income tax. Jacksonville is the largest city by land area in the contiguous US, so give your mover your exact address for an accurate estimate. Hurricane season runs June 1 to November 30.' },
+  columbus: { name: 'Columbus', state: 'OH', zip: '43215', tax: false,
+    note: 'Late August is busy in Columbus when Ohio State students move in, so book early if you move then. Winters bring snow, so allow extra time.' },
+  indianapolis: { name: 'Indianapolis', state: 'IN', zip: '46204', tax: false,
+    note: 'Indianapolis calls itself the Crossroads of America because several major interstates meet here, which helps with deliveries from most directions. Winters bring snow and ice.' },
+  'kansas-city': { name: 'Kansas City', state: 'MO', zip: '64106', tax: false,
+    note: 'The Kansas City area spans Missouri and Kansas, and the two states tax differently, so confirm which side your new home is on. Spring can bring severe storms.' },
+  'st-louis': { name: 'St. Louis', state: 'MO', zip: '63101', tax: false,
+    note: 'St. Louis summers are hot and humid and winters are cold. Spring and fall are the most comfortable seasons for a move.' },
+  pittsburgh: { name: 'Pittsburgh', state: 'PA', zip: '15222', tax: false,
+    note: 'Pittsburgh is known for steep hills, narrow streets and outdoor stairs, so ask your mover about access at both homes. Some moves need a smaller shuttle truck.' },
+  baltimore: { name: 'Baltimore', state: 'MD', zip: '21202', tax: false,
+    note: 'Many Baltimore homes are rowhouses on narrow streets with steep interior stairs. Ask about temporary parking for the truck and mention stairs when you get quotes.' },
+  sacramento: { name: 'Sacramento', state: 'CA', zip: '95814', tax: false,
+    note: 'Sacramento summers are very hot and dry. Plan early-morning loading, and keep electronics, candles and medication out of the truck.' },
+  albuquerque: { name: 'Albuquerque', state: 'NM', zip: '87102', tax: false,
+    note: 'Albuquerque sits at about 5,000 feet, and summers are hot and dry. Stay hydrated on move day and plan for the altitude.' },
+  'oklahoma-city': { name: 'Oklahoma City', state: 'OK', zip: '73102', tax: false,
+    note: 'Spring is severe-weather and tornado season in Oklahoma City, so keep your moving date flexible and watch forecasts in April and May.' },
+  boise: { name: 'Boise', state: 'ID', zip: '83702', tax: false,
+    note: 'Boise has grown quickly, so good movers book up in summer. Winters bring snow, and mountain routes into Idaho can slow deliveries.' },
+  tucson: { name: 'Tucson', state: 'AZ', zip: '85701', tax: false,
+    note: 'Tucson summers are extremely hot. Book an early-morning unload and move heat-sensitive items in your car.' },
 };
 
 // [from, to, approximate driving miles]
@@ -123,6 +149,56 @@ const ROUTES = [
   ['houston', 'denver', 1030],
   ['salt-lake-city', 'phoenix', 660],
   ['dallas', 'atlanta', 780],
+  ['los-angeles', 'san-antonio', 1355],
+  ['los-angeles', 'boise', 850],
+  ['los-angeles', 'sacramento', 385],
+  ['los-angeles', 'tucson', 490],
+  ['san-francisco', 'phoenix', 750],
+  ['san-francisco', 'las-vegas', 570],
+  ['san-francisco', 'boise', 640],
+  ['san-diego', 'las-vegas', 330],
+  ['san-diego', 'denver', 1080],
+  ['sacramento', 'austin', 1690],
+  ['sacramento', 'boise', 525],
+  ['seattle', 'boise', 500],
+  ['seattle', 'salt-lake-city', 840],
+  ['portland', 'boise', 430],
+  ['portland', 'denver', 1240],
+  ['new-york', 'jacksonville', 940],
+  ['new-york', 'columbus', 535],
+  ['new-york', 'pittsburgh', 370],
+  ['new-york', 'san-antonio', 1830],
+  ['new-york', 'denver', 1780],
+  ['new-york', 'phoenix', 2410],
+  ['boston', 'orlando', 1310],
+  ['boston', 'raleigh', 700],
+  ['boston', 'denver', 1990],
+  ['philadelphia', 'tampa', 1080],
+  ['philadelphia', 'atlanta', 780],
+  ['baltimore', 'charlotte', 440],
+  ['baltimore', 'orlando', 900],
+  ['washington', 'tampa', 930],
+  ['washington', 'atlanta', 640],
+  ['washington', 'orlando', 850],
+  ['chicago', 'san-antonio', 1210],
+  ['chicago', 'las-vegas', 1750],
+  ['chicago', 'orlando', 1160],
+  ['chicago', 'charlotte', 760],
+  ['chicago', 'kansas-city', 510],
+  ['chicago', 'st-louis', 300],
+  ['chicago', 'columbus', 355],
+  ['detroit', 'orlando', 1150],
+  ['detroit', 'atlanta', 730],
+  ['minneapolis', 'denver', 915],
+  ['minneapolis', 'dallas', 940],
+  ['columbus', 'tampa', 1010],
+  ['indianapolis', 'tampa', 1000],
+  ['indianapolis', 'phoenix', 1740],
+  ['kansas-city', 'denver', 605],
+  ['st-louis', 'dallas', 635],
+  ['oklahoma-city', 'denver', 680],
+  ['albuquerque', 'phoenix', 420],
+  ['pittsburgh', 'charlotte', 440],
 ];
 
 // Published ranges (USD) by home size and distance band, from COST_SOURCE.
@@ -256,3 +332,32 @@ export const CITY_HUB_SEO = Object.fromEntries(
     return out;
   }),
 );
+
+// City coordinates (from each city's ZIP) for the cost calculator.
+const COORDS = {"new-york":[40.7484,-73.9967],"miami":[25.7672,-80.2059],"los-angeles":[34.0614,-118.2385],"atlanta":[33.7525,-84.3888],"charlotte":[35.229,-80.8419],"austin":[30.2713,-97.7426],"phoenix":[33.4557,-112.0686],"las-vegas":[36.1721,-115.1224],"seattle":[47.6114,-122.3305],"denver":[39.7491,-104.9946],"san-francisco":[37.7725,-122.4147],"chicago":[41.8858,-87.6181],"dallas":[32.7904,-96.8044],"nashville":[36.1504,-86.7916],"boston":[42.3576,-71.0684],"tampa":[27.9614,-82.4597],"philadelphia":[39.9513,-75.1741],"orlando":[28.5399,-81.3727],"washington":[38.9122,-77.0177],"raleigh":[35.7727,-78.6324],"houston":[29.7594,-95.3594],"san-diego":[32.7185,-117.1593],"portland":[45.5181,-122.6745],"salt-lake-city":[40.7559,-111.8967],"minneapolis":[44.9835,-93.2683],"detroit":[42.3333,-83.0484],"san-antonio":[29.4237,-98.4925],"jacksonville":[30.3299,-81.6517],"columbus":[39.9671,-83.0044],"indianapolis":[39.772,-86.1535],"kansas-city":[39.1052,-94.5699],"st-louis":[38.6346,-90.1913],"pittsburgh":[40.4477,-79.9933],"baltimore":[39.2998,-76.6075],"sacramento":[38.5804,-121.4922],"albuquerque":[35.0818,-106.6482],"oklahoma-city":[35.4726,-97.5199],"boise":[43.6322,-116.2052],"tucson":[32.2139,-110.9694]};
+
+// Road miles ≈ straight-line distance × 1.18 (the median ratio across our
+// hand-checked routes). Known routes use their own figure.
+export function estimateMiles(fromKey, toKey) {
+  const known = ROUTE_PAGES[routeSlug(fromKey, toKey)];
+  if (known) return { miles: known.miles, exact: true };
+  const [a, b] = [COORDS[fromKey], COORDS[toKey]];
+  if (!a || !b) return null;
+  const rad = (x) => (x * Math.PI) / 180;
+  const dLat = rad(b[0] - a[0]);
+  const dLon = rad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) ** 2;
+  const straight = 2 * 3958.8 * Math.asin(Math.sqrt(h));
+  return { miles: Math.round((straight * 1.18) / 10) * 10, exact: false };
+}
+
+// Full cost matrix for the calculator's reference table.
+export function costMatrix() {
+  return {
+    bands: BAND_LABELS,
+    rows: Object.entries(COST_TABLE).map(([size, bands]) => ({
+      size,
+      cells: bands.map(([lo, hi]) => `${usd(round100(lo))}–${usd(round100(hi))}`),
+    })),
+  };
+}

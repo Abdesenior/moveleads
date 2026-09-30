@@ -13,6 +13,7 @@ import { INDEXABLE_ROUTES, SITE_URL } from '../src/seo/routes.js';
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const API_HOST = 'api.moveleads.cloud';
+const CONCURRENCY = 6;
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 const MIME = {
@@ -108,10 +109,21 @@ async function main() {
   const routes = Object.keys(INDEXABLE_ROUTES);
   let failed = 0;
 
-  try {
-    for (const route of routes) {
+  // Render in parallel; retry each page once before counting it as failed.
+  const queue = [...routes];
+  const renderOne = async (route) => {
+    for (let attempt = 1; ; attempt++) {
       try {
-        const html = await renderRoute(browser, origin, route);
+        return await renderRoute(browser, origin, route);
+      } catch (err) {
+        if (attempt >= 2) throw err;
+      }
+    }
+  };
+  const worker = async () => {
+    for (let route = queue.shift(); route; route = queue.shift()) {
+      try {
+        const html = await renderOne(route);
         const out = route === '/' ? 'index.html' : `${route.slice(1)}.html`;
         await mkdir(path.dirname(path.join(DIST, out)), { recursive: true });
         await writeFile(path.join(DIST, out), html);
@@ -121,6 +133,10 @@ async function main() {
         console.error(`FAILED ${route}: ${err.message.split('\n')[0]}`);
       }
     }
+  };
+
+  try {
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   } finally {
     await browser.close();
     server.close();

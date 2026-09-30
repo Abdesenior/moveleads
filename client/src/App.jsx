@@ -34,6 +34,7 @@ const SeoLanding = lazy(() => import('./pages/SeoLanding'));
 const RoutePage = lazy(() => import('./pages/RoutePage'));
 const RoutesIndex = lazy(() => import('./pages/RoutesIndex'));
 const CityHub = lazy(() => import('./pages/CityHub'));
+const MovingCostCalculator = lazy(() => import('./pages/MovingCostCalculator'));
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const LeadFeed = lazy(() => import('./pages/dashboard/LeadFeed'));
@@ -117,6 +118,7 @@ function App() {
               <Route path="/moving-leads/:type" element={<SeoLanding />} />
               <Route path="/resources/:slug" element={<SeoLanding />} />
               <Route path="/compare/:slug" element={<SeoLanding />} />
+              <Route path="/moving-cost-calculator" element={<MovingCostCalculator />} />
               <Route path="/moving" element={<RoutesIndex />} />
               <Route path="/moving/:slug" element={<RoutePage />} />
               <Route path="/moving-from/:city" element={<CityHub />} />

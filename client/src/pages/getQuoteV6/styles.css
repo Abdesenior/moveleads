@@ -1,5 +1,3 @@
-/* Editorial concierge typography — load via @import to keep client/index.html untouched */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
 /*
  * client/src/pages/getQuoteV6/styles.css

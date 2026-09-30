@@ -91,6 +91,13 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.8,
   },
+  '/moving-cost-calculator': {
+    title: 'Moving Cost Calculator 2026: Estimate Your Long-Distance Move',
+    description:
+      'Free moving cost calculator. Pick your cities and home size to see a typical 2026 price range for a long-distance move, then get a free quote.',
+    changefreq: 'monthly',
+    priority: 0.9,
+  },
   '/moving': {
     title: 'Long-Distance Moving Costs by Route (2026) | MoveSmart by MoveLeads',
     description:
