@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
 import JsonLd from '../components/JsonLd';
 import {
-  CITIES, COST_SOURCE, SEASON_SOURCE, costRows, costMatrix, estimateMiles, routeSlug, ROUTE_PAGES, usd, cityLabel,
+  CITIES, COST_SOURCE, HOURLY_SOURCE, SEASON_SOURCE, costRows, shortCostRows, costMatrix, estimateMiles, routeSlug, ROUTE_PAGES, usd, cityLabel,
 } from '../seo/routePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
@@ -37,8 +37,11 @@ export default function MovingCostCalculator() {
 
   const same = from === to;
   const est = same ? null : estimateMiles(from, to);
-  const tooShort = est && est.miles < 250;
-  const range = est && !tooShort ? costRows(est.miles).find((r) => r.size === size) : null;
+  const sameState = CITIES[from].state === CITIES[to].state;
+  const shortMove = est && est.miles < 250 && est.miles >= 50 && sameState && est.hours != null;
+  const tooShort = est && est.miles < 250 && !shortMove;
+  const rows = !est || tooShort ? null : shortMove ? shortCostRows(est.hours) : costRows(est.miles);
+  const range = rows ? rows.find((r) => r.size === size) : null;
   const peak = month >= 4 && month <= 8;
   const routePage = ROUTE_PAGES[routeSlug(from, to)] ? `/moving/${routeSlug(from, to)}` : null;
   const quoteHref = `/get-quote?from=${CITIES[from].zip}&to=${CITIES[to].zip}`;
@@ -105,7 +108,9 @@ export default function MovingCostCalculator() {
             {same && <p style={{ ...pStyle, margin: 0 }}>Choose two different cities.</p>}
             {tooShort && (
               <p style={{ ...pStyle, margin: 0 }}>
-                This is about {est.miles} miles, a short move usually priced by the hour. Get a free quote for an exact price.
+                {sameState
+                  ? `This is about ${est.miles} miles, a local move usually priced by the hour. Get a free quote for an exact price.`
+                  : `This is about ${est.miles} miles. Short moves across a state line are priced case by case, so get a free quote for an exact price.`}
               </p>
             )}
             {range && (
@@ -116,6 +121,11 @@ export default function MovingCostCalculator() {
                 <p style={{ fontFamily: F, fontSize: 'clamp(26px, 7vw, 36px)', fontWeight: 800, color: NAVY, margin: '0 0 6px', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
                   {usd(range.low)} – {usd(range.high)}
                 </p>
+                {shortMove && (
+                  <p style={{ ...pStyle, fontSize: 15, margin: '0 0 6px' }}>
+                    Short in-state move: priced by crew hours plus the {est.hours}-hour drive, using the <a href={HOURLY_SOURCE.url} target="_blank" rel="noopener noreferrer" style={ext}>{HOURLY_SOURCE.name}</a>.
+                  </p>
+                )}
                 <p style={{ ...pStyle, fontSize: 15, margin: 0 }}>
                   {peak
                     ? `${MONTHS[month]} is peak season (May to September). Expect prices toward the top of the range, and book early.`

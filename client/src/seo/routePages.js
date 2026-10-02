@@ -11,6 +11,10 @@ export const COST_SOURCE = {
   name: 'myGoodMovers 2026 long-distance moving cost data',
   url: 'https://mygoodmovers.com/moving-guide/long-distance-moving-cost',
 };
+export const HOURLY_SOURCE = {
+  name: 'MovingRated movers hourly rates guide (June 2026)',
+  url: 'https://movingrated.com/guides/movers-hourly-rates',
+};
 export const SEASON_SOURCE = {
   name: 'Sirelo long-distance moving cost guide',
   url: 'https://sirelo.com/house-moving/long-distance-moving-costs/',
@@ -291,6 +295,30 @@ export function costRows(miles) {
 }
 
 export const bandLabel = (miles) => BAND_LABELS[bandFor(miles)];
+
+// Short in-state moves: labor (typical crew and hours by home size) plus the
+// drive between the two homes at the crew's hourly rate, from HOURLY_SOURCE.
+// Crew rate: 2 movers $80-$120/h, each extra mover $25-$40/h.
+const crewRate = (n) => [80 + (n - 2) * 25, 120 + (n - 2) * 40];
+export const SHORT_LABOR = [
+  { size: 'Studio', crew: '2 movers', hours: '3–5', labor: [240, 600], rate: crewRate(2) },
+  { size: '1 bedroom', crew: '2 movers', hours: '3–5', labor: [240, 600], rate: crewRate(2) },
+  { size: '2 bedrooms', crew: '3 movers', hours: '5–7', labor: [525, 1260], rate: crewRate(3) },
+  { size: '3 bedrooms', crew: '4 movers', hours: '7–10', labor: [980, 2400], rate: crewRate(4) },
+  { size: '4+ bedrooms', crew: '4–5 movers', hours: '9–12', labor: [1300, 3000], rate: [crewRate(4)[0], crewRate(5)[1]] },
+];
+
+export function shortCostRows(driveHours) {
+  return SHORT_LABOR.map((r) => ({
+    size: r.size,
+    crew: r.crew,
+    hours: r.hours,
+    low: round100(r.labor[0] + driveHours * r.rate[0]),
+    high: round100(r.labor[1] + driveHours * r.rate[1]),
+  }));
+}
+
+export const routeCostRows = (r) => (r.short ? shortCostRows(r.hours) : costRows(r.miles));
 export const driveHours = (miles) => Math.round(miles / 60);
 export const cityLabel = (c) => `${c.name}, ${c.state}`;
 
@@ -300,6 +328,9 @@ export const routeSlug = (from, to) => `${from}-to-${to}`;
 // gets a route page to and from every other city on the site.
 export const HUBS = ['orlando', 'jacksonville', 'tampa', 'miami', 'fort-lauderdale', 'houston', 'dallas', 'san-antonio', 'austin', 'atlanta'];
 export const MIN_ROUTE_MILES = 250;
+// In-state moves of 50-249 miles get "short move" pages priced by the hour.
+// Interstate moves are weight-priced under federal rules, so they are excluded.
+export const SHORT_MIN_MILES = 50;
 
 const pairKey = (a, b) => [a, b].sort().join('|');
 
@@ -312,24 +343,40 @@ export function candidatePairs() {
   return [...seen.values()];
 }
 
+// In-state pairs close enough for an hourly-priced move.
+function shortPairs() {
+  const keys = Object.keys(CITIES);
+  const out = [];
+  for (let i = 0; i < keys.length; i++) {
+    for (let j = i + 1; j < keys.length; j++) {
+      if (CITIES[keys[i]].state !== CITIES[keys[j]].state) continue;
+      const d = ROUTE_DISTANCES[pairKey(keys[i], keys[j])];
+      if (d && d[0] >= SHORT_MIN_MILES && d[0] < MIN_ROUTE_MILES) out.push([keys[i], keys[j]]);
+    }
+  }
+  return out;
+}
+
 // Every qualifying pair, in both directions, with OSRM driving miles/hours.
-const ALL_ROUTES = candidatePairs().flatMap(([a, b]) => {
+const ALL_ROUTES = [...candidatePairs(), ...shortPairs()].flatMap(([a, b]) => {
   const d = ROUTE_DISTANCES[pairKey(a, b)];
-  if (!d || d[0] < MIN_ROUTE_MILES) return [];
-  return [[a, b, d[0], d[1]], [b, a, d[0], d[1]]];
+  if (!d) return [];
+  const short = d[0] < MIN_ROUTE_MILES;
+  if (short && (d[0] < SHORT_MIN_MILES || CITIES[a].state !== CITIES[b].state)) return [];
+  return [[a, b, d[0], d[1], short], [b, a, d[0], d[1], short]];
 });
 
 export const ROUTE_PAGES = Object.fromEntries(
-  ALL_ROUTES.map(([from, to, miles, hours]) => [
+  ALL_ROUTES.map(([from, to, miles, hours, short]) => [
     routeSlug(from, to),
-    { fromKey: from, toKey: to, from: CITIES[from], to: CITIES[to], miles, hours },
+    { fromKey: from, toKey: to, from: CITIES[from], to: CITIES[to], miles, hours, short },
   ]),
 );
 
 // SEO metadata for every route page, merged into INDEXABLE_ROUTES.
 export const ROUTE_SEO = Object.fromEntries(
   Object.entries(ROUTE_PAGES).map(([slug, r]) => {
-    const two = costRows(r.miles).find((c) => c.size === '2 bedrooms');
+    const two = routeCostRows(r).find((c) => c.size === '2 bedrooms');
     return [
       `/moving/${slug}`,
       {
@@ -391,7 +438,7 @@ export const COORDS = {"new-york":[40.7484,-73.9967],"miami":[25.7672,-80.2059],
 // hand-checked routes). Known routes use their own figure.
 export function estimateMiles(fromKey, toKey) {
   const known = ROUTE_DISTANCES[pairKey(fromKey, toKey)];
-  if (known) return { miles: known[0], exact: true };
+  if (known) return { miles: known[0], hours: known[1], exact: true };
   const [a, b] = [COORDS[fromKey], COORDS[toKey]];
   if (!a || !b) return null;
   const rad = (x) => (x * Math.PI) / 180;

@@ -5,7 +5,7 @@ import JsonLd from '../components/JsonLd';
 import NotFound from './NotFound';
 import { SITE_URL } from '../seo/routes';
 import {
-  ROUTE_PAGES, COST_SOURCE, SEASON_SOURCE, costRows, bandLabel, cityLabel, usd, relatedRoutes,
+  ROUTE_PAGES, COST_SOURCE, HOURLY_SOURCE, SEASON_SOURCE, routeCostRows, bandLabel, cityLabel, usd, relatedRoutes,
 } from '../seo/routePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
@@ -34,7 +34,9 @@ export default function RoutePage() {
   if (!r) return <NotFound />;
 
   const { from, to, miles } = r;
-  const rows = costRows(miles);
+  const short = r.short;
+  const rows = routeCostRows(r);
+  const stateName = { FL: 'Florida', TX: 'Texas', CA: 'California', NC: 'North Carolina', AZ: 'Arizona', TN: 'Tennessee', OK: 'Oklahoma', LA: 'Louisiana' }[from.state] || from.state;
   const two = rows.find((c) => c.size === '2 bedrooms');
   const hours = r.hours;
   const quoteHref = `/get-quote?from=${from.zip}&to=${to.zip}`;
@@ -48,13 +50,20 @@ export default function RoutePage() {
 
   const faq = [
     [`How much does it cost to move from ${from.name} to ${to.name}?`,
-      `For about ${milesText} miles, full-service movers typically charge ${usd(rows[0].low)}–${usd(rows[0].high)} for a studio, ${usd(two.low)}–${usd(two.high)} for a 2-bedroom home and ${usd(rows[4].low)}–${usd(rows[4].high)} for 4 or more bedrooms. These are estimates from 2026 industry data; your quote depends on the weight of your belongings, your move date and extra services.`],
+      short
+        ? `For about ${milesText} miles, expect roughly ${usd(rows[0].low)}–${usd(rows[0].high)} for a studio, ${usd(two.low)}–${usd(two.high)} for a 2-bedroom home and ${usd(rows[4].low)}–${usd(rows[4].high)} for 4 or more bedrooms. Short in-state moves are usually priced by the hour, so the crew size, hours and drive time set the price.`
+        : `For about ${milesText} miles, full-service movers typically charge ${usd(rows[0].low)}–${usd(rows[0].high)} for a studio, ${usd(two.low)}–${usd(two.high)} for a 2-bedroom home and ${usd(rows[4].low)}–${usd(rows[4].high)} for 4 or more bedrooms. These are estimates from 2026 industry data; your quote depends on the weight of your belongings, your move date and extra services.`],
     [`How long does a move from ${from.name} to ${to.name} take?`,
-      `The drive is about ${milesText} miles, roughly ${hours} hours behind the wheel. Interstate movers give you a delivery window in writing; it is usually a few days on a route this long, and longer if your belongings share a truck with other moves.`],
+      short
+        ? `The drive is about ${milesText} miles, roughly ${hours} hours. Most in-state moves this size are loaded, driven and unloaded in one or two days, depending on home size.`
+        : `The drive is about ${milesText} miles, roughly ${hours} hours behind the wheel. Interstate movers give you a delivery window in writing; it is usually a few days on a route this long, and longer if your belongings share a truck with other moves.`],
     [`What is the cheapest time to move from ${from.name} to ${to.name}?`,
       'Peak moving season runs from May to September, when prices are highest. Moving from October to April, on a weekday, and away from the end of the month usually costs less. Booking 6 to 8 weeks ahead can also lower the price.'],
-    ['Do I need an interstate mover for this route?',
-      `Yes. Because this move crosses state lines, the mover must be registered with the Federal Motor Carrier Safety Administration (FMCSA) and have a USDOT number. You can check any mover’s number on the FMCSA website before you book.`],
+    short
+      ? ['What license does a mover need for this move?',
+        `This move stays inside ${stateName}, so state rules apply. Check that the mover is licensed or registered with the state where required, and ask for proof of insurance before you book.`]
+      : ['Do I need an interstate mover for this route?',
+        `Yes. Because this move crosses state lines, the mover must be registered with the Federal Motor Carrier Safety Administration (FMCSA) and have a USDOT number. You can check any mover’s number on the FMCSA website before you book.`],
   ];
 
   const crumbs = [
@@ -96,7 +105,7 @@ export default function RoutePage() {
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.7, color: 'rgba(255,255,255,0.78)', margin: '0 0 28px' }}>
             A move from {cityLabel(from)} to {cityLabel(to)} is about {milesText} miles, roughly {hours} hours of driving.
-            For a 2-bedroom home, full-service movers typically charge {usd(two.low)}–{usd(two.high)}.
+            For a 2-bedroom home, {short ? 'a short in-state move typically costs' : 'full-service movers typically charge'} {usd(two.low)}–{usd(two.high)}.
             Tell us about your move and we’ll match you with a licensed moving partner for this route. It’s free.
           </p>
           <QuoteButton href={quoteHref} />
@@ -106,12 +115,17 @@ export default function RoutePage() {
       <main style={{ maxWidth: 820, margin: '0 auto', padding: '56px 20px 24px' }}>
         <section style={{ marginBottom: 44 }}>
           <h2 style={h2Style}>{from.name} to {to.name} moving cost by home size</h2>
-          <p style={pStyle}>Typical full-service prices for a move of {bandLabel(miles)}, which covers this route:</p>
+          <p style={pStyle}>
+            {short
+              ? `Short in-state moves are usually priced by the hour. These estimates add a typical crew’s loading and unloading time to the ${hours}-hour drive between the two cities:`
+              : `Typical full-service prices for a move of ${bandLabel(miles)}, which covers this route:`}
+          </p>
           <div style={{ overflowX: 'auto', margin: '6px 0 12px', border: `1px solid ${BL}`, borderRadius: 12 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '12px 16px', color: NAVY, borderBottom: `1px solid ${BL}` }}>Home size</th>
+                  {short && <th style={{ textAlign: 'left', padding: '12px 16px', color: NAVY, borderBottom: `1px solid ${BL}` }}>Typical crew</th>}
                   <th style={{ textAlign: 'left', padding: '12px 16px', color: NAVY, borderBottom: `1px solid ${BL}` }}>Estimated cost</th>
                 </tr>
               </thead>
@@ -119,6 +133,7 @@ export default function RoutePage() {
                 {rows.map((c, i) => (
                   <tr key={c.size}>
                     <td style={{ padding: '11px 16px', color: NAVY, fontWeight: 600, borderTop: i ? `1px solid ${BL}` : 'none' }}>{c.size}</td>
+                    {short && <td style={{ padding: '11px 16px', color: MUTED, borderTop: i ? `1px solid ${BL}` : 'none' }}>{c.crew}, {c.hours} h</td>}
                     <td style={{ padding: '11px 16px', color: MUTED, borderTop: i ? `1px solid ${BL}` : 'none' }}>{usd(c.low)} – {usd(c.high)}</td>
                   </tr>
                 ))}
@@ -126,8 +141,17 @@ export default function RoutePage() {
             </table>
           </div>
           <p style={{ ...pStyle, fontSize: 13.5 }}>
-            Estimates based on <a href={COST_SOURCE.url} target="_blank" rel="noopener noreferrer" style={ext}>{COST_SOURCE.name}</a>, rounded to the nearest $100.
-            Some home sizes and distances were interpolated from neighbouring figures. These are not MoveLeads quotes; your mover prices your actual move.
+            {short ? (
+              <>
+                Estimates use crew sizes, loading hours and hourly rates from the <a href={HOURLY_SOURCE.url} target="_blank" rel="noopener noreferrer" style={ext}>{HOURLY_SOURCE.name}</a>, plus the drive at the crew’s hourly rate, rounded to the nearest $100.
+                Some movers also charge travel time from their depot, or price longer in-state moves by weight. These are not MoveLeads quotes; your mover prices your actual move.
+              </>
+            ) : (
+              <>
+                Estimates based on <a href={COST_SOURCE.url} target="_blank" rel="noopener noreferrer" style={ext}>{COST_SOURCE.name}</a>, rounded to the nearest $100.
+                Some home sizes and distances were interpolated from neighbouring figures. These are not MoveLeads quotes; your mover prices your actual move.
+              </>
+            )}
           </p>
         </section>
 
@@ -135,7 +159,9 @@ export default function RoutePage() {
           <h2 style={h2Style}>What changes the price</h2>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {[
-              'Weight. Interstate movers price mostly by how much your belongings weigh and how far they go.',
+              short
+                ? 'Hours. Short moves are priced by crew size and time, so packing ahead and having everything ready cuts the bill.'
+                : 'Weight. Interstate movers price mostly by how much your belongings weigh and how far they go.',
               'Season. May to September is peak season and costs the most. October to April is usually cheaper.',
               'Timing. Weekdays and mid-month dates cost less than weekends and month-end. Booking 6 to 8 weeks ahead can save 10 to 20%.',
               'Extras. Packing, stairs, long carries from the truck, shuttle trucks and heavy items like pianos or safes add to the bill.',
@@ -168,10 +194,10 @@ export default function RoutePage() {
         <section style={{ marginBottom: 44 }}>
           <h2 style={h2Style}>Before you book a mover</h2>
           <ol style={{ paddingLeft: 22, margin: 0 }}>
-            <li style={liStyle}>Check the mover’s USDOT number on the FMCSA website. Interstate movers must have one.</li>
+            <li style={liStyle}>{short ? `Check the mover’s ${stateName} license or registration where required, and ask for proof of insurance.` : 'Check the mover’s USDOT number on the FMCSA website. Interstate movers must have one.'}</li>
             <li style={liStyle}>Ask for an in-home or video survey, not a phone guess. Estimates based on a real look at your home are more accurate.</li>
             <li style={liStyle}>Ask for a binding or not-to-exceed estimate so the price can’t jump on delivery day.</li>
-            <li style={liStyle}>Interstate movers must give you the FMCSA booklet “Your Rights and Responsibilities When You Move”. If they don’t, walk away.</li>
+            {!short && <li style={liStyle}>Interstate movers must give you the FMCSA booklet “Your Rights and Responsibilities When You Move”. If they don’t, walk away.</li>}
             <li style={liStyle}>Never pay a large deposit in cash. A big upfront demand is a common sign of a moving scam.</li>
           </ol>
         </section>
