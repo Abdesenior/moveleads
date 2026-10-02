@@ -5,7 +5,7 @@ import JsonLd from '../components/JsonLd';
 import NotFound from './NotFound';
 import { SITE_URL } from '../seo/routes';
 import {
-  ROUTE_PAGES, COST_SOURCE, SEASON_SOURCE, costRows, bandLabel, driveHours, cityLabel, usd, relatedRoutes,
+  ROUTE_PAGES, COST_SOURCE, SEASON_SOURCE, costRows, bandLabel, cityLabel, usd, relatedRoutes,
 } from '../seo/routePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
@@ -36,7 +36,7 @@ export default function RoutePage() {
   const { from, to, miles } = r;
   const rows = costRows(miles);
   const two = rows.find((c) => c.size === '2 bedrooms');
-  const hours = driveHours(miles);
+  const hours = r.hours;
   const quoteHref = `/get-quote?from=${from.zip}&to=${to.zip}`;
   const path = `/moving/${slug}`;
   const related = relatedRoutes(slug);
