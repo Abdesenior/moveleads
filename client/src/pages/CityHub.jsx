@@ -4,7 +4,7 @@ import MarketingLayout from '../components/MarketingLayout';
 import JsonLd from '../components/JsonLd';
 import NotFound from './NotFound';
 import { SITE_URL } from '../seo/routes';
-import { CITIES, cityRoutes, costRows, usd, cityLabel } from '../seo/routePages';
+import { CITIES, cityRoutes, routeCostRows, usd, cityLabel } from '../seo/routePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -68,7 +68,7 @@ export default function CityHub() {
           <h2 style={h2Style}>{dir === 'from' ? `Popular moves from ${c.name}` : `Popular moves to ${c.name}`}</h2>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, border: `1px solid ${BL}`, borderRadius: 12 }}>
             {routes.map((r, i) => {
-              const two = costRows(r.miles).find((x) => x.size === '2 bedrooms');
+              const two = routeCostRows(r).find((x) => x.size === '2 bedrooms');
               const other = dir === 'from' ? r.to : r.from;
               return (
                 <li key={r.slug} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '13px 16px', borderTop: i ? `1px solid ${BL}` : 'none' }}>

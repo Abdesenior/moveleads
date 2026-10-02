@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
-import { ROUTE_PAGES, costRows, usd } from '../seo/routePages';
+import { ROUTE_PAGES, routeCostRows, usd } from '../seo/routePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -44,7 +44,7 @@ export default function RoutesIndex() {
             </h2>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, border: `1px solid ${BL}`, borderRadius: 12 }}>
               {routes.map((r, i) => {
-                const two = costRows(r.miles).find((c) => c.size === '2 bedrooms');
+                const two = routeCostRows(r).find((c) => c.size === '2 bedrooms');
                 return (
                   <li key={r.slug} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '13px 16px', borderTop: i ? `1px solid ${BL}` : 'none' }}>
                     <Link to={`/moving/${r.slug}`} style={{ color: '#ea580c', fontWeight: 700, textDecoration: 'none' }}>
