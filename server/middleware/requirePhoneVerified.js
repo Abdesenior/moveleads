@@ -7,8 +7,6 @@
  * production we apply this to every chokepoint that ends in money,
  * marketplace participation, or onboarding completion:
  *
- *   - POST /api/billing/create-payment-intent     (activation pay)
- *   - POST /api/billing/create-topup-intent       (any top-up)
  *   - POST /api/onboarding/complete               (mark wizard done)
  *   - POST /api/onboarding/save-step (step >= 4)  (advance past Contact)
  *   - PATCH /api/users/me/sms-claim               (opt-in to SMS Claim)
@@ -24,6 +22,9 @@
  * mover-friendly; the code is the machine handle.
  *
  * What this does NOT gate:
+ *   - /api/billing/create-payment-intent + /api/billing/create-topup-intent
+ *     Removed 2026-10-02: adding balance no longer needs a verified phone,
+ *     so movers can fund their wallet while Twilio Verify is unavailable.
  *   - /api/billing/verify-payment-intent + /api/billing/verify-topup-intent
  *     If Stripe already charged the card, we MUST credit the balance.
  *     Re-checking phoneVerified here would create a foot-gun where a mover
