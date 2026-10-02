@@ -17,6 +17,24 @@ const pStyle = { fontSize: 16.5, lineHeight: 1.75, color: MUTED, margin: '0 0 14
 const liStyle = { fontSize: 16, lineHeight: 1.7, color: MUTED, marginBottom: 8 };
 const linkStyle = { color: '#ea580c', fontWeight: 700, textDecoration: 'none' };
 
+// Calls to action by audience: movers sign up, homeowners request a quote.
+const CTAS = {
+  mover: {
+    to: '/register',
+    label: 'Create a free mover account',
+    title: 'Start getting moving leads',
+    text: 'Free to join. No subscription, no contract. Pay only for the leads you claim.',
+    links: [{ to: '/pricing', label: 'See pricing' }, { to: '/for-movers', label: 'How it works' }],
+  },
+  homeowner: {
+    to: '/get-quote',
+    label: 'Get my free moving quote',
+    title: 'Get a free moving quote',
+    text: 'Takes about 60 seconds. We match you with a licensed moving partner, so you don’t get calls from a dozen companies.',
+    links: [{ to: '/moving-cost-calculator', label: 'Moving cost calculator' }, { to: '/moving', label: 'Costs by route' }],
+  },
+};
+
 function Table({ table }) {
   return (
     <div style={{ overflowX: 'auto', margin: '6px 0 14px', border: `1px solid ${BL}`, borderRadius: 12 }}>
@@ -98,6 +116,7 @@ export default function SeoLanding() {
   const page = B2B_PAGES[path];
   if (!page) return <NotFound />;
 
+  const cta = CTAS[page.audience || 'mover'];
   const parent = page.parent && B2B_PAGES[page.parent];
   const crumbs = [{ name: 'Home', path: '/' }];
   if (parent) crumbs.push({ name: parent.breadcrumb, path: page.parent });
@@ -134,8 +153,8 @@ export default function SeoLanding() {
           <p style={{ fontSize: 12, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 1.8, margin: '0 0 12px' }}>{page.eyebrow}</p>
           <h1 style={{ fontFamily: F, fontSize: 'clamp(30px, 5vw, 44px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#fff', lineHeight: 1.12, margin: '0 0 18px' }}>{page.h1}</h1>
           <p style={{ fontSize: 18, lineHeight: 1.7, color: 'rgba(255,255,255,0.78)', margin: '0 0 28px' }}>{page.answer}</p>
-          <Link to="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: ORANGE, color: '#fff', padding: '14px 26px', borderRadius: 12, fontWeight: 700, textDecoration: 'none' }}>
-            Create a free mover account <ArrowRight size={18} />
+          <Link to={cta.to} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: ORANGE, color: '#fff', padding: '14px 26px', borderRadius: 12, fontWeight: 700, textDecoration: 'none' }}>
+            {cta.label} <ArrowRight size={18} />
           </Link>
         </div>
       </header>
@@ -154,13 +173,13 @@ export default function SeoLanding() {
         </section>
 
         <section style={{ background: '#fff7ed', border: '1px solid rgba(249,115,22,0.18)', borderRadius: 18, padding: '32px 28px', textAlign: 'center', marginBottom: 56 }}>
-          <h2 style={{ ...h2Style, marginBottom: 10 }}>Start getting moving leads</h2>
-          <p style={{ ...pStyle, marginBottom: 20 }}>Free to join. No subscription, no contract. Pay only for the leads you claim.</p>
-          <Link to="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: ORANGE, color: '#fff', padding: '14px 26px', borderRadius: 12, fontWeight: 700, textDecoration: 'none' }}>
-            Create a free mover account <ArrowRight size={18} />
+          <h2 style={{ ...h2Style, marginBottom: 10 }}>{cta.title}</h2>
+          <p style={{ ...pStyle, marginBottom: 20 }}>{cta.text}</p>
+          <Link to={cta.to} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: ORANGE, color: '#fff', padding: '14px 26px', borderRadius: 12, fontWeight: 700, textDecoration: 'none' }}>
+            {cta.label} <ArrowRight size={18} />
           </Link>
           <p style={{ fontSize: 14, color: MUTED, margin: '16px 0 0' }}>
-            <Link to="/pricing" style={linkStyle}>See pricing</Link> · <Link to="/for-movers" style={linkStyle}>How it works</Link>
+            {cta.links.map((l, i) => <span key={l.to}>{i > 0 && ' · '}<Link to={l.to} style={linkStyle}>{l.label}</Link></span>)}
           </p>
         </section>
       </main>

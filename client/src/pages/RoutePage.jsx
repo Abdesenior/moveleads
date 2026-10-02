@@ -200,6 +200,8 @@ export default function RoutePage() {
               <li style={liStyle}><Link to={`/moving-from/${r.fromKey}`} style={linkStyle}>All moves from {from.name}</Link></li>
               <li style={liStyle}><Link to={`/moving-to/${r.toKey}`} style={linkStyle}>All moves to {to.name}</Link></li>
               <li style={liStyle}><Link to="/moving-cost-calculator" style={linkStyle}>Moving cost calculator</Link></li>
+              <li style={liStyle}><Link to="/resources/moving-scams" style={linkStyle}>How to avoid moving scams</Link></li>
+              <li style={liStyle}><Link to="/resources/moving-checklist" style={linkStyle}>Moving checklist</Link></li>
               <li style={liStyle}><Link to="/moving" style={linkStyle}>All moving routes</Link></li>
             </ul>
           </section>
