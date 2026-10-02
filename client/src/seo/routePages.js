@@ -5,6 +5,8 @@
 // Cost ranges are ESTIMATES derived from published 2026 industry data
 // (COST_SOURCE). Never present them as MoveLeads quotes.
 
+import { ROUTE_DISTANCES } from './routeDistances.js';
+
 export const COST_SOURCE = {
   name: 'myGoodMovers 2026 long-distance moving cost data',
   url: 'https://mygoodmovers.com/moving-guide/long-distance-moving-cost',
@@ -95,9 +97,38 @@ export const CITIES = {
     note: 'Boise has grown quickly, so good movers book up in summer. Winters bring snow, and mountain routes into Idaho can slow deliveries.' },
   tucson: { name: 'Tucson', state: 'AZ', zip: '85701', tax: false,
     note: 'Tucson summers are extremely hot. Book an early-morning unload and move heat-sensitive items in your car.' },
+  'fort-lauderdale': { name: 'Fort Lauderdale', state: 'FL', zip: '33301', tax: true,
+    note: 'Florida has no state income tax. Many Fort Lauderdale condos require a certificate of insurance (COI) from your mover and a reserved elevator. Hurricane season runs June 1 to November 30.' },
+  'fort-myers': { name: 'Fort Myers', state: 'FL', zip: '33901', tax: true,
+    note: 'Florida has no state income tax. Fort Myers is on the Gulf Coast, where hurricane season runs June 1 to November 30, so keep late-summer move dates flexible.' },
+  pensacola: { name: 'Pensacola', state: 'FL', zip: '32502', tax: true,
+    note: 'Florida has no state income tax. Pensacola sits on the Gulf Coast in the Florida Panhandle, and hurricane season runs June 1 to November 30.' },
+  'daytona-beach': { name: 'Daytona Beach', state: 'FL', zip: '32114', tax: true,
+    note: 'Florida has no state income tax. Daytona Beach gets very busy during major race weeks and events, which can affect traffic and hotel availability. Hurricane season runs June 1 to November 30.' },
+  'fort-worth': { name: 'Fort Worth', state: 'TX', zip: '76102', tax: true,
+    note: 'Texas has no state income tax. Fort Worth is part of the spread-out Dallas–Fort Worth area, so give your mover your exact address for an accurate estimate. Summers are very hot.' },
+  'el-paso': { name: 'El Paso', state: 'TX', zip: '79901', tax: true,
+    note: 'Texas has no state income tax. El Paso is in the far west of Texas, a long drive from the rest of the state, and its summers are hot and dry.' },
+  memphis: { name: 'Memphis', state: 'TN', zip: '38103', tax: true,
+    note: 'Tennessee has no state income tax on wages. Memphis summers are hot and humid, so plan early-morning loading.' },
+  'new-orleans': { name: 'New Orleans', state: 'LA', zip: '70112', tax: false,
+    note: 'Many New Orleans streets are narrow, and some neighborhoods need a parking permit for a moving truck. Hurricane season runs June 1 to November 30.' },
+  'baton-rouge': { name: 'Baton Rouge', state: 'LA', zip: '70801', tax: false,
+    note: 'Baton Rouge summers are hot and humid, and hurricane season runs June 1 to November 30. LSU move-in weeks are busy, so book early in August.' },
+  'virginia-beach': { name: 'Virginia Beach', state: 'VA', zip: '23451', tax: false,
+    note: 'Virginia Beach has a large military community, and summer is the busiest season for military moves, so book early. Hurricane season can bring storms in late summer and fall.' },
+  buffalo: { name: 'Buffalo', state: 'NY', zip: '14202', tax: false,
+    note: 'Buffalo gets heavy lake-effect snow in winter, which can delay moving trucks. Late spring to early fall is the easiest time to move.' },
+  omaha: { name: 'Omaha', state: 'NE', zip: '68102', tax: false,
+    note: 'Omaha winters are cold and snowy, and spring can bring severe storms. Late spring and early fall are the most comfortable times to move.' },
+  tulsa: { name: 'Tulsa', state: 'OK', zip: '74103', tax: false,
+    note: 'Spring is severe-weather and tornado season in Tulsa, so keep your moving date flexible in April and May.' },
+  birmingham: { name: 'Birmingham', state: 'AL', zip: '35203', tax: false,
+    note: 'Birmingham summers are hot and humid, and spring can bring severe storms. Some neighborhoods are hilly, so mention steep driveways when you get quotes.' },
 };
 
-// [from, to, approximate driving miles]
+// Hand-picked popular routes [from, to, legacy miles]. Distances now come
+// from routeDistances.js (OSRM driving data); the third value is unused.
 const ROUTES = [
   ['new-york', 'miami', 1280],
   ['new-york', 'los-angeles', 2790],
@@ -265,13 +296,33 @@ export const cityLabel = (c) => `${c.name}, ${c.state}`;
 
 export const routeSlug = (from, to) => `${from}-to-${to}`;
 
-// Every route in both directions.
-const ALL_ROUTES = ROUTES.flatMap(([from, to, miles]) => [[from, to, miles], [to, from, miles]]);
+// Priority hubs (where MoveLeads movers and leads concentrate): every hub
+// gets a route page to and from every other city on the site.
+export const HUBS = ['orlando', 'jacksonville', 'tampa', 'miami', 'fort-lauderdale', 'houston', 'dallas', 'san-antonio', 'austin', 'atlanta'];
+export const MIN_ROUTE_MILES = 250;
+
+const pairKey = (a, b) => [a, b].sort().join('|');
+
+// Unordered city pairs that should get route pages (before the distance filter).
+export function candidatePairs() {
+  const seen = new Map();
+  const add = (a, b) => { if (a !== b) seen.set(pairKey(a, b), [a, b]); };
+  ROUTES.forEach(([a, b]) => add(a, b));
+  HUBS.forEach((h) => Object.keys(CITIES).forEach((c) => add(h, c)));
+  return [...seen.values()];
+}
+
+// Every qualifying pair, in both directions, with OSRM driving miles/hours.
+const ALL_ROUTES = candidatePairs().flatMap(([a, b]) => {
+  const d = ROUTE_DISTANCES[pairKey(a, b)];
+  if (!d || d[0] < MIN_ROUTE_MILES) return [];
+  return [[a, b, d[0], d[1]], [b, a, d[0], d[1]]];
+});
 
 export const ROUTE_PAGES = Object.fromEntries(
-  ALL_ROUTES.map(([from, to, miles]) => [
+  ALL_ROUTES.map(([from, to, miles, hours]) => [
     routeSlug(from, to),
-    { fromKey: from, toKey: to, from: CITIES[from], to: CITIES[to], miles },
+    { fromKey: from, toKey: to, from: CITIES[from], to: CITIES[to], miles, hours },
   ]),
 );
 
@@ -334,13 +385,13 @@ export const CITY_HUB_SEO = Object.fromEntries(
 );
 
 // City coordinates (from each city's ZIP) for the cost calculator.
-const COORDS = {"new-york":[40.7484,-73.9967],"miami":[25.7672,-80.2059],"los-angeles":[34.0614,-118.2385],"atlanta":[33.7525,-84.3888],"charlotte":[35.229,-80.8419],"austin":[30.2713,-97.7426],"phoenix":[33.4557,-112.0686],"las-vegas":[36.1721,-115.1224],"seattle":[47.6114,-122.3305],"denver":[39.7491,-104.9946],"san-francisco":[37.7725,-122.4147],"chicago":[41.8858,-87.6181],"dallas":[32.7904,-96.8044],"nashville":[36.1504,-86.7916],"boston":[42.3576,-71.0684],"tampa":[27.9614,-82.4597],"philadelphia":[39.9513,-75.1741],"orlando":[28.5399,-81.3727],"washington":[38.9122,-77.0177],"raleigh":[35.7727,-78.6324],"houston":[29.7594,-95.3594],"san-diego":[32.7185,-117.1593],"portland":[45.5181,-122.6745],"salt-lake-city":[40.7559,-111.8967],"minneapolis":[44.9835,-93.2683],"detroit":[42.3333,-83.0484],"san-antonio":[29.4237,-98.4925],"jacksonville":[30.3299,-81.6517],"columbus":[39.9671,-83.0044],"indianapolis":[39.772,-86.1535],"kansas-city":[39.1052,-94.5699],"st-louis":[38.6346,-90.1913],"pittsburgh":[40.4477,-79.9933],"baltimore":[39.2998,-76.6075],"sacramento":[38.5804,-121.4922],"albuquerque":[35.0818,-106.6482],"oklahoma-city":[35.4726,-97.5199],"boise":[43.6322,-116.2052],"tucson":[32.2139,-110.9694]};
+export const COORDS = {"new-york":[40.7484,-73.9967],"miami":[25.7672,-80.2059],"los-angeles":[34.0614,-118.2385],"atlanta":[33.7525,-84.3888],"charlotte":[35.229,-80.8419],"austin":[30.2713,-97.7426],"phoenix":[33.4557,-112.0686],"las-vegas":[36.1721,-115.1224],"seattle":[47.6114,-122.3305],"denver":[39.7491,-104.9946],"san-francisco":[37.7725,-122.4147],"chicago":[41.8858,-87.6181],"dallas":[32.7904,-96.8044],"nashville":[36.1504,-86.7916],"boston":[42.3576,-71.0684],"tampa":[27.9614,-82.4597],"philadelphia":[39.9513,-75.1741],"orlando":[28.5399,-81.3727],"washington":[38.9122,-77.0177],"raleigh":[35.7727,-78.6324],"houston":[29.7594,-95.3594],"san-diego":[32.7185,-117.1593],"portland":[45.5181,-122.6745],"salt-lake-city":[40.7559,-111.8967],"minneapolis":[44.9835,-93.2683],"detroit":[42.3333,-83.0484],"san-antonio":[29.4237,-98.4925],"jacksonville":[30.3299,-81.6517],"columbus":[39.9671,-83.0044],"indianapolis":[39.772,-86.1535],"kansas-city":[39.1052,-94.5699],"st-louis":[38.6346,-90.1913],"pittsburgh":[40.4477,-79.9933],"baltimore":[39.2998,-76.6075],"sacramento":[38.5804,-121.4922],"albuquerque":[35.0818,-106.6482],"oklahoma-city":[35.4726,-97.5199],"boise":[43.6322,-116.2052],"tucson":[32.2139,-110.9694],"fort-lauderdale":[26.1216,-80.1288],"fort-myers":[26.6204,-81.8725],"pensacola":[30.4095,-87.2229],"daytona-beach":[29.2012,-81.0371],"fort-worth":[32.7589,-97.328],"el-paso":[31.7584,-106.4783],"memphis":[35.144,-90.048],"new-orleans":[29.9605,-90.0753],"baton-rouge":[30.4492,-91.1856],"virginia-beach":[36.8585,-76.0019],"buffalo":[42.887,-78.8779],"omaha":[41.259,-95.9409],"tulsa":[36.1539,-95.9954],"birmingham":[33.521,-86.8066]};
 
 // Road miles ≈ straight-line distance × 1.18 (the median ratio across our
 // hand-checked routes). Known routes use their own figure.
 export function estimateMiles(fromKey, toKey) {
-  const known = ROUTE_PAGES[routeSlug(fromKey, toKey)];
-  if (known) return { miles: known.miles, exact: true };
+  const known = ROUTE_DISTANCES[pairKey(fromKey, toKey)];
+  if (known) return { miles: known[0], exact: true };
   const [a, b] = [COORDS[fromKey], COORDS[toKey]];
   if (!a || !b) return null;
   const rad = (x) => (x * Math.PI) / 180;
