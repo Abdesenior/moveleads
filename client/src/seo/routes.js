@@ -15,23 +15,23 @@ const DEFAULT_DESCRIPTION =
 // Indexable public pages. `changefreq`/`priority` feed the sitemap.
 export const INDEXABLE_ROUTES = {
   '/': {
-    title: 'Verified Moving Leads for Moving Companies, from $10 | MoveLeads',
+    title: 'Moving Leads for Moving Companies from $10, One Buyer | MoveLeads',
     description:
       'Buy screened, graded moving leads one at a time, from $10. Single-buyer by default, no subscription, no contract. Homeowners: get a free moving quote.',
     changefreq: 'weekly',
     priority: 1.0,
   },
   '/for-movers': {
-    title: 'Moving Company Lead Generation: How MoveLeads Works',
+    title: 'Moving Company Leads: How MoveLeads Works for Movers',
     description:
-      'Every lead is phone-checked, scored and priced before you see it. Get instant SMS alerts for moves in your service area and pay only for the leads you claim.',
+      'Moving company leads that are screened, graded and priced before you see them. Instant SMS alerts for your service area; pay only for the leads you claim.',
     changefreq: 'weekly',
     priority: 0.9,
   },
   '/pricing': {
     title: 'Moving Lead Pricing: Pay per Lead from $10, No Subscription | MoveLeads',
     description:
-      'Moving leads from $10. Price scales with home size, distance and move date, and you see it before you buy. No monthly fee, no contract, balance never expires.',
+      'Moving leads from $10: local $10–$25, long distance from $18–$35, max $150. You see the price before you buy. No monthly fee, no contract.',
     changefreq: 'monthly',
     priority: 0.9,
   },

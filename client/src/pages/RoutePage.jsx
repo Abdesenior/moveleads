@@ -4,8 +4,9 @@ import MarketingLayout from '../components/MarketingLayout';
 import JsonLd from '../components/JsonLd';
 import NotFound from './NotFound';
 import { SITE_URL } from '../seo/routes';
+import { ROUTE_HIGHWAYS } from '../seo/routeHighways';
 import {
-  ROUTE_PAGES, COST_SOURCE, HOURLY_SOURCE, SEASON_SOURCE, routeCostRows, bandLabel, cityLabel, usd, relatedRoutes,
+  ROUTE_PAGES, COST_SOURCE, HOURLY_SOURCE, SEASON_SOURCE, routeCostRows, bandLabel, cityLabel, usd, relatedRoutes, timeZoneNote,
 } from '../seo/routePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
@@ -43,6 +44,10 @@ export default function RoutePage() {
   const path = `/moving/${slug}`;
   const related = relatedRoutes(slug);
   const milesText = miles.toLocaleString('en-US');
+  const roads = [...new Set((ROUTE_HIGHWAYS[[r.fromKey, r.toKey].sort().join('|')] || '')
+    .split(/[,;]/).map((x) => x.trim()).filter(Boolean))].slice(0, 3);
+  const highways = roads.length > 1 ? `${roads.slice(0, -1).join(', ')} and ${roads.at(-1)}` : roads[0] || '';
+  const tzNote = timeZoneNote(r.fromKey, r.toKey);
 
   const taxLine = to.tax && !from.tax
     ? `${to.state === 'TX' ? 'Texas' : to.state === 'FL' ? 'Florida' : to.state === 'NV' ? 'Nevada' : to.state === 'WA' ? 'Washington' : 'Tennessee'} has no state income tax on wages, which is one reason this is a popular route.`
@@ -153,6 +158,23 @@ export default function RoutePage() {
               </>
             )}
           </p>
+        </section>
+
+        <section style={{ marginBottom: 44 }}>
+          <h2 style={h2Style}>The drive from {from.name} to {to.name}</h2>
+          <p style={pStyle}>
+            The route is about {milesText} miles and takes roughly {hours} hours of driving
+            {highways ? `, mostly on ${highways}` : ''}.
+            {' '}{tzNote}
+          </p>
+          <p style={pStyle}>
+            {short
+              ? 'On a move this short the crew usually loads and delivers the same day or the next, so plan to reach the new home before the truck to unlock and direct the unload.'
+              : hours >= 10
+                ? 'If you drive yourself while the movers take your belongings, plan at least one overnight stop, and agree on a delivery date or window so someone is there to unload.'
+                : 'You will likely arrive before your belongings. Interstate movers give a delivery window in writing, so make sure someone can be at the new home when the truck arrives.'}
+          </p>
+          <p style={{ ...pStyle, fontSize: 13.5 }}>Distance, drive time and highways from OpenStreetMap road data (OSRM).</p>
         </section>
 
         <section style={{ marginBottom: 44 }}>

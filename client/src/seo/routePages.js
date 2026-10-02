@@ -459,3 +459,28 @@ export function costMatrix() {
     })),
   };
 }
+
+// Time zones (standard UTC offset). Arizona does not observe daylight saving.
+const ZONES = {
+  Eastern: ['new-york', 'miami', 'atlanta', 'charlotte', 'boston', 'tampa', 'philadelphia', 'orlando', 'washington', 'raleigh', 'detroit', 'jacksonville', 'columbus', 'indianapolis', 'pittsburgh', 'baltimore', 'fort-lauderdale', 'fort-myers', 'daytona-beach', 'virginia-beach', 'buffalo'],
+  Central: ['chicago', 'dallas', 'nashville', 'houston', 'austin', 'san-antonio', 'minneapolis', 'kansas-city', 'st-louis', 'oklahoma-city', 'pensacola', 'fort-worth', 'memphis', 'new-orleans', 'baton-rouge', 'omaha', 'tulsa', 'birmingham'],
+  Mountain: ['denver', 'salt-lake-city', 'albuquerque', 'boise', 'el-paso', 'phoenix', 'tucson'],
+  Pacific: ['los-angeles', 'las-vegas', 'seattle', 'san-francisco', 'san-diego', 'portland', 'sacramento'],
+};
+const OFFSET = { Eastern: -5, Central: -6, Mountain: -7, Pacific: -8 };
+const ARIZONA = new Set(['phoenix', 'tucson']);
+export const cityZone = (key) => Object.keys(ZONES).find((z) => ZONES[z].includes(key));
+
+// Plain-English time zone change for a move, or null when there is none.
+export function timeZoneNote(fromKey, toKey) {
+  const a = cityZone(fromKey);
+  const b = cityZone(toKey);
+  if (!a || !b) return null;
+  const az = ARIZONA.has(fromKey) || ARIZONA.has(toKey)
+    ? ' Arizona does not observe daylight saving time, so from March to November it matches Pacific time.'
+    : '';
+  if (a === b) return az ? `Both cities are on ${a} standard time.${az}` : null;
+  const diff = OFFSET[b] - OFFSET[a];
+  const hrs = Math.abs(diff) === 1 ? '1 hour' : `${Math.abs(diff)} hours`;
+  return `You move from ${a} to ${b} time, so you ${diff > 0 ? 'lose' : 'gain'} ${hrs}.${az}`;
+}

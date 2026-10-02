@@ -333,7 +333,7 @@ export default function Partners() {
           <div className="hero-grid">
             <div>
               <h1 className="hero-h">
-                Stop wasting dispatcher time on quote requests that <span className="accent">never answer.</span>
+                Moving leads for your crews: real customers, <span className="accent">pay as you go.</span>
               </h1>
               <p className="hero-sub">
                 See real customers actively looking for movers in your service area. Unlock the jobs you want, call customers fast, and keep your crews booked.
