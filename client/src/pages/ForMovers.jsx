@@ -140,11 +140,11 @@ export default function ForMovers() {
               Powered by Twilio · Stripe · WebSockets
             </div>
             <h1 className="fm-hero-h1">
-              Stop Paying for<br />
-              <span className="fm-h1-accent">Fake Leads.</span>
+              Moving company leads,{' '}<br />
+              <span className="fm-h1-accent">not fake leads.</span>
             </h1>
             <p className="fm-hero-sub">
-              100% phone-verified moving leads delivered in real-time. Only pay when you claim. No monthly fees. Cancel any time.
+              Screened moving leads delivered in real time by SMS, email and dashboard. Only pay when you claim. No monthly fees. Cancel any time.
             </p>
 
             <ul className="fm-hero-checks">
@@ -302,7 +302,7 @@ export default function ForMovers() {
               <p className="fm-section-eyebrow fm-eyebrow--orange">Live market data</p>
               <h2 className="fm-section-h2 fm-h2--white">See the money you're leaving on the table</h2>
               <p className="fm-widget-desc">
-                Type in any zip code and see exactly how many phone-verified moving leads we generated there this week. Real numbers, real demand — right now.
+                Type in any zip code and see exactly how many screened moving leads we generated there this week. Real numbers, real demand — right now.
               </p>
               <ul className="fm-widget-bullets">
                 <li><CheckCircle size={15} /><span>Data pulled live from our database</span></li>

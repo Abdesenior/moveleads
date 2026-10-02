@@ -112,10 +112,10 @@ export default function Pricing() {
               <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', textTransform: 'uppercase', letterSpacing: 1.8 }}>Pricing</span>
             </div>
             <h1 style={{ fontFamily: F, fontSize: 48, fontWeight: 800, color: '#fff', letterSpacing: '-0.04em', marginBottom: 16, lineHeight: 1.1 }}>
-              Simple, transparent<br />pricing
+              Moving lead pricing:{' '}<br />pay per lead from $10
             </h1>
             <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.62)', lineHeight: 1.7, marginBottom: 36, maxWidth: 520, margin: '0 auto 36px' }}>
-              Pay only for the leads you want. No subscriptions. No contracts. No hidden fees.
+              Local moving leads cost $10 to $25. Long-distance leads start at $18 to $35 and never exceed $150. You see the price before you buy. No subscription, no contract.
             </p>
             <Link to="/register" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,

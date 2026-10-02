@@ -165,13 +165,13 @@ export default function Landing() {
             </Reveal>
             <Reveal delay={0.07}>
               <h1 className="lp-hero-h1" style={{ fontFamily: F, fontWeight: 800, lineHeight: 1.07, letterSpacing: '-0.03em', color: '#fff', marginBottom: 20 }}>
-                Verified moving leads.<br />
-                <span style={{ color: ORANGE }}>Close more deals.</span>
+                Moving leads for moving companies.{' '}<br />
+                <span style={{ color: ORANGE }}>From $10, one buyer.</span>
               </h1>
             </Reveal>
             <Reveal delay={0.14}>
               <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.5)', lineHeight: 1.75, marginBottom: 34, maxWidth: 460 }}>
-                Stop buying recycled lists. Get exclusive, high-intent leads delivered to your dashboard in real time — pay only for what you buy.
+                Buy moving leads one at a time. Each lead is screened, graded and priced before you see it, and by default only the first mover to claim it can buy it. No subscription, no contract.
               </p>
             </Reveal>
             <Reveal delay={0.2}>
@@ -287,7 +287,7 @@ export default function Landing() {
           </Reveal>
           <div className="lp-features-grid">
             {[
-              { icon: <Shield size={20} />, c: '#22c55e', bg: '#f0fdf4', bc: 'rgba(34,197,94,0.14)', title: 'Verified Quality', desc: 'Every lead is phone-verified and high-intent. Real people, real moves — no bots, no spam.' },
+              { icon: <Shield size={20} />, c: '#22c55e', bg: '#f0fdf4', bc: 'rgba(34,197,94,0.14)', title: 'Verified Quality', desc: 'Every lead is screened and graded before you see it. Wrong number? Report it within 24 hours for a credit.' },
               { icon: <Zap size={20} />, c: '#3b82f6', bg: '#eff6ff', bc: 'rgba(59,130,246,0.14)', title: 'Real-Time Delivery', desc: 'Leads hit your dashboard in seconds. Be the first to call and win every job.' },
               { icon: <BarChart2 size={20} />, c: ORANGE, bg: '#fff7ed', bc: 'rgba(249,115,22,0.14)', title: 'Full Analytics', desc: 'Track your conversion rate, ROI, and pipeline from one clean dashboard.' },
               { icon: <MapPin size={20} />, c: '#8b5cf6', bg: '#f5f3ff', bc: 'rgba(139,92,246,0.14)', title: 'Location Filters', desc: 'Filter by zip, city, or radius. Only see leads in your actual service area.' },
