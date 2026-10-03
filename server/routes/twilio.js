@@ -61,7 +61,15 @@ function broadcastLeadSold(lead, buyerId) {
  * Skipped when TWILIO_AUTH_TOKEN is absent (dev / mock mode).
  */
 function twilioWebhook(req, res, next) {
-  if (!process.env.TWILIO_AUTH_TOKEN) return next();
+  if (!process.env.TWILIO_AUTH_TOKEN) {
+    // Fail closed in production: without the token we cannot verify the
+    // request came from Twilio, and these webhooks can move money.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[twilioWebhook] TWILIO_AUTH_TOKEN is not set — rejecting unsigned webhook');
+      return res.status(403).send('Forbidden');
+    }
+    return next();
+  }
 
   const url = `${process.env.SERVER_URL || 'https://moveleads.cloud'}${req.originalUrl}`;
   const valid = validateRequest(
