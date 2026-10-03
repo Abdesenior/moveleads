@@ -1,0 +1,30 @@
+name: Uptime check
+
+# Every 15 minutes, check the website, the API and the database. A failed run
+# makes GitHub email the repo owner, so an outage (like the September billing
+# lapse) is noticed within minutes instead of days.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Website (Cloudflare)
+        run: |
+          for path in / /get-quote /moving-leads; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --retry 2 --retry-delay 10 "https://moveleads.cloud$path")
+            echo "moveleads.cloud$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::Website $path returned $code"; exit 1; }
+          done
+
+      - name: API and database (Render + MongoDB Atlas)
+        run: |
+          # Render can take ~30s to wake, so allow a long first request.
+          body=$(curl -s --max-time 60 --retry 2 --retry-delay 10 https://api.moveleads.cloud/api/health || true)
+          echo "$body"
+          echo "$body" | grep -q '"status":"ok"' || { echo "::error::API health check failed"; exit 1; }
+          echo "$body" | grep -q '"database":"connected"' || { echo "::error::Database is not connected"; exit 1; }
