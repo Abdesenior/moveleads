@@ -170,7 +170,7 @@ export const STATE_PAIR_SEO = Object.fromEntries(
     const two = p.rows.find((c) => c.size === '2 bedrooms');
     return [`/moving/${p.slug}`, {
       title: pairTitle(p),
-      description: `Moving from ${p.from.name} to ${p.to.name}? A 2-bedroom move of about ${p.miles.toLocaleString('en-US')} miles costs ${usd(two.low)}–${usd(two.high)}. Costs by city and home size, cheapest options and free quotes.`,
+      description: `Moving from ${p.from.name} to ${p.to.name}? A 2-bedroom move of about ${p.miles.toLocaleString('en-US')} miles costs ${usd(two.low)}–${usd(two.high)}. Costs by city, cheapest options and free quotes.`,
       changefreq: 'monthly',
       priority: 0.8,
     }];
@@ -191,7 +191,7 @@ export const STATE_HUB_SEO = Object.fromEntries(
     const outOf = statePairsFor(key, 'from');
     if (into.length >= 2) {
       out.push([`/moving-to/${hubSlug(key)}`, {
-        title: `Moving to ${st.name}: Costs from ${into.length} States, Tips and Free Quotes`,
+        title: `Moving to ${st.name}: Costs, Tips and Free Quotes (2026)`,
         description: `What it costs to move to ${st.name} from ${into.slice(0, 3).map((p) => p.from.name).join(', ')} and more, plus taxes, weather and what to know before you move.`,
         changefreq: 'monthly',
         priority: 0.8,
