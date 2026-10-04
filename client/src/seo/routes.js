@@ -30,7 +30,7 @@ export const INDEXABLE_ROUTES = {
     priority: 0.9,
   },
   '/pricing': {
-    title: 'Moving Lead Pricing: Pay per Lead from $10, No Subscription | MoveLeads',
+    title: 'Moving Lead Prices from $10, No Subscription | MoveLeads',
     description:
       'Moving leads from $10: local $10–$25, long distance from $18–$35, max $150. You see the price before you buy. No monthly fee, no contract.',
     changefreq: 'monthly',
@@ -44,14 +44,14 @@ export const INDEXABLE_ROUTES = {
     priority: 1.0,
   },
   '/moving-leads/exclusive': {
-    title: 'Exclusive Moving Leads: One Mover per Customer, from $10 | MoveLeads',
+    title: 'Exclusive Moving Leads from $10, One Mover Each | MoveLeads',
     description:
       'Exclusive moving leads sold to one moving company only. First mover to claim buys it, no bidding war. From $10, no subscription.',
     changefreq: 'monthly',
     priority: 0.9,
   },
   '/moving-leads/long-distance': {
-    title: 'Long-Distance Moving Leads for Interstate Movers, from $18 | MoveLeads',
+    title: 'Long-Distance Moving Leads from $18, Pay per Lead | MoveLeads',
     description:
       'Interstate and cross-country moving leads matched to your pickup and delivery states. From $18 over 100 miles, $35 over 1,000 miles. Pay per lead.',
     changefreq: 'monthly',
@@ -65,7 +65,7 @@ export const INDEXABLE_ROUTES = {
     priority: 0.9,
   },
   '/moving-leads/commercial': {
-    title: 'Commercial Moving Leads: Office Moves from $10, One Buyer | MoveLeads',
+    title: 'Commercial Moving Leads: Office Moves from $10 | MoveLeads',
     description:
       'Office and commercial moving leads, labelled before you buy, sold to one mover by default. From $10, no subscription, no contract.',
     changefreq: 'monthly',
@@ -137,7 +137,7 @@ export const INDEXABLE_ROUTES = {
   '/resources/top-states-people-are-moving-to': {
     title: 'Top States People Are Moving To in 2026 (Census and Mover Data)',
     description:
-      'Where are people moving? North Carolina, Texas and South Carolina gained the most residents from other states. See the 2026 rankings, where Californians go and why.',
+      'Where are people moving? North Carolina, Texas and South Carolina gained the most residents from other states. See the 2026 rankings and where Californians go.',
     changefreq: 'monthly',
     priority: 0.8,
   },
@@ -158,7 +158,7 @@ export const INDEXABLE_ROUTES = {
   '/resources/speed-to-lead-for-movers': {
     title: 'Speed to Lead for Moving Companies: Call First, Book More',
     description:
-      'Why the first mover to call wins the job, and 5 ways to respond faster to moving leads.',
+      'Why the first mover to call a new moving lead usually wins the job, and 5 practical ways your crew can respond faster and book more moves.',
     changefreq: 'monthly',
     priority: 0.7,
   },
@@ -170,7 +170,7 @@ export const INDEXABLE_ROUTES = {
     priority: 0.9,
   },
   '/moving': {
-    title: 'Long-Distance Moving Costs by Route (2026) | MoveSmart by MoveLeads',
+    title: 'Long-Distance Moving Costs by Route (2026) | MoveLeads',
     description:
       'Distance, typical cost by home size and moving tips for popular US moving routes. Get a free quote for any long-distance move.',
     changefreq: 'weekly',
@@ -179,7 +179,7 @@ export const INDEXABLE_ROUTES = {
   '/moving/state-to-state': {
     title: 'State to State Movers: Cost of Moving to Another State (2026)',
     description:
-      'What moving to another state costs in 2026 by distance and home size, how interstate movers charge, the cheapest options and costs for 170+ state-to-state moves.',
+      'What moving to another state costs in 2026 by distance and home size, how interstate movers charge, cheapest options and costs for 170+ state-to-state moves.',
     changefreq: 'monthly',
     priority: 0.9,
   },
@@ -188,16 +188,16 @@ export const INDEXABLE_ROUTES = {
   ...STATE_PAIR_SEO,
   ...STATE_HUB_SEO,
   '/partners': {
-    title: 'Verified Move Requests for Moving Companies, Pay-as-You-Go | MoveLeads',
+    title: 'Verified Move Requests for Movers, Pay-as-You-Go | MoveLeads',
     description:
-      'See real customers requesting movers in your service area. Unlock only the moves you want, call first, and book more jobs. Pay-as-you-go credits, no subscription.',
+      'See real customers requesting movers in your service area. Unlock only the moves you want, call first and book more jobs. Pay-as-you-go, no subscription.',
     changefreq: 'monthly',
     priority: 0.8,
   },
   '/founding-movers': {
-    title: 'Founding Movers Program: Early Access to Verified Leads | MoveLeads',
+    title: 'Founding Movers: Early Access to Verified Leads | MoveLeads',
     description:
-      'Apply to join MoveLeads as a founding mover in your market and get early access to screened moving leads.',
+      'Apply to join MoveLeads as a founding mover in your market: early access to screened moving leads, pay per lead from $10, no subscription or contract.',
     changefreq: 'monthly',
     priority: 0.7,
   },
@@ -211,12 +211,12 @@ export const INDEXABLE_ROUTES = {
   '/widget-page': {
     title: 'Free Moving Quote Widget for Your Website | MoveLeads',
     description:
-      'Add a free quote form to your moving company website and capture more booking requests.',
+      'Add a free moving quote form to your moving company website. Capture more booking requests from your own visitors, with no coding needed.',
     changefreq: 'monthly',
     priority: 0.6,
   },
   '/founding-realtors': {
-    title: 'Realtor Partner Program: Trusted Movers for Your Clients | MoveLeads',
+    title: 'Realtor Partners: Trusted Movers for Your Clients | MoveLeads',
     description:
       'Connect your clients with trusted movers and earn from every referral. Apply to become a MoveLeads realtor partner.',
     changefreq: 'monthly',
@@ -232,13 +232,13 @@ export const INDEXABLE_ROUTES = {
   '/about': {
     title: 'About MoveLeads',
     description:
-      'MoveLeads connects people who are moving with verified moving companies, one checked lead at a time.',
+      'MoveLeads connects people who are moving with licensed moving companies, one screened lead at a time. Who we are, how it works and how we check leads.',
     changefreq: 'monthly',
     priority: 0.5,
   },
   '/contact': {
     title: 'Contact MoveLeads',
-    description: 'Questions about moving leads, billing or a quote request? Contact the MoveLeads team.',
+    description: 'Questions about moving leads, billing, your mover account or a moving quote request? Contact the MoveLeads team and we will get back to you.',
     changefreq: 'yearly',
     priority: 0.4,
   },

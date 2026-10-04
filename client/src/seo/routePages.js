@@ -567,7 +567,7 @@ export const CITY_HUB_SEO = Object.fromEntries(
     const to = cityRoutes(key, 'to');
     if (from.length) {
       out.push([`/moving-from/${key}`, {
-        title: `Moving from ${c.name}, ${c.state}: Costs to ${from.length} Popular Destinations`,
+        title: `Moving from ${c.name}, ${c.state}: Costs to ${from.length} Destinations`,
         description: `Distances and typical long-distance moving costs from ${c.name} to ${from.slice(0, 3).map((r) => r.to.name).join(', ')} and more. Get a free moving quote.`,
         changefreq: 'monthly',
         priority: 0.7,
