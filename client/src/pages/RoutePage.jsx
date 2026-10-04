@@ -80,7 +80,9 @@ export default function RoutePage() {
 
   const crumbs = [
     { name: 'Home', path: '/' },
-    { name: 'Moving routes', path: '/moving' },
+    ...(statePage
+      ? [{ name: 'State to state moving', path: '/moving/state-to-state' }, { name: `${statePage.from.name} to ${statePage.to.name}`, path: `/moving/${statePage.slug}` }]
+      : [{ name: 'Moving routes', path: '/moving' }]),
     { name: `${from.name} to ${to.name}`, path },
   ];
 

@@ -51,6 +51,14 @@ export default function MovingCostCalculator() {
     <MarketingLayout>
       <JsonLd schema={{
         '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://moveleads.cloud/' },
+          { '@type': 'ListItem', position: 2, name: 'Moving cost calculator', item: 'https://moveleads.cloud/moving-cost-calculator' },
+        ],
+      }} />
+      <JsonLd schema={{
+        '@context': 'https://schema.org',
         '@type': 'FAQPage',
         mainEntity: FAQ.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
       }} />
