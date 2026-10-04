@@ -527,10 +527,32 @@ function routeTitle(r, two) {
   return base.length <= 48 ? `${base} (2026 Cost)` : base.length <= 56 ? `${base} (2026)` : base;
 }
 
+// Title A/B test started 2026-10-04: these 20 priority routes use a plain
+// "Movers from X to Y" title; all other routes keep the price title.
+// See docs/seo/title-ab-test.md. Read results after 4 weeks.
+export const TITLE_TEST_SLUGS = new Set([
+  'dallas-to-austin', 'austin-to-dallas', 'houston-to-dallas', 'houston-to-austin',
+  'jacksonville-to-orlando', 'san-antonio-to-houston', 'dallas-to-houston', 'fort-worth-to-austin',
+  'austin-to-houston', 'san-antonio-to-austin', 'austin-to-san-antonio', 'los-angeles-to-las-vegas',
+  'los-angeles-to-san-diego', 'san-diego-to-los-angeles', 'los-angeles-to-phoenix', 'phoenix-to-san-diego',
+  'san-diego-to-phoenix', 'st-louis-to-chicago', 'kansas-city-to-st-louis', 'greenville-to-charleston',
+]);
+
 // SEO metadata for every route page, merged into INDEXABLE_ROUTES.
 export const ROUTE_SEO = Object.fromEntries(
   Object.entries(ROUTE_PAGES).map(([slug, r]) => {
     const two = routeCostRows(r).find((c) => c.size === '2 bedrooms');
+    if (TITLE_TEST_SLUGS.has(slug)) {
+      return [
+        `/moving/${slug}`,
+        {
+          title: `Movers from ${r.from.name} to ${r.to.name} | MoveLeads`,
+          description: `Get a free quote from a licensed mover for your ${r.from.name} to ${r.to.name} move. See typical costs by home size and the drive before you book.`,
+          changefreq: 'monthly',
+          priority: 0.8,
+        },
+      ];
+    }
     return [
       `/moving/${slug}`,
       {
