@@ -3,8 +3,10 @@ import { ArrowRight } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
 import JsonLd from '../components/JsonLd';
 import NotFound from './NotFound';
+import StateHub from './StateHub';
 import { SITE_URL } from '../seo/routes';
 import { CITIES, cityRoutes, routeCostRows, usd, cityLabel } from '../seo/routePages';
+import { stateFromHub, hasStateHub } from '../seo/statePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -18,6 +20,8 @@ export default function CityHub() {
   const { city } = useParams();
   const { pathname } = useLocation();
   const dir = pathname.startsWith('/moving-from/') ? 'from' : 'to';
+  const stateKey = stateFromHub(city);
+  if (stateKey && hasStateHub(city, dir)) return <StateHub stateKey={stateKey} dir={dir} />;
   const c = CITIES[city];
   const routes = c ? cityRoutes(city, dir) : [];
   if (!c || routes.length === 0) return <NotFound />;

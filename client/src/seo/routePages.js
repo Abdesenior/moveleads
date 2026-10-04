@@ -20,6 +20,9 @@ export const SEASON_SOURCE = {
   url: 'https://sirelo.com/house-moving/long-distance-moving-costs/',
 };
 
+// Full state names by postal code.
+export const STATE_NAMES = {AL:'Alabama', AZ:'Arizona', CA:'California', CO:'Colorado', CT:'Connecticut', DC:'Washington, D.C.', FL:'Florida', GA:'Georgia', ID:'Idaho', IL:'Illinois', IN:'Indiana', IA:'Iowa', KS:'Kansas', KY:'Kentucky', LA:'Louisiana', MA:'Massachusetts', MD:'Maryland', MI:'Michigan', MN:'Minnesota', MO:'Missouri', MT:'Montana', NC:'North Carolina', NE:'Nebraska', NJ:'New Jersey', NM:'New Mexico', NV:'Nevada', NY:'New York', OH:'Ohio', OK:'Oklahoma', OR:'Oregon', PA:'Pennsylvania', SC:'South Carolina', SD:'South Dakota', TN:'Tennessee', TX:'Texas', UT:'Utah', VA:'Virginia', WA:'Washington', WI:'Wisconsin', WY:'Wyoming'};
+
 // zip = a central ZIP, used to pre-fill the quote form (?from=&to=).
 // tax: true when the state has no personal income tax on wages.
 export const CITIES = {
@@ -129,6 +132,34 @@ export const CITIES = {
     note: 'Spring is severe-weather and tornado season in Tulsa, so keep your moving date flexible in April and May.' },
   birmingham: { name: 'Birmingham', state: 'AL', zip: '35203', tax: false,
     note: 'Birmingham summers are hot and humid, and spring can bring severe storms. Some neighborhoods are hilly, so mention steep driveways when you get quotes.' },
+  newark: { name: 'Newark', state: 'NJ', zip: '07102', tax: false,
+    note: 'New Jersey has some of the highest property taxes in the country, so compare total housing costs, not just rent or price. Many Newark and Jersey City apartment buildings ask for a certificate of insurance (COI) from your mover.' },
+  richmond: { name: 'Richmond', state: 'VA', zip: '23219', tax: false,
+    note: 'Richmond is about two hours from Washington, D.C., so many people moving from the D.C. area look here for lower housing costs. Older homes in the Fan and Museum District often have narrow stairs, so mention them when you get quotes.' },
+  charleston: { name: 'Charleston', state: 'SC', zip: '29401', tax: false,
+    note: 'Charleston is one of the fastest-growing areas in South Carolina. Hurricane season runs from June 1 to November 30, and parts of downtown have narrow streets where a full-size truck may need a permit or a smaller shuttle truck.' },
+  greenville: { name: 'Greenville', state: 'SC', zip: '29601', tax: false,
+    note: 'Greenville sits between Charlotte and Atlanta on I-85 and has grown fast thanks to manufacturing jobs. Housing costs are lower than in most large Southeast metros.' },
+  hartford: { name: 'Hartford', state: 'CT', zip: '06103', tax: false,
+    note: 'Hartford is about two hours from both Boston and New York City. Winters are snowy, so movers book up fast in late spring and summer.' },
+  louisville: { name: 'Louisville', state: 'KY', zip: '40202', tax: false,
+    note: 'Louisville has lower housing costs than most cities its size. Kentucky has a flat state income tax, and many older neighborhoods have narrow streets and tight stairways, so mention access when you get quotes.' },
+  milwaukee: { name: 'Milwaukee', state: 'WI', zip: '53202', tax: false,
+    note: 'Milwaukee is about 90 miles north of Chicago. Winters are cold and snowy, so a spring to fall move is easier. Many older homes have steep stairs, which movers may price as an extra.' },
+  'des-moines': { name: 'Des Moines', state: 'IA', zip: '50309', tax: false,
+    note: 'Des Moines has low housing costs and a large insurance and finance job market. Winters are cold, so plan around snow if you move between December and March.' },
+  wichita: { name: 'Wichita', state: 'KS', zip: '67202', tax: false,
+    note: 'Wichita is the largest city in Kansas and one of the more affordable housing markets in the country. Spring brings severe storms, so leave some room in your schedule.' },
+  'sioux-falls': { name: 'Sioux Falls', state: 'SD', zip: '57104', tax: true,
+    note: 'South Dakota has no state income tax on wages. Sioux Falls winters are long and cold, so most people prefer to move between April and October.' },
+  billings: { name: 'Billings', state: 'MT', zip: '59101', tax: false,
+    note: 'Billings is the largest city in Montana. Distances in the state are long, and winter weather on mountain passes can delay a truck, so build in extra delivery time from November to March.' },
+  cheyenne: { name: 'Cheyenne', state: 'WY', zip: '82001', tax: true,
+    note: 'Wyoming has no state income tax. Cheyenne is about 100 miles north of Denver on I-25, and strong winter winds on I-80 can close roads, so watch the forecast near your move date.' },
+  'colorado-springs': { name: 'Colorado Springs', state: 'CO', zip: '80903', tax: false,
+    note: 'Colorado Springs is about 70 miles south of Denver and home to several military bases. Some neighborhoods are hilly with steep driveways, so mention access when you get quotes.' },
+  boulder: { name: 'Boulder', state: 'CO', zip: '80302', tax: false,
+    note: 'Boulder has some of the highest housing costs in Colorado. Many streets near the university are narrow, and the city may require a permit to park a large moving truck.' },
 };
 
 // Hand-picked popular routes [from, to, legacy miles]. Distances now come
@@ -234,6 +265,97 @@ const ROUTES = [
   ['oklahoma-city', 'denver', 680],
   ['albuquerque', 'phoenix', 420],
   ['pittsburgh', 'charlotte', 440],
+  // Added Oct 2026 from Search Console and Semrush route demand.
+  ['boston', 'kansas-city', 0],
+  ['boulder', 'chicago', 0],
+  ['boulder', 'los-angeles', 0],
+  ['boulder', 'san-francisco', 0],
+  ['boulder', 'new-york', 0],
+  ['boulder', 'seattle', 0],
+  ['denver', 'albuquerque', 0],
+  ['denver', 'las-vegas', 0],
+  ['denver', 'kansas-city', 0],
+  ['denver', 'salt-lake-city', 0],
+  ['denver', 'omaha', 0],
+  ['denver', 'phoenix', 0],
+  ['denver', 'billings', 0],
+  ['denver', 'wichita', 0],
+  ['denver', 'des-moines', 0],
+  ['denver', 'louisville', 0],
+  ['denver', 'sioux-falls', 0],
+  ['denver', 'st-louis', 0],
+  ['denver', 'minneapolis', 0],
+  ['denver', 'chicago', 0],
+  ['colorado-springs', 'albuquerque', 0],
+  ['colorado-springs', 'los-angeles', 0],
+  ['chicago', 'st-louis', 0],
+  ['chicago', 'minneapolis', 0],
+  ['st-louis', 'kansas-city', 0],
+  ['new-york', 'charleston', 0],
+  ['new-york', 'richmond', 0],
+  ['new-york', 'louisville', 0],
+  ['new-york', 'seattle', 0],
+  ['new-york', 'san-francisco', 0],
+  ['new-york', 'chicago', 0],
+  ['new-york', 'detroit', 0],
+  ['new-york', 'columbus', 0],
+  ['new-york', 'nashville', 0],
+  ['new-york', 'denver', 0],
+  ['new-york', 'raleigh', 0],
+  ['new-york', 'san-diego', 0],
+  ['newark', 'charlotte', 0],
+  ['newark', 'los-angeles', 0],
+  ['newark', 'san-diego', 0],
+  ['newark', 'charleston', 0],
+  ['newark', 'raleigh', 0],
+  ['boston', 'charlotte', 0],
+  ['boston', 'denver', 0],
+  ['boston', 'seattle', 0],
+  ['boston', 'chicago', 0],
+  ['boston', 'los-angeles', 0],
+  ['boston', 'san-diego', 0],
+  ['boston', 'san-francisco', 0],
+  ['boston', 'nashville', 0],
+  ['boston', 'philadelphia', 0],
+  ['boston', 'washington', 0],
+  ['los-angeles', 'chicago', 0],
+  ['los-angeles', 'portland', 0],
+  ['los-angeles', 'salt-lake-city', 0],
+  ['los-angeles', 'boise', 0],
+  ['san-diego', 'seattle', 0],
+  ['san-diego', 'portland', 0],
+  ['san-diego', 'phoenix', 0],
+  ['san-diego', 'denver', 0],
+  ['san-francisco', 'seattle', 0],
+  ['san-francisco', 'portland', 0],
+  ['san-francisco', 'boise', 0],
+  ['las-vegas', 'salt-lake-city', 0],
+  ['chicago', 'charlotte', 0],
+  ['chicago', 'denver', 0],
+  ['washington', 'chicago', 0],
+  ['washington', 'boston', 0],
+  ['philadelphia', 'charlotte', 0],
+  ['philadelphia', 'los-angeles', 0],
+  ['richmond', 'charlotte', 0],
+  ['richmond', 'los-angeles', 0],
+  ['hartford', 'charlotte', 0],
+  ['milwaukee', 'denver', 0],
+  ['milwaukee', 'los-angeles', 0],
+  ['louisville', 'chicago', 0],
+  ['des-moines', 'chicago', 0],
+  ['wichita', 'kansas-city', 0],
+  ['charleston', 'chicago', 0],
+  ['greenville', 'new-york', 0],
+  ['greenville', 'chicago', 0],
+  ['sacramento', 'portland', 0],
+  ['sacramento', 'seattle', 0],
+  ['sacramento', 'boise', 0],
+  ['sacramento', 'salt-lake-city', 0],
+  ['portland', 'boise', 0],
+  ['seattle', 'boise', 0],
+  ['billings', 'seattle', 0],
+  ['sioux-falls', 'chicago', 0],
+  ['cheyenne', 'salt-lake-city', 0],
 ];
 
 // Published ranges (USD) by home size and distance band, from COST_SOURCE.
@@ -464,7 +586,7 @@ export const CITY_HUB_SEO = Object.fromEntries(
 );
 
 // City coordinates (from each city's ZIP) for the cost calculator.
-export const COORDS = {"new-york":[40.7484,-73.9967],"miami":[25.7672,-80.2059],"los-angeles":[34.0614,-118.2385],"atlanta":[33.7525,-84.3888],"charlotte":[35.229,-80.8419],"austin":[30.2713,-97.7426],"phoenix":[33.4557,-112.0686],"las-vegas":[36.1721,-115.1224],"seattle":[47.6114,-122.3305],"denver":[39.7491,-104.9946],"san-francisco":[37.7725,-122.4147],"chicago":[41.8858,-87.6181],"dallas":[32.7904,-96.8044],"nashville":[36.1504,-86.7916],"boston":[42.3576,-71.0684],"tampa":[27.9614,-82.4597],"philadelphia":[39.9513,-75.1741],"orlando":[28.5399,-81.3727],"washington":[38.9122,-77.0177],"raleigh":[35.7727,-78.6324],"houston":[29.7594,-95.3594],"san-diego":[32.7185,-117.1593],"portland":[45.5181,-122.6745],"salt-lake-city":[40.7559,-111.8967],"minneapolis":[44.9835,-93.2683],"detroit":[42.3333,-83.0484],"san-antonio":[29.4237,-98.4925],"jacksonville":[30.3299,-81.6517],"columbus":[39.9671,-83.0044],"indianapolis":[39.772,-86.1535],"kansas-city":[39.1052,-94.5699],"st-louis":[38.6346,-90.1913],"pittsburgh":[40.4477,-79.9933],"baltimore":[39.2998,-76.6075],"sacramento":[38.5804,-121.4922],"albuquerque":[35.0818,-106.6482],"oklahoma-city":[35.4726,-97.5199],"boise":[43.6322,-116.2052],"tucson":[32.2139,-110.9694],"fort-lauderdale":[26.1216,-80.1288],"fort-myers":[26.6204,-81.8725],"pensacola":[30.4095,-87.2229],"daytona-beach":[29.2012,-81.0371],"fort-worth":[32.7589,-97.328],"el-paso":[31.7584,-106.4783],"memphis":[35.144,-90.048],"new-orleans":[29.9605,-90.0753],"baton-rouge":[30.4492,-91.1856],"virginia-beach":[36.8585,-76.0019],"buffalo":[42.887,-78.8779],"omaha":[41.259,-95.9409],"tulsa":[36.1539,-95.9954],"birmingham":[33.521,-86.8066]};
+export const COORDS = {"new-york":[40.7484,-73.9967],"miami":[25.7672,-80.2059],"los-angeles":[34.0614,-118.2385],"atlanta":[33.7525,-84.3888],"charlotte":[35.229,-80.8419],"austin":[30.2713,-97.7426],"phoenix":[33.4557,-112.0686],"las-vegas":[36.1721,-115.1224],"seattle":[47.6114,-122.3305],"denver":[39.7491,-104.9946],"san-francisco":[37.7725,-122.4147],"chicago":[41.8858,-87.6181],"dallas":[32.7904,-96.8044],"nashville":[36.1504,-86.7916],"boston":[42.3576,-71.0684],"tampa":[27.9614,-82.4597],"philadelphia":[39.9513,-75.1741],"orlando":[28.5399,-81.3727],"washington":[38.9122,-77.0177],"raleigh":[35.7727,-78.6324],"houston":[29.7594,-95.3594],"san-diego":[32.7185,-117.1593],"portland":[45.5181,-122.6745],"salt-lake-city":[40.7559,-111.8967],"minneapolis":[44.9835,-93.2683],"detroit":[42.3333,-83.0484],"san-antonio":[29.4237,-98.4925],"jacksonville":[30.3299,-81.6517],"columbus":[39.9671,-83.0044],"indianapolis":[39.772,-86.1535],"kansas-city":[39.1052,-94.5699],"st-louis":[38.6346,-90.1913],"pittsburgh":[40.4477,-79.9933],"baltimore":[39.2998,-76.6075],"sacramento":[38.5804,-121.4922],"albuquerque":[35.0818,-106.6482],"oklahoma-city":[35.4726,-97.5199],"boise":[43.6322,-116.2052],"tucson":[32.2139,-110.9694],"fort-lauderdale":[26.1216,-80.1288],"fort-myers":[26.6204,-81.8725],"pensacola":[30.4095,-87.2229],"daytona-beach":[29.2012,-81.0371],"fort-worth":[32.7589,-97.328],"el-paso":[31.7584,-106.4783],"memphis":[35.144,-90.048],"new-orleans":[29.9605,-90.0753],"baton-rouge":[30.4492,-91.1856],"virginia-beach":[36.8585,-76.0019],"buffalo":[42.887,-78.8779],"omaha":[41.259,-95.9409],"tulsa":[36.1539,-95.9954],"birmingham":[33.521,-86.8066],"newark":[40.7357,-74.1724],"richmond":[37.5407,-77.436],"charleston":[32.7765,-79.9311],"greenville":[34.8526,-82.394],"hartford":[41.7658,-72.6734],"louisville":[38.2527,-85.7585],"milwaukee":[43.0389,-87.9065],"des-moines":[41.5868,-93.625],"wichita":[37.6872,-97.3301],"sioux-falls":[43.5446,-96.7311],"billings":[45.7833,-108.5007],"cheyenne":[41.14,-104.8202],"colorado-springs":[38.8339,-104.8214],"boulder":[40.015,-105.2705]};
 
 // Road miles ≈ straight-line distance × 1.18 (the median ratio across our
 // hand-checked routes). Known routes use their own figure.
@@ -494,9 +616,9 @@ export function costMatrix() {
 
 // Time zones (standard UTC offset). Arizona does not observe daylight saving.
 const ZONES = {
-  Eastern: ['new-york', 'miami', 'atlanta', 'charlotte', 'boston', 'tampa', 'philadelphia', 'orlando', 'washington', 'raleigh', 'detroit', 'jacksonville', 'columbus', 'indianapolis', 'pittsburgh', 'baltimore', 'fort-lauderdale', 'fort-myers', 'daytona-beach', 'virginia-beach', 'buffalo'],
-  Central: ['chicago', 'dallas', 'nashville', 'houston', 'austin', 'san-antonio', 'minneapolis', 'kansas-city', 'st-louis', 'oklahoma-city', 'pensacola', 'fort-worth', 'memphis', 'new-orleans', 'baton-rouge', 'omaha', 'tulsa', 'birmingham'],
-  Mountain: ['denver', 'salt-lake-city', 'albuquerque', 'boise', 'el-paso', 'phoenix', 'tucson'],
+  Eastern: ['new-york', 'miami', 'atlanta', 'charlotte', 'boston', 'tampa', 'philadelphia', 'orlando', 'washington', 'raleigh', 'detroit', 'jacksonville', 'columbus', 'indianapolis', 'pittsburgh', 'baltimore', 'fort-lauderdale', 'fort-myers', 'daytona-beach', 'virginia-beach', 'buffalo', 'newark', 'richmond', 'charleston', 'greenville', 'hartford', 'louisville'],
+  Central: ['chicago', 'dallas', 'nashville', 'houston', 'austin', 'san-antonio', 'minneapolis', 'kansas-city', 'st-louis', 'oklahoma-city', 'pensacola', 'fort-worth', 'memphis', 'new-orleans', 'baton-rouge', 'omaha', 'tulsa', 'birmingham', 'milwaukee', 'des-moines', 'wichita', 'sioux-falls'],
+  Mountain: ['denver', 'salt-lake-city', 'albuquerque', 'boise', 'el-paso', 'phoenix', 'tucson', 'billings', 'cheyenne', 'colorado-springs', 'boulder'],
   Pacific: ['los-angeles', 'las-vegas', 'seattle', 'san-francisco', 'san-diego', 'portland', 'sacramento'],
 };
 const OFFSET = { Eastern: -5, Central: -6, Mountain: -7, Pacific: -8 };

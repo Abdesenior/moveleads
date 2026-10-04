@@ -528,11 +528,234 @@ export const B2B_PAGES = {
       { h2: '2 weeks before', bullets: ['Update your address with your bank, employer, insurance and subscriptions.', 'Confirm the moving date, arrival window and final price with your mover.', 'Plan how pets and plants travel.', 'Use up food in the freezer.'] },
       { h2: '1 week before', bullets: ['Finish packing and label each box with its room.', 'Pack an essentials bag: documents, medication, chargers, clothes, toiletries.', 'Take photos of electronics and valuables for the inventory.', 'Defrost and dry the fridge if it is moving.'] },
       { h2: 'Moving day', bullets: ['Check the inventory before you sign it.', 'Read the bill of lading before signing, and never sign a blank one.', 'Do a final walk-through of every room and closet.', 'Keep valuables, cash and documents with you.'] },
+      { h2: 'Moving to another state?', text: 'An interstate move adds a federally registered mover, a plan for your car and new-state paperwork like your driver’s license and registration.', links: [{ to: '/resources/moving-out-of-state-checklist', label: 'Moving to another state checklist' }, { to: '/moving/state-to-state', label: 'State to state moving costs' }] },
     ],
     faq: [
       ['How far in advance should I book movers?', 'For a long-distance move, about 6 to 8 weeks ahead. Book earlier for moves between May and September.'],
       ['What should I pack first?', 'Rooms and items you use least: guest rooms, books, decorations and out-of-season clothes.'],
       ['What should I not pack in the moving truck?', 'Important documents, medication, cash, jewelry, and hazardous items like propane, paint and cleaning chemicals.'],
+    ],
+  },
+
+  '/resources/moving-out-of-state-checklist': {
+    audience: 'homeowner',
+    breadcrumb: 'Moving out of state checklist',
+    eyebrow: 'Guide for people moving',
+    h1: 'Moving to another state checklist: everything to do, week by week',
+    answer:
+      'Moving to another state takes more than a local move: you need a federally registered interstate mover, a plan for your car, and new state paperwork after you arrive. Start 8 weeks out with estimates and a budget, handle utilities, mail and records in weeks 6 to 2, then update your driver’s license, car registration, voter registration and insurance in your new state within the first 30 to 90 days.',
+    sections: [
+      {
+        h2: '8 weeks before: plan and book',
+        bullets: [
+          'Set a budget. Interstate moves are priced by weight and distance, so check typical costs for your route on our state to state pages.',
+          'Get at least three written estimates after an in-home or video survey.',
+          'Check every mover’s USDOT number on the FMCSA website. Any mover that crosses a state line must have one.',
+          'Decide how you will move: full-service movers, a moving container or a rental truck.',
+          'Start researching your new state: income tax, car insurance rates, schools and neighborhoods.',
+        ],
+        links: [
+          { to: '/moving/state-to-state', label: 'Cost of moving to another state, by route' },
+          { to: '/resources/how-to-choose-a-long-distance-moving-company', label: 'How to choose a long-distance moving company' },
+        ],
+      },
+      {
+        h2: '6 weeks before: book and declutter',
+        bullets: [
+          'Book your mover and get the estimate, order for service and delivery window in writing.',
+          'Ask for a binding or not-to-exceed estimate so the price can’t rise at delivery.',
+          'Declutter. Every pound you don’t move saves money on an interstate move.',
+          'Decide how your car gets there: drive it, ship it with an auto transporter, or sell it.',
+          'If you rent, give notice to your landlord according to your lease.',
+        ],
+      },
+      {
+        h2: '4 weeks before: records and services',
+        bullets: [
+          'Request copies of medical, dental, vet and school records, or ask for them to be sent to new providers.',
+          'Schedule utilities to stop at your old home and start at the new one, including internet.',
+          'Forward your mail with USPS.',
+          'Refill prescriptions, and check whether your pharmacy chain operates in your new state.',
+          'Check your health insurance. A permanent move to a new state can change your plan’s network, and usually qualifies you to pick a new Marketplace plan.',
+          'Start packing rooms you use least.',
+        ],
+      },
+      {
+        h2: '2 weeks before: confirm everything',
+        bullets: [
+          'Confirm the moving date, pickup window, delivery window and final price with your mover.',
+          'Update your address with your bank, employer, credit cards and subscriptions.',
+          'Plan the trip: route, hotels and where pets will ride.',
+          'Use up food and cleaning supplies. Movers won’t carry flammables, paint or propane.',
+        ],
+      },
+      {
+        h2: 'Moving week and moving day',
+        bullets: [
+          'Pack an essentials bag: documents, medication, chargers, clothes and toiletries for the days before delivery.',
+          'Keep important documents, cash and jewelry with you, not on the truck.',
+          'Check the inventory list and read the bill of lading before you sign. Never sign a blank one.',
+          'Interstate movers must give you the FMCSA booklet “Your Rights and Responsibilities When You Move”.',
+          'Do a final walk-through of every room and closet.',
+        ],
+        sources: [
+          { url: 'https://www.fmcsa.dot.gov/protect-your-move', label: 'FMCSA: Protect Your Move' },
+        ],
+      },
+      {
+        h2: 'After you arrive in your new state',
+        numbered: [
+          'Driver’s license. Most states require new residents to get a local license within 30 to 90 days. Check your new state’s DMV for the exact deadline and documents.',
+          'Car registration and title. Register your car in the new state, usually within the same window, and update your car insurance to a policy for that state.',
+          'Voter registration. Register at your new address so you can vote in the next election.',
+          'Taxes. You may need to file part-year resident returns in both your old and new state for the year you move.',
+          'Homeowners or renters insurance. Start a policy for the new home before your belongings arrive.',
+          'Check the delivery. Note any damage on the delivery receipt, and file claims with your mover in writing. You have 9 months to file a claim for an interstate move.',
+        ],
+        sources: [
+          { url: 'https://www.usa.gov/moving', label: 'USA.gov: Moving checklist' },
+          { url: 'https://www.healthcare.gov/coverage-outside-open-enrollment/special-enrollment-period/', label: 'HealthCare.gov: Special Enrollment Period' },
+        ],
+      },
+    ],
+    faq: [
+      ['How far in advance should I plan a move to another state?', 'About 2 to 3 months ahead. Book your mover 6 to 8 weeks before the move, and earlier for a move between May and September.'],
+      ['How long do I have to get a new driver’s license after moving to another state?', 'It depends on the state, but most give new residents 30 to 90 days. Check your new state’s DMV website.'],
+      ['How much does it cost to move to another state?', 'For full-service movers, a 2-bedroom move often costs a few thousand dollars for a few hundred miles and more than $4,000 coast to coast. See our state to state cost pages for your route.'],
+      ['Can I deduct moving expenses on my taxes?', 'In most cases, no. Under current federal law the moving expense deduction is limited to active-duty military members moving under orders and a few similar cases.'],
+    ],
+  },
+
+  '/resources/how-to-choose-a-long-distance-moving-company': {
+    audience: 'homeowner',
+    breadcrumb: 'How to choose a long-distance mover',
+    eyebrow: 'Guide for people moving',
+    h1: 'How to choose a long-distance moving company (2026)',
+    answer:
+      'The best long-distance moving company for you is one that is registered with the FMCSA, gives you a written estimate after seeing your home, and has a clean complaint history. Check the USDOT number first, compare at least three written estimates, ask for a binding or not-to-exceed price, and walk away from any mover that wants a large cash deposit.',
+    sections: [
+      {
+        h2: '7 steps to choose a mover that will move you out of state',
+        steps: [
+          'Check the USDOT number. Search it on the FMCSA website and confirm the company is authorised to move household goods between states.',
+          'Check complaints. Look up the company in the FMCSA complaint data and read recent reviews on more than one site.',
+          'Find out if it is a mover or a broker. A broker sells your move to another company; ask who will actually carry your belongings.',
+          'Get an in-home or video survey. Estimates given over the phone without seeing your things are the most likely to change.',
+          'Compare at least three written estimates, line by line: weight, packing, stairs, long carries, shuttle trucks and storage.',
+          'Choose the estimate type. A binding or not-to-exceed estimate protects you from a higher bill at delivery.',
+          'Read the paperwork. Get the order for service, the bill of lading and the delivery window in writing before move day.',
+        ],
+        sources: [
+          { url: 'https://www.fmcsa.dot.gov/protect-your-move', label: 'FMCSA: Protect Your Move' },
+          { url: 'https://www.fmcsa.dot.gov/sites/fmcsa.dot.gov/files/2023-10/FMCSA_R&R_Handbook_Web_v1.pdf', label: 'FMCSA: Your Rights and Responsibilities When You Move' },
+        ],
+      },
+      {
+        h2: 'Questions to ask every long-distance mover',
+        bullets: [
+          'What is your USDOT number, and are you the carrier or a broker?',
+          'Is this estimate binding, non-binding or not-to-exceed?',
+          'What is the delivery window, and what happens if you miss it?',
+          'Will my belongings share a truck with other moves?',
+          'What protection is included? Basic released value pays only 60 cents per pound per item; Full Value Protection costs more but covers repair or replacement.',
+          'What dispute settlement (arbitration) program do you use? Interstate movers must offer one.',
+          'What deposit do you require, and how can I pay?',
+        ],
+      },
+      {
+        h2: 'Red flags',
+        bullets: [
+          'A quote far below every other estimate.',
+          'A large deposit, especially in cash.',
+          'No in-home or video survey.',
+          'No USDOT number, or a name that doesn’t match the FMCSA record.',
+          'No copy of the FMCSA booklet “Your Rights and Responsibilities When You Move”.',
+        ],
+        link: { to: '/resources/moving-scams', label: 'How to avoid moving scams' },
+      },
+      {
+        h2: 'What a long-distance move costs',
+        text: 'Interstate moves are priced mostly by the weight of your belongings and the distance. For a 2-bedroom home, full-service moves often run a few thousand dollars for a few hundred miles and more for cross-country moves. See typical costs for your exact route.',
+        links: [
+          { to: '/moving/state-to-state', label: 'State to state moving costs' },
+          { to: '/moving-cost-calculator', label: 'Moving cost calculator' },
+          { to: '/resources/binding-vs-non-binding-moving-estimate', label: 'Binding vs non-binding estimates' },
+        ],
+      },
+    ],
+    faq: [
+      ['What makes a long-distance moving company trustworthy?', 'Registration with the FMCSA, a written estimate after seeing your home, clear paperwork, a reasonable deposit and a clean complaint record.'],
+      ['Should I use a moving broker or a moving company?', 'Either can work, but know which you are dealing with. A broker must say it is a broker and tell you which carrier will move you. Check that carrier’s USDOT number too.'],
+      ['How many moving estimates should I get?', 'At least three, all based on an in-home or video survey, so you can compare them line by line.'],
+      ['How far in advance should I book a long-distance mover?', 'About 6 to 8 weeks ahead, and earlier for summer moves.'],
+    ],
+  },
+
+  '/resources/cheapest-way-to-move-out-of-state': {
+    audience: 'homeowner',
+    breadcrumb: 'Cheapest way to move out of state',
+    eyebrow: 'Guide for people moving',
+    h1: 'The cheapest way to move out of state: 3 options compared',
+    answer:
+      'The cheapest way to move out of state is usually to rent a truck and do the packing, loading and driving yourself. A moving container costs more but saves you the drive. Full-service movers cost the most but do all the work. With any option, moving fewer things, moving between October and April, and booking early cut the price.',
+    sections: [
+      {
+        h2: 'Your three options',
+        table: {
+          head: ['', 'Rental truck', 'Moving container', 'Full-service movers'],
+          rows: [
+            ['Cost', 'Lowest', 'Middle', 'Highest'],
+            ['Who packs and loads', 'You', 'You (or hired labor)', 'The movers'],
+            ['Who drives', 'You', 'The container company', 'The movers'],
+            ['Extra costs', 'Fuel, hotels, meals, insurance', 'Storage days, extra containers', 'Packing, stairs, long carries'],
+            ['Best for', 'Small moves, tight budgets', 'Flexible dates, no long drive', 'Large homes, less stress'],
+          ],
+        },
+      },
+      {
+        h2: '10 ways to lower the cost of any interstate move',
+        numbered: [
+          'Sell or donate what you won’t use. Interstate moves are priced by weight.',
+          'Move between October and April, when demand and prices are lower.',
+          'Pick a weekday in the middle of the month.',
+          'Book 6 to 8 weeks ahead.',
+          'Get at least three written estimates and compare them line by line.',
+          'Pack yourself, and pay for professional packing only for fragile items.',
+          'Use free boxes from stores, or rent plastic bins.',
+          'Ask for a binding or not-to-exceed estimate so the price can’t rise at delivery.',
+          'Be flexible on the delivery date. Sharing a truck with other moves can cost less.',
+          'Ask your employer about relocation assistance.',
+        ],
+        sources: [
+          { url: 'https://sirelo.com/house-moving/long-distance-moving-costs/', label: 'Sirelo long-distance moving cost guide' },
+        ],
+      },
+      {
+        h2: 'When cheap gets expensive',
+        bullets: [
+          'A rental truck on a long route adds fuel, hotels, meals and days off work. Add them up before you decide.',
+          'A quote far below others is a common sign of a moving scam that raises the price once your things are on the truck.',
+          'Basic protection pays only 60 cents per pound per item. Valuable items may need Full Value Protection.',
+        ],
+        link: { to: '/resources/moving-scams', label: 'How to avoid moving scams' },
+      },
+      {
+        h2: 'See the cost for your move',
+        text: 'Every route is different. Check typical full-service costs by state and city, then get a free quote.',
+        links: [
+          { to: '/moving/state-to-state', label: 'State to state moving costs' },
+          { to: '/moving/california-to-texas', label: 'California to Texas' },
+          { to: '/moving/new-york-to-florida', label: 'New York to Florida' },
+          { to: '/moving/california-to-florida', label: 'California to Florida' },
+          { to: '/moving-cost-calculator', label: 'Moving cost calculator' },
+        ],
+      },
+    ],
+    faq: [
+      ['What is the cheapest way to move to another state?', 'Renting a truck and doing everything yourself is usually cheapest in cash. Count fuel, hotels and time off work before you decide.'],
+      ['Is a moving container cheaper than movers?', 'Usually, yes. You pack and load, and the company drives, so you pay less than full service but more than a rental truck.'],
+      ['What is the cheapest month to move?', 'Usually between October and April, avoiding holidays and the end of the month.'],
+      ['How can I move out of state with little money?', 'Move as little as possible, pick an off-season weekday, pack yourself, and compare several written estimates. Some employers also offer relocation help.'],
     ],
   },
 
