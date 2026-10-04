@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
+import JsonLd from '../components/JsonLd';
+import { SITE_URL } from '../seo/routes';
 import { ROUTE_PAGES, routeCostRows, usd } from '../seo/routePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
@@ -21,6 +23,14 @@ function byOrigin() {
 export default function RoutesIndex() {
   return (
     <MarketingLayout>
+      <JsonLd schema={{
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+          { '@type': 'ListItem', position: 2, name: 'Moving routes', item: `${SITE_URL}/moving` },
+        ],
+      }} />
       <header style={{ background: `linear-gradient(135deg,#070e1b 0%,${NAVY} 100%)`, padding: '96px 0 56px' }}>
         <div style={{ maxWidth: 820, margin: '0 auto', padding: '0 20px' }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 1.8, margin: '0 0 12px' }}>Moving routes</p>
