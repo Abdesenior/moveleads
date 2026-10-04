@@ -63,6 +63,13 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.9,
   },
+  '/moving-leads/commercial': {
+    title: 'Commercial Moving Leads: Office Moves from $10, One Buyer | MoveLeads',
+    description:
+      'Office and commercial moving leads, labelled before you buy, sold to one mover by default. From $10, no subscription, no contract.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
   '/resources/how-to-get-moving-leads': {
     title: 'How to Get Moving Leads: 8 Free and Paid Ways (2026 Guide)',
     description:

@@ -58,6 +58,7 @@ export const B2B_PAGES = {
           { to: '/moving-leads/long-distance', label: 'Long-distance moving leads' },
           { to: '/moving-leads/local', label: 'Local moving leads' },
           { to: '/moving-leads/exclusive', label: 'Exclusive moving leads' },
+          { to: '/moving-leads/commercial', label: 'Commercial moving leads' },
           { to: '/resources/how-to-get-moving-leads', label: 'Guide: how to get moving leads' },
           { to: '/resources/best-moving-lead-providers', label: 'Best moving lead providers compared' },
           { to: '/compare/network-leads', label: 'MoveLeads vs Network Leads' },
@@ -109,6 +110,23 @@ export const B2B_PAGES = {
           ],
         },
       },
+      {
+        h2: 'Exclusive leads vs live transfers',
+        text: 'A live transfer connects the customer to you on the phone, usually at a much higher price per lead. An exclusive lead gives you the customer’s details and the time to call on your terms. Many movers use exclusive leads for volume and keep live transfers for peak season.',
+      },
+      {
+        h2: 'Getting the most from exclusive leads',
+        bullets: [
+          'Turn on SMS alerts so you see new leads the moment they match.',
+          'Set coverage carefully. Exclusive only helps if the lead is one you can serve.',
+          'Track cost per booked job, not cost per lead.',
+        ],
+        links: [
+          { to: '/moving-leads/long-distance', label: 'Long-distance moving leads' },
+          { to: '/moving-leads/local', label: 'Local moving leads' },
+          { to: '/resources/best-moving-lead-providers', label: 'Moving lead providers compared' },
+        ],
+      },
     ],
     faq: [
       ['Are MoveLeads leads really exclusive?', 'Yes by default. A lead is sold to the first mover who claims it. The platform can sell a lead to more than one mover, but that is off by default.'],
@@ -141,9 +159,35 @@ export const B2B_PAGES = {
         },
         text: 'The base is adjusted for move date, peak season (May to August), end-of-month moves and grade, then rounded to $5. The maximum is $150.',
       },
+      {
+        h2: 'What each long-distance lead includes',
+        bullets: [
+          'Origin and destination cities, and the distance between them.',
+          'Move date, so you can see if it fits your truck schedule.',
+          'Home size, from studio to 4+ bedrooms.',
+          'Grade (A to C), score and the exact price before you buy.',
+          'The customer’s name and phone number once you claim it.',
+        ],
+      },
+      {
+        h2: 'How to close more long-distance leads',
+        bullets: [
+          'Call within minutes. Long-distance customers often book the first mover who gives a clear estimate.',
+          'Offer a video survey. It is faster than an in-home visit and gives a more accurate weight estimate.',
+          'Explain binding vs non-binding estimates. Customers who understand the difference trust the mover who explained it.',
+          'Fill return trips. Leads going back toward your base keep trucks from running empty.',
+        ],
+        links: [
+          { to: '/resources/how-to-price-a-long-distance-move', label: 'How to price a long-distance move' },
+          { to: '/resources/binding-vs-non-binding-moving-estimate', label: 'Binding vs non-binding estimates' },
+          { to: '/moving-leads/exclusive', label: 'Why single-buyer leads close better' },
+        ],
+      },
       { h2: 'How it works', steps: HOW_IT_WORKS },
     ],
     faq: [
+      ['How much do long-distance moving leads cost?', 'From $18 for moves over 100 miles, $25 over 500 miles and $35 over 1,000 miles, before move date, season and grade adjustments. The maximum is $150, and you see the price before you buy.'],
+      ['Are long-distance leads shared with other movers?', 'No, not by default. The first mover to claim a lead buys it, and it is removed from every other mover’s feed.'],
       ['Do you sell cross-country moving leads?', 'Yes. Moves over 1,000 miles are priced from $35, before date, season and grade adjustments.'],
       ['Do I need a USDOT number?', 'Interstate moves in the US require FMCSA registration. Set your coverage to the states you are licensed to serve.'],
       ['Can I pick only certain routes?', 'You choose your pickup states and delivery states. Leads outside them are not sent to you.'],
@@ -178,6 +222,48 @@ export const B2B_PAGES = {
       ['What counts as a local move?', 'Any move under 100 miles.'],
       ['What is the most a local lead can cost?', '$25.'],
       ['Can I get leads only near my yard?', 'Yes. Leads are matched to your dispatch base and coverage.'],
+    ],
+  },
+
+  '/moving-leads/commercial': {
+    breadcrumb: 'Commercial moving leads',
+    parent: '/moving-leads',
+    eyebrow: 'Office and commercial moves',
+    h1: 'Commercial moving leads: office moves, one buyer by default',
+    answer:
+      'MoveLeads collects office and commercial move requests through the same quote form as home moves, labelled "Office / Commercial" so you see the move type before you buy. Each lead is screened, graded and priced up front, sold to one mover by default, and priced from $10 with no subscription. Commercial requests are a small share of volume today, so most movers buy them alongside residential leads.',
+    sections: [
+      {
+        h2: 'What a commercial lead includes',
+        bullets: [
+          'Move type marked "Office / Commercial", so it never looks like a home move.',
+          'Origin, destination and move date.',
+          'Contact name and phone number once you claim it.',
+          'Grade, score and exact price, shown before you buy.',
+        ],
+      },
+      {
+        h2: 'How commercial lead prices work',
+        text: 'Commercial leads follow the same rules as every lead: a base price by distance (from $10 local, $18 over 100 miles, $25 over 500, $35 over 1,000), adjusted for move date, season and grade, between $10 and $150. Local leads never cost more than $25.',
+        link: { to: '/pricing', label: 'See full lead pricing' },
+      },
+      {
+        h2: 'Winning office moves',
+        bullets: [
+          'Call fast. The first mover to reach a business usually gets the site visit.',
+          'Offer a walkthrough. Office moves are quoted on site, not over the phone.',
+          'Talk about downtime. Weekend and after-hours moves are the main selling point.',
+          'Have a certificate of insurance ready. Building managers ask for it before move day.',
+        ],
+        link: { to: '/resources/speed-to-lead-for-movers', label: 'Why the first call wins' },
+      },
+      { h2: 'How it works', steps: HOW_IT_WORKS },
+    ],
+    faq: [
+      ['Do you sell commercial moving leads?', 'Yes. Office and commercial moves come in through our quote form and are labelled as commercial. They are a smaller share of volume than home moves today.'],
+      ['How much does a commercial moving lead cost?', 'The same as any lead: from $10, based on distance, move date, season and grade, and never more than $150. Local leads are capped at $25.'],
+      ['Are commercial leads shared?', 'No, not by default. The first mover to claim a lead buys it, and it disappears from everyone else’s feed.'],
+      ['How do I get more commercial moving leads?', 'Combine bought leads with your own channels: a Google Business Profile that lists office moving, a commercial page on your website, and relationships with property managers and office brokers.'],
     ],
   },
 
