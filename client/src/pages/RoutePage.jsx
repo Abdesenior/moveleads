@@ -123,7 +123,7 @@ export default function RoutePage() {
           <p style={pStyle}>
             {short
               ? `Short in-state moves are usually priced by the hour. These estimates add a typical crew’s loading and unloading time to the ${hours}-hour drive between the two cities:`
-              : `Typical full-service prices for a move of ${bandLabel(miles)}, which covers this route:`}
+              : `Estimated full-service prices for a move of about ${miles.toLocaleString('en-US')} miles, interpolated by distance from published prices for the ${bandLabel(miles)} band and its neighbours:`}
           </p>
           <div style={{ overflowX: 'auto', margin: '6px 0 12px', border: `1px solid ${BL}`, borderRadius: 12 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
