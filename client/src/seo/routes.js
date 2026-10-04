@@ -134,6 +134,13 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.8,
   },
+  '/resources/top-states-people-are-moving-to': {
+    title: 'Top States People Are Moving To in 2026 (Census and Mover Data)',
+    description:
+      'Where are people moving? North Carolina, Texas and South Carolina gained the most residents from other states. See the 2026 rankings, where Californians go and why.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
   '/resources/binding-vs-non-binding-moving-estimate': {
     title: 'Binding vs Non-Binding Moving Estimates Explained',
     description:

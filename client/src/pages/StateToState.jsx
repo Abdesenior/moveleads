@@ -109,6 +109,7 @@ export default function StateToState() {
             Guides: <Link to="/resources/how-to-choose-a-long-distance-moving-company" style={linkStyle}>how to choose a long-distance mover</Link>
             {' · '}<Link to="/resources/cheapest-way-to-move-out-of-state" style={linkStyle}>cheapest way to move out of state</Link>
             {' · '}<Link to="/resources/moving-out-of-state-checklist" style={linkStyle}>moving out of state checklist</Link>
+            {' · '}<Link to="/resources/top-states-people-are-moving-to" style={linkStyle}>top states people are moving to</Link>
           </p>
         </section>
 
