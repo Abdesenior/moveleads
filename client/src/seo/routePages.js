@@ -282,16 +282,41 @@ const COST_TABLE = (() => {
 })();
 
 const bandFor = (miles) => (miles < 500 ? 0 : miles < 1000 ? 1 : miles < 1500 ? 2 : miles < 2500 ? 3 : 4);
+const round50 = (n) => Math.round(n / 50) * 50;
 const round100 = (n) => Math.round(n / 100) * 100;
 export const usd = (n) => `$${n.toLocaleString('en-US')}`;
 
+// Each published band is placed at its middle distance; a route's price is
+// interpolated between those points by its actual miles. This gives every
+// route its own estimate instead of one shared number per 500-mile band.
+// A running max keeps prices from falling as distance grows (the source's
+// 500-999 mile band is slightly cheaper than its 250-499 band).
+const BAND_MID_MILES = [375, 750, 1250, 2000, 3000];
+const MONOTONIC_TABLE = Object.fromEntries(
+  Object.entries(COST_TABLE).map(([size, bands]) => {
+    const lo = [], hi = [];
+    bands.forEach(([l, h], i) => {
+      lo.push(Math.max(l, i ? lo[i - 1] : 0));
+      hi.push(Math.max(h, i ? hi[i - 1] : 0));
+    });
+    return [size, bands.map((_, i) => [lo[i], hi[i]])];
+  }),
+);
+
+function atMiles(bands, miles) {
+  const m = BAND_MID_MILES;
+  if (miles <= m[0]) return bands[0];
+  if (miles >= m[m.length - 1]) return bands[bands.length - 1];
+  const i = m.findIndex((x) => miles < x) - 1;
+  const t = (miles - m[i]) / (m[i + 1] - m[i]);
+  return [0, 1].map((j) => bands[i][j] + (bands[i + 1][j] - bands[i][j]) * t);
+}
+
 export function costRows(miles) {
-  const band = bandFor(miles);
-  return Object.entries(COST_TABLE).map(([size, bands]) => ({
-    size,
-    low: round100(bands[band][0]),
-    high: round100(bands[band][1]),
-  }));
+  return Object.entries(MONOTONIC_TABLE).map(([size, bands]) => {
+    const [low, high] = atMiles(bands, miles);
+    return { size, low: round50(low), high: round50(high) };
+  });
 }
 
 export const bandLabel = (miles) => BAND_LABELS[bandFor(miles)];
@@ -313,8 +338,8 @@ export function shortCostRows(driveHours) {
     size: r.size,
     crew: r.crew,
     hours: r.hours,
-    low: round100(r.labor[0] + driveHours * r.rate[0]),
-    high: round100(r.labor[1] + driveHours * r.rate[1]),
+    low: round50(r.labor[0] + driveHours * r.rate[0]),
+    high: round50(r.labor[1] + driveHours * r.rate[1]),
   }));
 }
 
@@ -373,6 +398,13 @@ export const ROUTE_PAGES = Object.fromEntries(
   ]),
 );
 
+// Price in the title, like the pages that win these searches
+// ("($812+) Chicago to Dallas Movers"). Drop the year when it gets long.
+function routeTitle(r, two) {
+  const base = `${r.from.name} to ${r.to.name} Movers: ${usd(two.low)}–${usd(two.high)}`;
+  return base.length <= 48 ? `${base} (2026 Cost)` : base.length <= 56 ? `${base} (2026)` : base;
+}
+
 // SEO metadata for every route page, merged into INDEXABLE_ROUTES.
 export const ROUTE_SEO = Object.fromEntries(
   Object.entries(ROUTE_PAGES).map(([slug, r]) => {
@@ -380,8 +412,8 @@ export const ROUTE_SEO = Object.fromEntries(
     return [
       `/moving/${slug}`,
       {
-        title: `Moving from ${r.from.name} to ${r.to.name}: Cost & Free Quotes (2026)`,
-        description: `${cityLabel(r.from)} to ${cityLabel(r.to)} is about ${r.miles.toLocaleString('en-US')} miles. A 2-bedroom move typically costs ${usd(two.low)}–${usd(two.high)}. Compare costs by home size and get a free quote.`,
+        title: routeTitle(r, two),
+        description: `Moving from ${cityLabel(r.from)} to ${cityLabel(r.to)} (${r.miles.toLocaleString('en-US')} miles)? A 2-bedroom move costs about ${usd(two.low)}–${usd(two.high)}. See costs by home size and get a free quote.`,
         changefreq: 'monthly',
         priority: 0.8,
       },
