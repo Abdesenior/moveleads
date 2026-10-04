@@ -759,6 +759,100 @@ export const B2B_PAGES = {
     ],
   },
 
+  '/resources/top-states-people-are-moving-to': {
+    audience: 'homeowner',
+    breadcrumb: 'Top states people are moving to',
+    eyebrow: 'Moving data, 2026',
+    h1: 'Where are people moving? The top states people are moving to in 2026',
+    answer:
+      'Americans keep moving south. In the latest Census Bureau estimates (July 2024 to July 2025), North Carolina, Texas and South Carolina gained the most residents from other states. U-Haul’s 2025 rentals put Texas, Florida and North Carolina on top, and United Van Lines saw the highest share of inbound moves in Oregon, West Virginia and South Carolina. The states people leave most are California, New Jersey, New York and Illinois.',
+    sections: [
+      {
+        h2: 'States gaining the most people from other states',
+        text: 'Net domestic migration is the number of people who moved in from other states minus the number who moved out. These are the 10 biggest gains in the Census Bureau’s latest estimates:',
+        table: {
+          head: ['Rank', 'State', 'Net people gained from other states (2025)'],
+          rows: [
+            ['1', 'North Carolina', '84,064'],
+            ['2', 'Texas', '67,299'],
+            ['3', 'South Carolina', '66,622'],
+            ['4', 'Tennessee', '42,389'],
+            ['5', 'Arizona', '31,107'],
+            ['6', 'Georgia', '27,333'],
+            ['7', 'Alabama', '23,358'],
+            ['8', 'Florida', '22,517'],
+            ['9', 'Idaho', '19,915'],
+            ['10', 'Nevada', '14,914'],
+          ],
+        },
+        sources: [
+          { url: 'https://www.census.gov/programs-surveys/popest.html', label: 'U.S. Census Bureau, Vintage 2025 population estimates (July 1, 2024 to July 1, 2025)' },
+          { url: 'https://tnsdc.utk.edu/2026/02/02/2025-estimates-show-another-top-10-year-for-tennessee-population-gains/', label: 'Tennessee State Data Center: 2025 estimates' },
+        ],
+      },
+      {
+        h2: 'Top states by one-way moving truck rentals',
+        text: 'U-Haul ranks states by how many one-way truck and container customers arrive compared with how many leave, from more than 2.5 million rentals. Its 2025 top 10: Texas, Florida, North Carolina, Tennessee, South Carolina, Washington, Arizona, Idaho, Alabama and Georgia. Oregon made the biggest jump, from 34th to 11th. The states with the most one-way departures were California, Illinois, New Jersey, New York and Massachusetts.',
+        sources: [
+          { url: 'https://www.ktvu.com/news/uhaul-top-moving-destinations-2025', label: 'U-Haul Growth Index 2025 (via KTVU, January 2026)' },
+        ],
+      },
+      {
+        h2: 'States with the highest share of inbound moves',
+        text: 'United Van Lines looks at the share of its household moves going into each state. In its 2025 study the top 10 inbound states were Oregon (64.5% of its moves were inbound), West Virginia, South Carolina, Delaware, Minnesota, Idaho, North Carolina, Arkansas, Alabama and Nevada. The top outbound states were New Jersey, New York, California, North Dakota and Colorado. The most common reasons for moving were to be closer to family (29%), a new job or transfer (26%) and retirement (14%).',
+        sources: [
+          { url: 'https://www.fox10phoenix.com/news/more-people-moved-away-states-2025', label: 'United Van Lines 2025 National Movers Study (via FOX 10, January 2026)' },
+        ],
+      },
+      {
+        h2: 'Where are Californians moving?',
+        text: 'California loses more people to other states than any other state. Census survey data for 2024 estimated that about 661,000 people left California for another state, and about 254,000 more people left than arrived. Texas was the top destination, with about 77,000 Californians. Arizona, Nevada, Washington and Florida are other common choices.',
+        sources: [
+          { url: 'https://www.wspa.com/news/state-news/north-carolina-georgia-among-states-people-have-moved-to-left-the-most-census-data/amp/', label: 'U.S. Census Bureau, 2024 American Community Survey (via WSPA 7NEWS)' },
+        ],
+        links: [
+          { to: '/moving/california-to-texas', label: 'Moving from California to Texas: costs' },
+          { to: '/moving/california-to-arizona', label: 'Moving from California to Arizona: costs' },
+          { to: '/moving/california-to-nevada', label: 'Moving from California to Nevada: costs' },
+          { to: '/moving/california-to-washington-state', label: 'Moving from California to Washington: costs' },
+          { to: '/moving-from/california', label: 'All moves out of California' },
+        ],
+      },
+      {
+        h2: 'Why these states?',
+        bullets: [
+          'Housing costs. North Carolina, South Carolina, Tennessee, Alabama and Texas cost less to live in than the coastal states people leave.',
+          'Taxes. Texas, Florida, Tennessee, Nevada and Washington have no state income tax on wages.',
+          'Jobs. Dallas-Fort Worth, Houston, Austin, Charlotte and Phoenix were U-Haul’s top growth metros in 2025.',
+          'Family and retirement. Being closer to family and retiring were two of the top three reasons for moving in the United Van Lines study.',
+        ],
+      },
+      {
+        h2: 'Thinking about moving to one of these states?',
+        text: 'See what the move costs from where you live now, with prices by home size and city.',
+        links: [
+          { to: '/moving-to/north-carolina', label: 'Moving to North Carolina' },
+          { to: '/moving-to/texas', label: 'Moving to Texas' },
+          { to: '/moving-to/south-carolina', label: 'Moving to South Carolina' },
+          { to: '/moving-to/tennessee', label: 'Moving to Tennessee' },
+          { to: '/moving-to/florida', label: 'Moving to Florida' },
+          { to: '/moving-to/arizona', label: 'Moving to Arizona' },
+          { to: '/moving-to/georgia', label: 'Moving to Georgia' },
+          { to: '/moving-to/alabama', label: 'Moving to Alabama' },
+          { to: '/moving-to/nevada', label: 'Moving to Nevada' },
+          { to: '/moving-to/washington-state', label: 'Moving to Washington' },
+          { to: '/moving/state-to-state', label: 'All state to state moving costs' },
+        ],
+      },
+    ],
+    faq: [
+      ['What state are most people moving to?', 'It depends on the measure. North Carolina gained the most residents from other states in the Census Bureau’s 2025 estimates, Texas led U-Haul’s 2025 Growth Index, and Oregon had the highest share of inbound moves in the United Van Lines 2025 study.'],
+      ['What states are people leaving the most?', 'California, New Jersey, New York and Illinois appear near the top in all three sources. California lost about 254,000 more residents to other states than it gained in 2024.'],
+      ['Where are Californians moving to?', 'Texas is the top destination, with about 77,000 Californians moving there in 2024, followed by states like Arizona, Nevada, Washington and Florida.'],
+      ['Why are people moving to the South?', 'Mainly lower housing costs, job growth in cities like Dallas, Houston, Austin and Charlotte, and in several states no state income tax.'],
+    ],
+  },
+
   '/resources/binding-vs-non-binding-moving-estimate': {
     audience: 'homeowner',
     breadcrumb: 'Binding vs non-binding estimates',
