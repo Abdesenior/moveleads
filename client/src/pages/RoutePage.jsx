@@ -3,11 +3,13 @@ import { ArrowRight, CheckCircle } from 'lucide-react';
 import MarketingLayout from '../components/MarketingLayout';
 import JsonLd from '../components/JsonLd';
 import NotFound from './NotFound';
+import StatePage from './StatePage';
 import { SITE_URL } from '../seo/routes';
 import { ROUTE_HIGHWAYS } from '../seo/routeHighways';
 import {
-  ROUTE_PAGES, COST_SOURCE, HOURLY_SOURCE, SEASON_SOURCE, routeCostRows, bandLabel, cityLabel, usd, relatedRoutes, timeZoneNote,
+  ROUTE_PAGES, STATE_NAMES, COST_SOURCE, HOURLY_SOURCE, SEASON_SOURCE, routeCostRows, bandLabel, cityLabel, usd, relatedRoutes, timeZoneNote,
 } from '../seo/routePages';
+import { STATE_PAGES, statePageForCities } from '../seo/statePages';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -31,26 +33,31 @@ function QuoteButton({ href, label = 'Get my free moving quote' }) {
 
 export default function RoutePage() {
   const { slug } = useParams();
+  if (STATE_PAGES[slug]) return <StatePage slug={slug} />;
   const r = ROUTE_PAGES[slug];
   if (!r) return <NotFound />;
 
   const { from, to, miles } = r;
   const short = r.short;
   const rows = routeCostRows(r);
-  const stateName = { FL: 'Florida', TX: 'Texas', CA: 'California', NC: 'North Carolina', AZ: 'Arizona', TN: 'Tennessee', OK: 'Oklahoma', LA: 'Louisiana' }[from.state] || from.state;
+  const stateName = STATE_NAMES[from.state] || from.state;
   const two = rows.find((c) => c.size === '2 bedrooms');
   const hours = r.hours;
   const quoteHref = `/get-quote?from=${from.zip}&to=${to.zip}`;
   const path = `/moving/${slug}`;
   const related = relatedRoutes(slug);
   const milesText = miles.toLocaleString('en-US');
-  const roads = [...new Set((ROUTE_HIGHWAYS[[r.fromKey, r.toKey].sort().join('|')] || '')
-    .split(/[,;]/).map((x) => x.trim()).filter(Boolean))].slice(0, 3);
+  // Prefer numbered roads (I-70, US-50) over memorial names when OSRM gives both.
+  const allRoads = [...new Set((ROUTE_HIGHWAYS[[r.fromKey, r.toKey].sort().join('|')] || '')
+    .split(/[,;]/).map((x) => x.trim()).filter(Boolean))];
+  const numbered = allRoads.filter((x) => /^(I|US)-\d/.test(x));
+  const roads = (numbered.length ? numbered : allRoads).slice(0, 3);
   const highways = roads.length > 1 ? `${roads.slice(0, -1).join(', ')} and ${roads.at(-1)}` : roads[0] || '';
   const tzNote = timeZoneNote(r.fromKey, r.toKey);
+  const statePage = short ? null : statePageForCities(from.state, to.state);
 
   const taxLine = to.tax && !from.tax
-    ? `${to.state === 'TX' ? 'Texas' : to.state === 'FL' ? 'Florida' : to.state === 'NV' ? 'Nevada' : to.state === 'WA' ? 'Washington' : 'Tennessee'} has no state income tax on wages, which is one reason this is a popular route.`
+    ? `${STATE_NAMES[to.state]} has no state income tax on wages, which is one reason this is a popular route.`
     : null;
 
   const faq = [
@@ -244,6 +251,7 @@ export default function RoutePage() {
           <section style={{ marginBottom: 56 }}>
             <h2 style={h2Style}>Related moving routes</h2>
             <ul style={{ paddingLeft: 20, margin: 0 }}>
+              {statePage && <li style={liStyle}><Link to={`/moving/${statePage.slug}`} style={linkStyle}>Moving from {statePage.from.name} to {statePage.to.name}: costs by city</Link></li>}
               {related.map((l) => <li key={l.to} style={liStyle}><Link to={l.to} style={linkStyle}>Moving from {l.label}</Link></li>)}
               <li style={liStyle}><Link to={`/moving-from/${r.fromKey}`} style={linkStyle}>All moves from {from.name}</Link></li>
               <li style={liStyle}><Link to={`/moving-to/${r.toKey}`} style={linkStyle}>All moves to {to.name}</Link></li>

@@ -4,6 +4,7 @@
 // Keep this file plain JS with no Vite-only imports so Node can load it.
 
 import { ROUTE_SEO, CITY_HUB_SEO } from './routePages.js';
+import { STATE_PAIR_SEO, STATE_HUB_SEO } from './statePages.js';
 
 export const SITE_URL = 'https://moveleads.cloud';
 export const SITE_NAME = 'MoveLeads.cloud';
@@ -112,6 +113,27 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.7,
   },
+  '/resources/moving-out-of-state-checklist': {
+    title: 'Moving to Another State Checklist: Week by Week (2026)',
+    description:
+      'A moving to another state checklist: book an interstate mover, records, utilities and mail, then your new license, car registration and voter registration.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
+  '/resources/how-to-choose-a-long-distance-moving-company': {
+    title: 'How to Choose a Long-Distance Moving Company (2026 Guide)',
+    description:
+      'How to find the best long-distance moving company for you: check the USDOT number, compare written estimates, questions to ask and red flags to avoid.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
+  '/resources/cheapest-way-to-move-out-of-state': {
+    title: 'Cheapest Way to Move Out of State: 3 Options Compared',
+    description:
+      'Rental truck, moving container or full-service movers: which is cheapest for moving to another state, plus 10 ways to cut the cost of any interstate move.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
   '/resources/binding-vs-non-binding-moving-estimate': {
     title: 'Binding vs Non-Binding Moving Estimates Explained',
     description:
@@ -147,8 +169,17 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'weekly',
     priority: 0.9,
   },
+  '/moving/state-to-state': {
+    title: 'State to State Movers: Cost of Moving to Another State (2026)',
+    description:
+      'What moving to another state costs in 2026 by distance and home size, how interstate movers charge, the cheapest options and costs for 170+ state-to-state moves.',
+    changefreq: 'monthly',
+    priority: 0.9,
+  },
   ...ROUTE_SEO,
   ...CITY_HUB_SEO,
+  ...STATE_PAIR_SEO,
+  ...STATE_HUB_SEO,
   '/partners': {
     title: 'Verified Move Requests for Moving Companies, Pay-as-You-Go | MoveLeads',
     description:

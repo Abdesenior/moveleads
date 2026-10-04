@@ -37,6 +37,9 @@ export default function RoutesIndex() {
       </header>
 
       <main style={{ maxWidth: 820, margin: '0 auto', padding: '48px 20px 56px' }}>
+        <p style={{ fontSize: 16.5, lineHeight: 1.75, color: MUTED, margin: '0 0 32px' }}>
+          Moving between states? See <Link to="/moving/state-to-state" style={{ color: '#ea580c', fontWeight: 700, textDecoration: 'none' }}>state to state moving costs</Link>, for example California to Texas or New York to Florida.
+        </p>
         {byOrigin().map(([origin, routes]) => (
           <section key={origin} style={{ marginBottom: 36 }}>
             <h2 style={{ fontFamily: F, fontSize: 22, fontWeight: 800, color: NAVY, margin: '0 0 12px' }}>
