@@ -24,7 +24,13 @@ jobs:
       - name: API and database (Render + MongoDB Atlas)
         run: |
           # Render can take ~30s to wake, so allow a long first request.
-          body=$(curl -s --max-time 60 --retry 2 --retry-delay 10 https://api.moveleads.cloud/api/health || true)
-          echo "$body"
+          # A just-woken server answers before the database connects, so
+          # retry for up to ~2 minutes before calling it down.
+          for i in 1 2 3 4 5 6; do
+            body=$(curl -s --max-time 60 --retry 2 --retry-delay 10 https://api.moveleads.cloud/api/health || true)
+            echo "$body"
+            echo "$body" | grep -q '"database":"connected"' && break
+            sleep 20
+          done
           echo "$body" | grep -q '"status":"ok"' || { echo "::error::API health check failed"; exit 1; }
           echo "$body" | grep -q '"database":"connected"' || { echo "::error::Database is not connected"; exit 1; }
