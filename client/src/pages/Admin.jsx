@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { TrendingUp, Plus, UserX, DollarSign, Package, Users, UserPlus, ArrowUpRight, Clock } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import { AuthContext } from '../context/AuthContext';
+import TrendsPanel from '../components/admin/TrendsPanel';
 
 const cleanDescription = (desc) => {
   if (!desc) return '';
@@ -137,6 +138,8 @@ export default function Admin() {
           </div>
         ))}
       </div>
+
+      <TrendsPanel />
 
       <div className="dashboard-content-grid">
         {/* Transactions Table */}
