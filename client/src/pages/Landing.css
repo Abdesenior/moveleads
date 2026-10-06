@@ -61,8 +61,8 @@
 
 .lp-footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 44px;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 36px;
   margin-bottom: 48px;
 }
 

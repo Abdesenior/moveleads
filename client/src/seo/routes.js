@@ -71,6 +71,20 @@ export const INDEXABLE_ROUTES = {
     changefreq: 'monthly',
     priority: 0.8,
   },
+  '/resources/how-to-start-a-moving-company': {
+    title: 'How to Start a Moving Company: Licenses, Insurance, Trucks',
+    description:
+      'How to start a moving company step by step: state licenses, USDOT and FMCSA authority for interstate moves, insurance, trucks, pricing and first customers.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
+  '/resources/moving-company-marketing': {
+    title: 'Moving Company Marketing: 9 Ways to Book More Moves (2026)',
+    description:
+      'Moving company marketing that books jobs: Google Business Profile, reviews, city pages, realtor referrals, paid leads and ads, compared by cost and speed.',
+    changefreq: 'monthly',
+    priority: 0.8,
+  },
   '/resources/how-to-get-moving-leads': {
     title: 'How to Get Moving Leads: 8 Free and Paid Ways (2026 Guide)',
     description:

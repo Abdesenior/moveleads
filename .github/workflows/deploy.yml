@@ -45,6 +45,13 @@ jobs:
           VITE_MAPBOX_TOKEN: ${{ vars.VITE_MAPBOX_TOKEN }}
           VITE_META_MOVER_PIXEL_ID: ${{ vars.VITE_META_MOVER_PIXEL_ID }}
 
+      # Compare page hashes with the live site before it is replaced.
+      - name: IndexNow — find changed pages
+        if: env.CF_TOKEN != ''
+        working-directory: client
+        continue-on-error: true
+        run: node scripts/indexnow.mjs diff
+
       - name: Skip deploy — Cloudflare token not configured
         if: env.CF_TOKEN == ''
         run: echo "CLOUDFLARE_API_TOKEN not set — deploy manually with 'npx wrangler deploy'."
@@ -58,6 +65,12 @@ jobs:
           # v3 (the action's default) doesn't support assets-only Workers.
           wranglerVersion: "4.86.0"
           command: deploy
+
+      - name: IndexNow — submit changed pages to Bing
+        if: env.CF_TOKEN != ''
+        working-directory: client
+        continue-on-error: true
+        run: node scripts/indexnow.mjs submit
 
   # ── 2. Backend: Render deploys from GitHub natively; hook is optional ─────
   deploy-backend:

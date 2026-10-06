@@ -14,6 +14,8 @@
     "run_worker_first": true,
     "not_found_handling": "none"
   },
+  // Keeps the Render API awake (see scheduled() in worker/index.js).
+  "triggers": { "crons": ["*/14 * * * *"] },
   "routes": [
     { "pattern": "moveleads.cloud", "custom_domain": true },
     { "pattern": "www.moveleads.cloud", "custom_domain": true }

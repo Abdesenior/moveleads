@@ -9,7 +9,9 @@
 | Title | `Movers from Dallas to Austin \| MoveLeads` | `Dallas to Austin Movers: $850–$1,750 (2026 Cost)` |
 | Description | `Get a free quote from a licensed mover for your Dallas to Austin move. See typical costs by home size and the drive before you book.` | `Moving from Dallas, TX to Austin, TX (195 miles)? A 2-bedroom move costs about $850–$1,750. See costs by home size and get a free quote.` |
 
-The page content, H1 and URLs are unchanged. The test group is the 20 routes in [priority-routes.md](priority-routes.md).
+**Readout excludes Jacksonville to Orlando** (it keeps the test title, but the Oct 6 audit found its searches are travel queries, which would drag the test group's click rate down). The regex below covers the other 19.
+
+The page content, H1 and URLs are unchanged. The test group is the 20 slugs in `TITLE_TEST_SLUGS` (the priority list as of Oct 4; Sacramento to Los Angeles, added Oct 6, is not in the test).
 
 The suggested description said "Compare prices & book with vetted moving companies". It was reworded because MoveLeads matches each request with one mover, so a promise to compare would be inaccurate.
 
@@ -20,7 +22,7 @@ Search Console > **Performance** > Search results. Set the date range to the 28 
 1. **Test group:** add a filter **Page > Custom (regex)** and paste:
 
    ```
-   /moving/(dallas-to-austin|austin-to-dallas|houston-to-dallas|houston-to-austin|jacksonville-to-orlando|san-antonio-to-houston|dallas-to-houston|fort-worth-to-austin|austin-to-houston|san-antonio-to-austin|austin-to-san-antonio|los-angeles-to-las-vegas|los-angeles-to-san-diego|san-diego-to-los-angeles|los-angeles-to-phoenix|phoenix-to-san-diego|san-diego-to-phoenix|st-louis-to-chicago|kansas-city-to-st-louis|greenville-to-charleston)$
+   /moving/(dallas-to-austin|austin-to-dallas|houston-to-dallas|houston-to-austin|san-antonio-to-houston|dallas-to-houston|fort-worth-to-austin|austin-to-houston|san-antonio-to-austin|austin-to-san-antonio|los-angeles-to-las-vegas|los-angeles-to-san-diego|san-diego-to-los-angeles|los-angeles-to-phoenix|phoenix-to-san-diego|san-diego-to-phoenix|st-louis-to-chicago|kansas-city-to-st-louis|greenville-to-charleston)$
    ```
 
 2. **All route pages:** change the filter to **Page > Custom (regex)** `/moving/[a-z-]+-to-[a-z-]+$` and note clicks and impressions. This also counts state pages; that's fine, because they keep their own titles in both periods.

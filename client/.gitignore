@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .vercel
 .env*.local
+
+# IndexNow changed-URL list (written during deploy)
+indexnow-urls.txt
