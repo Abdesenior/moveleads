@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Package, DollarSign, Settings, Menu, X, LogOut, Shield, AlertCircle, ChevronLeft, ChevronRight, ClipboardList, BarChart2, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Package, DollarSign, Settings, Menu, X, LogOut, Shield, AlertCircle, ChevronLeft, ChevronRight, ClipboardList, BarChart2, ShieldCheck, Target } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import '../dashboard.css';
 
@@ -124,6 +124,9 @@ export default function AdminLayout({ children }) {
           </NavLink>
           <NavLink to="/admin/quality-analytics" title={collapsed ? 'Quality Analytics' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <BarChart2 size={18} /> <span className="nav-label">Quality Analytics</span>
+          </NavLink>
+          <NavLink to="/admin/lead-sources" title={collapsed ? 'Lead Sources' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Target size={18} /> <span className="nav-label">Lead Sources</span>
           </NavLink>
           <NavLink to="/admin/revenue" title={collapsed ? 'Revenue' : undefined} onClick={() => setSidebarOpen(false)} className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
             <DollarSign size={18} /> <span className="nav-label">Revenue</span>

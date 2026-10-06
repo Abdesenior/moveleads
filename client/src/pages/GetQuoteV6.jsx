@@ -21,6 +21,7 @@ import ContactScreen from './getQuoteV6/screens/ContactScreen';
 import SuccessScreen from './getQuoteV6/screens/SuccessScreen';
 import MobileShell from './getQuoteV6/shells/MobileShell';
 import DesktopShell from './getQuoteV6/shells/DesktopShell';
+import { getAttribution } from '../utils/attribution';
 
 /**
  * GetQuoteV6 — Conversational qualification funnel.
@@ -305,6 +306,8 @@ export default function GetQuoteV6() {
       if (metaFbp)       payload.fbp            = metaFbp;
       if (metaFbc)       payload.fbc            = metaFbc;
       if (metaSourceUrl) payload.eventSourceUrl = metaSourceUrl;
+      const attribution = getAttribution();
+      if (attribution) payload.attribution = attribution;
 
       const res = await fetch(`${API}/api/leads/ingest-v2`, {
         method: 'POST',
@@ -323,6 +326,11 @@ export default function GetQuoteV6() {
       // clientSubmissionId) skip this — they didn't create a new Lead.
       if (!json.idempotent) {
         trackLead(metaEventId);
+        // GA4: count the lead so landing-page and channel reports show leads,
+        // not just page views (the only other conversion goes to Google Ads).
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', 'generate_lead', { currency: 'USD', value: 1, lead_source: 'quote_form' });
+        }
       }
 
       patch({ clientSubmissionId: submissionId, intentConfirmed: true });
