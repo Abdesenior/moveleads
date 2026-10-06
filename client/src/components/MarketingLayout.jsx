@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { POPULAR_MOVES } from '../seo/popularMoves';
 
 const F = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 const NAVY = '#0b1628';
@@ -122,6 +123,7 @@ export default function MarketingLayout({ children }) {
             {[
               { title: 'Moving leads', links: [{ l: 'Verified moving leads', to: '/moving-leads' }, { l: 'Exclusive leads', to: '/moving-leads/exclusive' }, { l: 'Long-distance leads', to: '/moving-leads/long-distance' }, { l: 'Local leads', to: '/moving-leads/local' }, { l: 'Commercial leads', to: '/moving-leads/commercial' }, { l: 'Pricing', to: '/pricing' }, { l: 'How to get moving leads', to: '/resources/how-to-get-moving-leads' }, { l: 'Best lead providers', to: '/resources/best-moving-lead-providers' }] },
               { title: 'Company', links: [{ l: 'About Us', to: '/about' }, { l: 'Contact', to: '/contact' }, { l: 'For Movers', to: '/for-movers' }, { l: 'Get a free moving quote', to: '/get-quote' }, { l: 'Moving costs by route', to: '/moving' }, { l: 'State to state moving', to: '/moving/state-to-state' }, { l: 'Moving out of state checklist', to: '/resources/moving-out-of-state-checklist' }, { l: 'Where people are moving', to: '/resources/top-states-people-are-moving-to' }, { l: 'Moving cost calculator', to: '/moving-cost-calculator' }, { l: 'Avoid moving scams', to: '/resources/moving-scams' }, { l: 'Moving checklist', to: '/resources/moving-checklist' }, { l: 'Privacy Policy', to: '/privacy' }] },
+              { title: 'Popular moves', links: POPULAR_MOVES },
               { title: 'Account', links: [{ l: 'Sign up free', to: '/register' }, { l: 'Log in', to: '/login' }, { l: 'Feedback', to: '/feedback' }] },
             ].map((col, i) => (
               <div key={i}>
@@ -161,7 +163,7 @@ export default function MarketingLayout({ children }) {
         .ml-mobile-cta   { display: block; text-align: center; padding: 13px; font-size: 15px; font-weight: 700; color: #fff; text-decoration: none; background: ${ORANGE}; border-radius: 12px; box-shadow: 0 4px 14px rgba(249,115,22,0.35); }
 
         /* Footer */
-        .ml-footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 44px; margin-bottom: 48px; }
+        .ml-footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 36px; margin-bottom: 48px; }
 
         @media(max-width: 900px) {
           .ml-nav-links { display: none; }

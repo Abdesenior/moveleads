@@ -1,8 +1,8 @@
 # Priority routes: first 20 to push
 
-Last updated: 2026-10-04. CSV export: [priority-routes.csv](priority-routes.csv).
+Last updated: 2026-10-06 (Jacksonville to Orlando replaced by Sacramento to Los Angeles after the Oct 6 audit). CSV export: [priority-routes.csv](priority-routes.csv).
 
-20 routes, 15 intrastate (75%), 5 interstate, 8 states (AZ, CA, FL, IL, MO, NV, SC, TX). All are 50–400 miles.
+20 routes, 15 intrastate (75%), 5 interstate, 7 states (AZ, CA, IL, MO, NV, SC, TX). All are 50–400 miles.
 
 > Verified paths against RoutePage routing: every slug below exists in `ROUTE_PAGES` (`client/src/seo/routePages.js`), resolves through `/moving/:slug` → `RoutePage`, and has a pre-rendered `dist/moving/{slug}.html` and a sitemap entry. The paths in the original brief (`/routes/:from/:to`, `/state/:state`) do not exist on the site and would 404, so they are not used.
 
@@ -22,7 +22,7 @@ Last updated: 2026-10-04. CSV export: [priority-routes.csv](priority-routes.csv)
 | 2 | Austin to Dallas | Intrastate | 195 | austin to dallas movers (210, KD 6) | Low | [/moving/austin-to-dallas](https://moveleads.cloud/moving/austin-to-dallas) |
 | 3 | Houston to Dallas | Intrastate | 240 | movers from houston to dallas (170, KD 8) | Low | [/moving/houston-to-dallas](https://moveleads.cloud/moving/houston-to-dallas) |
 | 4 | Houston to Austin | Intrastate | 165 | movers houston to austin (140, KD 4) | Low | [/moving/houston-to-austin](https://moveleads.cloud/moving/houston-to-austin) |
-| 5 | Jacksonville to Orlando | Intrastate | 140 | orlando fl to jacksonville fl (2,900, KD 16) | Medium | [/moving/jacksonville-to-orlando](https://moveleads.cloud/moving/jacksonville-to-orlando) |
+| 5 | Sacramento to Los Angeles | Intrastate | 385 | movers sacramento to los angeles (40, KD 0) | Low | [/moving/sacramento-to-los-angeles](https://moveleads.cloud/moving/sacramento-to-los-angeles) |
 | 6 | San Antonio to Houston | Intrastate | 195 | san antonio to houston drive (1,000, KD 19) | Medium | [/moving/san-antonio-to-houston](https://moveleads.cloud/moving/san-antonio-to-houston) |
 | 7 | Dallas to Houston | Intrastate | 240 | movers dallas to houston (140, KD 3) | Low | [/moving/dallas-to-houston](https://moveleads.cloud/moving/dallas-to-houston) |
 | 8 | Fort Worth to Austin | Intrastate | 190 | fort worth austin movers (140, KD 9) | Low | [/moving/fort-worth-to-austin](https://moveleads.cloud/moving/fort-worth-to-austin) |
@@ -69,12 +69,12 @@ Last updated: 2026-10-04. CSV export: [priority-routes.csv](priority-routes.csv)
 - **Why:** 320/mo commercial intent, KD 4–5.
 - **Actions:** Link from /moving-to/austin hub; request indexing.
 
-### 5. Jacksonville to Orlando (Intrastate, 140 mi)
+### 5. Sacramento to Los Angeles (Intrastate, 385 mi)
 
-- **URL:** https://moveleads.cloud/moving/jacksonville-to-orlando
-- **Secondary keyword:** how far from orlando to jacksonville (210)
-- **Why:** Highest volume of any served short route (3,110/mo). Mostly distance/drive intent; the page already answers miles, drive time and highways.
-- **Actions:** Make sure the drive section (140 mi, I-95/I-4) sits high; link from /moving-to/orlando hub; request indexing.
+- **URL:** https://moveleads.cloud/moving/sacramento-to-los-angeles
+- **Secondary keyword:** moving from sacramento to los angeles
+- **Why:** Replaces Jacksonville to Orlando (Oct 6 audit: "orlando to jacksonville" results are flights and drive distance, not movers). Pure mover intent, KD 0, and a 385-mile in-state California move.
+- **Actions:** Link from /moving-to/los-angeles hub; request indexing.
 
 ### 6. San Antonio to Houston (Intrastate, 195 mi)
 
@@ -188,5 +188,5 @@ Last updated: 2026-10-04. CSV export: [priority-routes.csv](priority-routes.csv)
 - **Distance:** 50–400 miles, from OSRM road distances in `routeDistances.js`.
 - **Ranking:** low KD with "movers" or "moving" intent first, since those searchers want quotes. Higher-volume distance and drive queries come next because the pages answer them with real road data. High-KD and local-intent keywords come last.
 - **Competition guess:** Low = KD under 10, Medium = KD 10–20, High = KD over 20 or a local-pack keyword.
-- **Mix:** Texas is heavy (9 of 20) because it has the lowest KD and most mover-intent volume in the data. The list still covers 8 states.
+- **Mix:** Texas is heavy (9 of 20) because it has the lowest KD and most mover-intent volume in the data. The list still covers 7 states.
 - **Limitation:** volumes come from one competitor's rankings, not a full keyword universe. Recheck against our own Search Console data in about 2 weeks.

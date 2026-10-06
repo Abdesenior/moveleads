@@ -65,4 +65,10 @@ export default {
 
     return shell(url, env, isAppPath(url.pathname) ? 200 : 404);
   },
+
+  // Cron (wrangler.jsonc): ping the Render API so it doesn't fall asleep
+  // after 15 idle minutes; a cold start makes the quote form wait ~30s.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(fetch('https://api.moveleads.cloud/api/health').catch(() => {}));
+  },
 };

@@ -60,6 +60,8 @@ export const B2B_PAGES = {
           { to: '/moving-leads/exclusive', label: 'Exclusive moving leads' },
           { to: '/moving-leads/commercial', label: 'Commercial moving leads' },
           { to: '/resources/how-to-get-moving-leads', label: 'Guide: how to get moving leads' },
+          { to: '/resources/moving-company-marketing', label: 'Guide: moving company marketing' },
+          { to: '/resources/how-to-start-a-moving-company', label: 'Guide: how to start a moving company' },
           { to: '/resources/best-moving-lead-providers', label: 'Best moving lead providers compared' },
           { to: '/compare/network-leads', label: 'MoveLeads vs Network Leads' },
           { to: '/compare/moveadvisor', label: 'MoveLeads vs MoveAdvisor' },
@@ -309,6 +311,145 @@ export const B2B_PAGES = {
       ['What is the cheapest way to get moving leads?', 'Your Google Business Profile, reviews and referrals cost nothing but time. They take months to build, so many movers buy leads while they grow.'],
       ['Are bought moving leads worth it?', 'They can be if you track cost per booked job. Single-buyer leads usually close at a higher rate than leads shared with several movers.'],
       ['How fast should I call a new lead?', 'As fast as possible. The first mover to reach the customer has the best chance of booking the job.'],
+    ],
+  },
+  '/resources/how-to-start-a-moving-company': {
+    breadcrumb: 'How to start a moving company',
+    parent: '/moving-leads',
+    eyebrow: 'Guide for moving companies',
+    h1: 'How to start a moving company: licenses, insurance, trucks and first jobs',
+    answer:
+      'To start a moving company you form a business, get the licenses for the moves you will do (state rules for in-state moves; a USDOT number and FMCSA operating authority for moves across state lines), buy insurance, get a truck and equipment, set your prices, and then find your first customers through Google, referrals and paid leads.',
+    sections: [
+      {
+        h2: 'Step by step',
+        steps: [
+          'Pick your market. Local moves are paid by the hour and need fewer permits; long-distance moves pay more per job but need federal registration and a bigger truck.',
+          'Form the business. Register an LLC or corporation in your state, get an EIN from the IRS and open a business bank account.',
+          'Get licensed for in-state moves. Rules vary by state: many states license household goods movers through a state agency, and some require a separate permit and cargo insurance. Check your state transportation or consumer affairs department.',
+          'Register with FMCSA for interstate moves. Moving goods across state lines requires a USDOT number and household goods operating authority (an MC number), plus a BOC-3 process agent filing. FMCSA charges $300 per operating authority.',
+          'Buy insurance. Interstate household goods carriers must file proof of liability and cargo insurance with FMCSA before their authority goes active. Add commercial auto, general liability and workers comp as your state requires.',
+          'Get a truck and equipment. A box truck under 26,001 lbs gross weight can be driven without a commercial driver license (CDL); heavier trucks need a CDL driver. Add dollies, pads, straps, shrink wrap and a tool kit.',
+          'Set your prices. Local moves are usually priced per hour for a crew and truck; interstate moves are priced by weight and distance under a written estimate.',
+          'Find your first customers. See the marketing section below.',
+        ],
+        sources: [
+          { url: 'https://www.fmcsa.dot.gov/registration', label: 'FMCSA: registration and operating authority' },
+          { url: 'https://www.fmcsa.dot.gov/protect-your-move', label: 'FMCSA: Protect Your Move (rules for household goods movers)' },
+        ],
+      },
+      {
+        h2: 'Rules interstate movers must follow',
+        bullets: [
+          'Give customers a written estimate, either binding or non-binding. On a non-binding estimate you can collect at most 110% of the estimate at delivery.',
+          'Give customers the FMCSA booklet "Your Rights and Responsibilities When You Move".',
+          'Offer an arbitration program for disputes about loss or damage.',
+          'Show your USDOT number on your website, ads and trucks.',
+        ],
+        link: { to: '/resources/binding-vs-non-binding-moving-estimate', label: 'Binding vs non-binding moving estimates' },
+      },
+      {
+        h2: 'What it costs to start',
+        text: 'Costs depend mostly on whether you buy or lease a truck and which licenses you need. Budget for each of these before your first job:',
+        bullets: [
+          'Business registration and state licensing fees',
+          'FMCSA operating authority ($300) if you move across state lines',
+          'Insurance premiums, often the largest yearly cost after the truck',
+          'Truck purchase, lease or rental, plus fuel and maintenance',
+          'Equipment: dollies, pads, straps, wrap',
+          'Marketing: website, Google Business Profile, and paid leads or ads',
+        ],
+      },
+      {
+        h2: 'How to get your first moving jobs',
+        numbered: [
+          'Create a Google Business Profile and ask every early customer for a review. Most local moving searches show the map first.',
+          'Build a simple website with your services, the cities you serve, a quote form and your USDOT number.',
+          'Ask local realtors and apartment managers for referrals; they know who is moving weeks ahead.',
+          'Buy leads to fill the calendar while reviews and referrals grow. Start small, call every lead within minutes, and track cost per booked job.',
+        ],
+        links: [
+          { to: '/resources/moving-company-marketing', label: 'Moving company marketing: what works' },
+          { to: '/resources/how-to-get-moving-leads', label: 'How to get moving leads' },
+          { to: '/moving-leads', label: 'Buy moving leads from $10, no contract' },
+        ],
+      },
+    ],
+    faq: [
+      ['Do I need a license to start a moving company?', 'Yes. In-state movers follow their state rules, which in many states means a household goods license or permit. Moves across state lines also need a USDOT number and FMCSA operating authority.'],
+      ['Do I need a CDL to drive a moving truck?', 'Only for trucks over 26,000 lbs gross vehicle weight. Many new movers start with a smaller box truck that does not need a CDL.'],
+      ['How do new moving companies get customers?', 'Through a Google Business Profile and reviews, referrals from realtors and past customers, paid ads, and lead providers. Lead providers fill the schedule fastest while the free channels grow.'],
+      ['Is a moving company profitable?', 'It can be, but margins depend on keeping crews and trucks busy. Track cost per booked job for every lead source and drop the ones that do not pay back.'],
+    ],
+  },
+  '/resources/moving-company-marketing': {
+    breadcrumb: 'Moving company marketing',
+    parent: '/moving-leads',
+    eyebrow: 'Guide for moving companies',
+    h1: 'Moving company marketing: 9 ways to book more moves',
+    answer:
+      'The marketing that books the most moves for most moving companies is a strong Google Business Profile with steady reviews, a website with one page per service and city, referrals from realtors and past customers, and paid leads or ads to fill gaps. Whatever you use, call new leads within minutes and track cost per booked job.',
+    sections: [
+      {
+        h2: 'Marketing channels compared',
+        table: {
+          head: ['Channel', 'Cost', 'Time to results', 'Best for'],
+          rows: [
+            ['Google Business Profile', 'Free', 'Weeks to months', 'Local moves in your city'],
+            ['Reviews', 'Free', 'Builds over time', 'Winning against nearby movers'],
+            ['Website and SEO', 'Low to medium', 'Months', 'Steady leads you own'],
+            ['Realtor and apartment referrals', 'Free to low', 'Weeks', 'Higher-value moves booked early'],
+            ['Google Ads and Local Services Ads', 'High', 'Days', 'Filling the schedule fast'],
+            ['Pay-per-lead providers', 'Per lead', 'Same day', 'Filling gaps without a contract'],
+            ['Yelp, Thumbtack and Angi', 'Per lead or ad spend', 'Days', 'Small and local moves'],
+            ['Facebook groups and local communities', 'Free', 'Weeks', 'Word of mouth in your area'],
+            ['Truck wraps and yard signs', 'One-time', 'Ongoing', 'Local brand recognition'],
+          ],
+        },
+      },
+      {
+        h2: '1. Own your Google Business Profile',
+        text: 'Fill in every field, pick "Moving company" as the main category, list the areas you serve, and post photos of your trucks and crew. Reply to every review. The map results appear above the regular results for most local moving searches.',
+      },
+      {
+        h2: '2. Turn every move into a review',
+        text: 'Send a short text with your review link the day after each move, while the customer is happy. A steady flow of recent reviews matters more than an old total.',
+      },
+      {
+        h2: '3. Build one page per service and city',
+        text: 'A page for local moving, long-distance moving, packing and commercial moves, plus a page for each city you serve. Put your phone number, a quote form and your USDOT number on every page.',
+      },
+      {
+        h2: '4. Partner with realtors and apartment managers',
+        text: 'They know who is moving weeks before the customer starts searching. Offer a simple referral process and fast, reliable service for their clients.',
+      },
+      {
+        h2: '5. Use paid leads to fill gaps',
+        text: 'Lead providers are the fastest way to fill an empty week. Compare them on whether each lead is shared with other movers, how phone numbers are checked, refund terms and contracts.',
+        link: { to: '/moving-leads', label: 'MoveLeads: single-buyer leads from $10, no contract' },
+      },
+      {
+        h2: '6. Run Google Ads or Local Services Ads carefully',
+        text: 'Ads bring calls within days but cost a lot in busy cities. Set a daily budget, target only the areas you serve, and judge them by booked jobs, not clicks.',
+      },
+      {
+        h2: '7. Answer leads in minutes',
+        text: 'The first mover to reach a customer usually books the job. Turn on instant alerts, call within five minutes, and follow up by text if they do not answer.',
+        link: { to: '/resources/speed-to-lead-for-movers', label: 'Speed to lead for movers' },
+      },
+      {
+        h2: '8. Be visible in local communities',
+        text: 'Answer moving questions in local Facebook groups and neighborhood apps without hard selling. People remember who helped them.',
+      },
+      {
+        h2: '9. Track cost per booked job',
+        text: 'For every channel, divide what you spent by the jobs you booked. Keep the channels that pay back and cut the rest. This one number matters more than leads, clicks or followers.',
+      },
+    ],
+    faq: [
+      ['What is the best marketing for a moving company?', 'For most movers: a complete Google Business Profile with steady reviews, plus referrals. Paid leads and ads fill the schedule while those grow.'],
+      ['How much should a moving company spend on marketing?', 'Start from what a booked job is worth to you and how many jobs you need, then work out what you can pay per booked job. Track it per channel.'],
+      ['Should moving companies buy leads?', 'Leads are worth it when you call them fast and track cost per booked job. Leads sold to one mover usually close better than leads shared with several.'],
     ],
   },
   '/compare/network-leads': {
