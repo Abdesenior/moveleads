@@ -4,6 +4,7 @@ import {
   FileText, CheckCircle, AlertCircle, MessageSquare, Eye,
   ArrowRight, Truck, Flag
 } from 'lucide-react';
+import { isWon } from '../../utils/purchaseStats';
 import DashboardLayout from '../../components/DashboardLayout';
 import { AuthContext } from '../../context/AuthContext';
 import TablePagination from '../../components/ui/TablePagination';
@@ -291,7 +292,7 @@ export default function Customers() {
         {[
           { label: 'Total', value: purchases.length, icon: <Users size={15} />, bg: '#eff6ff', color: '#2563eb' },
           { label: 'New', value: purchases.filter(p => !p.crmStatus || p.crmStatus === 'New').length, icon: <AlertCircle size={15} />, bg: '#f5f3ff', color: '#7c3aed' },
-          { label: 'Booked', value: purchases.filter(p => p.crmStatus === 'Booked').length, icon: <CheckCircle size={15} />, bg: '#f0fdf4', color: '#16a34a' },
+          { label: 'Won', value: purchases.filter(isWon).length, icon: <CheckCircle size={15} />, bg: '#f0fdf4', color: '#16a34a' },
           { label: 'Lost', value: purchases.filter(p => p.crmStatus === 'Lost').length, icon: <X size={15} />, bg: '#fee2e2', color: '#dc2626' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
