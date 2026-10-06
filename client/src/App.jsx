@@ -56,6 +56,7 @@ const Admin = lazy(() => import('./pages/Admin'));
 const AdminLeads = lazy(() => import('./pages/admin/AdminLeads'));
 const AdminQuality = lazy(() => import('./pages/admin/AdminQuality'));
 const AdminQualityAnalytics = lazy(() => import('./pages/admin/AdminQualityAnalytics'));
+const AdminLeadSources = lazy(() => import('./pages/admin/AdminLeadSources'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminRevenue = lazy(() => import('./pages/admin/AdminRevenue'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
@@ -145,6 +146,7 @@ function App() {
               <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminLeads /></ProtectedRoute>} />
               <Route path="/admin/quality" element={<ProtectedRoute requireAdmin><AdminQuality /></ProtectedRoute>} />
               <Route path="/admin/quality-analytics" element={<ProtectedRoute requireAdmin><AdminQualityAnalytics /></ProtectedRoute>} />
+              <Route path="/admin/lead-sources" element={<ProtectedRoute requireAdmin><AdminLeadSources /></ProtectedRoute>} />
               <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
               <Route path="/admin/revenue" element={<ProtectedRoute requireAdmin><AdminRevenue /></ProtectedRoute>} />
               <Route path="/admin/disputes" element={<ProtectedRoute requireAdmin><AdminDisputes /></ProtectedRoute>} />
