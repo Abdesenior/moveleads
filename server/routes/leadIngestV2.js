@@ -48,6 +48,7 @@ const pricingEngineV2 = require('../services/pricingEngineV2');
 const pricingEngineSimple = require('../services/pricingEngineSimple');
 const { instantDispatchEnabled } = require('../utils/instantDispatch');
 const metaCapi = require('../services/metaCapi');
+const { normalizeAttribution } = require('../utils/attribution');
 
 /**
  * Derive an `urgencyBucket` enum from a specific `moveDate`. V6 conversational
@@ -289,6 +290,7 @@ router.post('/', ingestLimiter, async (req, res) => {
       ...(data.fbp            && { fbp:            data.fbp }),
       ...(data.fbc            && { fbc:            data.fbc }),
       ...(data.eventSourceUrl && { eventSourceUrl: data.eventSourceUrl }),
+      ...(data.attribution    && { attribution:    normalizeAttribution(data.attribution) }),
       ...metaCapi.extractRequestSignals(req),
     });
 

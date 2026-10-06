@@ -180,6 +180,19 @@ const LeadIngestV2Schema = z.object({
   fbp:            z.string().max(256).optional(),
   fbc:            z.string().max(256).optional(),
   eventSourceUrl: z.string().url().max(2048).optional(),
+
+  // ── First-touch attribution (optional, client-supplied) ─────────────────
+  // Stored by client/src/utils/attribution.js on the visitor's first page
+  // view and normalized server-side by utils/attribution.js (path only,
+  // referrer host only, derived channel). Bounded and strict like the rest.
+  attribution: z.object({
+    landingPage: z.string().max(2048).optional(),
+    referrer:    z.string().max(2048).optional(),
+    utmSource:   z.string().max(256).optional(),
+    utmMedium:   z.string().max(256).optional(),
+    utmCampaign: z.string().max(256).optional(),
+    firstSeenAt: z.string().max(64).optional(),
+  }).strict().optional(),
 }).strict()  // ← REJECT unknown fields (V5 must surface client/server drift)
   .refine(
     d => (d.pickupZip || d.originZip),

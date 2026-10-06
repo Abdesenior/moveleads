@@ -417,6 +417,23 @@ const LeadSchema = new mongoose.Schema({
   ipAddress:           { type: String },
   userAgent:           { type: String },
   eventSourceUrl:      { type: String },
+
+  // First-touch attribution: which page and channel produced this lead.
+  // Written once at ingest from utils/attribution.normalizeAttribution
+  // (path only, referrer host only). Absent on leads created before
+  // 2026-10 and on submissions that don't send it.
+  attribution: {
+    type: new mongoose.Schema({
+      landingPage:  { type: String },
+      referrerHost: { type: String },
+      channel:      { type: String, enum: ['organic_search', 'ai_assistant', 'social', 'referral', 'campaign', 'paid', 'direct'] },
+      utmSource:    { type: String },
+      utmMedium:    { type: String },
+      utmCampaign:  { type: String },
+      firstSeenAt:  { type: Date },
+    }, { _id: false }),
+    default: undefined,
+  },
   metaCapiSentAt:      { type: Date },
   metaQualifiedSentAt: { type: Date },
 });
