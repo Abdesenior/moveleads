@@ -1317,5 +1317,36 @@ var ROUTES = {
    "low": 7900,
    "high": 14850
   }
+ },
+ "chicago-to-phoenix": {
+  "from": "Chicago",
+  "fromState": "IL",
+  "fromStateName": "Illinois",
+  "to": "Phoenix",
+  "toState": "AZ",
+  "toStateName": "Arizona",
+  "toTax": false,
+  "miles": 1755,
+  "hours": 32,
+  "short": false,
+  "interstate": true,
+  "roads": [],
+  "fromZip": "60601",
+  "toZip": "85004",
+  "studio": {
+   "size": "Studio",
+   "low": 2650,
+   "high": 6100
+  },
+  "two": {
+   "size": "2 bedrooms",
+   "low": 3700,
+   "high": 9900
+  },
+  "four": {
+   "size": "4+ bedrooms",
+   "low": 7750,
+   "high": 14600
+  }
  }
 };

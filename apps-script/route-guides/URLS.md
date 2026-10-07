@@ -50,3 +50,4 @@ Update: `SEMRUSH_CSV=<export.csv> node apps-script/route-guides/build.mjs` (or w
 38. https://script.google.com/macros/s/AKfycbwqgFTu9CHCx8awIpTsJuTqGz8iZn3LdJt5AqlmLWQVfTDhHr3x9QVATYLV0ba6ogqBCA/exec?route=los-angeles-to-phoenix
 39. https://script.google.com/macros/s/AKfycbwqgFTu9CHCx8awIpTsJuTqGz8iZn3LdJt5AqlmLWQVfTDhHr3x9QVATYLV0ba6ogqBCA/exec?route=san-diego-to-phoenix
 40. https://script.google.com/macros/s/AKfycbwqgFTu9CHCx8awIpTsJuTqGz8iZn3LdJt5AqlmLWQVfTDhHr3x9QVATYLV0ba6ogqBCA/exec?route=boston-to-denver
+41. https://script.google.com/macros/s/AKfycbwqgFTu9CHCx8awIpTsJuTqGz8iZn3LdJt5AqlmLWQVfTDhHr3x9QVATYLV0ba6ogqBCA/exec?route=chicago-to-phoenix
