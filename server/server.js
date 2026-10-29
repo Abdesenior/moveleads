@@ -166,6 +166,9 @@ app.use('/api/admin/claim-attempts', verifiedGate, require('./routes/admin/claim
 // Lead sources report (first-touch attribution). Read-only; mounted
 // BEFORE generic /api/admin so /lead-sources wins.
 app.use('/api/admin/lead-sources', verifiedGate, require('./routes/admin/leadSources'));
+// Growth trends (leads, sell-through, revenue vs previous period). Read-only;
+// mounted BEFORE generic /api/admin so /trends wins.
+app.use('/api/admin/trends', verifiedGate, require('./routes/admin/trends'));
 // Analytics router — mounted BEFORE generic /api/admin so the specific
 // /quality-analytics, /carrier-analytics, /pricing-v2-analytics paths and
 // /leads/:id/action-timeline get first crack. Falls through to admin.js
