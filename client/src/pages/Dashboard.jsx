@@ -6,8 +6,9 @@ import {
 import {
   Wallet, ShoppingBag, Trophy, TrendingDown,
   ArrowUpCircle, Clock, Plus, Zap, MapPin, Truck,
-  AlertTriangle, ChevronRight
+  AlertTriangle, ChevronRight, Target
 } from 'lucide-react';
+import { purchaseStats } from '../utils/purchaseStats';
 import DashboardLayout from '../components/DashboardLayout';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -141,7 +142,7 @@ export default function Dashboard() {
   const { API_URL, token, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [kpi, setKpi] = useState({ balance: 0, totalPurchased: 0, jobsWon: 0, totalSpend: 0 });
+  const [kpi, setKpi] = useState({ balance: 0, totalPurchased: 0, jobsWon: 0, totalSpend: 0, costPerJobWon: null });
   const [chartData, setChartData] = useState([]);
   const [availableLeads, setAvailableLeads] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -168,16 +169,13 @@ export default function Dashboard() {
         const allLeads = await leadsRes.json();
 
         // KPIs
-        const totalSpend = Array.isArray(purchases)
-          ? purchases.reduce((s, p) => s + (p.pricePaid || p.price || 0), 0) : 0;
-        const jobsWon = Array.isArray(purchases)
-          ? purchases.filter(p => p.crmStatus === 'Booked').length : 0;
-
+        const stats = purchaseStats(purchases);
         setKpi({
           balance: user?.balance ?? 0,
-          totalPurchased: Array.isArray(purchases) ? purchases.length : 0,
-          jobsWon,
-          totalSpend,
+          totalPurchased: stats.totalPurchased,
+          jobsWon: stats.jobsWon,
+          totalSpend: stats.netSpend,
+          costPerJobWon: stats.costPerJobWon,
         });
 
         // Line chart — purchases per day for last 7 days
@@ -232,16 +230,23 @@ export default function Dashboard() {
     {
       title: 'Jobs Won',
       value: kpi.jobsWon,
-      sub: 'Marked as Booked',
+      sub: 'Marked Booked or Completed',
       icon: <Trophy size={18} />,
       accent: '#ff6a14',
     },
     {
       title: 'Total Spend',
       value: `$${(kpi.totalSpend ?? 0).toFixed(2)}`,
-      sub: 'Lifetime investment',
+      sub: 'Lifetime, minus refunds',
       icon: <TrendingDown size={18} />,
       accent: '#8b5cf6',
+    },
+    {
+      title: 'Cost per Job Won',
+      value: kpi.costPerJobWon == null ? '—' : `$${kpi.costPerJobWon.toFixed(2)}`,
+      sub: kpi.costPerJobWon == null ? 'Mark won jobs in My Leads' : 'Total spend ÷ jobs won',
+      icon: <Target size={18} />,
+      accent: '#0ea5e9',
     },
   ];
 
